@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld('orq', {
     aoLista: (fn) => ipcRenderer.on('conversa:lista', (_e, l) => fn(l)),
     aoComandos: (fn) => ipcRenderer.on('conversa:comandos', (_e, m) => fn(m.id, m.dado)),
   },
+  janela: {
+    minimizar: () => ipcRenderer.send('janela:minimizar'),
+    maximizar: () => ipcRenderer.send('janela:maximizar'),
+    fechar: () => ipcRenderer.send('janela:fechar'),
+    aoMaximizar: (fn) => ipcRenderer.on('janela:maximizada', (_e, sim) => fn(sim)),
+  },
   config: {
     ler: () => ipcRenderer.invoke('config:ler'),
     gravar: (m) => ipcRenderer.invoke('config:gravar', m),

@@ -27,7 +27,10 @@ function criarJanela() {
     minHeight: 680,
     title: 'Orquestração',
     icon: path.join(__dirname, 'icone', 'orquestracao-256.png'),
-    backgroundColor: '#0d1420',
+    backgroundColor: '#101114',
+    // Sem a barra do sistema: o topo do app faz o papel dela (arrastar,
+    // minimizar, maximizar, fechar), como os apps que desenham a própria barra.
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -38,6 +41,8 @@ function criarJanela() {
   janela.setMenuBarVisibility(false);
   janela.loadFile(path.join(__dirname, 'tela', 'index.html'));
   janela.on('closed', () => { janela = null; });
+  janela.on('maximize', () => janela.webContents.send('janela:maximizada', true));
+  janela.on('unmaximize', () => janela.webContents.send('janela:maximizada', false));
   // Link clicado na conversa nunca troca a página do app.
   janela.webContents.on('will-navigate', (e) => e.preventDefault());
   janela.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -95,6 +100,11 @@ ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
 ipcMain.on('pty:escrever', (_e, id, d) => { const t = terminais.get(id); if (t) t.pty.write(d); });
 ipcMain.on('pty:tamanho', (_e, id, c, r) => { try { terminais.get(id).pty.resize(c, r); } catch { /* fechou */ } });
 ipcMain.handle('pty:fechar', (_e, id) => { const t = terminais.get(id); if (t) t.pty.kill(); return true; });
+
+// --- janela sem moldura: os botões do topo ---------------------------------
+ipcMain.on('janela:minimizar', () => janela && janela.minimize());
+ipcMain.on('janela:maximizar', () => { if (janela) janela.isMaximized() ? janela.unmaximize() : janela.maximize(); });
+ipcMain.on('janela:fechar', () => janela && janela.close());
 
 // --- conversas (orquestrador e avulsas) -----------------------------------
 conversa.ligar((canal, dado) => enviar(canal, dado));

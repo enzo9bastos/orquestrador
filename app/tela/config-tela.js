@@ -57,6 +57,24 @@
   // Exit: fecha a janela (o app sai junto). As conversas só pausam; nada é desligado.
   $('sair-app').addEventListener('click', () => window.close());
 
+  // Botões da janela (sem moldura do sistema). Duplo clique no topo maximiza.
+  const J = window.orq.janela;
+  if (J) {
+    $('janela-min').addEventListener('click', () => J.minimizar());
+    $('janela-max').addEventListener('click', () => J.maximizar());
+    $('janela-fechar').addEventListener('click', () => J.fechar());
+    document.querySelector('.topo').addEventListener('dblclick', (ev) => { if (!ev.target.closest('button, input')) J.maximizar(); });
+    J.aoMaximizar((sim) => {
+      $('janela-max').innerHTML = sim
+        ? '<svg viewBox="0 0 12 12"><rect x="2.5" y="4" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 4V3a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5H8" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>'
+        : '<svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+      $('janela-max').title = sim ? 'Restaurar' : 'Maximizar';
+    });
+  } else {
+    // Ponte antiga (app ainda não reaberto): esconde os botões.
+    document.querySelector('.controles-janela').hidden = true;
+  }
+
   aplicar();
   window.orq.config.ler().then((c) => { config = c; aplicar(); });
 })();
