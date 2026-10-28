@@ -1,0 +1,44 @@
+// Ponte entre a tela e o processo principal: só o que a tela precisa, nada de
+// acesso direto a arquivo ou processo.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('orq', {
+  estado: () => ipcRenderer.invoke('estado'),
+  espelho: (pane) => ipcRenderer.invoke('espelho', pane),
+  anotacoes: () => ipcRenderer.invoke('anotacoes'),
+  lerNota: (qual) => ipcRenderer.invoke('ler-nota', qual),
+  responder: (emp, proj, id, decisao) => ipcRenderer.invoke('responder', emp, proj, id, decisao),
+  abrirTerminal: (sessao) => ipcRenderer.invoke('abrir-terminal', sessao),
+  abrirPasta: (dir) => ipcRenderer.invoke('abrir-pasta', dir),
+  conversa: {
+    lista: () => ipcRenderer.invoke('conversa:lista'),
+    abrir: (id) => ipcRenderer.invoke('conversa:abrir', id),
+    mandar: (id, t) => ipcRenderer.invoke('conversa:mandar', id, t),
+    responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
+    interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
+    configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
+    nova: () => ipcRenderer.invoke('conversa:nova'),
+    fechar: (id) => ipcRenderer.invoke('conversa:fechar', id),
+    aoEvento: (fn) => ipcRenderer.on('conversa:evento', (_e, m) => fn(m.id, m.dado)),
+    aoParcial: (fn) => ipcRenderer.on('conversa:parcial', (_e, m) => fn(m.id, m.dado)),
+    aoPedido: (fn) => ipcRenderer.on('conversa:pedido', (_e, m) => fn(m.id, m.dado)),
+    aoRespondido: (fn) => ipcRenderer.on('conversa:respondido', (_e, m) => fn(m.id, m.dado)),
+    aoInfo: (fn) => ipcRenderer.on('conversa:info', (_e, m) => fn(m.id, m.dado)),
+    aoTudo: (fn) => ipcRenderer.on('conversa:tudo', (_e, m) => fn(m.id, m.dado)),
+    aoLista: (fn) => ipcRenderer.on('conversa:lista', (_e, l) => fn(l)),
+    aoComandos: (fn) => ipcRenderer.on('conversa:comandos', (_e, m) => fn(m.id, m.dado)),
+  },
+  config: {
+    ler: () => ipcRenderer.invoke('config:ler'),
+    gravar: (m) => ipcRenderer.invoke('config:gravar', m),
+  },
+  pty: {
+    lista: () => ipcRenderer.invoke('pty:lista'),
+    abrir: (id, c, r, sessao) => ipcRenderer.invoke('pty:abrir', id, c, r, sessao),
+    escrever: (id, d) => ipcRenderer.send('pty:escrever', id, d),
+    tamanho: (id, c, r) => ipcRenderer.send('pty:tamanho', id, c, r),
+    fechar: (id) => ipcRenderer.invoke('pty:fechar', id),
+    aoReceber: (fn) => ipcRenderer.on('pty:dados', (_e, id, d) => fn(id, d)),
+    aoSair: (fn) => ipcRenderer.on('pty:saiu', (_e, id) => fn(id)),
+  },
+});

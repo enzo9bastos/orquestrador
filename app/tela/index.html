@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:">
+  <title>Orquestração</title>
+  <link rel="stylesheet" href="../node_modules/@fontsource/inter/400.css">
+  <link rel="stylesheet" href="../node_modules/@fontsource/inter/500.css">
+  <link rel="stylesheet" href="../node_modules/@fontsource/inter/600.css">
+  <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <!-- Ícones (traço de 1.6 px, 16 px), usados com <svg><use href="#i-..."/></svg> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-terminal" viewBox="0 0 16 16"><path d="M3 4.5 6.5 8 3 11.5M8 12h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-grade" viewBox="0 0 16 16"><path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="i-relogio" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-notas" viewBox="0 0 16 16"><path d="M4 2.5h6l2.5 2.5v8.5H4zM6 7.5h4.5M6 10h4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="i-busca" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m10.2 10.2 3.3 3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-sino" viewBox="0 0 16 16"><path d="M4 11.5V7.5a4 4 0 0 1 8 0v4l1 1H3zM6.5 13.5a1.6 1.6 0 0 0 3 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="i-lista" viewBox="0 0 16 16"><path d="M6 4.5h7.5M6 8h7.5M6 11.5h7.5M2.5 4.5h.5M2.5 8h.5M2.5 11.5h.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-abrir" viewBox="0 0 16 16"><path d="M9.5 2.5h4v4M13.5 2.5 8 8M11.5 9.5v4h-9v-9h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-tema" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></symbol>
+    <symbol id="i-balao" viewBox="0 0 16 16"><path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pasta" viewBox="0 0 16 16"><path d="M2.5 4.5h4l1.2 1.5h5.8v6.5h-11z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="i-estrela" viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-enviar" viewBox="0 0 16 16"><path d="M8 13V3.5M3.8 7.5 8 3.3l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-ferramenta" viewBox="0 0 16 16"><path d="M10.5 2.8a3 3 0 0 0-3.6 3.9L2.8 10.8l2.4 2.4 4.1-4.1a3 3 0 0 0 3.9-3.6l-1.9 1.9-1.6-.4-.4-1.6z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+    <symbol id="i-engrenagem" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4 5 11M11 5l1.4-1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <header class="topo">
+    <div class="marca"><svg class="ico"><use href="#i-terminal"/></svg>Orquestração</div>
+    <div id="contagem" class="contagem" aria-live="polite"></div>
+    <button id="tema" class="botao-icone" type="button" title="Tema claro / escuro" aria-label="Alternar tema"><svg class="ico"><use href="#i-tema"/></svg></button>
+    <button id="abrir-config" class="botao-icone" type="button" title="Configurações" aria-label="Configurações"><svg class="ico"><use href="#i-engrenagem"/></svg></button>
+    <button id="sair-app" class="botao-sair" type="button" title="Fecha o app. O orquestrador fica pausado e volta de onde parou na próxima abertura (não é o Desligar).">Exit</button>
+  </header>
+
+  <aside class="lateral" aria-label="Agentes">
+    <label class="busca">
+      <svg class="ico"><use href="#i-busca"/></svg>
+      <input id="filtro" type="search" placeholder="Buscar frente" aria-label="Buscar frente">
+    </label>
+    <div class="secao-titulo">Conversas</div>
+    <div id="conversas" class="conversas"></div>
+    <div class="secao-titulo">Agentes</div>
+    <div id="projetos" class="projetos"></div>
+    <p id="sem-terminal" class="rodape-lateral"></p>
+  </aside>
+
+  <main class="painel">
+    <div class="painel-cabecalho" role="tablist">
+      <button class="sub-aba ativa" data-aba="aba-orquestrador" type="button" role="tab"><svg class="ico"><use href="#i-balao"/></svg>Orquestrador</button>
+      <button class="sub-aba" data-aba="aba-grade" type="button" role="tab"><svg class="ico"><use href="#i-grade"/></svg>Terminais</button>
+      <button class="sub-aba" data-aba="aba-tempo" type="button" role="tab"><svg class="ico"><use href="#i-relogio"/></svg>Linha do tempo</button>
+      <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg>Tópicos e diário</button>
+      <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg>Terminal</button>
+    </div>
+    <div class="painel-corpo">
+      <section id="aba-orquestrador" class="aba ativa conversa" aria-label="Conversa com o orquestrador">
+        <header class="conversa-barra">
+          <span class="chip" title="Pasta"><svg class="ico"><use href="#i-pasta"/></svg><span id="info-pasta">~</span></span>
+          <span class="seletor-modelo">
+            <button id="botao-modelo" class="chip botao-chip" type="button" title="Trocar modelo e esforço" aria-haspopup="true" aria-expanded="false">
+              <svg class="ico"><use href="#i-estrela"/></svg><span id="info-modelo">—</span>
+              <span class="divisor"></span><span id="info-esforco" class="esforco"></span><span class="seta">▾</span></button>
+            <div id="menu-modelo" class="menu-modelo" hidden>
+              <div class="menu-titulo">Modelo</div>
+              <div class="menu-opcoes" id="opcoes-modelo"></div>
+              <div class="menu-titulo">Esforço</div>
+              <div class="menu-opcoes" id="opcoes-esforco"></div>
+              <p class="menu-nota">A conversa reinicia por trás e continua igual. No meio de uma resposta, a troca vale quando ela terminar.</p>
+            </div>
+          </span>
+          <span class="chip medidor" id="info-contexto" title="Contexto usado nesta conversa"></span>
+          <span class="chip medidor" id="info-5h" title="Uso da janela de 5 horas"></span>
+          <span class="chip medidor" id="info-7d" title="Uso da janela de 7 dias"></span>
+          <button id="desligar" class="botao-texto perigo" type="button" title="Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança">Desligar</button>
+          <button id="nova-conversa" class="botao-texto sem-margem" type="button" title="Abre outra conversa com o Claude ao lado do orquestrador">+ Nova conversa</button>
+        </header>
+        <div class="mensagens-area">
+          <div id="mensagens" class="mensagens" aria-live="polite"></div>
+          <div id="palco-pet" class="pet-palco"></div>
+        </div>
+        <form id="compositor" class="compositor">
+          <div id="trabalhando" class="trabalhando" hidden><span class="pontinhos"><i></i><i></i><i></i></span><span id="trabalhando-texto">Pensando…</span>
+            <button id="parar" class="botao-texto" type="button">Parar</button></div>
+          <ul id="sugestoes" class="sugestoes" role="listbox" hidden></ul>
+          <div class="caixa-entrada">
+            <textarea id="entrada" rows="1" placeholder="Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)"></textarea>
+            <button id="enviar" class="botao-enviar" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-enviar"/></svg></button>
+          </div>
+        </form>
+      </section>
+      <section id="aba-terminal" class="aba" aria-label="Terminais de reserva">
+        <header class="terminais-barra">
+          <span id="n-terminais" class="contador"></span>
+          <button id="novo-terminal" class="botao-texto" type="button">+ Novo terminal</button>
+        </header>
+        <div id="terminais" class="terminais" data-n="0"></div>
+      </section>
+      <section id="aba-grade" class="aba" aria-label="Terminais">
+        <div id="grade" class="grade"></div>
+      </section>
+      <section id="aba-tempo" class="aba" aria-label="Linha do tempo">
+        <div id="tempo-completo"></div>
+      </section>
+      <section id="aba-notas" class="aba" aria-label="Tópicos e diário">
+        <div class="leitor">
+          <nav id="lista-notas" class="leitor-lista" aria-label="Tópicos e diários"></nav>
+          <div class="leitor-corpo">
+            <header class="leitor-cabecalho"><strong id="titulo-nota"></strong><span id="info-nota" class="contador"></span>
+              <button id="ir-fim" class="botao-texto" type="button">Ir para o fim</button></header>
+            <article id="nota" class="md"></article>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <aside class="inspetor">
+    <section class="bloco" aria-label="Precisa de você">
+      <header class="bloco-cabecalho"><svg class="ico"><use href="#i-sino"/></svg><strong>Precisa de você</strong><span id="n-fila" class="contador"></span></header>
+      <ul id="fila" class="lista-fila"></ul>
+    </section>
+    <section class="bloco bloco-detalhe" aria-label="Frente selecionada">
+      <header class="bloco-cabecalho"><svg class="ico"><use href="#i-lista"/></svg><strong id="titulo-detalhe">Frente</strong></header>
+      <div id="detalhe"></div>
+    </section>
+  </aside>
+
+  <div id="config" class="config-fundo" hidden>
+    <section class="config" role="dialog" aria-modal="true" aria-labelledby="config-titulo">
+      <header><strong id="config-titulo">Configurações</strong>
+        <button id="fechar-config" class="botao-icone" type="button" aria-label="Fechar">✕</button></header>
+      <div class="config-linha">
+        <div><strong>Tema</strong><span>Fundo escuro ou claro.</span></div>
+        <div class="segmentado" id="config-tema">
+          <button type="button" data-tema="dark">Escuro</button><button type="button" data-tema="light">Claro</button>
+        </div>
+      </div>
+      <div class="config-linha">
+        <div><strong>Cor de destaque</strong><span>Marca do Claude, seleção, perguntas e o aviso de "espera você". Verde (trabalhando) e vermelho (erro) não mudam.</span></div>
+        <div class="amostras" id="config-cores"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="../node_modules/marked/lib/marked.umd.js"></script>
+  <script src="../node_modules/dompurify/dist/purify.min.js"></script>
+  <script src="config-tela.js"></script>
+  <script src="tela.js"></script>
+  <script src="pet.js"></script>
+  <script src="conversa-tela.js"></script>
+</body>
+</html>

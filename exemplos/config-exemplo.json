@@ -1,0 +1,15 @@
+{
+  "tema": "dark",
+  "destaque": "#8b5cf6",
+  "raizProjetos": "~/projetos",
+  "niveis": 2,
+  "ignorar": "^[_.-]",
+  "pastaNotas": "~/projetos/_notas",
+  "comandoInicial": "/minha-rodada",
+  "comandoDesligar": "/encerrar-rodada",
+  "linhaTarefa": "^\\s*Agente\\s+(?<numero>\\d+)\\s+(?<alvo>\\S+\\/\\S+)\\s+\\((?<tarefa>.+)\\)",
+  "comandoOrdem": "\\bminha-ferramenta\\s+(?<acao>send|peek)\\s+(?<alvo>\\S+)",
+  "rotuloContainer": "devcontainer.local_folder",
+  "pastaTranscript": "-workspace-{projeto}",
+  "ambiente": {}
+}
