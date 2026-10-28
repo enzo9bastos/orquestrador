@@ -368,11 +368,22 @@ function fechar(id) {
 
 function pararTodas() { for (const c of conversas.values()) c.parar(); }
 
+// Sair do app (X ou /exit), como o /exit do terminal: encerra todas as
+// conversas. O orquestrador começa uma rodada nova na próxima abertura e as
+// conversas avulsas saem da lista. Tudo continua no histórico do Claude.
+function encerrarTodas() {
+  for (const c of [...conversas.values()]) {
+    if (c.orquestrador) c.encerrar();
+    else { c.parar(); conversas.delete(c.id); }
+  }
+  gravarLista();
+}
+
 carregarLista();
 
 module.exports = {
   ligar: (fn) => { enviarTela = fn; },
-  lista, abrir, nova, fechar, pararTodas, ambienteLimpo,
+  lista, abrir, nova, fechar, pararTodas, encerrarTodas, ambienteLimpo,
   mandar: (id, t) => pegar(id).mandar(t),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   interromper: (id) => pegar(id).interromper(),
