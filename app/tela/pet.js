@@ -2,9 +2,9 @@
 // conversa do orquestrador. Ele mostra o que o orquestrador está fazendo
 // (pensando, trabalhando, mandando nos agentes, chamando o usuário) e, parado,
 // passeia, olha, pisca e acena. Dá para pegar com o mouse e arremessar: ele cai
-// com gravidade, quica nas paredes e volta a andar. Solto devagar, ele fica
-// "estacionado" onde foi deixado (até meio para fora da parede), sem andar,
-// para não atrapalhar a leitura; jogando de novo, ele volta a passear.
+// com gravidade, quica nas paredes e volta a andar. Cada painel da janela
+// (lateral, conversa, inspetor) é uma "sala" com chão e paredes: segurando,
+// ele atravessa as paredes; solto, fica preso na sala onde caiu.
 (() => {
   const SVG = `
     <svg class="pet-svg" viewBox="0 -2 12 9" shape-rendering="crispEdges" aria-hidden="true">
@@ -22,8 +22,9 @@
   const LARG = 64, ALT = 48;       // tamanho do bichinho na tela
   const GRAVIDADE = 2400;          // px/s²
   const QUIQUE = 0.42;             // quanto da velocidade sobra ao bater
-  const SOLTAR_DEVAGAR = 350;      // px/s: abaixo disso, soltar é estacionar
-  const CHAVE = 'pet-estacionado'; // posição guardada (frações do palco)
+  const CHAVE = 'pet-sala';        // sala onde ele mora (guardada entre aberturas)
+  // As salas: o painel de cada uma, em coordenadas da janela.
+  const SALAS = { esquerda: '.lateral', centro: '.mensagens-area', direita: '.inspetor' };
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const sorteia = (l) => l[Math.floor(Math.random() * l.length)];
   const parado = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,52 +52,75 @@
       this.noAr = false; this.arrastando = false;
       this.modo = 'livre';
       this.passo = 0; // muda a cada gesto: um gesto antigo para quando vê que perdeu a vez
-      try { this.estacionado = JSON.parse(localStorage.getItem(CHAVE)); } catch { this.estacionado = null; }
+      try { this.salaNome = localStorage.getItem(CHAVE) || 'centro'; } catch { this.salaNome = 'centro'; }
+      if (!SALAS[this.salaNome]) this.salaNome = 'centro';
       this.ligarMouse();
-      new ResizeObserver(() => this.encaixar()).observe(palco);
+      new ResizeObserver(() => this.encaixar()).observe(document.body);
+      // Trocar de aba esconde/mostra a sala do centro: confere de tempos em tempos.
+      setInterval(() => { if (!this.arrastando && !this.noAr) this.encaixar(); }, 700);
       this.loopLivre();
     }
 
-    // --- chão e paredes ---------------------------------------------------
-    chao() { return this.palco.clientHeight - ALT; }
-    direita() { return this.palco.clientWidth - LARG - 8; }
-    // Onde ele pode passear sem ficar em cima do texto: com tela larga, só na
-    // margem à direita da coluna da conversa; com tela estreita, onde der.
+    // --- salas: chão e paredes ----------------------------------------------
+    medir(nome) {
+      const el = document.querySelector(SALAS[nome]);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      if (r.width < LARG + 20 || r.height < ALT + 20) return null; // sala escondida
+      const barra = nome === 'centro' ? 14 : 0; // não ficar em cima da barra de rolagem
+      return { x0: r.left + 6, x1: r.right - LARG - 6 - barra, teto: r.top, chao: r.bottom - ALT - 4 };
+    }
+    sala() { return this.medir(this.salaNome); }
+    chao() { const s = this.sala(); return s ? s.chao : this.y; }
+    direita() { const s = this.sala(); return s ? s.x1 : this.x; }
+    // Onde ele pode passear: na conversa com tela larga, só na margem à
+    // direita da coluna (para não ficar em cima do texto); nas outras salas,
+    // o painel inteiro.
     faixa() {
-      const caixa = document.querySelector('.caixa-entrada');
-      const dir = this.direita();
-      if (caixa) {
-        const inicio = caixa.getBoundingClientRect().right - this.palco.getBoundingClientRect().left + 12;
-        if (dir - inicio >= 0) return [inicio, dir];
+      const s = this.sala();
+      if (!s) return [this.x, this.x];
+      if (this.salaNome === 'centro') {
+        const caixa = document.querySelector('.caixa-entrada');
+        if (caixa) {
+          const inicio = caixa.getBoundingClientRect().right + 12;
+          if (s.x1 - inicio >= 0) return [inicio, s.x1];
+        }
+        return [Math.max(s.x0, s.x1 - 140), s.x1];
       }
-      return [Math.max(8, dir - 140), dir];
+      return [s.x0, s.x1];
     }
     encaixar() {
-      if (this.estacionado && !this.arrastando && !this.noAr) {
-        this.x = this.estacionado.fx * this.palco.clientWidth;
-        this.y = this.estacionado.fy * this.palco.clientHeight;
-        this.desenhar();
-        return;
-      }
-      if (this.x == null) { this.x = this.direita(); this.y = this.chao(); }
-      this.x = Math.min(Math.max(this.x, 8), this.direita());
-      if (!this.noAr && !this.arrastando) this.y = this.chao();
+      if (this.arrastando || this.noAr) return;
+      const s = this.sala();
+      this.el.style.visibility = s ? '' : 'hidden'; // a sala dele não está na tela
+      if (!s) return;
+      if (this.x == null) { this.x = s.x1; this.y = s.chao; }
+      this.x = Math.min(Math.max(this.x, s.x0), s.x1);
+      this.y = s.chao;
       this.desenhar();
     }
     desenhar() {
       this.el.style.transform = `translate(${this.x}px, ${this.y}px)`;
-      this.el.classList.toggle('balao-embaixo', this.y < 44); // perto do teto, fala para baixo
+      const s = this.sala();
+      this.el.classList.toggle('balao-embaixo', this.y - (s ? s.teto : 0) < 44); // perto do teto, fala para baixo
     }
-    estacionar() {
-      this.estacionado = { fx: this.x / this.palco.clientWidth, fy: this.y / this.palco.clientHeight };
-      try { localStorage.setItem(CHAVE, JSON.stringify(this.estacionado)); } catch { /* sem armazenamento */ }
-      this.vx = 0; this.vy = 0; this.noAr = false;
-      this.classe('voando', false);
-      if (this.modo === 'livre') this.falar(sorteia(['Fico aqui quietinho.', 'Daqui eu vejo tudo.', 'Tô de olho!']), 1600);
-    }
-    desestacionar() {
-      this.estacionado = null;
-      try { localStorage.removeItem(CHAVE); } catch { /* sem armazenamento */ }
+    // Ao soltar: a sala é a do painel sob o centro dele (ou a mais perto).
+    escolherSala() {
+      const cx = this.x + LARG / 2;
+      let melhor = this.salaNome, dist = Infinity;
+      for (const nome of Object.keys(SALAS)) {
+        const s = this.medir(nome);
+        if (!s) continue;
+        const d = cx < s.x0 ? s.x0 - cx : cx > s.x1 + LARG ? cx - s.x1 - LARG : 0;
+        if (d < dist) { dist = d; melhor = nome; }
+      }
+      if (melhor !== this.salaNome) {
+        this.salaNome = melhor;
+        try { localStorage.setItem(CHAVE, melhor); } catch { /* sem armazenamento */ }
+        if (this.modo === 'livre') setTimeout(() => this.falar(sorteia(['Casa nova!', 'Gostei daqui.', 'Vou ficar aqui.']), 1500), 700);
+      }
+      const s = this.sala();
+      if (s) { this.x = Math.min(Math.max(this.x, s.x0), s.x1); this.y = Math.min(Math.max(this.y, s.teto), s.chao); }
     }
 
     // --- partes do corpo ----------------------------------------------------
@@ -157,10 +181,7 @@
         if (!this.el.isConnected) return;
         if (this.modo !== 'livre' || this.noAr || this.arrastando || parado()) continue;
         const passo = this.passo;
-        // Estacionado: só gestos no lugar (nada de andar nem pular).
-        const gesto = this.estacionado
-          ? sorteia(['olhar', 'olhar', 'piscar', 'piscar', 'acenar', 'nada', 'nada'])
-          : sorteia(['olhar', 'olhar', 'piscar', 'piscar', 'andar', 'andar', 'andar', 'acenar', 'pular', 'nada']);
+        const gesto = sorteia(['olhar', 'olhar', 'piscar', 'piscar', 'andar', 'andar', 'andar', 'acenar', 'pular', 'nada']);
         await this[`g_${gesto}`](passo);
       }
     }
@@ -214,7 +235,6 @@
     // --- física: pulo, queda, arremesso -----------------------------------
     pular(vy) {
       if (this.noAr || this.arrastando) return;
-      if (this.estacionado) { this.classe('pulinho'); setTimeout(() => this.classe('pulinho', false), 500); return; }
       this.vy = vy; this.vx = 0;
       this.voar();
     }
@@ -227,11 +247,12 @@
         const dt = Math.min((t - ultimo) / 1000, 0.04); ultimo = t;
         this.vy += GRAVIDADE * dt;
         this.x += this.vx * dt; this.y += this.vy * dt;
-        const dir = this.direita();
-        if (this.x < 8) { this.x = 8; this.vx = -this.vx * QUIQUE; }
-        if (this.x > dir) { this.x = dir; this.vx = -this.vx * QUIQUE; }
-        if (this.y < 0) { this.y = 0; this.vy = -this.vy * QUIQUE; }
-        const chao = this.chao();
+        // Paredes, teto e chão da sala dele (o painel onde foi solto).
+        const s = this.sala() || { x0: 0, x1: innerWidth - LARG, teto: 0, chao: innerHeight - ALT };
+        if (this.x < s.x0) { this.x = s.x0; this.vx = -this.vx * QUIQUE; }
+        if (this.x > s.x1) { this.x = s.x1; this.vx = -this.vx * QUIQUE; }
+        if (this.y < s.teto) { this.y = s.teto; this.vy = -this.vy * QUIQUE; }
+        const chao = s.chao;
         if (this.y >= chao) {
           this.y = chao;
           const forte = this.vy > 900;
@@ -269,9 +290,9 @@
       this.el.addEventListener('pointermove', (ev) => {
         if (!this.arrastando) return;
         const r = this.palco.getBoundingClientRect();
-        // Segurando, ele atravessa as paredes: pode ficar até quase metade para fora.
-        this.x = Math.min(Math.max(ev.clientX - r.left - pegou.dx, -LARG * 0.45), this.palco.clientWidth - LARG * 0.55);
-        this.y = Math.min(Math.max(ev.clientY - r.top - pegou.dy, -ALT * 0.45), this.palco.clientHeight - ALT * 0.55);
+        // Segurando, ele atravessa as paredes: vai a qualquer painel da janela.
+        this.x = Math.min(Math.max(ev.clientX - r.left - pegou.dx, 0), this.palco.clientWidth - LARG);
+        this.y = Math.min(Math.max(ev.clientY - r.top - pegou.dy, 0), this.palco.clientHeight - ALT);
         rastro.push({ x: ev.clientX, y: ev.clientY, t: performance.now() });
         rastro = rastro.filter((p) => performance.now() - p.t < 90);
         if (rastro.length > 1) this.virar(rastro[rastro.length - 1].x < rastro[0].x ? 'esq' : 'dir');
@@ -285,10 +306,9 @@
         const dt = Math.max((b.t - a.t) / 1000, 0.016);
         this.vx = Math.max(-2500, Math.min(2500, (b.x - a.x) / dt));
         this.vy = Math.max(-2500, Math.min(2500, (b.y - a.y) / dt));
-        // Parado na mão ou movendo devagar: fica onde foi deixado.
-        const parouHaPouco = performance.now() - b.t > 120;
-        if (parouHaPouco || Math.hypot(this.vx, this.vy) < SOLTAR_DEVAGAR) { this.estacionar(); return; }
-        this.desestacionar();
+        if (performance.now() - b.t > 120) { this.vx = 0; this.vy = 0; } // parou antes de soltar
+        // Fica preso no painel onde foi solto e cai até o chão dele.
+        this.escolherSala();
         this.voar();
       };
       this.el.addEventListener('pointerup', soltar);

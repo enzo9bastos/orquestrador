@@ -6,7 +6,7 @@
   const C = window.orq.conversa;
   let ativa = 'orquestrador'; // conversa na tela
   // Partes da configuração que a tela usa (config.js, lidas pela ponte).
-  let cfg = { comandoDesligar: null, comandoOrdem: null };
+  let cfg = { comandoInicial: null, comandoDesligar: null, comandoOrdem: null };
   let listaConversas = [];
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -47,6 +47,9 @@
   function balaoUsuario(texto) {
     const u = textoDoUsuario(texto);
     if (!u) return;
+    // O comando que abre a rodada não aparece: é bastidor, não conversa.
+    const primeiro = (u.comando || u.texto || '').trim().split(/\s/)[0];
+    if (cfg.comandoInicial && primeiro === cfg.comandoInicial) return;
     grupo = null;
     const el = document.createElement('div');
     el.className = 'msg-voce';
@@ -547,6 +550,9 @@
   }));
   $('nova-conversa').addEventListener('click', async () => trocar(await C.nova()));
 
-  window.orq.config.ler().then((c) => { cfg = c; desenharLista(listaConversas); });
-  C.lista().then((l) => { desenharLista(l); trocar('orquestrador'); });
+  Promise.all([window.orq.config.ler(), C.lista()]).then(([c, l]) => {
+    cfg = c;
+    desenharLista(l);
+    trocar('orquestrador');
+  });
 })();

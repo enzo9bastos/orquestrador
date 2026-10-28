@@ -447,7 +447,8 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* --- o orquestrador em pessoa (bichinho no canto da conversa) ------------ */
 .mensagens-area { position: relative; flex: 1; min-height: 0; display: flex; }
 .mensagens-area .mensagens { flex: 1; }
-.pet-palco { position: absolute; inset: 0 14px 0 0; pointer-events: none; overflow: hidden; z-index: 5; }
+/* Camada da janela inteira: cada painel é uma sala dele (pet.js). */
+.pet-palco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 40; }
 .pet-palco[hidden] { display: none; }
 .pet { position: absolute; left: 0; top: 0; width: 64px; height: 48px; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; }
 .pet.arrastado { cursor: grabbing; }
@@ -574,4 +575,3 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .controles-janela button.fechar:hover { background: var(--perigo); color: #fff; }
 .pet.balao-embaixo .pet-balao { bottom: auto; top: calc(100% + 8px); }
 .pet.balao-embaixo .pet-balao::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--borda-forte); }
-.pet.pulinho .pet-vira { animation: quicar .5s ease-in-out; }

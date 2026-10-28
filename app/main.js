@@ -124,7 +124,7 @@ const config = require('./config');
 // A tela só lê o que precisa para desenhar; grava só a aparência.
 ipcMain.handle('config:ler', () => {
   const c = config.ler();
-  return { tema: c.tema, destaque: c.destaque, comandoDesligar: c.comandoDesligar, comandoOrdem: c.comandoOrdem, temNotas: !!c.pastaNotas };
+  return { tema: c.tema, destaque: c.destaque, comandoInicial: c.comandoInicial, comandoDesligar: c.comandoDesligar, comandoOrdem: c.comandoOrdem, temNotas: !!c.pastaNotas };
 });
 ipcMain.handle('config:gravar', (_e, mudancas) => {
   const m = {};
