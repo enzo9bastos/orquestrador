@@ -104,7 +104,8 @@ ipcMain.handle('pty:fechar', (_e, id) => { const t = terminais.get(id); if (t) t
 // --- janela sem moldura: os botões do topo ---------------------------------
 ipcMain.on('janela:minimizar', () => janela && janela.minimize());
 ipcMain.on('janela:maximizar', () => { if (janela) janela.isMaximized() ? janela.unmaximize() : janela.maximize(); });
-ipcMain.on('janela:fechar', () => janela && janela.close());
+// Fechar = sair do app de vez: encerra os Claude por trás e os terminais.
+ipcMain.on('janela:fechar', () => app.quit());
 
 // --- conversas (orquestrador e avulsas) -----------------------------------
 conversa.ligar((canal, dado) => enviar(canal, dado));
@@ -180,8 +181,10 @@ app.whenReady().then(() => {
   setInterval(() => coletor.sinalDeVida(), 3000);
   coletor.sinalDeVida();
 });
-app.on('window-all-closed', () => {
-  for (const t of terminais.values()) t.pty.kill();
+function encerrarTudo() {
+  for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
+  terminais.clear();
   conversa.pararTodas();
-  app.quit();
-});
+}
+app.on('before-quit', encerrarTudo);
+app.on('window-all-closed', () => { encerrarTudo(); app.quit(); });

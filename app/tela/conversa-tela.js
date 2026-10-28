@@ -533,8 +533,8 @@
     ev.preventDefault();
     const t = entrada.value.trim();
     if (!t) return;
-    // /exit fecha o app (as conversas só pausam), como no terminal.
-    if (t === '/exit' || t === '/quit') { window.close(); return; }
+    // /exit fecha o app, como o X do topo.
+    if (t === '/exit' || t === '/quit') { (window.orq.janela ? window.orq.janela.fechar() : window.close()); return; }
     entrada.value = ''; ajustarAltura();
     colado = true;
     if (ativa === 'orquestrador') pet.definir('pensando');

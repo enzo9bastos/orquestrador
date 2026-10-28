@@ -80,7 +80,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
   border-bottom: 1px solid var(--borda); background: var(--bg-afundado);
 }
 .marca { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--fg); }
-.contagem { margin-left: auto; display: flex; gap: 6px; }
+.contagem { display: flex; gap: 6px; }
 .pilula {
   font: 500 11px/1 var(--mono); padding: 5px 8px; border-radius: var(--r-sm);
   background: var(--painel); color: var(--fg-2); display: inline-flex; align-items: center; gap: 6px;
@@ -557,14 +557,15 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .nome-comando i { font-style: normal; color: var(--fg-4); }
 .sugestoes li[aria-selected="true"] .nome-comando { color: var(--claude); }
 .desc-comando { font-size: 12px; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.botao-sair { height: 26px; padding: 0 12px; margin-left: 4px; border-radius: var(--r-sm); border: 1px solid var(--borda-forte); color: var(--fg-2); font: 500 12px var(--sans); }
-.botao-sair:hover { color: var(--perigo); border-color: color-mix(in srgb, var(--perigo) 50%, transparent); }
 .saida-comando { align-self: stretch; margin: 0; padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--borda); background: var(--bg-afundado); font: 12px/1.55 var(--mono); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .saida-comando.erro { color: var(--perigo); }
 
 /* --- topo como barra da janela (sem moldura do sistema) ------------------ */
-.topo { -webkit-app-region: drag; user-select: none; }
-.topo button, .topo input, .topo .pilula { -webkit-app-region: no-drag; }
+/* Só os trechos vazios arrastam a janela: no Wayland, um botão dentro de
+   uma área de arraste não recebe o clique, mesmo marcado como no-drag. */
+.topo { user-select: none; }
+.arrasta { -webkit-app-region: drag; align-self: stretch; display: flex; align-items: center; }
+.espaco-topo { flex: 1; }
 .controles-janela { display: flex; align-items: center; gap: 4px; margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--borda); }
 .controles-janela[hidden] { display: none; }
 .controles-janela button { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--fg-3); background: var(--bg-elevado); }
