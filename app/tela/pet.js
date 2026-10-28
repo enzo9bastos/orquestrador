@@ -2,7 +2,9 @@
 // conversa do orquestrador. Ele mostra o que o orquestrador está fazendo
 // (pensando, trabalhando, mandando nos agentes, chamando o usuário) e, parado,
 // passeia, olha, pisca e acena. Dá para pegar com o mouse e arremessar: ele cai
-// com gravidade, quica nas paredes e volta a andar.
+// com gravidade, quica nas paredes e volta a andar. Solto devagar, ele fica
+// "estacionado" onde foi deixado (até meio para fora da parede), sem andar,
+// para não atrapalhar a leitura; jogando de novo, ele volta a passear.
 (() => {
   const SVG = `
     <svg class="pet-svg" viewBox="0 -2 12 9" shape-rendering="crispEdges" aria-hidden="true">
@@ -20,6 +22,8 @@
   const LARG = 64, ALT = 48;       // tamanho do bichinho na tela
   const GRAVIDADE = 2400;          // px/s²
   const QUIQUE = 0.42;             // quanto da velocidade sobra ao bater
+  const SOLTAR_DEVAGAR = 350;      // px/s: abaixo disso, soltar é estacionar
+  const CHAVE = 'pet-estacionado'; // posição guardada (frações do palco)
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const sorteia = (l) => l[Math.floor(Math.random() * l.length)];
   const parado = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -47,6 +51,7 @@
       this.noAr = false; this.arrastando = false;
       this.modo = 'livre';
       this.passo = 0; // muda a cada gesto: um gesto antigo para quando vê que perdeu a vez
+      try { this.estacionado = JSON.parse(localStorage.getItem(CHAVE)); } catch { this.estacionado = null; }
       this.ligarMouse();
       new ResizeObserver(() => this.encaixar()).observe(palco);
       this.loopLivre();
@@ -67,12 +72,32 @@
       return [Math.max(8, dir - 140), dir];
     }
     encaixar() {
+      if (this.estacionado && !this.arrastando && !this.noAr) {
+        this.x = this.estacionado.fx * this.palco.clientWidth;
+        this.y = this.estacionado.fy * this.palco.clientHeight;
+        this.desenhar();
+        return;
+      }
       if (this.x == null) { this.x = this.direita(); this.y = this.chao(); }
       this.x = Math.min(Math.max(this.x, 8), this.direita());
       if (!this.noAr && !this.arrastando) this.y = this.chao();
       this.desenhar();
     }
-    desenhar() { this.el.style.transform = `translate(${this.x}px, ${this.y}px)`; }
+    desenhar() {
+      this.el.style.transform = `translate(${this.x}px, ${this.y}px)`;
+      this.el.classList.toggle('balao-embaixo', this.y < 44); // perto do teto, fala para baixo
+    }
+    estacionar() {
+      this.estacionado = { fx: this.x / this.palco.clientWidth, fy: this.y / this.palco.clientHeight };
+      try { localStorage.setItem(CHAVE, JSON.stringify(this.estacionado)); } catch { /* sem armazenamento */ }
+      this.vx = 0; this.vy = 0; this.noAr = false;
+      this.classe('voando', false);
+      if (this.modo === 'livre') this.falar(sorteia(['Fico aqui quietinho.', 'Daqui eu vejo tudo.', 'Tô de olho!']), 1600);
+    }
+    desestacionar() {
+      this.estacionado = null;
+      try { localStorage.removeItem(CHAVE); } catch { /* sem armazenamento */ }
+    }
 
     // --- partes do corpo ----------------------------------------------------
     classe(c, ligado = true) { this.el.classList.toggle(c, ligado); }
@@ -132,7 +157,10 @@
         if (!this.el.isConnected) return;
         if (this.modo !== 'livre' || this.noAr || this.arrastando || parado()) continue;
         const passo = this.passo;
-        const gesto = sorteia(['olhar', 'olhar', 'piscar', 'piscar', 'andar', 'andar', 'andar', 'acenar', 'pular', 'nada']);
+        // Estacionado: só gestos no lugar (nada de andar nem pular).
+        const gesto = this.estacionado
+          ? sorteia(['olhar', 'olhar', 'piscar', 'piscar', 'acenar', 'nada', 'nada'])
+          : sorteia(['olhar', 'olhar', 'piscar', 'piscar', 'andar', 'andar', 'andar', 'acenar', 'pular', 'nada']);
         await this[`g_${gesto}`](passo);
       }
     }
@@ -186,6 +214,7 @@
     // --- física: pulo, queda, arremesso -----------------------------------
     pular(vy) {
       if (this.noAr || this.arrastando) return;
+      if (this.estacionado) { this.classe('pulinho'); setTimeout(() => this.classe('pulinho', false), 500); return; }
       this.vy = vy; this.vx = 0;
       this.voar();
     }
@@ -240,8 +269,9 @@
       this.el.addEventListener('pointermove', (ev) => {
         if (!this.arrastando) return;
         const r = this.palco.getBoundingClientRect();
-        this.x = Math.min(Math.max(ev.clientX - r.left - pegou.dx, 8), this.direita());
-        this.y = Math.min(Math.max(ev.clientY - r.top - pegou.dy, 0), this.chao());
+        // Segurando, ele atravessa as paredes: pode ficar até quase metade para fora.
+        this.x = Math.min(Math.max(ev.clientX - r.left - pegou.dx, -LARG * 0.45), this.palco.clientWidth - LARG * 0.55);
+        this.y = Math.min(Math.max(ev.clientY - r.top - pegou.dy, -ALT * 0.45), this.palco.clientHeight - ALT * 0.55);
         rastro.push({ x: ev.clientX, y: ev.clientY, t: performance.now() });
         rastro = rastro.filter((p) => performance.now() - p.t < 90);
         if (rastro.length > 1) this.virar(rastro[rastro.length - 1].x < rastro[0].x ? 'esq' : 'dir');
@@ -255,6 +285,10 @@
         const dt = Math.max((b.t - a.t) / 1000, 0.016);
         this.vx = Math.max(-2500, Math.min(2500, (b.x - a.x) / dt));
         this.vy = Math.max(-2500, Math.min(2500, (b.y - a.y) / dt));
+        // Parado na mão ou movendo devagar: fica onde foi deixado.
+        const parouHaPouco = performance.now() - b.t > 120;
+        if (parouHaPouco || Math.hypot(this.vx, this.vy) < SOLTAR_DEVAGAR) { this.estacionar(); return; }
+        this.desestacionar();
         this.voar();
       };
       this.el.addEventListener('pointerup', soltar);

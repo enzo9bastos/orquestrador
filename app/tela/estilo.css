@@ -572,3 +572,6 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .controles-janela button svg { width: 12px; height: 12px; }
 .controles-janela button:hover { background: var(--painel-hover); color: var(--fg); }
 .controles-janela button.fechar:hover { background: var(--perigo); color: #fff; }
+.pet.balao-embaixo .pet-balao { bottom: auto; top: calc(100% + 8px); }
+.pet.balao-embaixo .pet-balao::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--borda-forte); }
+.pet.pulinho .pet-vira { animation: quicar .5s ease-in-out; }
