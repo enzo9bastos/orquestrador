@@ -119,7 +119,8 @@ function criar(i, relPasta, nome) {
   const abs = resolver(i, rel);
   if (fs.existsSync(abs)) return { rel, existia: true };
   fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, `# ${limpo.replace(/\.md$/i, '')}\n\n`);
+  // O título da nota é o nome do arquivo (mostrado grande pelo editor).
+  fs.writeFileSync(abs, '');
   return { rel };
 }
 
@@ -150,6 +151,21 @@ function criarPasta(i, relPai, nome) {
   return { rel };
 }
 
+// Renomear nunca sobrescreve: se já existe algo com o nome novo, recusa.
+function renomear(i, rel, novoNome) {
+  const abs = resolver(i, rel);
+  const ehNota = rel.toLowerCase().endsWith('.md');
+  const limpo = String(novoNome || '').replace(/[\\/:*?"<>|]/g, '').trim().replace(/\.md$/i, '');
+  if (!limpo) throw new Error('nome vazio');
+  const relNovo = path.posix.join(path.posix.dirname(rel), ehNota ? `${limpo}.md` : limpo).replace(/^\.\//, '');
+  const absNovo = resolver(i, relNovo);
+  if (absNovo === abs) return { rel };
+  if (fs.existsSync(absNovo)) return { erro: 'Já existe um arquivo ou pasta com esse nome aqui.' };
+  fs.renameSync(abs, absNovo);
+  return { rel: relNovo };
+}
+const caminho = (i, rel) => resolver(i, rel || '');
+
 // Acrescentar/tirar pasta só mexe na lista da configuração; nada no disco.
 function adicionarPasta(caminho) {
   const lista = listaConfigurada().map((p) => ({ ...p }));
@@ -166,4 +182,4 @@ function removerPasta(i) {
   return true;
 }
 
-module.exports = { adicionarPasta, removerPasta, criarPasta, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+module.exports = { adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };

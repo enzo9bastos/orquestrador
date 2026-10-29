@@ -1,19 +1,120 @@
 // Editor de notas no estilo Notion: blocos já formatados, "/" para inserir,
 // e o arquivo continua sendo Markdown. Empacotado pelo esbuild em
 // tela/editor.bundle.js (npm run editor), que expõe window.EditorNotas.
-import { Editor, Extension } from '@tiptap/core';
+import { Editor, Extension, Mark, Node, mergeAttributes } from '@tiptap/core';
+import Highlight from '@tiptap/extension-highlight';
+import { Details, DetailsSummary, DetailsContent } from '@tiptap/extension-details';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
 import { TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 
+// --- blocos e marcas no estilo Notion, gravados em Markdown que o Obsidian lê ---
+
+// Cores do Notion (texto). Gravadas como <span style="color:#...">.
+export const CORES = [
+  ['Padrão', null], ['Cinza', '#9b9a97'], ['Marrom', '#a27763'], ['Laranja', '#d9730d'], ['Amarelo', '#cb912f'],
+  ['Verde', '#448361'], ['Azul', '#337ea9'], ['Roxo', '#9065b0'], ['Rosa', '#c14c8a'], ['Vermelho', '#d44c47'],
+];
+const Cor = Mark.create({
+  name: 'cor',
+  addAttributes() { return { cor: { default: null, parseHTML: (el) => el.style.color || null } }; },
+  parseHTML() { return [{ tag: 'span[style*="color"]' }]; },
+  renderHTML({ HTMLAttributes }) { return ['span', { style: `color:${HTMLAttributes.cor}` }, 0]; },
+  renderMarkdown: (node, h) => `<span style="color:${node.attrs?.cor}">${h.renderChildren(node)}</span>`,
+  parseMarkdown: (token, h) => h.applyMark('cor', h.parseInline(token.tokens || []), { cor: token.cor }),
+  markdownTokenizer: {
+    name: 'cor',
+    level: 'inline',
+    start: (src) => src.indexOf('<span style="color'),
+    tokenize(src, _t, lexer) {
+      const m = /^<span style="color:\s*([#\w(),. ]+?);?">([\s\S]*?)<\/span>/.exec(src);
+      if (m) return { type: 'cor', raw: m[0], cor: m[1], tokens: lexer.inlineTokens(m[2]) };
+    },
+  },
+});
+
+// Callout no formato do Obsidian: "> [!tipo] título" e as linhas seguintes com "> ".
+const TIPOS_CALLOUT = { info: '💡', nota: '📝', aviso: '⚠️', perigo: '⛔', ok: '✅' };
+const Callout = Node.create({
+  name: 'callout',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  addAttributes() { return { tipo: { default: 'info', parseHTML: (el) => el.getAttribute('data-tipo') || 'info' } }; },
+  parseHTML() { return [{ tag: 'div[data-callout]' }]; },
+  renderHTML({ HTMLAttributes }) {
+    const tipo = HTMLAttributes.tipo || 'info';
+    return ['div', { 'data-callout': '', 'data-tipo': tipo, class: `callout callout-${tipo}` },
+      ['span', { class: 'callout-icone', contenteditable: 'false' }, TIPOS_CALLOUT[tipo] || '💡'], ['div', { class: 'callout-corpo' }, 0]];
+  },
+  renderMarkdown: (node, h) => {
+    const corpo = h.renderChildren(node.content || [], '\n\n');
+    return `> [!${node.attrs?.tipo || 'info'}]\n` + corpo.split('\n').map((l) => (l ? `> ${l}` : '>')).join('\n');
+  },
+  parseMarkdown: (token, h) => ({ type: 'callout', attrs: { tipo: token.tipo }, content: h.parseChildren(token.tokens || []) }),
+  markdownTokenizer: {
+    name: 'callout',
+    level: 'block',
+    start: (src) => src.indexOf('> [!'),
+    tokenize(src, _t, lexer) {
+      const m = /^> \[!(\w+)\][^\n]*\n?((?:>[^\n]*(?:\n|$))*)/.exec(src);
+      if (!m) return;
+      const dentro = m[2].split('\n').map((l) => l.replace(/^> ?/, '')).join('\n').trim();
+      return { type: 'callout', raw: m[0], tipo: m[1].toLowerCase(), tokens: lexer.blockTokens(dentro || ' ') };
+    },
+  },
+  addCommands() {
+    return { setCallout: (tipo = 'info') => ({ commands }) => commands.wrapIn(this.name, { tipo }) };
+  },
+});
+
+// Toggle (e "título alternante") em HTML <details>, que o Obsidian também abre.
+const Toggle = Details.extend({
+  addAttributes() { return { ...this.parent?.(), titulo: { default: false, parseHTML: (el) => el.classList.contains('titulo') } }; },
+  renderHTML({ HTMLAttributes }) {
+    const { titulo, ...resto } = HTMLAttributes;
+    return ['details', mergeAttributes(resto, titulo ? { class: 'titulo' } : {}), 0];
+  },
+  renderMarkdown: (node, h) => {
+    const [resumo, conteudo] = node.content || [];
+    const r = resumo ? h.renderChildren(resumo.content || []) : '';
+    const c = conteudo ? h.renderChildren(conteudo.content || [], '\n\n') : '';
+    return `<details${node.attrs?.titulo ? ' class="titulo"' : ''}>\n<summary>${r}</summary>\n\n${c}\n\n</details>`;
+  },
+  parseMarkdown: (token, h) => ({
+    type: 'details',
+    attrs: { titulo: token.titulo },
+    content: [
+      { type: 'detailsSummary', content: h.parseInline(token.resumo || []) },
+      { type: 'detailsContent', content: (token.tokens && token.tokens.length) ? h.parseChildren(token.tokens) : [{ type: 'paragraph' }] },
+    ],
+  }),
+  markdownTokenizer: {
+    name: 'details',
+    level: 'block',
+    start: (src) => src.indexOf('<details'),
+    tokenize(src, _t, lexer) {
+      const m = /^<details( class="titulo")?>\s*<summary>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>\s*/.exec(src);
+      if (!m) return;
+      return { type: 'details', raw: m[0], titulo: !!m[1], resumo: lexer.inlineTokens(m[2].trim()), tokens: lexer.blockTokens(m[3].trim()) };
+    },
+  },
+});
+
 // Itens do menu "/": nome, palavras para filtrar e o que fazem.
 const BLOCOS = [
   { nome: 'Texto', dica: 'Parágrafo comum', chaves: 'texto paragrafo', faz: (c) => c.setParagraph() },
   { nome: 'Título 1', dica: 'Título grande', chaves: 'titulo h1 heading', faz: (c) => c.setHeading({ level: 1 }) },
-  { nome: 'Título 2', dica: 'Título médio', chaves: 'titulo h2 heading', faz: (c) => c.setHeading({ level: 2 }) },
+  { nome: 'Título 2 (subtítulo)', dica: 'Título médio', chaves: 'titulo subtitulo h2 heading', faz: (c) => c.setHeading({ level: 2 }) },
   { nome: 'Título 3', dica: 'Título pequeno', chaves: 'titulo h3 heading', faz: (c) => c.setHeading({ level: 3 }) },
+  { nome: 'Toggle', dica: 'Lista que abre e fecha', chaves: 'toggle alternante recolher details', faz: (c) => c.setDetails() },
+  { nome: 'Título alternante', dica: 'Título que abre e fecha', chaves: 'titulo alternante toggle heading', faz: (c) => c.setDetails().updateAttributes('details', { titulo: true }) },
+  { nome: 'Callout', dica: 'Caixa de destaque com ícone 💡', chaves: 'callout destaque caixa aviso', faz: (c) => c.setCallout('info') },
+  { nome: 'Callout de aviso', dica: 'Caixa amarela ⚠️', chaves: 'callout aviso alerta', faz: (c) => c.setCallout('aviso') },
+  { nome: 'Callout de perigo', dica: 'Caixa vermelha ⛔', chaves: 'callout perigo erro', faz: (c) => c.setCallout('perigo') },
+  { nome: 'Callout de ok', dica: 'Caixa verde ✅', chaves: 'callout ok sucesso feito', faz: (c) => c.setCallout('ok') },
   { nome: 'Lista', dica: 'Lista com marcadores', chaves: 'lista bullet marcadores', faz: (c) => c.toggleBulletList() },
   { nome: 'Lista numerada', dica: '1, 2, 3…', chaves: 'lista numerada ordered', faz: (c) => c.toggleOrderedList() },
   { nome: 'Tarefas', dica: 'Lista com caixinhas', chaves: 'tarefas todo checklist caixa', faz: (c) => c.toggleTaskList() },
@@ -22,6 +123,15 @@ const BLOCOS = [
   { nome: 'Tabela', dica: 'Tabela 3 × 3', chaves: 'tabela table', faz: (c) => c.insertTable({ rows: 3, cols: 3, withHeaderRow: true }) },
   { nome: 'Divisor', dica: 'Linha horizontal', chaves: 'divisor linha hr', faz: (c) => c.setHorizontalRule() },
 ];
+
+for (const [nome, cor] of CORES.slice(1)) {
+  BLOCOS.push({ nome: `Cor: ${nome}`, dica: 'Pinta o texto do bloco', chaves: `cor ${nome.toLowerCase()}`, cor,
+    faz: (c) => c.command(({ tr, state }) => {
+      const { $from } = state.selection;
+      tr.addMark($from.start(), $from.end(), state.schema.marks.cor.create({ cor }));
+      return true;
+    }) });
+}
 
 const semAcento = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -81,8 +191,50 @@ function menuBarra(raiz) {
   };
 }
 
+// Barra flutuante ao selecionar texto, como no Notion: negrito, itálico,
+// riscado, código, destaque e cor.
+function barraSelecao(raiz) {
+  const barra = document.createElement('div');
+  barra.className = 'barra-selecao';
+  barra.hidden = true;
+  barra.innerHTML = `
+    <button type="button" data-f="bold" title="Negrito (Ctrl+B)"><b>B</b></button>
+    <button type="button" data-f="italic" title="Itálico (Ctrl+I)"><i>I</i></button>
+    <button type="button" data-f="strike" title="Riscado"><s>S</s></button>
+    <button type="button" data-f="code" title="Código"><code>&lt;/&gt;</code></button>
+    <button type="button" data-f="highlight" title="Destaque"><span class="marca-destaque">A</span></button>
+    <span class="sep"></span>
+    ${CORES.map(([nome, cor]) => `<button type="button" class="ponto-cor" data-cor="${cor || ''}" title="${nome}" style="--c:${cor || 'var(--fg)'}">A</button>`).join('')}`;
+  raiz.append(barra);
+  let ed = null;
+  barra.addEventListener('mousedown', (ev) => {
+    const b = ev.target.closest('button');
+    if (!b || !ed) return;
+    ev.preventDefault();
+    const c = ed.chain().focus();
+    if (b.dataset.f) c.toggleMark(b.dataset.f).run();
+    else if (b.dataset.cor) c.setMark('cor', { cor: b.dataset.cor }).run();
+    else c.unsetMark('cor').run();
+    mostrar(ed);
+  });
+  function mostrar(editor) {
+    ed = editor;
+    const { from, to, empty } = editor.state.selection;
+    if (empty || !editor.isFocused || !editor.isEditable) { barra.hidden = true; return; }
+    const a = editor.view.coordsAtPos(from), b = editor.view.coordsAtPos(to);
+    const base = raiz.getBoundingClientRect();
+    barra.hidden = false;
+    for (const btn of barra.querySelectorAll('[data-f]')) btn.classList.toggle('ligado', editor.isActive(btn.dataset.f));
+    const x = Math.max(8, Math.min((a.left + b.left) / 2 - base.left - barra.offsetWidth / 2, raiz.clientWidth - barra.offsetWidth - 8));
+    barra.style.left = `${x}px`;
+    barra.style.top = `${a.top - base.top + raiz.scrollTop - barra.offsetHeight - 8}px`;
+  }
+  return { mostrar, esconder: () => { barra.hidden = true; } };
+}
+
 function criar({ el, aoMudar, aoSalvarJa }) {
   const menu = menuBarra(el.parentElement);
+  const selecao = barraSelecao(el.parentElement);
   const Atalhos = Extension.create({
     name: 'atalhosNotas',
     addKeyboardShortcuts() {
@@ -98,6 +250,12 @@ function criar({ el, aoMudar, aoSalvarJa }) {
       TaskItem.configure({ nested: true }),
       TableKit,
       Placeholder.configure({ placeholder: ({ node }) => (node.type.name === 'heading' ? 'Título' : 'Escreva, ou digite / para inserir um bloco…') }),
+      Highlight,
+      Cor,
+      Callout,
+      Toggle,
+      DetailsSummary,
+      DetailsContent,
       Markdown,
       Atalhos,
     ],
@@ -108,8 +266,8 @@ function criar({ el, aoMudar, aoSalvarJa }) {
       },
     },
     onUpdate: ({ editor: e }) => { menu.atualizar(e); if (!carregando && aoMudar) aoMudar(); },
-    onSelectionUpdate: ({ editor: e }) => menu.atualizar(e),
-    onBlur: () => setTimeout(() => menu.fechar(), 150),
+    onSelectionUpdate: ({ editor: e }) => { menu.atualizar(e); selecao.mostrar(e); },
+    onBlur: () => setTimeout(() => { menu.fechar(); selecao.esconder(); }, 150),
   });
   return {
     definir(md) {

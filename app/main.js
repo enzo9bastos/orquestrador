@@ -117,6 +117,14 @@ ipcMain.handle('notas:adicionarPasta', async () => {
   return notas.adicionarPasta(r.filePaths[0]);
 });
 ipcMain.handle('notas:removerPasta', (_e, i) => notas.removerPasta(i));
+ipcMain.handle('notas:renomear', (_e, i, rel, nome) => notas.renomear(i, rel, nome));
+ipcMain.handle('notas:caminho', (_e, i, rel) => notas.caminho(i, rel));
+// Mostrar no gerenciador de arquivos (pasta abre; arquivo aparece selecionado).
+ipcMain.handle('notas:revelar', (_e, i, rel) => {
+  const abs = notas.caminho(i, rel);
+  if (rel && rel.toLowerCase().endsWith('.md')) shell.showItemInFolder(abs); else shell.openPath(abs);
+  return true;
+});
 ipcMain.handle('notas:arvore', (_e, i) => notas.arvore(i));
 ipcMain.handle('notas:ler', (_e, i, rel) => notas.ler(i, rel));
 ipcMain.handle('notas:gravar', (_e, i, rel, conteudo, mtime) => notas.gravar(i, rel, conteudo, mtime));

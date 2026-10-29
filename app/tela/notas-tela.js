@@ -28,7 +28,7 @@
   function estado(t) { $('estado-nota').textContent = t; }
   function aviso(html) { const a = $('aviso-nota'); a.innerHTML = html || ''; a.hidden = !html; }
   function vazio(sim) {
-    $('editor-nota').hidden = sim;
+    $('pagina-nota').hidden = sim;
     $('vazio-nota').hidden = !sim;
     if (sim) $('vazio-nota').innerHTML = `<div class="vazio"><span class="ico-caixa"><svg class="ico"><use href="#i-notas"/></svg></span>
       <strong>${pastas.length ? 'Nenhuma nota aberta' : 'Nenhuma pasta de notas'}</strong>
@@ -151,6 +151,14 @@
   document.querySelector('.explorador-topo').addEventListener('click', async (ev) => {
     const b = ev.target.closest('[data-acao]');
     if (!b) return;
+    if (b.dataset.acao === 'abrir-pasta') {
+      // Abre uma pasta que já existe no computador (vira uma aba em cima).
+      const i = await N.adicionarPasta();
+      if (i == null) return;
+      await carregarArvore();
+      if (i >= 0) { ativa = i; gravarPref('notas-pasta-ativa', ativa); desenharArvore(); }
+      return;
+    }
     if (b.dataset.acao === 'nova' || b.dataset.acao === 'nova-pasta') {
       // O mesmo campo serve para nota e para pasta; o tipo fica marcado nele.
       const f = $('nova-nota-form');
@@ -183,6 +191,116 @@
   });
   $('filtro-notas').addEventListener('input', desenharArvore);
 
+  // --- título da página = nome do arquivo (editar renomeia) ---------------------
+  async function renomearAberta() {
+    if (!aberta) return;
+    const novo = $('titulo-nota').textContent.trim();
+    const atual = aberta.rel.split('/').pop().replace(/\.md$/i, '');
+    if (!novo || novo === atual) { $('titulo-nota').textContent = atual; return; }
+    if (sujo) { clearTimeout(timer); await salvar(); }
+    const r = await N.renomear(aberta.i, aberta.rel, novo);
+    if (r.erro) { $('titulo-nota').textContent = atual; aviso(esc(r.erro)); setTimeout(() => aviso(''), 4000); return; }
+    aberta.rel = r.rel;
+    gravarPref('nota-aberta', { i: aberta.i, rel: r.rel });
+    N.vigiar(aberta.i, r.rel);
+    $('caminho-nota').textContent = `${pastas[aberta.i].nome} / ${r.rel.replace(/\.md$/i, '').split('/').join(' / ')}`;
+    await carregarArvore();
+  }
+  $('titulo-nota').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); $('titulo-nota').blur(); editor.focar(); }
+    if (ev.key === 'Escape') { $('titulo-nota').textContent = (aberta?.rel || '').split('/').pop().replace(/\.md$/i, ''); $('titulo-nota').blur(); }
+  });
+  $('titulo-nota').addEventListener('blur', renomearAberta);
+
+  // --- menu do botão direito no explorador (como no VS Code) --------------------
+  const menuCtx = $('menu-contexto');
+  function abrirMenu(x, y, itens) {
+    menuCtx.innerHTML = itens.map((it, k) => (it === '-' ? '<li class="sep" role="separator"></li>'
+      : `<li role="menuitem" data-k="${k}">${esc(it.nome)}${it.atalho ? `<span>${esc(it.atalho)}</span>` : ''}</li>`)).join('');
+    menuCtx._itens = itens;
+    menuCtx.hidden = false;
+    const w = menuCtx.offsetWidth, h = menuCtx.offsetHeight;
+    menuCtx.style.left = `${Math.min(x, innerWidth - w - 8)}px`;
+    menuCtx.style.top = `${Math.min(y, innerHeight - h - 8)}px`;
+  }
+  const fecharMenu = () => { menuCtx.hidden = true; };
+  document.addEventListener('mousedown', (ev) => { if (!ev.target.closest('#menu-contexto')) fecharMenu(); });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') fecharMenu(); });
+  menuCtx.addEventListener('click', (ev) => {
+    const li = ev.target.closest('li[data-k]');
+    if (!li) return;
+    fecharMenu();
+    menuCtx._itens[Number(li.dataset.k)].faz();
+  });
+
+  function pedirNome(tipo, pai) {
+    selecionada = pai || null;
+    const f = $('nova-nota-form');
+    f.dataset.tipo = tipo; f.hidden = false;
+    f.querySelector('input').placeholder = `Nome da ${tipo} em ${pai || pastas[ativa]?.nome || ''} (Enter)`;
+    f.querySelector('input').focus();
+  }
+  async function copiar(texto) { try { await navigator.clipboard.writeText(texto); estado('Caminho copiado'); } catch { /* sem área de transferência */ } }
+  function renomearItem(rel) {
+    const linha = document.querySelector(`.linha-arvore[data-rel="${CSS.escape(rel)}"], .linha-pasta[data-pasta-rel="${CSS.escape(rel)}"]`);
+    const nome = linha && linha.querySelector('.nome');
+    if (!nome) return;
+    nome.contentEditable = 'plaintext-only';
+    nome.textContent = rel.split('/').pop().replace(/\.md$/i, '');
+    nome.focus();
+    document.getSelection().selectAllChildren(nome);
+    const fim = async (salvarNome) => {
+      nome.contentEditable = 'false';
+      const novo = nome.textContent.trim();
+      if (salvarNome && novo) {
+        const r = await N.renomear(ativa, rel, novo);
+        if (r.erro) { aviso(esc(r.erro)); setTimeout(() => aviso(''), 4000); }
+        else if (aberta && aberta.i === ativa && aberta.rel === rel) { aberta.rel = r.rel; $('titulo-nota').textContent = novo; N.vigiar(ativa, r.rel); }
+      }
+      carregarArvore();
+    };
+    nome.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); nome.blur(); }
+      if (ev.key === 'Escape') { ev.preventDefault(); nome.dataset.cancelar = '1'; nome.blur(); }
+    });
+    nome.addEventListener('blur', () => fim(!nome.dataset.cancelar), { once: true });
+  }
+
+  $('arvore-notas').addEventListener('contextmenu', async (ev) => {
+    ev.preventDefault();
+    if (!pastas[ativa]) return;
+    const nota = ev.target.closest('.linha-nota');
+    const pasta = ev.target.closest('.linha-pasta');
+    const raiz = await N.caminho(ativa, '');
+    const rel = nota ? nota.dataset.rel : pasta ? pasta.dataset.pastaRel : '';
+    const abs = rel ? `${raiz}/${rel}` : raiz;
+    const comuns = [
+      { nome: 'Abrir no gerenciador de arquivos', faz: () => N.revelar(ativa, rel) },
+      { nome: 'Copiar caminho', faz: () => copiar(abs) },
+      { nome: 'Copiar caminho relativo', faz: () => copiar(rel || '.') },
+    ];
+    if (nota) {
+      abrirMenu(ev.clientX, ev.clientY, [
+        { nome: 'Abrir', faz: () => abrir(ativa, rel) }, '-', ...comuns, '-',
+        { nome: 'Renomear', atalho: 'F2', faz: () => renomearItem(rel) },
+      ]);
+    } else {
+      const pai = pasta ? rel : '';
+      abrirMenu(ev.clientX, ev.clientY, [
+        { nome: 'Nova nota', faz: () => pedirNome('nota', pai) },
+        { nome: 'Nova pasta', faz: () => pedirNome('pasta', pai) }, '-', ...comuns,
+        ...(pasta ? ['-', { nome: 'Renomear', atalho: 'F2', faz: () => renomearItem(rel) }] : []),
+        '-', { nome: 'Abrir outra pasta do computador…', faz: async () => {
+          const i = await N.adicionarPasta(); if (i == null) return; await carregarArvore(); if (i >= 0) { ativa = i; gravarPref('notas-pasta-ativa', ativa); desenharArvore(); }
+        } },
+      ]);
+    }
+  });
+  $('arvore-notas').addEventListener('keydown', (ev) => {
+    const l = ev.target.closest('.linha-arvore');
+    if (ev.key === 'F2' && l) renomearItem(l.dataset.rel || l.dataset.pastaRel);
+  });
+
   // --- abrir e salvar -------------------------------------------------------------
   async function abrir(i, rel, { manterRolagem = false } = {}) {
     if (sujo) { clearTimeout(timer); await salvar(); }
@@ -195,6 +313,8 @@
     editor.definir(r.conteudo);
     editor.editavel(!soLeitura);
     if (manterRolagem) folha.scrollTop = rolagem; else folha.scrollTop = 0;
+    $('titulo-nota').textContent = rel.split('/').pop().replace(/\.md$/i, '');
+    $('titulo-nota').contentEditable = soLeitura ? 'false' : 'plaintext-only';
     $('caminho-nota').textContent = `${pastas[i].nome} / ${rel.replace(/\.md$/i, '').split('/').join(' / ')}`;
     if (ativa !== i) { ativa = i; gravarPref('notas-pasta-ativa', ativa); }
     estado(soLeitura ? 'Só leitura' : 'Salvo');
