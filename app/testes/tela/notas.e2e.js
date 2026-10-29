@@ -60,8 +60,9 @@ test('notas', async (t) => {
     await app.espera(150);
     await app.avaliar("document.querySelector('#barra-nota [data-cmd=\"negrito\"]').click()");
     assert.ok(await app.avaliar("!!document.querySelector('.tiptap p strong')"));
-    await app.avaliar("(() => { const s = document.querySelector('[data-estilo=\"fonte\"]'); s.value = 'serifa'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
-    assert.strictEqual(await app.avaliar("document.getElementById('pagina-nota').dataset.fonte"), 'serifa');
+    await app.avaliar("(() => { const s = document.querySelector('[data-estilo=\"fonte\"]'); s.value = 'Gelasio'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+    assert.strictEqual(await app.avaliar("document.getElementById('pagina-nota').dataset.fonte"), 'Gelasio');
+    assert.match(await app.avaliar("getComputedStyle(document.querySelector('.tiptap')).fontFamily"), /Gelasio/);
     await app.avaliar("document.querySelector('[data-cor-nota=\"azul\"]').click()");
     assert.strictEqual(await app.avaliar("document.getElementById('folha-nota').dataset.cor"), 'azul');
   });
