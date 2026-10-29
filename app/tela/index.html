@@ -61,7 +61,7 @@
       <button class="sub-aba ativa" data-aba="aba-orquestrador" type="button" role="tab"><svg class="ico"><use href="#i-balao"/></svg><span class="rotulo-aba">Orquestrador</span></button>
       <button class="sub-aba" data-aba="aba-grade" type="button" role="tab"><svg class="ico"><use href="#i-grade"/></svg><span class="rotulo-aba">Terminais</span></button>
       <button class="sub-aba" data-aba="aba-tempo" type="button" role="tab"><svg class="ico"><use href="#i-relogio"/></svg><span class="rotulo-aba">Linha do tempo</span></button>
-      <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg><span class="rotulo-aba">Tópicos e diário</span></button>
+      <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg><span class="rotulo-aba">Notas</span></button>
       <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg><span class="rotulo-aba">Terminal</span></button>
     </div>
     <div class="painel-corpo">
@@ -112,13 +112,20 @@
       <section id="aba-tempo" class="aba" aria-label="Linha do tempo">
         <div id="tempo-completo"></div>
       </section>
-      <section id="aba-notas" class="aba" aria-label="Tópicos e diário">
-        <div class="leitor">
-          <nav id="lista-notas" class="leitor-lista" aria-label="Tópicos e diários"></nav>
-          <div class="leitor-corpo">
-            <header class="leitor-cabecalho"><strong id="titulo-nota"></strong><span id="info-nota" class="contador"></span>
-              <button id="ir-fim" class="botao-texto" type="button">Ir para o fim</button></header>
-            <article id="nota" class="md"></article>
+      <section id="aba-notas" class="aba" aria-label="Notas">
+        <div class="notas-app">
+          <aside class="notas-arvore" aria-label="Pastas de notas">
+            <label class="busca busca-notas"><svg class="ico"><use href="#i-busca"/></svg>
+              <input id="filtro-notas" type="search" placeholder="Buscar nota" aria-label="Buscar nota"></label>
+            <div id="arvore-notas" class="arvore-notas"></div>
+          </aside>
+          <div class="notas-corpo">
+            <header class="notas-cabecalho"><span id="caminho-nota" class="caminho-nota"></span><span id="estado-nota" class="estado-nota"></span></header>
+            <div id="aviso-nota" class="aviso-nota" hidden></div>
+            <div class="notas-folha" id="folha-nota">
+              <div id="editor-nota" class="editor-nota"></div>
+              <div id="vazio-nota" class="vazio-nota"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -162,6 +169,8 @@
   <script src="config-tela.js"></script>
   <script src="tela.js"></script>
   <script src="pet.js"></script>
+  <script src="editor.bundle.js"></script>
+  <script src="notas-tela.js"></script>
   <script src="conversa-tela.js"></script>
 </body>
 </html>

@@ -331,48 +331,8 @@ async function atualizarEspelhos(r) {
   }
 }
 
-// --- tópicos e diários -----------------------------------------------------
-const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-let notaAberta = lerPreferencia('nota') || 'topicos';
-let notaTexto = null;
-let listaNotas = '';
-
-function dataDe(dia) { const [a, m, d] = dia.split('-').map(Number); return new Date(a, m - 1, d); }
-
-async function atualizarNotas() {
-  if (!$('aba-notas').classList.contains('ativa')) return;
-  const a = await window.orq.anotacoes();
-  if (notaAberta !== 'topicos' && !a.dias.includes(notaAberta)) notaAberta = a.dias[0] || 'topicos';
-
-  let html = `<button class="item-nota${notaAberta === 'topicos' ? ' ativo' : ''}" data-nota="topicos" type="button">
-    <svg class="ico"><use href="#i-notas"/></svg><span>Tópicos</span><small>memória das frentes</small></button>`;
-  if (!a.dias.includes(a.hoje)) html += '<p class="nota-hoje">O diário de hoje ainda não foi escrito: ele nasce no fim da rodada.</p>';
-  let mes = '';
-  for (const dia of a.dias) {
-    const d = dataDe(dia);
-    const m = `${MESES[d.getMonth()]} de ${d.getFullYear()}`;
-    if (m !== mes) { html += `<div class="secao-titulo">${m}</div>`; mes = m; }
-    html += `<button class="item-nota${notaAberta === dia ? ' ativo' : ''}" data-nota="${dia}" type="button">
-      <span class="dia">${String(d.getDate()).padStart(2, '0')}</span><span>${DIAS_SEMANA[d.getDay()]}</span></button>`;
-  }
-  if (html !== listaNotas) { $('lista-notas').innerHTML = html; listaNotas = html; }
-
-  const texto = await window.orq.lerNota(notaAberta);
-  if (texto === notaTexto) return;
-  const mudouNota = $('nota').dataset.qual !== notaAberta;
-  notaTexto = texto;
-  $('nota').dataset.qual = notaAberta;
-  $('titulo-nota').textContent = notaAberta === 'topicos'
-    ? 'Tópicos da orquestração'
-    : `Diário de ${notaAberta.split('-').reverse().join('/')}`;
-  $('info-nota').textContent = texto ? `${texto.split('\n').length} linhas` : '';
-  $('ir-fim').hidden = notaAberta !== 'topicos';
-  $('nota').innerHTML = texto
-    ? DOMPurify.sanitize(marked.parse(texto, { gfm: true, breaks: false }))
-    : VAZIO('i-notas', 'Arquivo não encontrado', 'Não há nada gravado aqui.');
-  if (mudouNota) $('nota').parentElement.scrollTop = 0;
-}
+// --- notas -------------------------------------------------------------------
+// O editor de notas mora em notas-tela.js.
 
 async function atualizar() {
   try {
@@ -385,7 +345,6 @@ async function atualizar() {
     desenharFila(r);
     desenharDetalhe(r);
     await atualizarEspelhos(r);
-    await atualizarNotas();
   } catch (err) {
     $('projetos').innerHTML = VAZIO('i-terminal', 'Não consegui ler as frentes', `${esc(err.message)}. Tento de novo em 2 s.`);
   }
@@ -403,13 +362,6 @@ document.addEventListener('click', async (ev) => {
     const ok = await window.orq.responder(alvo.dataset.emp, alvo.dataset.proj, alvo.dataset.id, alvo.dataset.resp);
     if (!ok) alvo.closest('li').innerHTML = '<span class="nota">Já tinha sido respondido no terminal.</span>';
     atualizar();
-  } else if (alvo.dataset.nota) {
-    notaAberta = alvo.dataset.nota;
-    gravarPreferencia('nota', notaAberta);
-    notaTexto = null; listaNotas = '';
-    atualizarNotas();
-  } else if (alvo.id === 'ir-fim') {
-    const c = $('nota').parentElement; c.scrollTop = c.scrollHeight;
   } else if (alvo.dataset.fecharTerminal) {
     window.orq.pty.fechar(alvo.dataset.fecharTerminal);
   } else if (alvo.dataset.abrir) {

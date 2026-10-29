@@ -11,6 +11,7 @@ const { spawn } = require('child_process');
 const pty = require('node-pty');
 const coletor = require('./coletor');
 const conversa = require('./conversa');
+const notas = require('./notas');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
 // (conversa.js), sem tela de terminal.
@@ -107,6 +108,15 @@ ipcMain.on('janela:maximizar', () => { if (janela) janela.isMaximized() ? janela
 // Fechar = sair do app de vez, como o /exit do terminal: encerra as conversas
 // (a próxima abertura começa do zero) e os terminais.
 ipcMain.on('janela:fechar', () => app.quit());
+
+// --- editor de notas ------------------------------------------------------
+ipcMain.handle('notas:pastas', () => notas.pastas());
+ipcMain.handle('notas:arvore', (_e, i) => notas.arvore(i));
+ipcMain.handle('notas:ler', (_e, i, rel) => notas.ler(i, rel));
+ipcMain.handle('notas:gravar', (_e, i, rel, conteudo, mtime) => notas.gravar(i, rel, conteudo, mtime));
+ipcMain.handle('notas:guardarCopia', (_e, i, rel, texto) => notas.guardarCopia(i, rel, texto));
+ipcMain.handle('notas:criar', (_e, i, pasta, nome) => notas.criar(i, pasta, nome));
+ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janela && janela.webContents.send('notas:mudou', m)));
 
 // --- conversas (orquestrador e avulsas) -----------------------------------
 conversa.ligar((canal, dado) => enviar(canal, dado));

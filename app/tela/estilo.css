@@ -608,3 +608,81 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .pet.balao-esq .pet-balao::after { left: 24px; }
 .pet.balao-dir .pet-balao { left: auto; right: 0; translate: 0 0; }
 .pet.balao-dir .pet-balao::after { left: auto; right: 24px; translate: 0 0; }
+
+/* --- notas: árvore + editor no estilo Notion --------------------------------- */
+#aba-notas { padding: 0; }
+.notas-app { display: grid; grid-template-columns: clamp(180px, 26%, 260px) minmax(0, 1fr); height: 100%; }
+.notas-arvore { border-right: 1px solid var(--borda); display: flex; flex-direction: column; min-height: 0; }
+.busca-notas { margin: 10px 10px 6px; }
+.arvore-notas { flex: 1; overflow-y: auto; padding: 0 6px 16px; }
+.raiz-notas { margin-top: 8px; }
+.raiz-notas > header { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 8px; }
+.raiz-notas > header strong { font: 600 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); flex: 1; }
+.raiz-notas > header .botao-icone { width: 22px; height: 22px; font-size: 15px; }
+.nova-nota { padding: 2px 4px 6px; }
+.nova-nota input { width: 100%; height: 28px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--claude); background: var(--bg-elevado); color: var(--fg); font: inherit; }
+.pasta-nota summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; height: 26px; border-radius: var(--r-sm); color: var(--fg-2); font-size: 12.5px; }
+.pasta-nota summary::-webkit-details-marker { display: none; }
+.pasta-nota summary:hover { background: var(--painel-hover); }
+.seta-pasta { font-size: 9px; color: var(--fg-4); transition: transform .12s; }
+.pasta-nota[open] > summary .seta-pasta { transform: rotate(90deg); }
+.item-arvore { display: flex; align-items: center; gap: 7px; width: 100%; height: 26px; border-radius: var(--r-sm); color: var(--fg-2); font-size: 12.5px; text-align: left; min-width: 0; }
+.item-arvore span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-arvore .ico { width: 13px; height: 13px; color: var(--fg-4); flex: none; }
+.item-arvore:hover { background: var(--painel-hover); color: var(--fg); }
+.item-arvore.ativo { background: var(--claude-suave); color: var(--fg); }
+.item-arvore.ativo .ico { color: var(--claude); }
+
+.notas-corpo { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.notas-cabecalho { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 20px; border-bottom: 1px solid var(--borda); flex: none; }
+.caminho-nota { color: var(--fg-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.estado-nota { font: 400 11px var(--mono); color: var(--fg-4); white-space: nowrap; }
+.aviso-nota { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 20px; background: var(--claude-suave); border-bottom: 1px solid var(--borda); color: var(--fg-2); font-size: 12.5px; }
+.aviso-nota[hidden] { display: none; }
+.notas-folha { flex: 1; overflow-y: auto; position: relative; min-height: 0; }
+.vazio-nota { height: 100%; display: grid; place-items: center; }
+.vazio-nota[hidden], .editor-nota[hidden] { display: none; }
+
+/* A folha: coluna central larga e tipografia de documento. */
+.editor-nota { max-width: 760px; margin: 0 auto; padding: 40px 48px 120px; }
+.editor-nota .tiptap { outline: none; font: 15px/1.7 var(--sans); color: var(--fg); min-height: 60vh; }
+.editor-nota .tiptap > * + * { margin-top: 6px; }
+.editor-nota .tiptap h1 { font-size: 30px; line-height: 1.25; font-weight: 700; margin: 26px 0 8px; letter-spacing: -.01em; }
+.editor-nota .tiptap h1:first-child { margin-top: 0; }
+.editor-nota .tiptap h2 { font-size: 22px; line-height: 1.3; font-weight: 650; margin: 24px 0 6px; }
+.editor-nota .tiptap h3 { font-size: 17px; font-weight: 600; margin: 18px 0 4px; }
+.editor-nota .tiptap p { margin: 0; }
+.editor-nota .tiptap ul, .editor-nota .tiptap ol { padding-left: 24px; margin: 2px 0; }
+.editor-nota .tiptap li > p { margin: 0; }
+.editor-nota .tiptap li::marker { color: var(--fg-3); }
+.editor-nota .tiptap ul[data-type="taskList"] { list-style: none; padding-left: 2px; }
+.editor-nota .tiptap ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
+.editor-nota .tiptap ul[data-type="taskList"] li > label { margin-top: 4px; flex: none; }
+.editor-nota .tiptap ul[data-type="taskList"] input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--claude); cursor: pointer; }
+.editor-nota .tiptap ul[data-type="taskList"] li[data-checked="true"] > div { color: var(--fg-4); text-decoration: line-through; }
+.editor-nota .tiptap blockquote { margin: 6px 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--claude); color: var(--fg-2); }
+.editor-nota .tiptap code { font: 13px var(--mono); background: var(--bg-afundado); border: 1px solid var(--borda); border-radius: 4px; padding: 1px 5px; }
+.editor-nota .tiptap pre { background: var(--bg-afundado); border: 1px solid var(--borda); border-radius: var(--r-md); padding: 14px 16px; overflow-x: auto; }
+.editor-nota .tiptap pre code { background: none; border: 0; padding: 0; font-size: 12.5px; }
+.editor-nota .tiptap hr { border: 0; border-top: 1px solid var(--borda); margin: 18px 0; }
+.editor-nota .tiptap a { color: var(--claude); }
+.editor-nota .tiptap strong { font-weight: 650; }
+.editor-nota .tiptap table { border-collapse: collapse; margin: 10px 0; width: 100%; table-layout: fixed; }
+.editor-nota .tiptap th, .editor-nota .tiptap td { border: 1px solid var(--borda); padding: 6px 10px; vertical-align: top; }
+.editor-nota .tiptap th { background: var(--bg-elevado); font-weight: 600; text-align: left; }
+.editor-nota .tiptap .selectedCell { background: var(--claude-suave); }
+.editor-nota .tiptap p.is-empty::before, .editor-nota .tiptap h1.is-empty::before, .editor-nota .tiptap h2.is-empty::before {
+  content: attr(data-placeholder); color: var(--fg-4); float: left; height: 0; pointer-events: none;
+}
+.editor-nota .tiptap[contenteditable="false"] { cursor: default; }
+
+/* Menu "/" para inserir blocos. */
+.menu-barra {
+  position: absolute; z-index: 30; margin: 0; padding: 6px; list-style: none; width: 260px; max-height: 320px; overflow-y: auto;
+  background: var(--bg-elevado); border: 1px solid var(--borda-forte); border-radius: 12px; box-shadow: 0 12px 36px rgba(0, 0, 0, .45);
+}
+.menu-barra[hidden] { display: none; }
+.menu-barra li { display: grid; gap: 1px; padding: 7px 10px; border-radius: var(--r-sm); cursor: pointer; }
+.menu-barra li strong { color: var(--fg); font-weight: 600; font-size: 13px; }
+.menu-barra li span { color: var(--fg-3); font-size: 11.5px; }
+.menu-barra li[aria-selected="true"], .menu-barra li:hover { background: var(--claude-suave); }

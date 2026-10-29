@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('orq', {
     aoLista: (fn) => ipcRenderer.on('conversa:lista', (_e, l) => fn(l)),
     aoComandos: (fn) => ipcRenderer.on('conversa:comandos', (_e, m) => fn(m.id, m.dado)),
   },
+  notas: {
+    pastas: () => ipcRenderer.invoke('notas:pastas'),
+    arvore: (i) => ipcRenderer.invoke('notas:arvore', i),
+    ler: (i, rel) => ipcRenderer.invoke('notas:ler', i, rel),
+    gravar: (i, rel, conteudo, mtime) => ipcRenderer.invoke('notas:gravar', i, rel, conteudo, mtime),
+    criar: (i, pasta, nome) => ipcRenderer.invoke('notas:criar', i, pasta, nome),
+    guardarCopia: (i, rel, texto) => ipcRenderer.invoke('notas:guardarCopia', i, rel, texto),
+    vigiar: (i, rel) => ipcRenderer.invoke('notas:vigiar', i, rel),
+    aoMudar: (fn) => ipcRenderer.on('notas:mudou', (_e, m) => fn(m)),
+  },
   janela: {
     minimizar: () => ipcRenderer.send('janela:minimizar'),
     maximizar: () => ipcRenderer.send('janela:maximizar'),

@@ -8,6 +8,10 @@ padrão de `app/config.js`.
 - **`ignorar`**: expressão regular; pastas que casam ficam de fora.
 - **`pastaNotas`**: pasta com `topicos.md` e `diario/AAAA-MM-DD.md`, lidos na
   aba "Tópicos e diário". `null` deixa a aba vazia.
+- **`pastasNotas`**: lista de pastas que a aba Notas abre, cada uma
+  `{ "nome": "Minhas notas", "caminho": "~/notas" }`. Vazia, usa a
+  `pastaNotas`. O editor mostra só arquivos `.md`; cada gravação guarda a versão
+  anterior em `~/.local/share/orq-app/versoes/`.
 - **`comandoInicial`**: mandado ao orquestrador na primeira abertura de uma
   rodada (por exemplo, uma skill sua que conduz a rodada).
 - **`comandoDesligar`**: o comando que encerra a rodada. O botão "Desligar" só

@@ -18,6 +18,10 @@ const PADRAO = {
   niveis: 1,
   ignorar: '^[_.-]',
 
+  // Pastas que o editor de notas abre: [{ "nome": "...", "caminho": "~/..." }].
+  // Vazia: usa a pastaNotas abaixo.
+  pastasNotas: [],
+
   // Pasta de notas da orquestração: <pastaNotas>/topicos.md e
   // <pastaNotas>/diario/AAAA-MM-DD.md. null esconde a aba de notas vazia.
   pastaNotas: null,

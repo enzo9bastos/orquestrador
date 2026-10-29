@@ -1,0 +1,136 @@
+// Notas: as pastas de Markdown que o editor do app abre (config.pastasNotas).
+//
+// Salvar por cima de um arquivo apaga o que estava lá, então toda gravação
+// guarda antes a versão anterior em ~/.local/share/orq-app/versoes/ (nenhuma
+// versão é apagada pelo app). E se o
+// arquivo mudou por fora desde que foi aberto (um agente, outra sessão, o
+// Obsidian), a gravação não acontece: volta como conflito para a tela decidir.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const crypto = require('crypto');
+const config = require('./config');
+
+const VERSOES = path.join(os.homedir(), '.local', 'share', 'orq-app', 'versoes');
+const MAX_ARQUIVOS = 3000;
+const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
+
+// Lista de pastas: config.pastasNotas ([{nome, caminho}]); sem ela, a
+// pastaNotas da orquestração.
+function pastas() {
+  const c = config.ler();
+  let lista = Array.isArray(c.pastasNotas) && c.pastasNotas.length ? c.pastasNotas : [];
+  if (!lista.length && c.pastaNotas) lista = [{ nome: 'Notas', caminho: c.pastaNotas }];
+  return lista.map((p) => ({ nome: p.nome || path.basename(casa(p.caminho)), caminho: casa(p.caminho) }))
+    .filter((p) => p.caminho && fs.existsSync(p.caminho));
+}
+
+// Caminho absoluto de um arquivo dentro da pasta i, recusando sair dela.
+function resolver(i, rel) {
+  const p = pastas()[i];
+  if (!p) throw new Error('pasta desconhecida');
+  const abs = path.resolve(p.caminho, rel || '');
+  if (abs !== p.caminho && !abs.startsWith(p.caminho + path.sep)) throw new Error('fora da pasta');
+  return abs;
+}
+
+// Árvore só com .md (e as pastas que levam a algum .md).
+function arvore(i) {
+  const raiz = resolver(i, '');
+  let conta = 0;
+  function andar(dir, rel, nivel) {
+    if (nivel > 8 || conta > MAX_ARQUIVOS) return [];
+    let itens;
+    try { itens = fs.readdirSync(dir, { withFileTypes: true }); } catch { return []; }
+    const pastasF = [], arquivos = [];
+    for (const d of itens) {
+      if (d.name.startsWith('.') || d.name === 'node_modules') continue;
+      const r = rel ? `${rel}/${d.name}` : d.name;
+      if (d.isDirectory()) {
+        const filhos = andar(path.join(dir, d.name), r, nivel + 1);
+        if (filhos.length) pastasF.push({ tipo: 'pasta', nome: d.name, rel: r, filhos });
+      } else if (d.name.toLowerCase().endsWith('.md')) {
+        conta++;
+        let m = 0;
+        try { m = fs.statSync(path.join(dir, d.name)).mtimeMs; } catch { /* sumiu */ }
+        arquivos.push({ tipo: 'nota', nome: d.name.slice(0, -3), rel: r, mtime: m });
+      }
+    }
+    const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true });
+    return [...pastasF.sort(porNome), ...arquivos.sort(porNome)];
+  }
+  return andar(raiz, '', 0);
+}
+
+function ler(i, rel) {
+  const abs = resolver(i, rel);
+  return { conteudo: fs.readFileSync(abs, 'utf8'), mtime: fs.statSync(abs).mtimeMs, bytes: fs.statSync(abs).size };
+}
+
+function pastaVersoes(abs) {
+  const pasta = path.join(VERSOES, crypto.createHash('sha1').update(abs).digest('hex').slice(0, 16));
+  fs.mkdirSync(pasta, { recursive: true });
+  fs.writeFileSync(path.join(pasta, 'caminho.txt'), abs + '\n');
+  return pasta;
+}
+const carimbo = () => new Date().toISOString().replace(/[:.]/g, '-');
+
+function guardarVersao(abs) {
+  if (!fs.existsSync(abs)) return;
+  fs.copyFileSync(abs, path.join(pastaVersoes(abs), `${carimbo()}.md`));
+}
+
+// mtimeBase: o mtime de quando a tela abriu o arquivo. Diferente = mudou por fora.
+function gravar(i, rel, conteudo, mtimeBase) {
+  const abs = resolver(i, rel);
+  if (fs.existsSync(abs)) {
+    const atual = fs.statSync(abs).mtimeMs;
+    if (mtimeBase != null && Math.abs(atual - mtimeBase) > 1) {
+      return { conflito: true, conteudo: fs.readFileSync(abs, 'utf8'), mtime: atual };
+    }
+    guardarVersao(abs);
+  }
+  const tmp = `${abs}.orq-tmp`;
+  fs.writeFileSync(tmp, conteudo);
+  fs.renameSync(tmp, abs);
+  return { mtime: fs.statSync(abs).mtimeMs };
+}
+
+// Texto que não chegou a ser salvo no arquivo (ex.: a edição de quem escolheu
+// ficar com a versão de fora num conflito) vai para as versões, não some.
+function guardarCopia(i, rel, texto) {
+  const abs = resolver(i, rel);
+  const arq = path.join(pastaVersoes(abs), `${carimbo()}-nao-salva.md`);
+  fs.writeFileSync(arq, texto);
+  return arq;
+}
+
+function criar(i, relPasta, nome) {
+  const limpo = String(nome || '').replace(/[\\/:*?"<>|]/g, '').trim();
+  if (!limpo) throw new Error('nome vazio');
+  const rel = (relPasta ? `${relPasta}/` : '') + (limpo.toLowerCase().endsWith('.md') ? limpo : `${limpo}.md`);
+  const abs = resolver(i, rel);
+  if (fs.existsSync(abs)) return { rel, existia: true };
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, `# ${limpo.replace(/\.md$/i, '')}\n\n`);
+  return { rel };
+}
+
+// Um arquivo vigiado por vez: o que está aberto no editor.
+let vigia = null;
+function vigiar(i, rel, avisar) {
+  if (vigia) { vigia.close(); vigia = null; }
+  if (rel == null) return;
+  const abs = resolver(i, rel);
+  let espera;
+  try {
+    vigia = fs.watch(abs, () => {
+      clearTimeout(espera);
+      espera = setTimeout(() => {
+        try { avisar({ i, rel, mtime: fs.statSync(abs).mtimeMs }); } catch { /* sumiu */ }
+      }, 200);
+    });
+  } catch { vigia = null; }
+}
+
+module.exports = { pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
