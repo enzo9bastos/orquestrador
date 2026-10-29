@@ -31,7 +31,8 @@ test('agentes', async (t) => {
   await t.test('contadores do topo batem com o estado', async () => {
     const topo = await app.avaliar("document.getElementById('contagem').innerText.replace(/\\s+/g, ' ')");
     assert.match(topo, /1 trabalhando/);
-    assert.match(topo, /2 pendências/, 'permissão na tela + item da fila');
+    // A permissão do Agente 3 aparece no cartão e na fila, mas é uma pendência só.
+    assert.match(topo, /1 pendências/);
   });
 
   await t.test('fila "Precisa de você" mostra a permissão com Permitir e Negar', async () => {

@@ -71,7 +71,9 @@ async function abrirApp({ config = {}, arquivos = {} } = {}) {
         const r = el.getBoundingClientRect();
         if (r.width < 2 || r.height < 2) return 'sem tamanho';
         if (r.left < 0 || r.top < 0 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1) return 'sai da janela';
-        const pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + 4, r.top + 4], [r.right - 4, r.top + 4], [r.left + 4, r.bottom - 4], [r.right - 4, r.bottom - 4]];
+        // 12 px para dentro: cantos arredondados mostram o fundo atrás, e isso não é estar coberto.
+        const d = Math.min(12, r.width / 4, r.height / 4);
+        const pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + d, r.top + d], [r.right - d, r.top + d], [r.left + d, r.bottom - d], [r.right - d, r.bottom - d]];
         for (const [x, y] of pts) { const t = document.elementFromPoint(x, y); if (!t || !(t === el || el.contains(t))) return 'coberto por ' + (t ? (t.id || t.className || t.tagName) : 'nada'); }
         return 'ok';
       })()`);

@@ -24,7 +24,9 @@ test('bichinho', async (t) => {
     for (let i = 1; i <= 10; i++) await app.mouse('mouseMoved', p[0] + (alvo[0] - p[0]) * i / 10, p[1] + (alvo[1] - p[1]) * i / 10);
     await app.espera(200);
     await app.mouse('mouseReleased', alvo[0], alvo[1]);
-    await app.espera(2500);
+    await app.espera(1500);
+    // Espera ele pousar (pode dar um pulinho sozinho no meio do caminho).
+    await app.esperar('!window.__orqTeste.pet.noAr', 6000);
     assert.strictEqual(await app.avaliar('window.__orqTeste.pet.salaNome'), 'esquerda');
     const dentro = await app.avaliar("(() => { const p = document.querySelector('.pet').getBoundingClientRect(), l = document.querySelector('.lateral').getBoundingClientRect(); return p.left >= l.left - 1 && p.right <= l.right + 1 && Math.abs(p.bottom - (l.bottom - 4)) < 6; })()");
     assert.ok(dentro, 'dentro da lateral e no chão');

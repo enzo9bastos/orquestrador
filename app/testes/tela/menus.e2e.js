@@ -30,11 +30,12 @@ test('menus', async (t) => {
   });
 
   await t.test('lista de comandos (/) aparece inteira e tem /restart e /exit', async () => {
-    await app.avaliar("const e = document.getElementById('entrada'); e.focus(); e.value = '/'; e.dispatchEvent(new Event('input'))");
+    const digitar = (v) => app.avaliar(`(() => { const e = document.getElementById('entrada'); e.focus(); e.value = '${v}'; e.dispatchEvent(new Event('input')); })()`);
+    await digitar('/');
     assert.strictEqual(await app.visivel('#sugestoes'), 'ok');
-    await app.avaliar("const e = document.getElementById('entrada'); e.value = '/re'; e.dispatchEvent(new Event('input'))");
+    await digitar('/re');
     assert.match(await app.avaliar("document.getElementById('sugestoes').innerText"), /\/restart/);
-    await app.avaliar("const e = document.getElementById('entrada'); e.value = ''; e.dispatchEvent(new Event('input'))");
+    await digitar('');
   });
 
   await t.test('popups de /config e /permissions aparecem inteiros', async () => {
@@ -74,7 +75,12 @@ test('menus', async (t) => {
     await app.esperar("!document.querySelector('.menu-barra').hidden");
     assert.strictEqual(await app.visivel('.menu-barra'), 'ok');
     await app.tecla('Escape', 'Escape', 27);
-    await app.avaliar("(() => { const p = document.querySelector('.tiptap p'); const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.dispatchEvent(new Event('selectionchange')); })()");
+    await app.esperar("document.querySelector('.menu-barra').hidden");
+    // Seleciona a linha com o teclado (Shift+Home), como uma pessoa faria.
+    await app.avaliar("document.querySelector('.tiptap').focus()");
+    await app.texto(' palavra');
+    await app.avaliar("document.querySelector('.tiptap').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', code: 'Home', shiftKey: true, bubbles: true }))");
+    await app.avaliar("(() => { const s = getSelection(); s.modify('extend', 'backward', 'lineboundary'); })()");
     await app.esperar("!document.querySelector('.barra-selecao').hidden");
     assert.strictEqual(await app.visivel('.barra-selecao'), 'ok');
   });
