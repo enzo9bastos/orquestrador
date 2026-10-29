@@ -28,6 +28,9 @@
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const sorteia = (l) => l[Math.floor(Math.random() * l.length)];
   const parado = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Próximo quadro da animação. Com a janela escondida ou minimizada o
+  // navegador pausa o requestAnimationFrame; aí a física segue por relógio.
+  const quadroSeguinte = (fn) => (document.hidden ? setTimeout(() => fn(performance.now()), 16) : requestAnimationFrame(fn));
 
   // Modos que vêm do orquestrador; "livre" é quando ele não está fazendo nada.
   const FALAS = {
@@ -227,9 +230,9 @@
           if (Math.abs(dx) < 1) return fim();
           this.x += Math.sign(dx) * Math.min(Math.abs(dx), vel * dt);
           this.desenhar();
-          requestAnimationFrame(quadro);
+          quadroSeguinte(quadro);
         };
-        requestAnimationFrame(quadro);
+        quadroSeguinte(quadro);
       });
       this.classe('andando', false);
       this.olhar('');
@@ -272,9 +275,9 @@
         }
         if (Math.abs(this.vx) > 30) this.virar(this.vx < 0 ? 'esq' : 'dir');
         this.desenhar();
-        requestAnimationFrame(quadro);
+        quadroSeguinte(quadro);
       };
-      requestAnimationFrame(quadro);
+      quadroSeguinte(quadro);
     }
 
     ligarMouse() {
