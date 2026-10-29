@@ -80,6 +80,14 @@ test('conversa', async (t) => {
     assert.ok(depois > antes, `${antes} → ${depois}`);
   });
 
+  // Regressão 2026-10-29: mudar o tema com o processo principal antigo (que
+  // devolvia só tema e cor) apagava o comando de desligar e sumia o botão.
+  await t.test('regressão: botão Desligar continua depois de uma configuração parcial', async () => {
+    assert.strictEqual(await app.avaliar("document.getElementById('desligar').hidden"), false);
+    await app.avaliar("window.dispatchEvent(new CustomEvent('orq:config', { detail: { tema: 'dark', destaque: '#8b5cf6' } }))");
+    assert.strictEqual(await app.avaliar("document.getElementById('desligar').hidden"), false);
+  });
+
   await t.test('/config e /permissions abrem popup', async () => {
     await app.avaliar('window.__orqTeste.abrirPopupConfig()');
     assert.ok(await app.avaliar("!document.getElementById('popup').hidden && document.querySelectorAll('[data-config]').length > 20"));

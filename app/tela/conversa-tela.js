@@ -752,7 +752,9 @@
 
   // Configuração mudada na engrenagem: vale na hora (bichinho, comandos).
   window.addEventListener('orq:config', (ev) => {
-    cfg = ev.detail;
+    // Junta, não troca: uma resposta parcial (ex.: só tema e cor) não pode
+    // apagar o comando de desligar e esconder o botão.
+    cfg = { ...cfg, ...ev.detail };
     $('palco-pet').classList.toggle('desligado', cfg.mostrarBichinho === false);
     desenharLista(listaConversas);
   });

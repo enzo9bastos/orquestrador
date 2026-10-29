@@ -32,7 +32,7 @@
   async function mudar(m) {
     config = { ...config, ...m };
     aplicar();
-    config = await window.orq.config.gravar(m);
+    config = { ...config, ...(await window.orq.config.gravar(m)) };
     if (config.recusado && config.recusado.length) avisoConfig(`Não gravei: ${config.recusado.join(', ')} (valor inválido).`);
     preencher();
     window.dispatchEvent(new CustomEvent('orq:config', { detail: config }));
