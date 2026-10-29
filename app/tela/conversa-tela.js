@@ -260,7 +260,13 @@
       respostas[q.question] = r;
     }
     await C.responder(ativa, cartao.dataset.pedido, { permitir: true, respostas });
-    fecharPedido(cartao, Object.values(respostas).join(' · '));
+    // Respondido: cada pergunta com a sua resposta embaixo, uma por bloco.
+    cartao.classList.add('respondido', 'respondido-perguntas');
+    cartao.innerHTML = `<div class="titulo-respondido"><span class="ponto trabalhando"></span>Respondido</div>` +
+      p.entrada.questions.map((q) => `<div class="resposta-dada">
+        <span class="etiqueta">${esc(q.header || 'Pergunta')}</span>
+        <strong>${esc(q.question)}</strong>
+        <p>${esc(respostas[q.question] || '')}</p></div>`).join('');
   }
 
   function fecharPedido(cartao, texto) {

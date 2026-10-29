@@ -690,3 +690,10 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .pergunta .outra:not(:placeholder-shown) { border-color: var(--claude); box-shadow: inset 0 0 0 1px var(--claude); }
 .pergunta .opcao:focus:not(.marcada) { outline: none; }
 .pergunta .opcao:focus-visible { outline: 2px solid var(--claude); outline-offset: 2px; }
+
+/* Cartão de perguntas já respondido: pergunta em cima, resposta embaixo. */
+.cartao-pedido.respondido-perguntas { display: grid; gap: 12px; padding: 12px 14px; color: var(--fg-2); }
+.titulo-respondido { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-3); }
+.resposta-dada { display: grid; gap: 3px; padding-left: 12px; border-left: 2px solid var(--claude); }
+.resposta-dada strong { color: var(--fg-2); font-weight: 500; font-size: 13px; line-height: 1.45; }
+.resposta-dada p { margin: 2px 0 0; color: var(--fg); font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
