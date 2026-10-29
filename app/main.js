@@ -250,6 +250,10 @@ ipcMain.handle('abrir-caminho', (_e, p) => {
   if (st.isDirectory()) shell.openPath(abs); else shell.showItemInFolder(abs);
   return true;
 });
+// Link de nota (Ctrl+clique): só http/https, no navegador do sistema.
+ipcMain.handle('abrir-link', (_e, url) => {
+  try { const u = new URL(String(url)); if (!['http:', 'https:'].includes(u.protocol)) return false; shell.openExternal(u.toString()); return true; } catch { return false; }
+});
 ipcMain.handle('abrir-pasta', (_e, dir) => dir.startsWith(coletor.raiz()) && shell.openPath(dir));
 
 // Notificação do sistema quando algo novo precisa do usuário (substitui o apito

@@ -95,6 +95,30 @@ test('notas', async (t) => {
     assert.match(app.ler('notas/codigo.md'), /```js\nconst a = 1;\n```/);
   });
 
+  await t.test('imagem guarda a largura no jeito do Obsidian (![texto|largura])', async () => {
+    app.escrever('notas/larg.md', '# L\n\n![foto|120](anexos/x.png)\n\nfim\n');
+    await app.avaliar("document.querySelector('[data-acao=\"atualizar\"]').click()");
+    await app.esperar("!!document.querySelector('.linha-nota[data-rel=\"larg.md\"]')");
+    await abrir('larg.md');
+    assert.ok(await app.avaliar("!!document.querySelector('.tiptap [data-resize-handle]')"), 'alças de redimensionar');
+    await app.avaliar("(() => { const p = [...document.querySelectorAll('.tiptap p')].pop(); const r = document.createRange(); r.selectNodeContents(p); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.querySelector('.tiptap').focus(); })()");
+    await app.texto('!');
+    await app.esperar("document.getElementById('estado-nota').textContent === 'Salvo'", 6000);
+    assert.match(app.ler('notas/larg.md'), /!\[foto\|120\]\(anexos\/x\.png\)/);
+  });
+
+  // Regressão 2026-10-29: descendo com as setas, o menu / não rolava junto.
+  await t.test('regressão: menu / rola junto com a seleção do teclado', async () => {
+    await app.avaliar("(() => { const p = [...document.querySelectorAll('.tiptap p')].pop(); const r = document.createRange(); r.selectNodeContents(p); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.querySelector('.tiptap').focus(); })()");
+    await app.tecla('Enter', 'Enter', 13);
+    await app.texto('/');
+    await app.esperar("!document.querySelector('.menu-barra').hidden");
+    for (let i = 0; i < 12; i++) await app.tecla('ArrowDown', 'ArrowDown', 40);
+    const ok = await app.avaliar("(() => { const m = document.querySelector('.menu-barra'), s = m.querySelector('[aria-selected=\"true\"]'); const a = m.getBoundingClientRect(), b = s.getBoundingClientRect(); return b.top >= a.top - 1 && b.bottom <= a.bottom + 1; })()");
+    assert.ok(ok, 'o item escolhido continua visível');
+    await app.tecla('Escape', 'Escape', 27);
+  });
+
   await t.test('arquivo grande abre só para leitura', async () => {
     await abrir('grande.md');
     assert.strictEqual(await app.avaliar("document.getElementById('estado-nota').textContent"), 'Só leitura');

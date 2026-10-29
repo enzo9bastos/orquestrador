@@ -209,7 +209,13 @@
   function aplicarEstilo() {
     const e = (chaveEstilo() && lerPref(chaveEstilo())) || {};
     const pag = $('pagina-nota');
-    pag.dataset.fonte = e.fonte || ''; pag.dataset.tamanho = e.tamanho || ''; pag.dataset.cor = e.cor || '';
+    // Notas antigas guardavam "serifa"/"mono" e "p"/"g": traduz para o jeito novo.
+    const fonte = { serifa: 'Noto Serif', mono: 'JetBrains Mono' }[e.fonte] ?? e.fonte ?? '';
+    const tamanho = { p: '13', g: '17' }[e.tamanho] ?? e.tamanho ?? '';
+    e.fonte = fonte; e.tamanho = tamanho;
+    pag.style.setProperty('--fonte-nota', fonte ? `'${fonte}', var(--sans)` : 'var(--sans)');
+    pag.style.setProperty('--tamanho-nota', tamanho ? `${tamanho}px` : '15px');
+    pag.dataset.fonte = fonte; pag.dataset.cor = e.cor || '';
     $('folha-nota').dataset.cor = e.cor || '';
     document.querySelector('[data-estilo="fonte"]').value = e.fonte || '';
     document.querySelector('[data-estilo="tamanho"]').value = e.tamanho || '';
@@ -241,6 +247,8 @@
     if (cmd === 'imagem') { $('arquivo-imagem-nota').click(); return; }
     if (cmd === 'link') {
       const l = barra.querySelector('.link-nota');
+      // Sem texto selecionado não há o que virar link: avisa em vez de abrir o campo.
+      if (!editor.comandos.temSelecao() && !editor.comandos.linkAtual()) { aviso('Selecione o texto que vai virar link e clique de novo.'); setTimeout(() => aviso(''), 3500); return; }
       l.hidden = !l.hidden;
       if (!l.hidden) { const inp = l.querySelector('input'); inp.value = editor.comandos.linkAtual(); inp.focus(); }
       return;
@@ -258,6 +266,14 @@
     const f = ev.target.files && ev.target.files[0];
     if (f) editor.comandos.imagem(f);
     ev.target.value = '';
+  });
+
+  // Ctrl+clique num link da nota abre no navegador do sistema (só http/https).
+  $('folha-nota').addEventListener('click', (ev) => {
+    const a = ev.target.closest('.tiptap a[href]');
+    if (!a) return;
+    ev.preventDefault();
+    if ((ev.ctrlKey || ev.metaKey) && window.orq.abrirLink) window.orq.abrirLink(a.getAttribute('href'));
   });
 
   // --- título da página = nome do arquivo (editar renomeia) ---------------------

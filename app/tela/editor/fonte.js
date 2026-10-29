@@ -23,11 +23,23 @@ const resolverSrc = (src) => {
   const rel = [contexto.dir, src].filter(Boolean).join('/').replace(/\/\.\//g, '/');
   return `orqnota://p${contexto.pasta}/${rel.split('/').map(encodeURIComponent).join('/')}`;
 };
+// Redimensionável pelos cantos; a largura fica no Markdown no jeito do
+// Obsidian: ![texto|400](anexos/x.png). A altura acompanha a proporção.
 const ImagemNota = Image.extend({
-  renderHTML({ HTMLAttributes }) {
-    return ['img', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, { src: resolverSrc(HTMLAttributes.src) })];
+  addAttributes() {
+    const pai = this.parent?.() || {};
+    return { ...pai, src: { ...(pai.src || {}), default: null, renderHTML: (a) => ({ src: resolverSrc(a.src) }) } };
   },
-}).configure({ inline: false, allowBase64: false });
+  parseMarkdown: (token, h) => {
+    const m = String(token.text || '').match(/^(.*?)\|(\d{2,4})$/);
+    return h.createNode('image', { src: token.href, title: token.title, alt: m ? m[1] : token.text, width: m ? Number(m[2]) : null });
+  },
+  renderMarkdown: (node) => {
+    const a = node.attrs || {};
+    const alt = `${a.alt || ''}${a.width ? `|${Math.round(a.width)}` : ''}`;
+    return a.title ? `![${alt}](${a.src || ''} "${a.title}")` : `![${alt}](${a.src || ''})`;
+  },
+}).configure({ inline: false, allowBase64: false, resize: { enabled: true, directions: ['bottom-right', 'bottom-left', 'right', 'left'], minWidth: 60, alwaysPreserveAspectRatio: true } });
 
 // --- blocos e marcas no estilo Notion, gravados em Markdown que o Obsidian lê ---
 
@@ -184,6 +196,7 @@ function menuBarra(raiz) {
     menu.innerHTML = itens.map((b, i) => `<li data-i="${i}" aria-selected="${i === escolhido}"><strong>${b.nome}</strong><span>${b.dica}</span></li>`).join('');
     const pos = editor.view.coordsAtPos($from.pos);
     const base = raiz.getBoundingClientRect();
+    menu.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
     menu.style.left = `${pos.left - base.left}px`;
     menu.style.top = `${pos.bottom - base.top + raiz.scrollTop + 6}px`;
     menu.hidden = false;
@@ -355,6 +368,7 @@ function criar({ el, aoMudar, aoSalvarJa, aoImagem }) {
     divisor: () => editor.chain().focus().setHorizontalRule().run(),
     // Link: o endereço vem do campo da própria barra (sem diálogo do navegador).
     linkAtual: () => editor.getAttributes('link').href || '',
+    temSelecao: () => !editor.state.selection.empty,
     link: (url) => (url ? editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run() : editor.chain().focus().extendMarkRange('link').unsetLink().run()),
     desfazer: () => editor.chain().focus().undo().run(),
     refazer: () => editor.chain().focus().redo().run(),

@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('orq', {
   abrirTerminal: (sessao) => ipcRenderer.invoke('abrir-terminal', sessao),
   abrirPasta: (dir) => ipcRenderer.invoke('abrir-pasta', dir),
   abrirCaminho: (p) => ipcRenderer.invoke('abrir-caminho', p),
+  abrirLink: (url) => ipcRenderer.invoke('abrir-link', url),
   conversa: {
     lista: () => ipcRenderer.invoke('conversa:lista'),
     abrir: (id) => ipcRenderer.invoke('conversa:abrir', id),
