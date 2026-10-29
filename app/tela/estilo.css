@@ -912,3 +912,46 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .item-terminou .quem { width: 100%; }
 .item-terminou .dispensar { margin-left: auto; width: 22px; height: 22px; font-size: 11px; }
 .resumo-terminou { font-size: 12.5px; color: var(--fg-2); line-height: 1.45; }
+
+/* --- barra fixa da nota (estilo Maestri/Notion) ----------------------------- */
+.barra-nota { position: relative; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 6px 14px; border-bottom: 1px solid var(--borda); background: var(--bg); flex: none; }
+.barra-nota[hidden] { display: none; }
+.barra-nota button { min-width: 28px; height: 28px; padding: 0 6px; border-radius: 6px; color: var(--fg-2); font-size: 13px; }
+.barra-nota button:hover { background: var(--painel-hover); color: var(--fg); }
+.barra-nota button.ligado { background: var(--claude-suave); color: var(--fg); }
+.barra-nota code { font: 11px var(--mono); }
+.barra-nota .marca-destaque { background: color-mix(in srgb, #f5c542 45%, transparent); padding: 0 3px; border-radius: 3px; }
+.barra-nota .sep { width: 1px; height: 18px; background: var(--borda-forte); margin: 0 5px; }
+.barra-nota select { height: 28px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--borda); background: var(--bg-afundado); color: var(--fg-2); font: 12px var(--sans); }
+.barra-nota .botao-md { font: 600 12px var(--mono); }
+.cores-nota { display: inline-flex; gap: 4px; align-items: center; }
+.cores-nota button { min-width: 16px; width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 1px solid var(--borda-forte); }
+.cores-nota button[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: 1px; }
+.cores-nota [data-cor-nota="amarelo"] { background: #e9c46a; } .cores-nota [data-cor-nota="azul"] { background: #4f8fd1; }
+.cores-nota [data-cor-nota="verde"] { background: #4caf7d; } .cores-nota [data-cor-nota="rosa"] { background: #d16ba5; }
+.cores-nota [data-cor-nota="roxo"] { background: #9065b0; } .cor-nota-sem { background: linear-gradient(135deg, transparent 45%, var(--perigo) 45% 55%, transparent 55%); }
+.link-nota { position: absolute; left: 14px; right: 14px; top: 100%; z-index: 25; padding: 6px; background: var(--bg-elevado); border: 1px solid var(--borda-forte); border-radius: 10px; }
+.link-nota[hidden] { display: none; }
+.link-nota input { width: 100%; height: 30px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--borda); background: var(--bg-afundado); color: var(--fg); font: inherit; }
+.mais-nota { position: absolute; top: 100%; right: 14px; z-index: 25; }
+/* Fonte, tamanho e cor da nota. */
+.pagina-nota[data-fonte="serifa"] .tiptap, .pagina-nota[data-fonte="serifa"] .titulo-pagina { font-family: Georgia, 'Noto Serif', 'DejaVu Serif', serif; }
+.pagina-nota[data-fonte="mono"] .tiptap, .pagina-nota[data-fonte="mono"] .titulo-pagina { font-family: var(--mono); }
+.pagina-nota[data-tamanho="p"] .tiptap { font-size: 13.5px; }
+.pagina-nota[data-tamanho="g"] .tiptap { font-size: 17px; }
+.notas-folha[data-cor="amarelo"] { background: color-mix(in srgb, #e9c46a 10%, var(--bg)); }
+.notas-folha[data-cor="azul"] { background: color-mix(in srgb, #4f8fd1 10%, var(--bg)); }
+.notas-folha[data-cor="verde"] { background: color-mix(in srgb, #4caf7d 10%, var(--bg)); }
+.notas-folha[data-cor="rosa"] { background: color-mix(in srgb, #d16ba5 10%, var(--bg)); }
+.notas-folha[data-cor="roxo"] { background: color-mix(in srgb, #9065b0 10%, var(--bg)); }
+/* Imagens na nota e modo Markdown. */
+.editor-nota .tiptap img { max-width: 100%; border-radius: 8px; border: 1px solid var(--borda); display: block; margin: 8px 0; }
+.editor-nota .tiptap img.ProseMirror-selectednode { outline: 2px solid var(--claude); }
+.editor-md-puro { width: 100%; min-height: 60vh; resize: vertical; border: 1px solid var(--borda); border-radius: var(--r-md); background: var(--bg-afundado); color: var(--fg); padding: 14px; font: 13px/1.6 var(--mono); outline: none; }
+/* Código com cores (lowlight/highlight.js), em tons do próprio tema. */
+.editor-nota .tiptap pre .hljs-keyword, .editor-nota .tiptap pre .hljs-built_in { color: #c792ea; }
+.editor-nota .tiptap pre .hljs-string, .editor-nota .tiptap pre .hljs-attr { color: #a5d6a7; }
+.editor-nota .tiptap pre .hljs-number, .editor-nota .tiptap pre .hljs-literal { color: #f6c177; }
+.editor-nota .tiptap pre .hljs-comment { color: var(--fg-4); font-style: italic; }
+.editor-nota .tiptap pre .hljs-title, .editor-nota .tiptap pre .hljs-function { color: #82aaff; }
+.editor-nota .tiptap pre .hljs-variable, .editor-nota .tiptap pre .hljs-property { color: #f78c6c; }

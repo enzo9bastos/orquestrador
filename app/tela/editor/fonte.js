@@ -9,6 +9,25 @@ import { Markdown } from '@tiptap/markdown';
 import { TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
+import Image from '@tiptap/extension-image';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { createLowlight, common } from 'lowlight';
+
+const lowlight = createLowlight(common);
+
+// Imagem da nota: no arquivo fica o caminho relativo (anexos/x.png); na tela,
+// o app troca por orqnota://p<pasta>/<pasta-da-nota>/anexos/x.png.
+let contexto = { pasta: 0, dir: '' };
+const resolverSrc = (src) => {
+  if (!src || /^(https?:|data:|orqnota:)/i.test(src)) return src;
+  const rel = [contexto.dir, src].filter(Boolean).join('/').replace(/\/\.\//g, '/');
+  return `orqnota://p${contexto.pasta}/${rel.split('/').map(encodeURIComponent).join('/')}`;
+};
+const ImagemNota = Image.extend({
+  renderHTML({ HTMLAttributes }) {
+    return ['img', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, { src: resolverSrc(HTMLAttributes.src) })];
+  },
+}).configure({ inline: false, allowBase64: false });
 
 // --- blocos e marcas no estilo Notion, gravados em Markdown que o Obsidian lê ---
 
@@ -232,7 +251,7 @@ function barraSelecao(raiz) {
   return { mostrar, esconder: () => { barra.hidden = true; } };
 }
 
-function criar({ el, aoMudar, aoSalvarJa }) {
+function criar({ el, aoMudar, aoSalvarJa, aoImagem }) {
   const menu = menuBarra(el.parentElement);
   const selecao = barraSelecao(el.parentElement);
   const Atalhos = Extension.create({
@@ -245,7 +264,9 @@ function criar({ el, aoMudar, aoSalvarJa }) {
   const editor = new Editor({
     element: el,
     extensions: [
-      StarterKit.configure({ link: { openOnClick: false } }),
+      StarterKit.configure({ link: { openOnClick: false }, codeBlock: false }),
+      CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
+      ImagemNota,
       TaskList,
       TaskItem.configure({ nested: true }),
       TableKit,
@@ -260,6 +281,19 @@ function criar({ el, aoMudar, aoSalvarJa }) {
       Atalhos,
     ],
     editorProps: {
+      // Imagem colada ou arrastada: o app salva em anexos/ e insere o caminho.
+      handlePaste: (_v, ev) => {
+        const imgs = [...(ev.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
+        if (!imgs.length || !aoImagem) return false;
+        imgs.forEach((f) => inserirImagem(f));
+        return true;
+      },
+      handleDrop: (_v, ev) => {
+        const imgs = [...(ev.dataTransfer?.files || [])].filter((f) => f.type.startsWith('image/'));
+        if (!imgs.length || !aoImagem) return false;
+        imgs.forEach((f) => inserirImagem(f));
+        return true;
+      },
       handleKeyDown: (_v, ev) => {
         if (menu.tecla(ev)) { ev.preventDefault(); return true; }
         return false;
@@ -269,13 +303,83 @@ function criar({ el, aoMudar, aoSalvarJa }) {
     onSelectionUpdate: ({ editor: e }) => { menu.atualizar(e); selecao.mostrar(e); },
     onBlur: () => setTimeout(() => { menu.fechar(); selecao.esconder(); }, 150),
   });
+  async function inserirImagem(arquivo) {
+    const src = await aoImagem(arquivo);
+    if (src) editor.chain().focus().setImage({ src, alt: arquivo.name || 'imagem' }).run();
+  }
+
+  // Modo Markdown: troca a folha formatada pelo texto puro do arquivo.
+  let modoMd = null;
+  function alternarMarkdown() {
+    if (!modoMd) {
+      modoMd = document.createElement('textarea');
+      modoMd.className = 'editor-md-puro';
+      modoMd.spellcheck = false;
+      modoMd.value = editor.getMarkdown();
+      modoMd.addEventListener('input', () => { if (aoMudar) aoMudar(); });
+      el.after(modoMd);
+      el.hidden = true;
+      modoMd.focus();
+      return true;
+    }
+    carregando = true;
+    editor.commands.setContent(modoMd.value, { contentType: 'markdown', emitUpdate: false });
+    carregando = false;
+    modoMd.remove(); modoMd = null;
+    el.hidden = false;
+    return false;
+  }
+
+  // Comandos da barra fixa (o mesmo que o Notion e o Maestri têm em cima da nota).
+  const comandos = {
+    negrito: () => editor.chain().focus().toggleBold().run(),
+    italico: () => editor.chain().focus().toggleItalic().run(),
+    riscado: () => editor.chain().focus().toggleStrike().run(),
+    codigo: () => editor.chain().focus().toggleCode().run(),
+    destaque: () => editor.chain().focus().toggleHighlight().run(),
+    titulo: () => {
+      // Texto → Título 1 → Título 2 → Título 3 → texto.
+      const n = [1, 2, 3].find((l) => editor.isActive('heading', { level: l }));
+      if (!n) return editor.chain().focus().setHeading({ level: 1 }).run();
+      if (n === 3) return editor.chain().focus().setParagraph().run();
+      return editor.chain().focus().setHeading({ level: n + 1 }).run();
+    },
+    tarefas: () => editor.chain().focus().toggleTaskList().run(),
+    lista: () => editor.chain().focus().toggleBulletList().run(),
+    numerada: () => editor.chain().focus().toggleOrderedList().run(),
+    blocoCodigo: () => editor.chain().focus().toggleCodeBlock().run(),
+    citacao: () => editor.chain().focus().toggleBlockquote().run(),
+    callout: () => editor.chain().focus().setCallout('info').run(),
+    toggle: () => editor.chain().focus().setDetails().run(),
+    tabela: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    divisor: () => editor.chain().focus().setHorizontalRule().run(),
+    // Link: o endereço vem do campo da própria barra (sem diálogo do navegador).
+    linkAtual: () => editor.getAttributes('link').href || '',
+    link: (url) => (url ? editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run() : editor.chain().focus().extendMarkRange('link').unsetLink().run()),
+    desfazer: () => editor.chain().focus().undo().run(),
+    refazer: () => editor.chain().focus().redo().run(),
+    imagem: (arquivo) => inserirImagem(arquivo),
+    markdown: alternarMarkdown,
+  };
+  const ativos = () => ({
+    negrito: editor.isActive('bold'), italico: editor.isActive('italic'), riscado: editor.isActive('strike'),
+    codigo: editor.isActive('code'), destaque: editor.isActive('highlight'), titulo: editor.isActive('heading'),
+    tarefas: editor.isActive('taskList'), lista: editor.isActive('bulletList'), numerada: editor.isActive('orderedList'),
+    blocoCodigo: editor.isActive('codeBlock'), citacao: editor.isActive('blockquote'), markdown: !!modoMd,
+  });
+
   return {
+    comandos,
+    ativos,
+    aoMudarSelecao: (fn) => editor.on('selectionUpdate', fn) && editor.on('update', fn),
+    contexto: (pasta, dir) => { contexto = { pasta, dir: dir || '' }; },
     definir(md) {
+      if (modoMd) { modoMd.remove(); modoMd = null; el.hidden = false; }
       carregando = true;
       editor.commands.setContent(md || '', { contentType: 'markdown', emitUpdate: false });
       carregando = false;
     },
-    markdown: () => editor.getMarkdown(),
+    markdown: () => (modoMd ? modoMd.value : editor.getMarkdown()),
     focar: () => editor.commands.focus('end'),
     editavel: (sim) => editor.setEditable(sim),
     destruir: () => editor.destroy(),

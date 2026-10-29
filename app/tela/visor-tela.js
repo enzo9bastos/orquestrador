@@ -48,6 +48,11 @@
     const alvo = ev.target.closest('.balao-imagens img, .anexo img');
     if (alvo && !ev.target.closest('button')) abrir(alvo.src);
   });
+  // Nas notas o clique simples seleciona a imagem para editar; o duplo abre o visor.
+  document.addEventListener('dblclick', (ev) => {
+    const alvo = ev.target.closest('.tiptap img');
+    if (alvo) abrir(alvo.src);
+  });
   visor.addEventListener('wheel', (ev) => { ev.preventDefault(); zoom(ev.deltaY < 0 ? 1.15 : 1 / 1.15, ev.clientX, ev.clientY); }, { passive: false });
   img.addEventListener('mousedown', (ev) => { ev.preventDefault(); arrastando = { mx: ev.clientX, my: ev.clientY, x, y }; img.classList.add('movendo'); });
   window.addEventListener('mousemove', (ev) => { if (!arrastando) return; x = arrastando.x + ev.clientX - arrastando.mx; y = arrastando.y + ev.clientY - arrastando.my; aplicar(); });

@@ -21,6 +21,17 @@
 
   const editor = window.EditorNotas.criar({
     el: $('editor-nota'),
+    // Imagem colada/arrastada/escolhida: salva em anexos/ ao lado da nota.
+    aoImagem: (arquivo) => new Promise((ok) => {
+      if (!aberta || soLeitura) return ok(null);
+      if (arquivo.size > 15 * 1024 * 1024) { aviso('Imagem acima de 15 MB não entra na nota.'); return ok(null); }
+      const r = new FileReader();
+      r.onload = async () => {
+        try { ok(await N.salvarImagem(aberta.i, aberta.rel, String(r.result).split(',')[1], arquivo.type)); }
+        catch (e) { aviso(esc(e.message)); ok(null); }
+      };
+      r.readAsDataURL(arquivo);
+    }),
     aoMudar: () => { if (soLeitura || !aberta) return; sujo = true; estado('Editando…'); clearTimeout(timer); timer = setTimeout(salvar, 1200); },
     aoSalvarJa: () => { clearTimeout(timer); salvar(); },
   });
@@ -29,6 +40,7 @@
   function aviso(html) { const a = $('aviso-nota'); a.innerHTML = html || ''; a.hidden = !html; }
   function vazio(sim) {
     $('pagina-nota').hidden = sim;
+    if (sim) $('barra-nota').hidden = true;
     $('vazio-nota').hidden = !sim;
     if (sim) $('vazio-nota').innerHTML = `<div class="vazio"><span class="ico-caixa"><svg class="ico"><use href="#i-notas"/></svg></span>
       <strong>${pastas.length ? 'Nenhuma nota aberta' : 'Nenhuma pasta de notas'}</strong>
@@ -191,6 +203,63 @@
   });
   $('filtro-notas').addEventListener('input', desenharArvore);
 
+  // --- barra fixa da nota -------------------------------------------------------
+  // Fonte, tamanho e cor ficam guardados por nota (preferência deste computador).
+  const chaveEstilo = () => (aberta ? `nota-estilo:${aberta.i}:${aberta.rel}` : null);
+  function aplicarEstilo() {
+    const e = (chaveEstilo() && lerPref(chaveEstilo())) || {};
+    const pag = $('pagina-nota');
+    pag.dataset.fonte = e.fonte || ''; pag.dataset.tamanho = e.tamanho || ''; pag.dataset.cor = e.cor || '';
+    $('folha-nota').dataset.cor = e.cor || '';
+    document.querySelector('[data-estilo="fonte"]').value = e.fonte || '';
+    document.querySelector('[data-estilo="tamanho"]').value = e.tamanho || '';
+    document.querySelectorAll('[data-cor-nota]').forEach((b) => b.setAttribute('aria-pressed', String((e.cor || '') === b.dataset.corNota)));
+    $('barra-nota').hidden = !aberta;
+    marcarAtivos();
+  }
+  function mudarEstilo(m) {
+    if (!chaveEstilo()) return;
+    gravarPref(chaveEstilo(), { ...(lerPref(chaveEstilo()) || {}), ...m });
+    aplicarEstilo();
+  }
+  function marcarAtivos() {
+    const a = editor.ativos();
+    document.querySelectorAll('#barra-nota [data-cmd]').forEach((b) => b.classList.toggle('ligado', !!a[b.dataset.cmd]));
+  }
+  editor.aoMudarSelecao(marcarAtivos);
+  const barra = $('barra-nota');
+  barra.addEventListener('change', (ev) => { const s = ev.target.closest('[data-estilo]'); if (s) mudarEstilo({ [s.dataset.estilo]: s.value }); });
+  barra.addEventListener('mousedown', (ev) => { if (ev.target.closest('button,li')) ev.preventDefault(); }); // não tira o foco do texto
+  barra.addEventListener('click', (ev) => {
+    const cor = ev.target.closest('[data-cor-nota]');
+    if (cor) { mudarEstilo({ cor: cor.dataset.corNota }); return; }
+    const b = ev.target.closest('[data-cmd]');
+    if (!b || soLeitura) return;
+    const cmd = b.dataset.cmd;
+    barra.querySelector('.mais-nota').hidden = cmd === 'mais' ? !barra.querySelector('.mais-nota').hidden : true;
+    if (cmd === 'mais') return;
+    if (cmd === 'imagem') { $('arquivo-imagem-nota').click(); return; }
+    if (cmd === 'link') {
+      const l = barra.querySelector('.link-nota');
+      l.hidden = !l.hidden;
+      if (!l.hidden) { const inp = l.querySelector('input'); inp.value = editor.comandos.linkAtual(); inp.focus(); }
+      return;
+    }
+    editor.comandos[cmd]();
+    marcarAtivos();
+  });
+  barra.querySelector('.link-nota input').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') { ev.target.parentElement.hidden = true; return; }
+    if (ev.key !== 'Enter') return;
+    editor.comandos.link(ev.target.value.trim());
+    ev.target.parentElement.hidden = true;
+  });
+  $('arquivo-imagem-nota').addEventListener('change', (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (f) editor.comandos.imagem(f);
+    ev.target.value = '';
+  });
+
   // --- título da página = nome do arquivo (editar renomeia) ---------------------
   async function renomearAberta() {
     if (!aberta) return;
@@ -310,7 +379,9 @@
     soLeitura = r.bytes > GRANDE;
     const folha = $('folha-nota'), rolagem = folha.scrollTop;
     vazio(false);
+    editor.contexto(i, rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '');
     editor.definir(r.conteudo);
+    aplicarEstilo();
     editor.editavel(!soLeitura);
     if (manterRolagem) folha.scrollTop = rolagem; else folha.scrollTop = 0;
     $('titulo-nota').textContent = rel.split('/').pop().replace(/\.md$/i, '');

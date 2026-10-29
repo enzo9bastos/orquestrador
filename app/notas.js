@@ -166,6 +166,24 @@ function renomear(i, rel, novoNome) {
 }
 const caminho = (i, rel) => resolver(i, rel || '');
 
+// Imagem colada ou arrastada numa nota: vira arquivo novo em anexos/, ao lado
+// da nota (nunca sobrescreve), e a nota guarda o caminho relativo.
+const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
+function salvarImagem(i, relNota, base64, tipo) {
+  const ext = EXT[tipo];
+  if (!ext) throw new Error('tipo de imagem não aceito');
+  const dados = Buffer.from(String(base64), 'base64');
+  if (dados.length > 15 * 1024 * 1024) throw new Error('imagem acima de 15 MB');
+  const dirNota = path.posix.dirname(relNota);
+  const base = path.posix.basename(relNota).replace(/\.md$/i, '').replace(/[^\p{L}\p{N}_-]+/gu, '-').slice(0, 40) || 'nota';
+  let nome, n = 0;
+  do { nome = `${base}-${Date.now()}${n ? `-${n}` : ''}.${ext}`; n++; } while (fs.existsSync(resolver(i, path.posix.join(dirNota, 'anexos', nome))));
+  const abs = resolver(i, path.posix.join(dirNota, 'anexos', nome));
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, dados, { flag: 'wx' });
+  return `anexos/${nome}`;
+}
+
 // Acrescentar/tirar pasta só mexe na lista da configuração; nada no disco.
 function adicionarPasta(caminho) {
   const lista = listaConfigurada().map((p) => ({ ...p }));
@@ -182,4 +200,4 @@ function removerPasta(i) {
   return true;
 }
 
-module.exports = { adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+module.exports = { salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };

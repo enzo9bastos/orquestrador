@@ -3,7 +3,13 @@
 // Casca por cima do tmux e do orq: os agentes continuam vivendo no tmux, dentro
 // dos devcontainers. Fechar o app não derruba nada. O orquestrador também roda
 // numa sessão tmux própria ("orquestrador"), então sobrevive ao app.
-const { app, BrowserWindow, ipcMain, Notification, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net } = require('electron');
+const { pathToFileURL } = require('url');
+
+// orqnota://p<pasta>/<caminho>: imagens das pastas de notas, só dentro delas e
+// só arquivos de imagem. Assim o editor mostra os anexos sem abrir o disco
+// inteiro para a tela.
+protocol.registerSchemesAsPrivileged([{ scheme: 'orqnota', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -143,6 +149,7 @@ ipcMain.handle('notas:arvore', (_e, i) => notas.arvore(i));
 ipcMain.handle('notas:ler', (_e, i, rel) => notas.ler(i, rel));
 ipcMain.handle('notas:gravar', (_e, i, rel, conteudo, mtime) => notas.gravar(i, rel, conteudo, mtime));
 ipcMain.handle('notas:guardarCopia', (_e, i, rel, texto) => notas.guardarCopia(i, rel, texto));
+ipcMain.handle('notas:salvarImagem', (_e, i, relNota, base64, tipo) => notas.salvarImagem(i, relNota, base64, tipo));
 ipcMain.handle('notas:criarPasta', (_e, i, pai, nome) => notas.criarPasta(i, pai, nome));
 ipcMain.handle('notas:criar', (_e, i, pasta, nome) => notas.criar(i, pasta, nome));
 ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janela && janela.webContents.send('notas:mudou', m)));
@@ -255,6 +262,15 @@ function avisarNovidades(r) {
 }
 
 app.whenReady().then(() => {
+  protocol.handle('orqnota', (req) => {
+    try {
+      const u = new URL(req.url);
+      const i = Number(u.hostname.replace(/^p/, ''));
+      const rel = decodeURIComponent(u.pathname).replace(/^\//, '');
+      if (!/\.(png|jpe?g|gif|webp|svg)$/i.test(rel)) return new Response('', { status: 403 });
+      return net.fetch(pathToFileURL(notas.caminho(i, rel)).toString());
+    } catch { return new Response('', { status: 404 }); }
+  });
   criarJanela();
   // Sinal de vida a cada 3 s: o hook só espera resposta do app se este
   // arquivo foi tocado há menos de 15 s.

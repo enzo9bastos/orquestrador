@@ -53,6 +53,48 @@ test('notas', async (t) => {
     assert.ok(md.includes('editando') && md.includes('Linha do agente.'), md);
   });
 
+  await t.test('barra da nota: negrito, fonte e cor da nota', async () => {
+    await abrir('notion.md');
+    await app.esperar("!document.getElementById('barra-nota').hidden");
+    await app.avaliar("(() => { const p = document.querySelector('.tiptap p'); const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.querySelector('.tiptap').focus(); })()");
+    await app.espera(150);
+    await app.avaliar("document.querySelector('#barra-nota [data-cmd=\"negrito\"]').click()");
+    assert.ok(await app.avaliar("!!document.querySelector('.tiptap p strong')"));
+    await app.avaliar("(() => { const s = document.querySelector('[data-estilo=\"fonte\"]'); s.value = 'serifa'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+    assert.strictEqual(await app.avaliar("document.getElementById('pagina-nota').dataset.fonte"), 'serifa');
+    await app.avaliar("document.querySelector('[data-cor-nota=\"azul\"]').click()");
+    assert.strictEqual(await app.avaliar("document.getElementById('folha-nota').dataset.cor"), 'azul');
+  });
+
+  await t.test('modo Markdown mostra o texto puro e volta formatado', async () => {
+    await app.avaliar("document.querySelector('#barra-nota [data-cmd=\"markdown\"]').click()");
+    assert.match(await app.avaliar("document.querySelector('.editor-md-puro').value"), /==destaque==/);
+    await app.avaliar("document.querySelector('#barra-nota [data-cmd=\"markdown\"]').click()");
+    assert.ok(await app.avaliar("!document.querySelector('.editor-md-puro') && !document.getElementById('editor-nota').hidden"));
+  });
+
+  await t.test('imagem colada na nota vira arquivo em anexos/ e aparece', async () => {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    await app.avaliar(`(() => { const b = Uint8Array.from(atob('${png}'), (c) => c.charCodeAt(0)); const f = new File([b], 'p.png', { type: 'image/png' });
+      const dt = new DataTransfer(); dt.items.add(f); document.querySelector('.tiptap').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+    await app.esperar("!!document.querySelector('.tiptap img[src^=\"orqnota://\"]')", 6000);
+    await app.esperar("document.querySelector('.tiptap img').complete && document.querySelector('.tiptap img').naturalWidth > 0", 6000);
+    await app.esperar("document.getElementById('estado-nota').textContent === 'Salvo'", 6000);
+    assert.match(app.ler('notas/notion.md'), /!\[[^\]]*\]\(anexos\/notion-\d+\.png\)/);
+  });
+
+  await t.test('bloco de código com linguagem mantém o ```js ao salvar', async () => {
+    app.escrever('notas/codigo.md', '# C\n\n```js\nconst a = 1;\n```\n');
+    await app.avaliar("document.querySelector('[data-acao=\"atualizar\"]').click()");
+    await app.esperar("!!document.querySelector('.linha-nota[data-rel=\"codigo.md\"]')");
+    await abrir('codigo.md');
+    assert.ok(await app.avaliar("!!document.querySelector('.tiptap pre .hljs-keyword')"), 'código colorido');
+    await app.avaliar("(() => { const h = document.querySelector('.tiptap h1'); const r = document.createRange(); r.selectNodeContents(h); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.querySelector('.tiptap').focus(); })()");
+    await app.texto('!');
+    await app.esperar("document.getElementById('estado-nota').textContent === 'Salvo'", 6000);
+    assert.match(app.ler('notas/codigo.md'), /```js\nconst a = 1;\n```/);
+  });
+
   await t.test('arquivo grande abre só para leitura', async () => {
     await abrir('grande.md');
     assert.strictEqual(await app.avaliar("document.getElementById('estado-nota').textContent"), 'Só leitura');
