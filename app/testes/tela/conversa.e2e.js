@@ -88,6 +88,33 @@ test('conversa', async (t) => {
     assert.strictEqual(await app.avaliar("document.getElementById('desligar').hidden"), false);
   });
 
+  await t.test('ferramenta vira linha recolhida e recebe o resultado', async () => {
+    await injetar({ tipo: 'assistant', message: { content: [{ type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls', description: 'Listar a pasta' } }] } });
+    await injetar({ tipo: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu1', content: 'a.txt' }] } });
+    assert.match(await app.avaliar("[...document.querySelectorAll('.ferramenta')].pop().innerText"), /Rodou\s+Listar a pasta/);
+    assert.ok(await app.avaliar("[...document.querySelectorAll('.ferramenta')].pop().classList.contains('feito')"));
+  });
+
+  await t.test('pedido de permissão mostra o comando com Permitir e Negar', async () => {
+    const p = { id: 'perm-x', ferramenta: 'Bash', entrada: { command: 'git push', description: 'Enviar' } };
+    await app.avaliar(`window.__orqTeste.pedidos.set('perm-x', ${JSON.stringify(p)}); window.__orqTeste.cartaoPedido(${JSON.stringify(p)})`);
+    assert.match(await app.avaliar("document.querySelector('[data-pedido=\"perm-x\"]').innerText"), /git push/);
+    assert.ok(await app.avaliar("!!document.querySelector('[data-pedido=\"perm-x\"] [data-permitir=\"1\"]')"));
+  });
+
+  await t.test('Desligar pede confirmação no segundo clique', async () => {
+    await app.avaliar("document.getElementById('desligar').click()");
+    assert.match(await app.avaliar("document.getElementById('desligar').textContent"), /Confirmar/);
+  });
+
+  await t.test('nova conversa aparece na lateral e dá para voltar ao orquestrador', async () => {
+    await app.avaliar("document.getElementById('nova-conversa').click()");
+    await app.esperar("document.querySelectorAll('.item-conversa').length === 2");
+    assert.ok(await app.avaliar("document.getElementById('desligar').hidden"), 'Desligar só no orquestrador');
+    await app.avaliar("document.querySelector('[data-conversa=\"orquestrador\"]').click()");
+    await app.esperar("!document.getElementById('desligar').hidden");
+  });
+
   await t.test('/config e /permissions abrem popup', async () => {
     await app.avaliar('window.__orqTeste.abrirPopupConfig()');
     assert.ok(await app.avaliar("!document.getElementById('popup').hidden && document.querySelectorAll('[data-config]').length > 20"));

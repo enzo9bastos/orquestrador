@@ -384,7 +384,8 @@ async function atualizarEspelhos(r) {
 
 async function atualizar() {
   try {
-    const r = await window.orq.estado();
+    // Testes de tela podem pôr um estado falso (agentes, fila) no lugar do real.
+    const r = (window.orq.teste && window.__estadoFalso) || await window.orq.estado();
     ultimo = r;
     if (selecionada && !r.frentes.some((f) => f.chave === selecionada)) selecionada = null;
     if (!selecionada && r.frentes.length) selecionada = r.frentes[0].chave;

@@ -19,6 +19,15 @@ test('janela', async (t) => {
     assert.deepStrictEqual(app.erros, []);
   });
 
+  await t.test('janela estreita (900 px): botões da barra continuam visíveis', async () => {
+    await app.tamanho(900, 680);
+    await app.espera(400);
+    for (const sel of ['#nova-conversa', '#botao-modelo', '#janela-fechar']) assert.strictEqual(await app.visivel(sel), 'ok', sel);
+    const alturas = await app.avaliar("[...document.querySelectorAll('.sub-aba')].map((b) => b.getBoundingClientRect().height)");
+    assert.ok(alturas.every((h) => h < 40), `abas quebraram: ${alturas}`);
+    await app.tamanho(1480, 920);
+  });
+
   await t.test('topo tem minimizar, maximizar e fechar; o Exit saiu', async () => {
     assert.ok(await app.avaliar("!!document.getElementById('janela-fechar') && !!document.getElementById('janela-min')"));
     assert.ok(await app.avaliar("!document.getElementById('sair-app')"));

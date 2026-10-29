@@ -61,6 +61,25 @@ async function abrirApp({ config = {}, arquivos = {} } = {}) {
       await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: vk });
       await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk });
     },
+    // Visível por inteiro: dentro da janela e, em 5 pontos (centro e cantos),
+    // o elemento de cima é ele mesmo (ou algo dentro dele). Pega menu cortado
+    // ou escondido atrás de outra parte da tela.
+    async visivel(seletor) {
+      return app.avaliar(`(() => {
+        const el = document.querySelector(${JSON.stringify(seletor)});
+        if (!el || el.hidden) return 'não existe ou está escondido';
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return 'sem tamanho';
+        if (r.left < 0 || r.top < 0 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1) return 'sai da janela';
+        const pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + 4, r.top + 4], [r.right - 4, r.top + 4], [r.left + 4, r.bottom - 4], [r.right - 4, r.bottom - 4]];
+        for (const [x, y] of pts) { const t = document.elementFromPoint(x, y); if (!t || !(t === el || el.contains(t))) return 'coberto por ' + (t ? (t.id || t.className || t.tagName) : 'nada'); }
+        return 'ok';
+      })()`);
+    },
+    // Tamanho da janela (para testar janela estreita).
+    tamanho: (largura, altura) => cdp('Emulation.setDeviceMetricsOverride', { width: largura, height: altura, deviceScaleFactor: 1, mobile: false }),
+    // Mouse de verdade (arrastar o bichinho).
+    async mouse(tipo, x, y) { await cdp('Input.dispatchMouseEvent', { type: tipo, x, y, button: 'left', buttons: tipo === 'mouseReleased' ? 0 : 1, clickCount: 1 }); },
     ler: (rel) => fs.readFileSync(path.join(casa, rel), 'utf8'),
     escrever: (rel, t) => fs.writeFileSync(path.join(casa, rel), t),
     espera,

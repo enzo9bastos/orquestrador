@@ -21,3 +21,5 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Agente trabalhando aparecia como "espera você" (só "esc to interrupt" contava) | `unidade/coletor.test.js` › regressão: estado pela tela… |
 | 2026-10-29 | Botão Desligar sumia depois de mexer na engrenagem (resposta parcial trocava a configuração inteira) | `tela/conversa.e2e.js` › regressão: botão Desligar continua… |
 | 2026-10-29 | Imagem colada sumia em silêncio quando a ponte do app era antiga (só o texto ia) | `tela/conversa.e2e.js` › regressão: imagem colada… (envio com ponte nova) |
+| 2026-10-29 | Menu de modelo abria por baixo da conversa (a barra cortava o que saía dela) | `tela/menus.e2e.js` › regressão: menu de modelo… |
+| 2026-10-29 | Chip da pasta mostrava o caminho embaralhado (direction: rtl) | `tela/menus.e2e.js` › regressão: chip da pasta… |

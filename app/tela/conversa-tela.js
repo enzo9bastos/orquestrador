@@ -316,7 +316,10 @@
     el.innerHTML = `<span class="rotulo">${rotulo}</span><span class="barra-uso"><i class="${nivel}" style="width:${Math.min(pct, 100)}%"></i></span><span class="valor">${pct}%${extra}</span>`;
   }
   function desenharInfo(i) {
-    $('info-pasta').textContent = (i.pasta || '').replace(/^\/home\/[^/]+/, '~') || '~';
+    // Pasta: as duas últimas partes ("…/pai/pasta"); o caminho inteiro na dica.
+    const pasta = (i.pasta || '').replace(/^\/home\/[^/]+/, '~') || '~';
+    const partes = pasta.split('/').filter(Boolean);
+    $('info-pasta').textContent = partes.length > 2 ? `…/${partes.slice(-2).join('/')}` : pasta;
     $('info-pasta').parentElement.title = i.pasta || '';
     $('info-modelo').textContent = nomeModelo(i.modelo);
     desenharEsforco(i.esforco);
@@ -350,7 +353,17 @@
   $('botao-modelo').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const abrir = $('menu-modelo').hidden;
-    if (abrir) { desenharMenu(); $('menu-modelo').hidden = false; $('botao-modelo').setAttribute('aria-expanded', 'true'); } else fecharMenu();
+    if (abrir) {
+      desenharMenu();
+      // Posição fixa na janela: a barra corta o que passa dela (overflow), e o
+      // menu precisa ficar por cima da conversa.
+      const r = $('botao-modelo').getBoundingClientRect();
+      const m = $('menu-modelo');
+      m.hidden = false;
+      m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8))}px`;
+      m.style.top = `${r.bottom + 6}px`;
+      $('botao-modelo').setAttribute('aria-expanded', 'true');
+    } else fecharMenu();
   });
   $('menu-modelo').addEventListener('click', async (ev) => {
     ev.stopPropagation();
@@ -771,5 +784,5 @@
   });
   // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
   // Fica no fim do script: tudo o que ele expõe já existe aqui.
-  if (window.orq.teste) window.__orqTeste = { desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes };
+  if (window.orq.teste) window.__orqTeste = { desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet };
 })();
