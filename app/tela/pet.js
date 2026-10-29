@@ -28,9 +28,16 @@
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const sorteia = (l) => l[Math.floor(Math.random() * l.length)];
   const parado = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Próximo quadro da animação. Com a janela escondida ou minimizada o
-  // navegador pausa o requestAnimationFrame; aí a física segue por relógio.
-  const quadroSeguinte = (fn) => (document.hidden ? setTimeout(() => fn(performance.now()), 16) : requestAnimationFrame(fn));
+  // Próximo quadro da animação: o quadro da tela ou um relógio de 50 ms, o que
+  // vier primeiro. Com a janela escondida ou minimizada o navegador para de
+  // desenhar quadros (mesmo dizendo que a página está visível), e a física
+  // ficaria congelada no ar.
+  const quadroSeguinte = (fn) => {
+    let feito = false;
+    const rodar = (t) => { if (feito) return; feito = true; cancelAnimationFrame(q); clearTimeout(r); fn(t); };
+    const q = requestAnimationFrame(rodar);
+    const r = setTimeout(() => rodar(performance.now()), 50);
+  };
 
   // Modos que vêm do orquestrador; "livre" é quando ele não está fazendo nada.
   const FALAS = {
