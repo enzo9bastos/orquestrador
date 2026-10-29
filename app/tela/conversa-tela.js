@@ -214,7 +214,8 @@
             <button type="button" class="opcao" data-rotulo="${esc(o.label)}">
               <strong>${esc(o.label)}</strong>${o.description ? `<span>${esc(o.description)}</span>` : ''}</button>`).join('')}
           </div>
-          <textarea class="outra" rows="1" placeholder="Outra resposta…  (Enter responde · Shift+Enter quebra linha)"></textarea>
+          <textarea class="outra" rows="1" placeholder="Outra resposta…  (Enter responde · Shift+Enter quebra linha · Ctrl+V cola print)"></textarea>
+          <div class="anexos anexos-pergunta" hidden></div>
         </fieldset>`).join('') +
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
     } else {
@@ -280,15 +281,27 @@
   async function enviarRespostas(cartao) {
     const p = pedidos.get(cartao.dataset.pedido);
     const respostas = {};
+    // Prints coladas na pergunta: a resposta da pergunta só leva texto, então
+    // elas vão numa mensagem logo depois (o Claude recebe as duas juntas).
+    const prints = cartao._prints || [];
+    if (prints.length && !window.orq.permissoes) {
+      aviso('Este app foi aberto antes da versão que manda imagens: feche e abra o app. Nada foi enviado.', 'erro');
+      return;
+    }
     for (const fs of cartao.querySelectorAll('.pergunta')) {
       const q = p.entrada.questions[fs.dataset.i];
       const outra = fs.querySelector('.outra').value.trim();
       const marcadas = [...fs.querySelectorAll('.opcao.marcada')].map((o) => o.dataset.rotulo);
-      const r = outra || marcadas.join(', ');
-      if (!r) { fs.classList.add('falta'); return; }
+      let r = outra || marcadas.join(', ');
+      if (!r && !prints.length) { fs.classList.add('falta'); return; }
+      if (prints.length && fs === cartao.querySelector('.pergunta')) r = `${r ? `${r} ` : ''}(a print segue na próxima mensagem)`;
       respostas[q.question] = r;
     }
     await C.responder(ativa, cartao.dataset.pedido, { permitir: true, respostas });
+    if (prints.length) {
+      const q0 = p.entrada.questions[0];
+      await C.mandar(ativa, `Print da minha resposta à pergunta "${q0.header || q0.question}".`, prints);
+    }
     // Respondido: cada pergunta com a sua resposta embaixo, uma por bloco.
     cartao.classList.add('respondido', 'respondido-perguntas');
     cartao.innerHTML = `<div class="titulo-respondido"><span class="ponto trabalhando"></span>Respondido</div>` +
@@ -631,13 +644,48 @@
     $('anexos').innerHTML = anexos.map((a, i) => `<div class="anexo"><img src="data:${a.tipo};base64,${a.dados}" alt="imagem anexada">
       <button type="button" data-tirar-anexo="${i}" aria-label="Tirar imagem" title="Tirar">✕</button></div>`).join('');
   }
-  function anexar(arquivo) {
+  // destino: a lista de anexos (caixa de texto ou cartão de pergunta) e quem redesenha.
+  function anexar(arquivo, destino = anexos, redesenhar = desenharAnexos) {
     if (!/^image\/(png|jpeg|gif|webp)$/.test(arquivo.type)) return;
     if (arquivo.size > MAX_IMAGEM) { aviso('Imagem acima de 5 MB não vai: diminua antes.', 'erro'); return; }
     const r = new FileReader();
-    r.onload = () => { anexos.push({ tipo: arquivo.type, dados: String(r.result).split(',')[1] }); desenharAnexos(); };
+    r.onload = () => { destino.push({ tipo: arquivo.type, dados: String(r.result).split(',')[1] }); redesenhar(); };
     r.readAsDataURL(arquivo);
   }
+  // Prints no campo "Outra resposta" de uma pergunta.
+  function desenharPrints(cartao) {
+    const caixaP = cartao.querySelector('.anexos-pergunta');
+    const l = cartao._prints || [];
+    caixaP.hidden = !l.length;
+    caixaP.innerHTML = l.map((a, i) => `<div class="anexo"><img src="data:${a.tipo};base64,${a.dados}" alt="print anexada">
+      <button type="button" data-tirar-print="${i}" aria-label="Tirar print" title="Tirar">✕</button></div>`).join('');
+  }
+  caixa.addEventListener('paste', (ev) => {
+    const outra = ev.target.closest('.outra');
+    if (!outra) return;
+    const imgs = [...(ev.clipboardData?.items || [])].filter((i) => i.kind === 'file' && i.type.startsWith('image/'));
+    if (!imgs.length) return;
+    ev.preventDefault();
+    const cartao = outra.closest('.cartao-pedido');
+    cartao._prints = cartao._prints || [];
+    imgs.forEach((i) => anexar(i.getAsFile(), cartao._prints, () => desenharPrints(cartao)));
+  });
+  caixa.addEventListener('drop', (ev) => {
+    const cartao = ev.target.closest('.cartao-pedido');
+    const arqs = [...(ev.dataTransfer?.files || [])].filter((f) => f.type.startsWith('image/'));
+    if (!cartao || !arqs.length) return;
+    ev.preventDefault();
+    cartao._prints = cartao._prints || [];
+    arqs.forEach((f) => anexar(f, cartao._prints, () => desenharPrints(cartao)));
+  });
+  caixa.addEventListener('dragover', (ev) => { if (ev.target.closest('.cartao-pedido')) ev.preventDefault(); });
+  caixa.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-tirar-print]');
+    if (!b) return;
+    const cartao = b.closest('.cartao-pedido');
+    cartao._prints.splice(Number(b.dataset.tirarPrint), 1);
+    desenharPrints(cartao);
+  });
   entrada.addEventListener('paste', (ev) => {
     const imgs = [...(ev.clipboardData?.items || [])].filter((i) => i.kind === 'file' && i.type.startsWith('image/'));
     if (!imgs.length) return;

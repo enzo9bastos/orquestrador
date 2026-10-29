@@ -73,6 +73,15 @@ test('conversa', async (t) => {
     assert.ok(await app.avaliar("!document.querySelector('[data-pedido=\"p1\"] .pergunta .opcao.marcada')"));
   });
 
+  // Regressão 2026-10-29: não dava para responder uma pergunta com print.
+  await t.test('regressão: print colada na pergunta aparece no cartão', async () => {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    await app.avaliar(`(() => { const b = Uint8Array.from(atob('${png}'), (c) => c.charCodeAt(0)); const f = new File([b], 'p.png', { type: 'image/png' });
+      const dt = new DataTransfer(); dt.items.add(f);
+      document.querySelector('[data-pedido="p1"] .outra').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+    await app.esperar("document.querySelectorAll('[data-pedido=\"p1\"] .anexos-pergunta img').length === 1");
+  });
+
   await t.test('Outra resposta cresce para baixo com texto longo', async () => {
     const antes = await app.avaliar("document.querySelector('[data-pedido=\"p1\"] .outra').offsetHeight");
     await app.texto(' e mais texto '.repeat(30));
