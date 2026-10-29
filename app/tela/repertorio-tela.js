@@ -19,9 +19,11 @@
       if (!grupos.has(s.fonte)) grupos.set(s.fonte, []);
       grupos.get(s.fonte).push({ ...s, tipo: 'skill' });
     }
-    $('lista-repertorio').innerHTML = [...grupos].map(([g, l]) => `<div class="secao-titulo">${esc(g)} <span class="contador">${l.length}</span></div>
+    const tipos = (t) => Object.entries(t).map(([k, n]) => `${n} ${k}${n > 1 ? (k.endsWith('m') ? 'ns' : 's') : ''}`).join(', ');
+    $('lista-repertorio').innerHTML = `<div class="conectadas"><span class="secao-titulo">Ferramentas conectadas</span>${(dados.conectadas || []).map((c) =>
+      `<span class="conectada"><span class="ponto trabalhando"></span>${esc(c.nome)} <small>${esc(tipos(c.tipos))}</small></span>`).join('') || '<p class="nota">Nenhuma ferramenta de IA achada nesta máquina.</p>'}</div>` + [...grupos].map(([g, l]) => `<div class="secao-titulo">${esc(g)} <span class="contador">${l.length}</span></div>
       ${l.map((x) => `<button type="button" class="item-repertorio${aberto && aberto.id === x.id ? ' ativo' : ''}" data-tipo="${x.tipo}" data-id="${esc(x.id)}">
-        <span class="nome">//${esc(x.nome)}</span>${x.tecla ? `<kbd>Ctrl+Alt+${esc(x.tecla)}</kbd>` : ''}</button>`).join('') || '<p class="nota">Nenhum ainda.</p>'}`).join('');
+        <span class="nome">//${esc(x.nome)}</span>${x.tecla ? `<kbd>Ctrl+Alt+${esc(x.tecla)}</kbd>` : ''}${x.tipo !== 'atalho' && x.tipo !== 'skill' ? `<span class="tipo-item">${esc(x.tipo)}</span>` : ''}</button>`).join('') || '<p class="nota">Nenhum ainda.</p>'}`).join('');
   }
 
   async function abrirSkill(id) {
@@ -30,7 +32,7 @@
     aberto = { tipo: 'skill', id };
     const conteudo = await R.conteudo(id);
     $('detalhe-repertorio').innerHTML = `<header class="detalhe-repertorio-topo"><div><h2>//${esc(s.nome)}</h2>
-        <span class="origem-sugestao">${esc(s.fonte)}</span><span class="nota">${s.ferramenta === 'claude' ? 'O Claude executa esta skill direto (/'+esc(s.nome)+').' : 'Vai com as instruções junto, para qualquer modelo seguir.'}</span></div>
+        <span class="origem-sugestao">${esc(s.fonte)} · ${esc(s.tipo)}</span><span class="nota">${s.ferramenta !== 'claude' ? 'Vai com as instruções junto, para qualquer modelo seguir.' : s.tipo === 'subagente' ? 'O Claude chama este subagente pelo nome.' : 'O Claude executa direto (/' + esc(s.nome) + ').'}</span></div>
         <button type="button" class="botao primario" data-usar="//${esc(s.nome)}">Usar na conversa</button></header>
       <div class="md">${md(String(conteudo || '').replace(/^---[\s\S]*?---\n/, ''))}</div>`;
     desenharLista();

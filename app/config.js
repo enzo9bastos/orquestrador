@@ -46,12 +46,11 @@ const PADRAO = {
   rotuloContainer: 'devcontainer.local_folder',
   pastaTranscript: '-workspace-{projeto}',
 
-  // Repertório: pastas de skills de cada ferramenta (cada skill é uma pasta
-  // com SKILL.md). "ferramenta" diz quem entende a skill nativamente.
-  fontesRepertorio: [
-    { nome: 'Claude', ferramenta: 'claude', caminho: '~/.claude/skills' },
-    { nome: 'Agentes (Codex e outros)', ferramenta: 'agentes', caminho: '~/.agents/skills' },
-  ],
+  // Repertório: o app acha sozinho o que você criou em cada ferramenta de IA
+  // (Claude, Codex, Gemini, OpenCode, Windsurf, Cursor, padrão dos agentes).
+  // fontesRepertorio: pastas extras de skills (cada skill = pasta com SKILL.md).
+  detectarFerramentas: true,
+  fontesRepertorio: [],
 
   // Notificações do sistema quando uma conversa do app precisa de você:
   // pedidos = pergunta ou permissão (sempre); respostas = o Claude terminou
@@ -101,6 +100,7 @@ function validar(m) {
       case 'linhaTarefa': case 'comandoOrdem': aceitar(k, regexOk(v), texto(v) || null); break;
       case 'rotuloContainer': case 'pastaTranscript': aceitar(k, !!texto(v), texto(v)); break;
       case 'ambiente': aceitar(k, v && typeof v === 'object' && Object.entries(v).every(([a, b]) => /^[A-Z_][A-Z0-9_]*$/.test(a) && typeof b === 'string'), v); break;
+      case 'detectarFerramentas': aceitar(k, typeof v === 'boolean', v); break;
       case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
       case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;
       default: recusado.push(k);

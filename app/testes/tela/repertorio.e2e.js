@@ -5,7 +5,7 @@ const { abrirApp } = require('./app');
 
 test('repertorio', async (t) => {
   const app = await abrirApp({
-    config: { pastasNotas: [{ nome: 'N', caminho: '~/n' }], fontesRepertorio: [{ nome: 'Claude', ferramenta: 'claude', caminho: '~/c' }, { nome: 'Outra', ferramenta: 'agentes', caminho: '~/o' }] },
+    config: { detectarFerramentas: false, pastasNotas: [{ nome: 'N', caminho: '~/n' }], fontesRepertorio: [{ nome: 'Claude', ferramenta: 'claude', caminho: '~/c' }, { nome: 'Outra', ferramenta: 'agentes', caminho: '~/o' }] },
     arquivos: { 'c/revisar/SKILL.md': '---\nname: revisar\ndescription: Revisa\n---\nx', 'o/publicar/SKILL.md': '---\nname: publicar\ndescription: Publica\n---\nINSTRUCOES-DA-SKILL', 'n/plano.md': '# Plano\n\nCONTEUDO-DA-NOTA\n' },
   });
   t.after(() => app.fechar());
@@ -39,8 +39,8 @@ test('repertorio', async (t) => {
 
   await t.test('aba Repertório: mostra a skill e cria atalho com tecla', async () => {
     await app.avaliar("document.querySelector('[data-aba=aba-repertorio]').click()");
-    await app.esperar("!!document.querySelector('.item-repertorio[data-id=\"claude:revisar\"]')");
-    await app.avaliar("document.querySelector('.item-repertorio[data-id=\"claude:revisar\"]').click()");
+    await app.esperar("!!document.querySelector('.item-repertorio[data-id=\"claude:skill:revisar\"]')");
+    await app.avaliar("document.querySelector('.item-repertorio[data-id=\"claude:skill:revisar\"]').click()");
     await app.esperar("/\\/\\/revisar/.test(document.getElementById('detalhe-repertorio').innerText)");
     await app.avaliar("document.getElementById('novo-atalho').click()");
     await app.avaliar("(() => { const f = document.querySelector('.form-atalho'); f.nome.value = 'Conferir Tudo'; f.texto.value = 'confira tudo'; f.tecla.value = '4'; f.requestSubmit(); })()");

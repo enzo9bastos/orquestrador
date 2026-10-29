@@ -765,7 +765,7 @@
   function itensRepertorio() {
     return [
       ...repertorio.atalhos.map((a) => ({ rotulo: `//${a.nome}`, desc: a.descricao || curto(a.texto, 90), origem: 'atalho', inserir: `//${a.nome}`, chave: a.nome })),
-      ...repertorio.skills.map((sk) => ({ rotulo: `//${sk.nome}`, desc: sk.descricao, origem: sk.fonte, inserir: `//${sk.nome}`, chave: sk.nome })),
+      ...repertorio.skills.map((sk) => ({ rotulo: `//${sk.nome}`, desc: sk.descricao, origem: `${sk.fonte} · ${sk.tipo}`, inserir: `//${sk.nome}`, chave: sk.nome })),
     ];
   }
   function itensMencao(tipo) {
@@ -831,7 +831,9 @@
       if (a) return ini + a.texto;
       const sk = repertorio.skills.find((x) => x.nome === nome && x.ferramenta === 'claude') || repertorio.skills.find((x) => x.nome === nome);
       if (!sk) return tudo;
-      if (sk.ferramenta === 'claude') return `${ini}/${sk.nome}`;
+      // O Claude entende direto as próprias skills e comandos (/nome) e os
+      // subagentes (pelo nome); o resto vai com as instruções junto.
+      if (sk.ferramenta === 'claude') return sk.tipo === 'subagente' ? `${ini}(use o subagente «${sk.nome}»)` : `${ini}/${sk.nome}`;
       anexosTexto.push({ tipo: 'skill', sk });
       return `${ini}(skill «${sk.nome}», instruções abaixo)`;
     });
