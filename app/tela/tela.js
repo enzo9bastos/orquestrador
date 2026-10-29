@@ -1,6 +1,9 @@
 // Tela do App de Orquestração. Lê o retrato do coletor a cada 2 s e redesenha.
 const $ = (id) => document.getElementById(id);
 
+// Estados que o próprio agente publica (orq-status).
+const ROTULO_STATUS = { trabalhando: 'Trabalhando', travado: 'Travado', revisao: 'Em revisão', pronto: 'Pronto' };
+
 const ROTULO = {
   trabalhando: 'Trabalhando',
   esperando: 'Espera você',
@@ -245,16 +248,70 @@ function desenharFrentes(r) {
           <span class="tempo-curto">${f.desde ? haQuanto(f.desde) : esc(ROTULO[f.estado].toLowerCase())}</span>
         </span>
         <span class="tarefa${f.tarefa ? '' : ' sem-tarefa'}">${esc(f.tarefa || 'Tarefa não registrada no topicos.md')}</span>
+        ${f.statusAgente ? `<span class="status-agente status-${esc(f.statusAgente.estado)}" title="Publicado pelo agente há ${haQuanto(f.statusAgente.ts)}">
+          <span class="rotulo-status">${esc(ROTULO_STATUS[f.statusAgente.estado] || f.statusAgente.estado)}</span>${esc(f.statusAgente.texto)}
+          ${f.statusAgente.progresso ? (() => { const [a, b] = f.statusAgente.progresso.split('/').map(Number); return `<span class="progresso-agente" title="${a} de ${b}"><i style="width:${Math.min(100, (a / (b || 1)) * 100)}%"></i></span>`; })() : ''}</span>` : ''}
         <span class="proj" title="${esc(f.proj)}">${f.modeloAgente ? `<span class="modelo-agente">✳ ${esc(f.modeloAgente)}</span>` : esc(f.proj)}</span>
       </button>`).join('');
   }
   $('sem-terminal').textContent = r.semTerminal ? `${r.semTerminal} projeto(s) sem agente aberto` : '';
 }
 
+// --- protótipo: "Agente N terminou" com resumo e próximos passos -----------------
+// Quando um agente passa de trabalhando para parado, vira um cartão na fila
+// com um resumo e 3 botões que mandam um pedido pronto ao orquestrador.
+const estadoAnterior = new Map(); // chave → estado da leitura passada
+const terminaram = new Map();     // chave → { nome, resumo, em }
+function resumoDe(f) {
+  if (f.statusAgente && f.statusAgente.texto) return f.statusAgente.texto;
+  if (f.ultimaResposta) return f.ultimaResposta.replace(/\s+/g, ' ').slice(0, 220);
+  // Sem hook nem status: as últimas linhas de texto da tela, sem a caixa de digitar.
+  const linhas = String(f.fimDaTela || '').split('\n').map((l) => l.trim())
+    .filter((l) => l && !/^[─━-]{5,}|^❯|⏵⏵|shift\+tab/.test(l));
+  return linhas.slice(-2).join(' ').slice(0, 220) || 'Sem resumo disponível.';
+}
+function notarTerminos(r) {
+  r.frentes.forEach((f, i) => {
+    const antes = estadoAnterior.get(f.chave);
+    if (antes === 'trabalhando' && (f.estado === 'esperando' || f.estado === 'permissao')) {
+      terminaram.set(f.chave, { nome: nomeDaFrente(f, i), resumo: resumoDe(f), em: Date.now() });
+    }
+    if (f.estado === 'trabalhando') terminaram.delete(f.chave);
+    estadoAnterior.set(f.chave, f.estado);
+  });
+}
+const PASSOS = [
+  ['conferir', 'Conferir', (n, r) => `O ${n} terminou: "${r}". Confira o que ele fez e me traga o antes × depois, em poucas linhas.`],
+  ['documentar', 'Documentar', (n) => `Peça ao ${n} para documentar no vault o que acabou de fazer, no mesmo turno.`],
+  ['seguir', 'Próximo passo', (n, r) => `O ${n} terminou: "${r}". Qual deve ser o próximo passo dele? Me proponha antes de mandar.`],
+];
+function cartoesTerminou() {
+  return [...terminaram].map(([chave, t]) => `<li class="item-fila item-terminou">
+    <span class="quem"><span class="ponto trabalhando" aria-hidden="true"></span>${esc(t.nome)} terminou<span class="proj">há ${haQuanto(t.em)}</span>
+      <button type="button" class="botao-icone dispensar" data-dispensar="${esc(chave)}" title="Dispensar">✕</button></span>
+    <span class="resumo-terminou">${esc(t.resumo)}</span>
+    <span class="acoes">${PASSOS.map(([k, rot]) => `<button type="button" class="botao secundario" data-passo="${k}" data-chave="${esc(chave)}">${rot}</button>`).join('')}</span>
+  </li>`).join('');
+}
+document.addEventListener('click', (ev) => {
+  const d = ev.target.closest('[data-dispensar]');
+  if (d) { terminaram.delete(d.dataset.dispensar); if (ultimo) desenharFila(ultimo); return; }
+  const b = ev.target.closest('[data-passo]');
+  if (!b) return;
+  const t = terminaram.get(b.dataset.chave);
+  if (!t) return;
+  const passo = PASSOS.find(([k]) => k === b.dataset.passo);
+  window.orq.conversa.mandar('orquestrador', passo[2](t.nome, t.resumo));
+  document.querySelector('[data-conversa="orquestrador"]')?.click();
+  terminaram.delete(b.dataset.chave);
+  if (ultimo) desenharFila(ultimo);
+}, true);
+
 function desenharFila(r) {
-  $('n-fila').textContent = r.fila.length ? String(r.fila.length) : '';
+  const extras = cartoesTerminou();
+  $('n-fila').textContent = (r.fila.length + terminaram.size) ? String(r.fila.length + terminaram.size) : '';
   const ul = $('fila');
-  if (!r.fila.length) {
+  if (!r.fila.length && !extras) {
     ul.innerHTML = `<li>${VAZIO('i-sino', 'Nada esperando por você', 'Permissões e pedidos ao servidor aparecem aqui.')}</li>`;
     return;
   }
@@ -276,7 +333,7 @@ function desenharFila(r) {
       <code class="codigo">${esc(p.conteudo)}</code>
       <span class="nota">Quem avalia e roda é o orquestrador: diga a ele "olha o pedido ${esc(p.id)}".</span>
     </li>`;
-  }).join('');
+  }).join('') + extras;
 }
 
 function desenharDetalhe(r) {
@@ -385,6 +442,7 @@ async function atualizar() {
     ultimo = r;
     if (selecionada && !r.frentes.some((f) => f.chave === selecionada)) selecionada = null;
     if (!selecionada && r.frentes.length) selecionada = r.frentes[0].chave;
+    notarTerminos(r);
     desenharTopo(r);
     desenharFrentes(r);
     desenharFila(r);

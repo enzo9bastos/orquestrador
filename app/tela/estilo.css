@@ -900,3 +900,15 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .paleta-item.atencao .titulo::before { content: '●'; color: var(--esperando); margin-right: 7px; font-size: 10px; }
 .paleta-vazio { padding: 14px; color: var(--fg-4); }
 .paleta-rodape { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--borda); font: 11px var(--mono); color: var(--fg-4); }
+
+/* --- status publicado pelo agente e cartão "terminou" ----------------------- */
+.cartao-agente .status-agente { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-left: 16px; font-size: 12px; color: var(--fg-2); }
+.rotulo-status { font: 600 10px var(--sans); letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; background: var(--ativo-suave); color: var(--ativo); }
+.status-travado .rotulo-status { background: color-mix(in srgb, var(--perigo) 18%, transparent); color: var(--perigo); }
+.status-revisao .rotulo-status { background: var(--claude-suave); color: var(--claude); }
+.status-pronto .rotulo-status { background: var(--ativo-suave); color: var(--ativo); }
+.progresso-agente { flex-basis: 100%; height: 4px; border-radius: 2px; background: var(--painel); overflow: hidden; }
+.progresso-agente i { display: block; height: 100%; background: var(--claude); }
+.item-terminou .quem { width: 100%; }
+.item-terminou .dispensar { margin-left: auto; width: 22px; height: 22px; font-size: 11px; }
+.resumo-terminou { font-size: 12.5px; color: var(--fg-2); line-height: 1.45; }

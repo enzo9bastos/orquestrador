@@ -84,6 +84,25 @@ function mexeu(pane, telaInteira, agora = Date.now()) {
   return agora - antes.em < JANELA_MOVIMENTO;
 }
 
+// Status publicado pelo próprio agente (.orq/bin/orq-status → .orq/status.json).
+// Vale por 12 h; depois disso é velho demais para dizer algo sobre o agora.
+const VALIDADE_STATUS = 12 * 60 * 60 * 1000;
+function lerStatus(dirProj, agora = Date.now()) {
+  try {
+    const s = JSON.parse(fs.readFileSync(path.join(dirProj, '.orq', 'status.json'), 'utf8'));
+    if (!s || typeof s.ts !== 'number' || agora - s.ts > VALIDADE_STATUS) return null;
+    return { texto: String(s.texto || ''), estado: s.estado, progresso: s.progresso || null, ts: s.ts };
+  } catch { return null; }
+}
+// O estado que o agente declarou, traduzido para os estados do app.
+// Recente (até 30 min) ele vale mais que a leitura da tela.
+const ESTADO_DO_STATUS = { trabalhando: 'trabalhando', travado: 'permissao', revisao: 'esperando', pronto: 'esperando' };
+function estadoComStatus(estadoTela, status, agora = Date.now()) {
+  if (!status || agora - status.ts > 30 * 60 * 1000) return estadoTela;
+  if (status.estado === 'trabalhando' && estadoTela === 'permissao') return estadoTela; // pergunta na tela vence
+  return ESTADO_DO_STATUS[status.estado] || estadoTela;
+}
+
 function lerEventos(dirProj, limite = 60) {
   const pasta = path.join(dirProj, '.orq', 'eventos');
   let arquivos;
@@ -235,6 +254,7 @@ function estado() {
     const eventos = lerEventos(dir);
     let achou = false;
     for (const p of candidatos) {
+      const statusAgente = lerStatus(dir);
       const inteira = tela(p.pane, 60);
       const fim = inteira.split('\n').slice(-8).join('\n');
       const mexeuAgora = mexeu(p.pane, inteira);
@@ -249,7 +269,9 @@ function estado() {
         pane: p.pane,
         sessaoTmux: p.sessao,
         nome: nomeDoAgente(p.titulo, proj, (tarefasAtuais[alvo] || {}).numero),
-        estado: ultimo ? estadoPeloSinal(ultimo) : estadoPelaTela(fim, mexeuAgora),
+        estado: ultimo ? estadoPeloSinal(ultimo) : estadoComStatus(estadoPelaTela(fim, mexeuAgora), statusAgente),
+        statusAgente,
+        fimDaTela: fim,
         fonte: ultimo ? 'sinal' : 'tela',
         desde: ultimo ? ultimo.ts : null,
         sessaoClaude: inicio ? inicio.sessao : null,
@@ -308,4 +330,4 @@ function lerNota(qual) {
   try { return fs.readFileSync(arq, 'utf8'); } catch { return null; }
 }
 
-module.exports = { estadoPelaTela, mexeu, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };
+module.exports = { lerStatus, estadoComStatus, estadoPelaTela, mexeu, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };

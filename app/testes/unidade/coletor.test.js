@@ -57,3 +57,18 @@ test('estado pela tela: movimento conta só a parte de cima e só por 8 s', () =
   assert.strictEqual(coletor.mexeu('%t', base('B'), 10500), false, 'parou de mexer');
   assert.strictEqual(coletor.mexeu('%t', base('B').replace('auto mode on', 'auto mode on '), 11000), false, 'rodapé mudando não conta');
 });
+
+test('status do agente: lido do .orq/status.json e vale mais que a tela por 30 min', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'orq-status-'));
+  fs.mkdirSync(path.join(dir, '.orq'));
+  const agora = Date.now();
+  fs.writeFileSync(path.join(dir, '.orq', 'status.json'), JSON.stringify({ texto: 'Comparando', estado: 'travado', progresso: '2/5', ts: agora }));
+  const st = coletor.lerStatus(dir, agora);
+  assert.deepStrictEqual([st.texto, st.estado, st.progresso], ['Comparando', 'travado', '2/5']);
+  assert.strictEqual(coletor.estadoComStatus('esperando', st, agora), 'permissao', 'travado = precisa de você');
+  assert.strictEqual(coletor.estadoComStatus('esperando', st, agora + 31 * 60 * 1000), 'esperando', 'velho: vale a tela');
+  assert.strictEqual(coletor.lerStatus(dir, agora + 13 * 60 * 60 * 1000), null, 'mais de 12 h: ignorado');
+  assert.strictEqual(coletor.estadoComStatus('permissao', { ...st, estado: 'trabalhando' }, agora), 'permissao', 'pergunta na tela vence');
+});
