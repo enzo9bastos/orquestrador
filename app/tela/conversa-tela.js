@@ -736,10 +736,23 @@
   let sugestoes = [];
   let escolhida = 0;
   function fecharSugestoes() { $('sugestoes').hidden = true; sugestoes = []; }
-  function atualizarSugestoes() {
-    const m = entrada.value.match(/^\/(\S*)$/);
-    if (!m) return fecharSugestoes();
-    const busca = m[1].toLowerCase();
+  // Repertório (skills de todas as ferramentas + atalhos), carregado ao abrir
+  // a lista "//" e recarregado a cada 30 s.
+  let repertorio = { skills: [], atalhos: [] }, repertorioEm = 0;
+  async function carregarRepertorio(forcar = false) {
+    if (!window.orq.repertorio || (!forcar && Date.now() - repertorioEm < 30000)) return repertorio;
+    repertorio = await window.orq.repertorio.lista();
+    repertorioEm = Date.now();
+    return repertorio;
+  }
+  carregarRepertorio().catch(() => {});
+  const aspas = (s) => (/\s/.test(s) ? `"${s}"` : s);
+
+  // Lista de sugestões, conforme o que está antes do cursor:
+  //   "/x" no começo   → comandos e skills do Claude desta conversa
+  //   "//x"            → repertório inteiro (skills de todas as ferramentas + atalhos)
+  //   "@" / "@nota:x" / "@workflow:x" → menções
+  function comandosDaConversa(busca) {
     const recebidos = comandosPor.get(ativa) || [];
     // Junta a lista do Claude com a nossa: a descrição nossa preenche os que
     // vieram sem descrição; os do app (/exit, /restart) entram sempre.
@@ -747,24 +760,112 @@
     const nomes = new Set(recebidos.map((c) => c.nome));
     const todos = [...COMANDOS_CLAUDE.filter((c) => !nomes.has(c.nome)),
       ...recebidos.map((c) => (c.descricao || !nossos.has(c.nome) ? c : { ...c, descricao: nossos.get(c.nome).descricao, dica: c.dica || nossos.get(c.nome).dica }))];
-    const comeca = todos.filter((c) => c.nome.toLowerCase().startsWith(busca));
-    const contem = todos.filter((c) => !c.nome.toLowerCase().startsWith(busca) && c.nome.toLowerCase().includes(busca));
+    return todos.map((c) => ({ rotulo: `/${c.nome}`, dica: c.dica, desc: c.descricao, inserir: `/${c.nome}`, chave: c.nome }));
+  }
+  function itensRepertorio() {
+    return [
+      ...repertorio.atalhos.map((a) => ({ rotulo: `//${a.nome}`, desc: a.descricao || curto(a.texto, 90), origem: 'atalho', inserir: `//${a.nome}`, chave: a.nome })),
+      ...repertorio.skills.map((sk) => ({ rotulo: `//${sk.nome}`, desc: sk.descricao, origem: sk.fonte, inserir: `//${sk.nome}`, chave: sk.nome })),
+    ];
+  }
+  function itensMencao(tipo) {
+    if (tipo === 'nota') return (window.orqNotas ? window.orqNotas.listar() : []).map((n) => ({ rotulo: `@nota:${n.caminho}`, desc: n.pasta, origem: 'nota', inserir: `@nota:${aspas(n.caminho)}`, chave: n.caminho }));
+    if (tipo === 'workflow') return (window.orqWorkflows ? window.orqWorkflows.listar() : []).map((w) => ({ rotulo: `@workflow:${w.nome}`, desc: w.descricao || '', origem: 'workflow', inserir: `@workflow:${aspas(w.nome)}`, chave: w.nome }));
+    return [
+      { rotulo: '@nota:', desc: 'Mencionar uma nota (vai com o conteúdo)', origem: 'menção', inserir: '@nota:', chave: 'nota', continuar: true },
+      { rotulo: '@workflow:', desc: 'Mencionar um workflow', origem: 'menção', inserir: '@workflow:', chave: 'workflow', continuar: true },
+    ];
+  }
+  let faixaToken = null; // [início, fim] do que a sugestão vai substituir
+  function atualizarSugestoes() {
+    const ate = entrada.value.slice(0, entrada.selectionStart ?? entrada.value.length);
+    let itens = null, busca = '';
+    const m = ate.match(/(^|\s)(\/\/\S*|@nota:\S*|@workflow:\S*|@\S*)$/);
+    if (m) {
+      const tok = m[2];
+      faixaToken = [ate.length - tok.length, ate.length];
+      if (tok.startsWith('//')) { busca = tok.slice(2); itens = itensRepertorio(); if (!repertorioEm) carregarRepertorio().then(atualizarSugestoes); }
+      else if (tok.startsWith('@nota:')) { busca = tok.slice(6).replace(/^"/, ''); itens = itensMencao('nota'); }
+      else if (tok.startsWith('@workflow:')) { busca = tok.slice(10).replace(/^"/, ''); itens = itensMencao('workflow'); if (!itens.length) itens = [{ rotulo: 'Nenhum workflow ainda', desc: 'A aba Workflows está chegando', origem: '', inserir: tok, chave: '' }]; }
+      else { busca = tok.slice(1); itens = itensMencao(''); }
+    } else {
+      const c = entrada.value.match(/^\/(\S*)$/);
+      if (!c) return fecharSugestoes();
+      faixaToken = [0, entrada.value.length];
+      busca = c[1]; itens = comandosDaConversa();
+    }
+    const b = busca.toLowerCase();
+    const comeca = itens.filter((x) => x.chave.toLowerCase().startsWith(b));
+    const contem = itens.filter((x) => !x.chave.toLowerCase().startsWith(b) && (x.chave + ' ' + (x.desc || '')).toLowerCase().includes(b));
     sugestoes = [...comeca, ...contem].slice(0, 60);
     if (!sugestoes.length) return fecharSugestoes();
     escolhida = Math.min(escolhida, sugestoes.length - 1);
     $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
-      <span class="nome-comando">/${esc(c.nome)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
-      <span class="desc-comando">${esc(curto(c.descricao, 110))}</span></li>`).join('');
+      <span class="nome-comando">${esc(c.rotulo)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
+      <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
     $('sugestoes').hidden = false;
     $('sugestoes').querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }
   function completar(i) {
     const c = sugestoes[i];
-    if (!c) return;
-    entrada.value = `/${c.nome} `;
+    if (!c || !faixaToken) return;
+    const [ini, fim] = faixaToken;
+    const novo = c.inserir + (c.continuar ? '' : ' ');
+    entrada.value = entrada.value.slice(0, ini) + novo + entrada.value.slice(fim);
+    const pos = ini + novo.length;
+    entrada.setSelectionRange(pos, pos);
     fecharSugestoes();
     entrada.focus();
+    if (c.continuar) { escolhida = 0; atualizarSugestoes(); }
   }
+
+  // Na hora de enviar: //atalho vira o texto dele; //skill do Claude vira
+  // /skill; //skill de outra ferramenta vai com o conteúdo; @nota:x vai com o
+  // caminho e o conteúdo da nota. O balão mostra o texto como foi escrito.
+  async function expandir(t) {
+    if (!/\/\/\S|@nota:|@workflow:/.test(t)) return { enviar: t, exibir: null };
+    await carregarRepertorio(true);
+    const anexosTexto = [];
+    let enviar = t.replace(/(^|\s)\/\/([^\s]+)/g, (tudo, ini, nome) => {
+      const a = repertorio.atalhos.find((x) => x.nome === nome);
+      if (a) return ini + a.texto;
+      const sk = repertorio.skills.find((x) => x.nome === nome && x.ferramenta === 'claude') || repertorio.skills.find((x) => x.nome === nome);
+      if (!sk) return tudo;
+      if (sk.ferramenta === 'claude') return `${ini}/${sk.nome}`;
+      anexosTexto.push({ tipo: 'skill', sk });
+      return `${ini}(skill «${sk.nome}», instruções abaixo)`;
+    });
+    const notas = [...t.matchAll(/@nota:(?:"([^"]+)"|(\S+))/g)].map((m) => m[1] || m[2]);
+    for (const a of anexosTexto) {
+      const conteudoSkill = await window.orq.repertorio.conteudo(a.sk.id);
+      enviar += `\n\n---\nSkill «${a.sk.nome}» (de ${a.sk.fonte}): siga estas instruções.\n\n${conteudoSkill || '(não consegui ler a skill)'}`;
+    }
+    for (const c of notas) {
+      const n = window.orqNotas && window.orqNotas.listar().find((x) => x.caminho === c);
+      if (!n) continue;
+      try {
+        const r = await window.orq.notas.ler(n.i, n.rel);
+        const abs = await window.orq.notas.caminho(n.i, n.rel);
+        const texto = r.conteudo.length > 30000 ? `${r.conteudo.slice(0, 30000)}\n…(cortado: a nota inteira está no arquivo)` : r.conteudo;
+        enviar += `\n\n---\nNota mencionada «${c}» (arquivo ${abs}):\n\n${texto}`;
+      } catch { /* nota sumiu */ }
+    }
+    return { enviar, exibir: enviar === t ? null : t };
+  }
+  window.orqConversa = {
+    inserir: (texto) => { entrada.value = entrada.value ? `${entrada.value} ${texto}` : texto; entrada.focus(); ajustarAltura(); },
+    mandar: async (texto) => { const e = await expandir(texto); return C.mandar(ativa, e.enviar, [], e.exibir); },
+  };
+  // Atalhos com tecla (Ctrl+Alt+1..9): enviam direto ou só escrevem na caixa.
+  document.addEventListener('keydown', async (ev) => {
+    if (!ev.ctrlKey || !ev.altKey || !/^[1-9]$/.test(ev.key)) return;
+    await carregarRepertorio();
+    const a = repertorio.atalhos.find((x) => x.tecla === ev.key);
+    if (!a) return;
+    ev.preventDefault();
+    document.querySelector('[data-aba="aba-orquestrador"]')?.click();
+    if (a.enviar) { colado = true; window.orqConversa.mandar(a.texto); } else window.orqConversa.inserir(a.texto);
+  });
   entrada.addEventListener('input', () => { escolhida = 0; atualizarSugestoes(); });
   entrada.addEventListener('keydown', (ev) => {
     if ($('sugestoes').hidden) return;
@@ -774,7 +875,7 @@
       atualizarSugestoes();
     } else if (ev.key === 'Tab' || (ev.key === 'Enter' && !ev.shiftKey)) {
       // Enter com o comando já digitado inteiro manda direto.
-      if (ev.key === 'Enter' && sugestoes[escolhida] && entrada.value.trim() === `/${sugestoes[escolhida].nome}`) { fecharSugestoes(); return; }
+      if (ev.key === 'Enter' && sugestoes[escolhida] && entrada.value.trim() === sugestoes[escolhida].inserir) { fecharSugestoes(); return; }
       ev.preventDefault(); ev.stopImmediatePropagation();
       completar(escolhida);
     } else if (ev.key === 'Escape') {
@@ -814,7 +915,8 @@
     if (ativa === 'orquestrador') pet.definir('pensando');
     const imagens = anexos.splice(0);
     desenharAnexos();
-    await C.mandar(ativa, t, imagens);
+    const e = await expandir(t);
+    await C.mandar(ativa, e.enviar, imagens, e.exibir);
   });
   $('parar').addEventListener('click', () => C.interromper(ativa));
   $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', () => {
@@ -838,5 +940,5 @@
   });
   // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
   // Fica no fim do script: tudo o que ele expõe já existe aqui.
-  if (window.orq.teste) window.__orqTeste = { desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet };
+  if (window.orq.teste) window.__orqTeste = { desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
 })();

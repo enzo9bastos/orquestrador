@@ -249,7 +249,9 @@ class Conversa {
   }
 
   // imagens: [{ tipo: 'image/png', dados: '<base64>' }] (coladas ou arrastadas).
-  mandar(texto, imagens = []) {
+  // exibir: o que aparece no balão quando é diferente do que vai ao Claude
+  // (ex.: "@nota:x" no balão; o conteúdo da nota vai junto para o Claude).
+  mandar(texto, imagens = [], exibir = null) {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
@@ -264,7 +266,8 @@ class Conversa {
     const content = imagens.length
       ? [...imagens.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.tipo, data: i.dados } })), ...(texto ? [{ type: 'text', text: texto }] : [])]
       : texto;
-    this.registrar({ tipo: 'user', message: { role: 'user', content }, local: true });
+    const mostrado = exibir && !imagens.length ? exibir : content;
+    this.registrar({ tipo: 'user', message: { role: 'user', content: mostrado }, local: true });
     return this.escrever({ type: 'user', message: { role: 'user', content } });
   }
 
@@ -413,7 +416,7 @@ module.exports = {
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade
   lista, abrir, nova, fechar, pararTodas, encerrarTodas, ambienteLimpo,
-  mandar: (id, t, imagens) => pegar(id).mandar(t, imagens),
+  mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   interromper: (id) => pegar(id).interromper(),
   configurar: (id, o) => pegar(id).configurar(o || {}),

@@ -19,6 +19,7 @@ const coletor = require('./coletor');
 const conversa = require('./conversa');
 const notas = require('./notas');
 const permissoes = require('./permissoes');
+const repertorio = require('./repertorio');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
 // (conversa.js), sem tela de terminal.
@@ -130,6 +131,11 @@ ipcMain.handle('app:reiniciar', () => { reiniciando = true; app.relaunch(); app.
 // (a próxima abertura começa do zero) e os terminais.
 ipcMain.on('janela:fechar', () => app.quit());
 
+// --- repertório: skills de todas as ferramentas + atalhos do usuário --------
+ipcMain.handle('repertorio:lista', () => repertorio.lista());
+ipcMain.handle('repertorio:conteudo', (_e, id) => repertorio.conteudo(id));
+ipcMain.handle('repertorio:gravarAtalhos', (_e, l) => repertorio.gravarAtalhos(l));
+
 // --- /permissions: regras do settings.json do Claude ------------------------
 ipcMain.handle('permissoes:ler', () => permissoes.ler());
 ipcMain.handle('permissoes:gravar', (_e, novo) => permissoes.gravar(novo || {}));
@@ -190,11 +196,11 @@ ipcMain.handle('conversa:lista', () => conversa.lista());
 ipcMain.handle('conversa:abrir', (_e, id) => conversa.abrir(id));
 // Imagens: só os tipos que o Claude aceita, até 5 MB cada e 6 por mensagem.
 const TIPOS_IMAGEM = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-ipcMain.handle('conversa:mandar', (_e, id, texto, imagens = []) => {
+ipcMain.handle('conversa:mandar', (_e, id, texto, imagens = [], exibir = null) => {
   const imgs = (Array.isArray(imagens) ? imagens : []).filter((i) => i && TIPOS_IMAGEM.includes(i.tipo) && typeof i.dados === 'string' && i.dados.length < 7_000_000).slice(0, 6);
   const t = typeof texto === 'string' ? texto.trim() : '';
   if (!t && !imgs.length) return false;
-  return conversa.mandar(id, t, imgs);
+  return conversa.mandar(id, t, imgs, typeof exibir === 'string' ? exibir : null);
 });
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));

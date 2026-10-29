@@ -61,6 +61,7 @@
       <button class="sub-aba ativa" data-aba="aba-orquestrador" type="button" role="tab"><svg class="ico"><use href="#i-balao"/></svg><span class="rotulo-aba">Orquestrador</span></button>
       <button class="sub-aba" data-aba="aba-grade" type="button" role="tab"><svg class="ico"><use href="#i-grade"/></svg><span class="rotulo-aba">Terminais</span></button>
       <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg><span class="rotulo-aba">Notas</span></button>
+      <button class="sub-aba" data-aba="aba-repertorio" type="button" role="tab"><svg class="ico"><use href="#i-lista"/></svg><span class="rotulo-aba">Repertório</span></button>
       <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg><span class="rotulo-aba">Terminal</span></button>
     </div>
     <div class="painel-corpo">
@@ -98,6 +99,17 @@
             <button id="enviar" class="botao-enviar" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-enviar"/></svg></button>
           </div>
         </form>
+      </section>
+      <section id="aba-repertorio" class="aba" aria-label="Repertório">
+        <div class="repertorio">
+          <aside class="repertorio-lista">
+            <label class="busca busca-notas"><svg class="ico"><use href="#i-busca"/></svg>
+              <input id="filtro-repertorio" type="search" placeholder="Buscar skill ou atalho" aria-label="Buscar no repertório"></label>
+            <button type="button" class="botao-texto" id="novo-atalho">+ Novo atalho</button>
+            <div id="lista-repertorio"></div>
+          </aside>
+          <div class="repertorio-detalhe" id="detalhe-repertorio"></div>
+        </div>
       </section>
       <section id="aba-terminal" class="aba" aria-label="Terminais de reserva">
         <header class="terminais-barra">
@@ -310,5 +322,6 @@
   <script src="editor.bundle.js"></script>
   <script src="notas-tela.js"></script>
   <script src="conversa-tela.js"></script>
+  <script src="repertorio-tela.js"></script>
 </body>
 </html>

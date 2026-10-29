@@ -480,6 +480,8 @@
     grupo: 'Notas', titulo: n.nome, sub: `${pastas[i].nome} / ${n.rel}`,
     faz: () => { document.querySelector('[data-aba="aba-notas"]').click(); setTimeout(() => abrir(i, n.rel), 300); },
   })));
+  // Menções @nota: na conversa: "Pasta/caminho/sem .md".
+  window.orqNotas = { listar: () => pastas.flatMap((p, i) => todasAsNotas(arvores[i], i)).map(({ i, n }) => ({ i, rel: n.rel, pasta: pastas[i].nome, caminho: `${pastas[i].nome}/${n.rel.replace(/\.md$/i, '')}` })) };
   // A paleta precisa da lista de notas mesmo sem a aba ter sido aberta.
   carregarArvore().catch(() => {});
 

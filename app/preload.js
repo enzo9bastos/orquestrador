@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('orq', {
   conversa: {
     lista: () => ipcRenderer.invoke('conversa:lista'),
     abrir: (id) => ipcRenderer.invoke('conversa:abrir', id),
-    mandar: (id, t, imagens) => ipcRenderer.invoke('conversa:mandar', id, t, imagens),
+    mandar: (id, t, imagens, exibir) => ipcRenderer.invoke('conversa:mandar', id, t, imagens, exibir),
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
@@ -50,6 +50,11 @@ contextBridge.exposeInMainWorld('orq', {
     guardarCopia: (i, rel, texto) => ipcRenderer.invoke('notas:guardarCopia', i, rel, texto),
     vigiar: (i, rel) => ipcRenderer.invoke('notas:vigiar', i, rel),
     aoMudar: (fn) => ipcRenderer.on('notas:mudou', (_e, m) => fn(m)),
+  },
+  repertorio: {
+    lista: () => ipcRenderer.invoke('repertorio:lista'),
+    conteudo: (id) => ipcRenderer.invoke('repertorio:conteudo', id),
+    gravarAtalhos: (l) => ipcRenderer.invoke('repertorio:gravarAtalhos', l),
   },
   permissoes: {
     ler: () => ipcRenderer.invoke('permissoes:ler'),
