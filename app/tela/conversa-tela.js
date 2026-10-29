@@ -121,7 +121,20 @@
     el.className = 'md texto-claude';
     el.innerHTML = md(t);
     marcarCaminhos(el);
+    botoesDeCodigo(el);
     noGrupo(el);
+  }
+
+  // Bloco de código na conversa: Copiar e "▶ Terminal" (escreve no terminal
+  // do app sem executar; a pessoa confere e aperta Enter).
+  function botoesDeCodigo(raiz) {
+    for (const pre of raiz.querySelectorAll('pre')) {
+      if (pre.querySelector('.acoes-codigo')) continue;
+      const barra = document.createElement('div');
+      barra.className = 'acoes-codigo';
+      barra.innerHTML = '<button type="button" data-codigo="copiar" title="Copiar">Copiar</button><button type="button" data-codigo="terminal" title="Escrever no terminal do app (sem executar)">▶ Terminal</button>';
+      pre.append(barra);
+    }
   }
 
   // Caminhos absolutos ou com ~ escritos como código viram clicáveis: abrem
@@ -232,6 +245,16 @@
   }
 
   caixa.addEventListener('click', async (ev) => {
+    const bc = ev.target.closest('[data-codigo]');
+    if (bc) {
+      const texto = bc.closest('pre').querySelector('code')?.textContent ?? '';
+      if (bc.dataset.codigo === 'copiar') {
+        try { await navigator.clipboard.writeText(texto); bc.textContent = 'Copiado'; setTimeout(() => { bc.textContent = 'Copiar'; }, 1500); } catch { /* sem área de transferência */ }
+      } else if (window.orqTerminal) {
+        await window.orqTerminal.colar(texto);
+      }
+      return;
+    }
     const cam = ev.target.closest('code.caminho-clicavel');
     if (cam && window.orq.abrirCaminho) {
       const ok = await window.orq.abrirCaminho(cam.textContent.trim());

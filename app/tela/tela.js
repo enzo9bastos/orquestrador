@@ -199,6 +199,25 @@ async function abrirTerminal() {
 }
 $('novo-terminal').addEventListener('click', () => criarTerminal());
 
+// Mandar um comando ao terminal do app SEM executar: vai como colagem
+// ("bracketed paste"), então nem um bloco de várias linhas roda sozinho; a
+// pessoa confere e aperta Enter. Vai para o último terminal usado (ou abre um).
+let ultimoTerminal = null;
+document.addEventListener('focusin', (ev) => {
+  for (const [id, t] of terminais) if (t.painel.contains(ev.target)) ultimoTerminal = id;
+});
+window.orqTerminal = {
+  async colar(texto) {
+    document.querySelector('[data-aba="aba-terminal"]').click();
+    for (let i = 0; i < 30 && !terminais.size; i++) await new Promise((r) => setTimeout(r, 100));
+    const id = terminais.has(ultimoTerminal) ? ultimoTerminal : terminais.keys().next().value;
+    if (!id) return false;
+    window.orq.pty.escrever(id, `\x1b[200~${texto.replace(/\n+$/, '')}\x1b[201~`);
+    terminais.get(id).term.focus();
+    return true;
+  },
+};
+
 // "Abrir terminal" de uma frente: anexa a sessão tmux dela aqui dentro, na aba
 // Terminal, em vez de abrir uma janela solta do sistema.
 async function abrirTerminalDoAgente(sessao) {

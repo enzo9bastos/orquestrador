@@ -59,6 +59,17 @@ test('conversa', async (t) => {
     assert.ok(!(await app.avaliar('window.orqVisor.estado().aberto')));
   });
 
+  await t.test('bloco de código: ▶ Terminal escreve no terminal do app sem executar', async () => {
+    await injetar({ tipo: 'assistant', message: { content: [{ type: 'text', text: 'Rode:\n\n```\necho texto-do-bloco\n```' }] } });
+    await app.avaliar("[...document.querySelectorAll('[data-codigo=\"terminal\"]')].pop().click()");
+    await app.esperar("document.querySelector('[data-aba=aba-terminal]').classList.contains('ativa')");
+    await app.esperar("[...document.querySelectorAll('.xterm-rows')].some((r) => r.textContent.includes('echo texto-do-bloco'))", 8000);
+    await app.espera(800);
+    const linhas = await app.avaliar("[...document.querySelectorAll('.xterm-rows')].map((r) => r.textContent).join('\\n')");
+    assert.ok(!/^texto-do-bloco\s*$/m.test(linhas.replace(/echo texto-do-bloco/g, '')), 'não pode ter executado');
+    await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
+  });
+
   await t.test('saída de comando (/model, /usage) aparece', async () => {
     await injetar({ tipo: 'user', message: { role: 'user', content: '<local-command-stdout>Current model: X</local-command-stdout>' } });
     assert.ok(await app.avaliar("[...document.querySelectorAll('.saida-comando')].some((s) => s.innerText.includes('Current model'))"));
