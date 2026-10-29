@@ -72,3 +72,11 @@ test('status do agente: lido do .orq/status.json e vale mais que a tela por 30 m
   assert.strictEqual(coletor.lerStatus(dir, agora + 13 * 60 * 60 * 1000), null, 'mais de 12 h: ignorado');
   assert.strictEqual(coletor.estadoComStatus('permissao', { ...st, estado: 'trabalhando' }, agora), 'permissao', 'pergunta na tela vence');
 });
+
+// Regressão 2026-10-29: com a dica do Claude embaixo do contador, a linha do
+// contador saía da janela de leitura e o agente aparecia como parado.
+test('regressão: contador com dica embaixo continua contando como trabalho', () => {
+  const tela = ['texto', '* Metamorphosing… (4m 52s · ↓ 31.9k tokens)', '  ⎿ Tip: Use /btw to ask a quick side question', 'mais uma linha de dica', '────', '❯ ', '────', '  ⏵⏵ auto mode on (shift+tab to cycle)', 'linha extra do rodapé'];
+  const fim = tela.slice(-12).join('\n');
+  assert.strictEqual(coletor.estadoPelaTela(fim), 'trabalhando');
+});

@@ -27,3 +27,4 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Não dava para responder uma pergunta com print | `tela/conversa.e2e.js` › regressão: print colada na pergunta… |
 | 2026-10-29 | Ctrl+Shift+V no terminal colava duas vezes | `tela/terminais.e2e.js` › regressão: Ctrl+Shift+V não cola duas vezes |
 | 2026-10-29 | Menu / das notas não rolava junto com as setas do teclado | `tela/notas.e2e.js` › regressão: menu / rola junto… |
+| 2026-10-29 | Agente trabalhando aparecia como parado quando a dica do Claude empurrava o contador para fora da leitura | `unidade/coletor.test.js` › regressão: contador com dica embaixo… |

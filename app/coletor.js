@@ -256,7 +256,9 @@ function estado() {
     for (const p of candidatos) {
       const statusAgente = lerStatus(dir);
       const inteira = tela(p.pane, 60);
-      const fim = inteira.split('\n').slice(-8).join('\n');
+      // 12 linhas: a dica que o Claude mostra embaixo do contador empurrava a
+      // linha do contador para fora de uma janela menor.
+      const fim = inteira.split('\n').slice(-12).join('\n');
       const mexeuAgora = mexeu(p.pane, inteira);
       if (!TELA_CLAUDE.test(fim)) continue;
       achou = true;

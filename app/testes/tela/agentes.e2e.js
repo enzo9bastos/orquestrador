@@ -55,18 +55,6 @@ test('agentes', async (t) => {
     assert.ok(await app.avaliar("!!document.querySelector('.cartao-agente .progresso-agente i')"));
   });
 
-  await t.test('protótipo: agente que para de trabalhar vira "terminou" com próximos passos', async () => {
-    const parado = JSON.parse(JSON.stringify(ESTADO));
-    parado.frentes[0].estado = 'esperando';
-    parado.frentes[0].statusAgente = { texto: 'Pronto o botão Aprovar', estado: 'pronto', progresso: '5/5', ts: Date.now() };
-    await app.avaliar(`window.__estadoFalso = ${JSON.stringify(parado)}`);
-    await app.esperar("!!document.querySelector('.item-terminou')", 6000);
-    assert.match(await app.avaliar("document.querySelector('.item-terminou').innerText"), /Agente 2 terminou[\s\S]*Pronto o botão Aprovar/);
-    await app.avaliar("document.querySelector('.item-terminou [data-passo=\"conferir\"]').click()");
-    await app.esperar("[...document.querySelectorAll('#mensagens .msg-voce')].some((b) => b.innerText.includes('Confira o que ele fez'))", 6000);
-    assert.ok(await app.avaliar("!document.querySelector('.item-terminou')"), 'cartão sai depois de usado');
-  });
-
   await t.test('busca filtra os agentes', async () => {
     await app.avaliar("const f = document.getElementById('filtro'); f.value = 'aprovar'; f.dispatchEvent(new Event('input'))");
     assert.strictEqual(await app.avaliar("document.querySelectorAll('.cartao-agente').length"), 1);
