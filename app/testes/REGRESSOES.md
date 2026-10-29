@@ -25,3 +25,4 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Chip da pasta mostrava o caminho embaralhado (direction: rtl) | `tela/menus.e2e.js` › regressão: chip da pasta… |
 | 2026-10-29 | Bichinho ficava por cima da lista de comandos (/) | `tela/menus.e2e.js` › lista de comandos aparece inteira |
 | 2026-10-29 | Não dava para responder uma pergunta com print | `tela/conversa.e2e.js` › regressão: print colada na pergunta… |
+| 2026-10-29 | Ctrl+Shift+V no terminal colava duas vezes | `tela/terminais.e2e.js` › regressão: Ctrl+Shift+V não cola duas vezes |

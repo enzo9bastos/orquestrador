@@ -76,6 +76,7 @@
     { grupo: 'Ações', titulo: 'Nova conversa', faz: clicar('#nova-conversa') },
     { grupo: 'Ações', titulo: 'Novo terminal', faz: () => { clicar('[data-aba="aba-terminal"]')(); setTimeout(clicar('#novo-terminal'), 300); } },
     { grupo: 'Ações', titulo: 'Configurações', faz: clicar('#abrir-config') },
+    { grupo: 'Ações', titulo: 'Reiniciar o app mantendo as conversas', faz: () => window.orq.app && window.orq.app.reiniciar() },
     { grupo: 'Ações', titulo: 'Alternar tema claro/escuro', faz: clicar('#tema') },
     { grupo: 'Ações', titulo: 'Trocar modelo e esforço', faz: () => { clicar('[data-aba="aba-orquestrador"]')(); setTimeout(clicar('#botao-modelo'), 100); } },
   ]);

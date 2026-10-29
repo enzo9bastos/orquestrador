@@ -109,7 +109,9 @@ function ligarCopiarColar(term, id, painel) {
     if (ev.type !== 'keydown') return true;
     const k = ev.key.toLowerCase();
     if (ev.ctrlKey && ev.shiftKey && k === 'c') { copiarDoTerminal(term); return false; }
-    if (ev.ctrlKey && ev.shiftKey && k === 'v') { colarNoTerminal(id); return false; }
+    // Ctrl+Shift+V: o próprio navegador já dispara o "colar" no terminal; colar
+    // aqui também duplicava o texto. Só impede o xterm de tratar a tecla.
+    if (ev.ctrlKey && ev.shiftKey && k === 'v') return false;
     if (ev.ctrlKey && !ev.shiftKey && k === 'c' && term.hasSelection()) { copiarDoTerminal(term); return false; }
     return true;
   });

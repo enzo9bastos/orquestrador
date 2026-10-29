@@ -54,6 +54,9 @@ contextBridge.exposeInMainWorld('orq', {
     ler: () => ipcRenderer.invoke('permissoes:ler'),
     gravar: (novo) => ipcRenderer.invoke('permissoes:gravar', novo),
   },
+  app: {
+    reiniciar: () => ipcRenderer.invoke('app:reiniciar'),
+  },
   janela: {
     minimizar: () => ipcRenderer.send('janela:minimizar'),
     maximizar: () => ipcRenderer.send('janela:maximizar'),

@@ -121,6 +121,11 @@ ipcMain.handle('pty:fechar', (_e, id) => { const t = terminais.get(id); if (t) t
 // --- janela sem moldura: os botões do topo ---------------------------------
 ipcMain.on('janela:minimizar', () => janela && janela.minimize());
 ipcMain.on('janela:maximizar', () => { if (janela) janela.isMaximized() ? janela.unmaximize() : janela.maximize(); });
+// Reiniciar mantendo as conversas: só pausa (a próxima abertura retoma cada
+// conversa com --resume, com toda a memória) e abre o app de novo sozinho.
+let reiniciando = false;
+ipcMain.handle('app:reiniciar', () => { reiniciando = true; app.relaunch(); app.quit(); return true; });
+
 // Fechar = sair do app de vez, como o /exit do terminal: encerra as conversas
 // (a próxima abertura começa do zero) e os terminais.
 ipcMain.on('janela:fechar', () => app.quit());
@@ -280,7 +285,7 @@ app.whenReady().then(() => {
 function encerrarTudo() {
   for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
   terminais.clear();
-  conversa.encerrarTodas();
+  if (reiniciando) conversa.pararTodas(); else conversa.encerrarTodas();
 }
 app.on('before-quit', encerrarTudo);
 app.on('window-all-closed', () => { encerrarTudo(); app.quit(); });

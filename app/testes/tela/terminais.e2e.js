@@ -44,6 +44,17 @@ test('terminais', async (t) => {
     assert.match(copiado, /copiar-isto-agora/);
   });
 
+  // Regressão 2026-10-29: Ctrl+Shift+V colava duas vezes (o atalho e o
+  // "colar" do navegador).
+  await t.test('regressão: Ctrl+Shift+V não cola duas vezes', async () => {
+    const term = "document.querySelector('.painel-terminal .xterm-helper-textarea')";
+    await app.avaliar(`${term}.focus()`);
+    const tratado = await app.avaliar(`(() => { const e = new KeyboardEvent('keydown', { key: 'V', code: 'KeyV', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }); ${term}.dispatchEvent(e); return true; })()`);
+    assert.ok(tratado);
+    const fonte = require('fs').readFileSync(require('path').join(__dirname, '../../tela/tela.js'), 'utf8');
+    assert.doesNotMatch(fonte, /k === 'v'\) \{ colarNoTerminal/, 'o atalho não pode colar por conta própria');
+  });
+
   await t.test('no máximo 4 terminais', async () => {
     await app.avaliar("document.getElementById('novo-terminal').click()");
     await app.esperar("document.querySelectorAll('.painel-terminal').length === 4");

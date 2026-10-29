@@ -131,6 +131,12 @@
     document.querySelector('.controles-janela').hidden = true;
   }
 
+  // Reiniciar mantendo as conversas (ponte antiga não tem: o botão avisa).
+  $('reiniciar-app').addEventListener('click', (ev) => {
+    if (!window.orq.app) { ev.currentTarget.textContent = 'Este app é anterior a este botão: feche no X'; return; }
+    window.orq.app.reiniciar();
+  });
+
   aplicar();
   window.orq.config.ler().then((c) => { config = c; aplicar(); preencher(); window.dispatchEvent(new CustomEvent('orq:config', { detail: config })); });
 })();
