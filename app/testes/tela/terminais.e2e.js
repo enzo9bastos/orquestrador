@@ -26,6 +26,8 @@ test('terminais', async (t) => {
   // Regressão 2026-10-29: não dava para copiar texto do terminal.
   await t.test('regressão: Ctrl+Shift+C copia a seleção do terminal', async () => {
     await app.esperar("[...document.querySelectorAll('.xterm-rows')].some((r) => r.textContent.trim().length > 0)", 8000);
+    // Guarda a área de transferência de quem roda o teste, para devolver no fim.
+    const antes = await app.avaliar('navigator.clipboard.readText().catch(() => "")');
     await app.avaliar("document.querySelector('.painel-terminal .xterm-helper-textarea').focus()");
     await app.texto('echo copiar-isto-agora');
     await app.tecla('Enter', 'Enter', 13);
@@ -37,6 +39,8 @@ test('terminais', async (t) => {
     await app.avaliar("document.querySelector('.painel-terminal .xterm-helper-textarea').dispatchEvent(new KeyboardEvent('keydown', { key: 'C', code: 'KeyC', ctrlKey: true, shiftKey: true, bubbles: true }))");
     await app.espera(300);
     const copiado = await app.avaliar('navigator.clipboard.readText()');
+    // Devolve o que a pessoa tinha copiado antes do teste.
+    await app.avaliar(`navigator.clipboard.writeText(${JSON.stringify(antes)})`);
     assert.match(copiado, /copiar-isto-agora/);
   });
 

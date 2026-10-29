@@ -22,7 +22,12 @@ let janela;
 const avisados = new Set();
 
 function criarJanela() {
+  // Testes de tela (ORQ_APP_E2E=1): janela escondida, desenhando por trás, para
+  // não aparecer na tela de quem está trabalhando.
+  const emTeste = process.env.ORQ_APP_E2E === '1';
   janela = new BrowserWindow({
+    show: !emTeste,
+    paintWhenInitiallyHidden: true,
     width: 1480,
     height: 920,
     minWidth: 900,
@@ -38,8 +43,12 @@ function criarJanela() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: !emTeste,
     },
   });
+  // Escondida, mas com foco no conteúdo (área de transferência e teclado
+  // dependem disso nos testes).
+  if (emTeste) janela.webContents.once('did-finish-load', () => janela.webContents.focus());
   janela.setMenuBarVisibility(false);
   janela.loadFile(path.join(__dirname, 'tela', 'index.html'));
   janela.on('closed', () => { janela = null; });
