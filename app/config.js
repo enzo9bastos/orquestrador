@@ -11,6 +11,7 @@ const PADRAO = {
   // Aparência (o painel de Configurações grava estas duas).
   tema: 'dark',
   destaque: '#8b5cf6',
+  mostrarBichinho: true,
 
   // Onde estão os projetos. niveis 1: <raiz>/<projeto>; niveis 2:
   // <raiz>/<grupo>/<projeto>. Pastas que casam com ignorar ficam de fora.
@@ -45,6 +46,11 @@ const PADRAO = {
   rotuloContainer: 'devcontainer.local_folder',
   pastaTranscript: '-workspace-{projeto}',
 
+  // Notificações do sistema quando uma conversa do app precisa de você:
+  // pedidos = pergunta ou permissão (sempre); respostas = o Claude terminou
+  // de responder (só quando a janela não está em foco).
+  notificacoes: { pedidos: true, respostas: true },
+
   // Variáveis extras no ambiente das conversas e dos terminais do app.
   ambiente: {},
 };
@@ -62,6 +68,39 @@ function ler() {
   return c;
 }
 
+// Como está escrito (sem expandir ~), por cima dos padrões: o que a tela de
+// configurações mostra para editar.
+function cru() { return { ...PADRAO, ...lerArquivo() }; }
+
+const regexOk = (r) => { if (r == null || r === '') return true; try { new RegExp(r); return true; } catch { return false; } };
+const texto = (v) => (typeof v === 'string' ? v.trim() : '');
+// Valida o que a tela de configurações manda; chave desconhecida ou valor
+// inválido é ignorado (devolve a lista do que não foi aceito).
+function validar(m) {
+  const ok = {}, recusado = [];
+  const aceitar = (k, cond, v) => { if (cond) ok[k] = v; else recusado.push(k); };
+  for (const [k, v] of Object.entries(m || {})) {
+    switch (k) {
+      case 'tema': aceitar(k, ['dark', 'light'].includes(v), v); break;
+      case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
+      case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
+      case 'notificacoes': aceitar(k, v && typeof v === 'object', { pedidos: v.pedidos !== false, respostas: v.respostas !== false }); break;
+      case 'comandoInicial': case 'comandoDesligar':
+        aceitar(k, !texto(v) || /^\/\S+/.test(texto(v)), texto(v) || null); break;
+      case 'raizProjetos': aceitar(k, !!texto(v), texto(v)); break;
+      case 'pastaNotas': aceitar(k, true, texto(v) || null); break;
+      case 'niveis': aceitar(k, v === 1 || v === 2, v); break;
+      case 'ignorar': aceitar(k, !!texto(v) && regexOk(v), texto(v)); break;
+      case 'linhaTarefa': case 'comandoOrdem': aceitar(k, regexOk(v), texto(v) || null); break;
+      case 'rotuloContainer': case 'pastaTranscript': aceitar(k, !!texto(v), texto(v)); break;
+      case 'ambiente': aceitar(k, v && typeof v === 'object' && Object.entries(v).every(([a, b]) => /^[A-Z_][A-Z0-9_]*$/.test(a) && typeof b === 'string'), v); break;
+      case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;
+      default: recusado.push(k);
+    }
+  }
+  return { ok, recusado };
+}
+
 // Grava só as chaves mudadas, sem copiar os padrões para o arquivo.
 function gravar(mudancas) {
   const atual = lerArquivo();
@@ -71,4 +110,4 @@ function gravar(mudancas) {
   return ler();
 }
 
-module.exports = { ler, gravar, ARQ };
+module.exports = { ler, cru, validar, gravar, ARQ };

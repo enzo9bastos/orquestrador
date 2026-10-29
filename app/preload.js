@@ -3,6 +3,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('orq', {
+  // Só nos testes de tela (ORQ_APP_E2E=1): a tela expõe ganchos para o runner.
+  teste: process.env.ORQ_APP_E2E === '1',
   estado: () => ipcRenderer.invoke('estado'),
   espelho: (pane) => ipcRenderer.invoke('espelho', pane),
   anotacoes: () => ipcRenderer.invoke('anotacoes'),
@@ -10,10 +12,11 @@ contextBridge.exposeInMainWorld('orq', {
   responder: (emp, proj, id, decisao) => ipcRenderer.invoke('responder', emp, proj, id, decisao),
   abrirTerminal: (sessao) => ipcRenderer.invoke('abrir-terminal', sessao),
   abrirPasta: (dir) => ipcRenderer.invoke('abrir-pasta', dir),
+  abrirCaminho: (p) => ipcRenderer.invoke('abrir-caminho', p),
   conversa: {
     lista: () => ipcRenderer.invoke('conversa:lista'),
     abrir: (id) => ipcRenderer.invoke('conversa:abrir', id),
-    mandar: (id, t) => ipcRenderer.invoke('conversa:mandar', id, t),
+    mandar: (id, t, imagens) => ipcRenderer.invoke('conversa:mandar', id, t, imagens),
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
@@ -27,6 +30,7 @@ contextBridge.exposeInMainWorld('orq', {
     aoInfo: (fn) => ipcRenderer.on('conversa:info', (_e, m) => fn(m.id, m.dado)),
     aoTudo: (fn) => ipcRenderer.on('conversa:tudo', (_e, m) => fn(m.id, m.dado)),
     aoLista: (fn) => ipcRenderer.on('conversa:lista', (_e, l) => fn(l)),
+    aoFocar: (fn) => ipcRenderer.on('conversa:focar', (_e, id) => fn(id)),
     aoComandos: (fn) => ipcRenderer.on('conversa:comandos', (_e, m) => fn(m.id, m.dado)),
   },
   notas: {
@@ -44,6 +48,10 @@ contextBridge.exposeInMainWorld('orq', {
     guardarCopia: (i, rel, texto) => ipcRenderer.invoke('notas:guardarCopia', i, rel, texto),
     vigiar: (i, rel) => ipcRenderer.invoke('notas:vigiar', i, rel),
     aoMudar: (fn) => ipcRenderer.on('notas:mudou', (_e, m) => fn(m)),
+  },
+  permissoes: {
+    ler: () => ipcRenderer.invoke('permissoes:ler'),
+    gravar: (novo) => ipcRenderer.invoke('permissoes:gravar', novo),
   },
   janela: {
     minimizar: () => ipcRenderer.send('janela:minimizar'),

@@ -58,11 +58,30 @@ function tela(pane, linhas = 8) {
 
 // Estado pela tela — o mesmo critério do `estado_pane` do orq. Só vale quando
 // o projeto ainda não tem o hook instalado.
-function estadoPelaTela(fim) {
+// Três sinais de trabalho: o "esc to interrupt"; a linha do contador em
+// andamento ("✶ Pensando… (12s · …)", reticências + contador entre
+// parênteses; a de quem terminou fica no passado: "Cooked for 2m"); e
+// movimento recente na parte de cima da tela (texto saindo, contador andando),
+// ignorando a caixa de digitar e o rodapé, que ficam embaixo.
+const CONTADOR = /…\s*\(\s*\d+\s*[smh]/;
+function estadoPelaTela(fim, mexeuAgora = false) {
   if (/do you want|❯ 1\.|\(y\/n\)|Allow|permitir/i.test(fim)) return 'permissao';
-  if (/esc to interrupt/.test(fim)) return 'trabalhando';
+  if (/esc to interrupt/.test(fim) || CONTADOR.test(fim) || mexeuAgora) return 'trabalhando';
   if (/⏵⏵|shift\+tab|❯/.test(fim)) return 'esperando';
   return 'desconhecido';
+}
+
+// Movimento: guarda um resumo da parte de cima de cada tela e quando ela
+// mudou pela última vez. Conta como "mexeu agora" até 8 s depois.
+const JANELA_MOVIMENTO = 8000;
+const movimento = new Map(); // pane → { resumo, em }
+function mexeu(pane, telaInteira, agora = Date.now()) {
+  const linhas = telaInteira.split('\n').filter((l) => l.trim());
+  const corpo = linhas.slice(0, Math.max(0, linhas.length - 5)).slice(-40).join('\n');
+  const antes = movimento.get(pane);
+  if (!antes) { movimento.set(pane, { resumo: corpo, em: 0 }); return false; }
+  if (antes.resumo !== corpo) { antes.resumo = corpo; antes.em = agora; }
+  return agora - antes.em < JANELA_MOVIMENTO;
 }
 
 function lerEventos(dirProj, limite = 60) {
@@ -216,7 +235,9 @@ function estado() {
     const eventos = lerEventos(dir);
     let achou = false;
     for (const p of candidatos) {
-      const fim = tela(p.pane, 8);
+      const inteira = tela(p.pane, 60);
+      const fim = inteira.split('\n').slice(-8).join('\n');
+      const mexeuAgora = mexeu(p.pane, inteira);
       if (!TELA_CLAUDE.test(fim)) continue;
       achou = true;
       const ultimo = eventos && eventos.length ? eventos[eventos.length - 1] : null;
@@ -228,7 +249,7 @@ function estado() {
         pane: p.pane,
         sessaoTmux: p.sessao,
         nome: nomeDoAgente(p.titulo, proj, (tarefasAtuais[alvo] || {}).numero),
-        estado: ultimo ? estadoPeloSinal(ultimo) : estadoPelaTela(fim),
+        estado: ultimo ? estadoPeloSinal(ultimo) : estadoPelaTela(fim, mexeuAgora),
         fonte: ultimo ? 'sinal' : 'tela',
         desde: ultimo ? ultimo.ts : null,
         sessaoClaude: inicio ? inicio.sessao : null,
@@ -287,4 +308,4 @@ function lerNota(qual) {
   try { return fs.readFileSync(arq, 'utf8'); } catch { return null; }
 }
 
-module.exports = { estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };
+module.exports = { estadoPelaTela, mexeu, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };

@@ -387,6 +387,9 @@
     if (!sujo) { await abrir(m.i, m.rel, { manterRolagem: true }); estado('Atualizado por fora'); }
   });
 
+  // Pastas mudadas na engrenagem: a aba Notas acompanha.
+  window.addEventListener('orq:config', () => { if (document.getElementById('aba-notas').classList.contains('ativa')) carregarArvore(); });
+
   // Ao sair da aba ou fechar, nada fica sem salvar.
   window.addEventListener('beforeunload', () => { if (sujo) salvar(); });
   document.addEventListener('click', (ev) => {

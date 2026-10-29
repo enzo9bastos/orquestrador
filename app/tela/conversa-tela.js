@@ -44,6 +44,15 @@
     return { texto: t };
   }
 
+  function balaoImagens(blocos) {
+    grupo = null;
+    const el = document.createElement('div');
+    el.className = 'msg-voce';
+    el.innerHTML = `<div class="balao balao-imagens">${blocos.map((b) => (b.source && b.source.data
+      ? `<img src="data:${esc(b.source.media_type)};base64,${b.source.data}" alt="imagem enviada">` : '<span class="nota">[imagem]</span>')).join('')}</div>`;
+    caixa.append(el);
+  }
+
   function balaoUsuario(texto) {
     const u = textoDoUsuario(texto);
     if (!u) return;
@@ -111,7 +120,19 @@
     const el = document.createElement('div');
     el.className = 'md texto-claude';
     el.innerHTML = md(t);
+    marcarCaminhos(el);
     noGrupo(el);
+  }
+
+  // Caminhos absolutos ou com ~ escritos como código viram clicáveis: abrem
+  // no explorador de arquivos (pasta abre; arquivo aparece selecionado).
+  const PARECE_CAMINHO = /^(~|\/)[^\s`'"<>|]*[^\s`'"<>|.,:;)]$/;
+  function marcarCaminhos(raiz) {
+    for (const c of raiz.querySelectorAll('code')) {
+      if (c.closest('pre')) continue;
+      const t = c.textContent.trim();
+      if (PARECE_CAMINHO.test(t) && t.length > 2) { c.classList.add('caminho-clicavel'); c.title = 'Abrir no explorador de arquivos'; }
+    }
   }
 
   function saidaDeComando(t) {
@@ -146,6 +167,8 @@
       // repete. Do histórico (ev.antigo) vem tudo. A saída de um comando
       // (/model, /usage…) aparece sempre.
       const eco = !ev.local && !ev.antigo;
+      // Imagens mandadas pelo usuário viram miniaturas no balão.
+      if (!eco && Array.isArray(c) && c.some((b) => b.type === 'image')) balaoImagens(c.filter((b) => b.type === 'image'));
       const textos = typeof c === 'string' ? [c] : c.filter((b) => b.type === 'text').map((b) => b.text);
       for (const t of textos) saidaDeComando(t);
       if (typeof c === 'string') return eco ? undefined : balaoUsuario(c);
@@ -208,6 +231,12 @@
   }
 
   caixa.addEventListener('click', async (ev) => {
+    const cam = ev.target.closest('code.caminho-clicavel');
+    if (cam && window.orq.abrirCaminho) {
+      const ok = await window.orq.abrirCaminho(cam.textContent.trim());
+      if (!ok) { cam.classList.add('caminho-sumiu'); cam.title = 'Este caminho não existe (ou não está acessível daqui)'; }
+      return;
+    }
     const a = ev.target.closest('a[href]');
     if (a) { ev.preventDefault(); return; } // nada de navegar para fora do app
     if (ev.target.closest('[data-nova-rodada]')) { trocar('orquestrador'); return; }
@@ -333,6 +362,102 @@
   });
   document.addEventListener('click', fecharMenu);
 
+  // --- popups: /config e /permissions ---------------------------------------
+  const popup = $('popup');
+  function abrirPopup(titulo, html) {
+    $('popup-titulo').textContent = titulo;
+    $('popup-corpo').innerHTML = html;
+    popup.hidden = false;
+  }
+  const fecharPopup = () => { popup.hidden = true; };
+  $('fechar-popup').addEventListener('click', fecharPopup);
+  popup.addEventListener('mousedown', (ev) => { if (ev.target === popup) fecharPopup(); });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !popup.hidden) fecharPopup(); });
+
+  // Opções do /config do Claude Code. Cada mudança vira "/config chave=valor"
+  // mandado à conversa (o Claude responde confirmando, na própria conversa).
+  const SIM_NAO = ['true', 'false'];
+  const OPCOES_CONFIG = [
+    ['model', 'Modelo padrão', ['default', 'sonnet', 'opus', 'haiku', 'fable', 'best', 'sonnet[1m]', 'opus[1m]', 'fable[1m]', 'opusplan']],
+    ['permissionMode', 'Modo de permissão', ['default', 'plan', 'acceptEdits', 'auto', 'dontAsk']],
+    ['outputStyle', 'Estilo de resposta', ['default', 'Proactive', 'Concise', 'Explanatory', 'Learning']],
+    ['thinking', 'Pensamento estendido', SIM_NAO],
+    ['autoCompact', 'Compactar sozinho', SIM_NAO],
+    ['checkpoints', 'Pontos de restauração', SIM_NAO],
+    ['recap', 'Resumo ao voltar (recap)', SIM_NAO],
+    ['promptSuggestionEnabled', 'Sugestão de prompt', SIM_NAO],
+    ['language', 'Idioma das respostas', null],
+    ['theme', 'Tema do terminal', ['auto', 'dark', 'light', 'light-daltonized', 'dark-daltonized', 'light-ansi', 'dark-ansi']],
+    ['timeFormat', 'Formato de hora', ['auto', '12-hour', '24-hour', '24-hour-utc']],
+    ['notifChannel', 'Canal de notificação', ['auto', 'iterm2', 'terminal_bell', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled']],
+    ['inputNeededNotifEnabled', 'Avisar quando precisar de você', SIM_NAO],
+    ['agentPushNotifEnabled', 'Notificação push dos agentes', SIM_NAO],
+    ['remoteControl', 'Controle remoto', ['true', 'false', 'default']],
+    ['editor', 'Modo do editor', ['normal', 'vim']],
+    ['gitignore', 'Respeitar .gitignore', SIM_NAO],
+    ['autoConnectIde', 'Conectar à IDE sozinho', SIM_NAO],
+    ['externalEditorContext', 'Contexto do editor externo', SIM_NAO],
+    ['prStatus', 'Status do PR', SIM_NAO],
+    ['progressBar', 'Barra de progresso', SIM_NAO],
+    ['autoScroll', 'Rolar sozinho', SIM_NAO],
+    ['copyFullResponse', 'Copiar resposta inteira', SIM_NAO],
+    ['copyOnSelect', 'Copiar ao selecionar', SIM_NAO],
+    ['reduceMotion', 'Reduzir animações', SIM_NAO],
+    ['tips', 'Dicas', SIM_NAO],
+    ['defaultToAgentsView', 'Abrir na visão de agentes', SIM_NAO],
+    ['leftArrowOpensAgents', 'Seta ← abre agentes', SIM_NAO],
+    ['switchModelsOnFlag', 'Trocar modelo ao ser sinalizado', ['Switch automatically', 'Ask each time']],
+  ];
+  function abrirPopupConfig() {
+    abrirPopup('Configurações do Claude', `<p class="popup-nota">Cada mudança é mandada ao Claude desta conversa como <code>/config chave=valor</code>; ele confirma na conversa.</p>` +
+      OPCOES_CONFIG.map(([k, nome, ops]) => `<label class="popup-linha"><span><strong>${esc(nome)}</strong><code>${esc(k)}</code></span>
+        ${ops ? `<select data-config="${esc(k)}"><option value="">—</option>${ops.map((o) => `<option>${esc(o)}</option>`).join('')}</select>`
+              : `<input data-config="${esc(k)}" type="text" placeholder="ex.: português">`}</label>`).join(''));
+  }
+  $('popup-corpo').addEventListener('change', async (ev) => {
+    const el = ev.target.closest('[data-config]');
+    if (!el || !el.value) return;
+    const v = /\s/.test(el.value) ? `"${el.value}"` : el.value;
+    await C.mandar(ativa, `/config ${el.dataset.config}=${v}`);
+    el.closest('.popup-linha').classList.add('mudou');
+  });
+
+  // /permissions: regras allow/ask/deny do ~/.claude/settings.json.
+  const LISTAS = [['allow', 'Permitir sempre', 'ex.: Bash(npm test:*)'], ['ask', 'Perguntar', 'ex.: Bash(git push:*)'], ['deny', 'Negar sempre', 'ex.: Read(./.env)']];
+  async function abrirPopupPermissoes() {
+    if (!window.orq.permissoes) { aviso('Reabra o app para usar o /permissions.'); return; }
+    const p = await window.orq.permissoes.ler();
+    const lista = (k) => p[k].map((r) => `<li><code>${esc(r)}</code><button type="button" class="botao-icone" data-tirar-regra="${esc(k)}" title="Tirar esta regra">✕</button></li>`).join('');
+    abrirPopup('Permissões do Claude', `<p class="popup-nota">Regras de <code>${esc(p.arquivo)}</code>. Valem para as conversas novas ou depois de <code>/restart</code>. Cada gravação guarda a versão anterior.</p>
+      <label class="popup-linha"><span><strong>Modo padrão</strong><code>defaultMode</code></span>
+        <select id="perm-modo"><option value="">(não definido)</option>${p.modos.map((m) => `<option${m === p.defaultMode ? ' selected' : ''}>${m}</option>`).join('')}</select></label>` +
+      LISTAS.map(([k, nome, ex]) => `<section class="perm-lista" data-lista="${k}"><h4>${nome} <span>${p[k].length}</span></h4>
+        <ul>${lista(k) || '<li class="vazio-regra">Nenhuma regra.</li>'}</ul>
+        <div class="perm-nova"><input type="text" placeholder="${esc(ex)}"><button type="button" class="botao-texto" data-nova-regra="${k}">Adicionar</button></div></section>`).join('') +
+      '<div class="perm-acoes"><button type="button" class="botao primario" id="perm-salvar">Salvar</button></div>');
+  }
+  $('popup-corpo').addEventListener('click', async (ev) => {
+    const tirar = ev.target.closest('[data-tirar-regra]');
+    if (tirar) { tirar.closest('li').remove(); return; }
+    const nova = ev.target.closest('[data-nova-regra]');
+    if (nova) {
+      const sec = nova.closest('.perm-lista'), inp = sec.querySelector('input');
+      const v = inp.value.trim();
+      if (!v) return;
+      sec.querySelector('.vazio-regra')?.remove();
+      sec.querySelector('ul').insertAdjacentHTML('beforeend', `<li><code>${esc(v)}</code><button type="button" class="botao-icone" data-tirar-regra="${sec.dataset.lista}" title="Tirar esta regra">✕</button></li>`);
+      inp.value = '';
+      return;
+    }
+    if (ev.target.closest('#perm-salvar')) {
+      const novo = { defaultMode: $('perm-modo').value || null };
+      for (const [k] of LISTAS) novo[k] = [...document.querySelectorAll(`.perm-lista[data-lista="${k}"] li code`)].map((c) => c.textContent);
+      await window.orq.permissoes.gravar(novo);
+      fecharPopup();
+      aviso('Permissões salvas. Use /restart para esta conversa passar a seguir as regras novas.');
+    }
+  });
+
   // --- ligações ----------------------------------------------------------
   const pedidos = new Map();
   function redesenharTudo(r) {
@@ -442,6 +567,8 @@
       : 'Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)';
   }
   C.aoLista(desenharLista);
+  // Clique numa notificação do sistema: abre a conversa que precisa de você.
+  if (C.aoFocar) C.aoFocar((id) => trocar(id));
 
   async function trocar(id) {
     ativa = id;
@@ -482,6 +609,42 @@
   });
 
   const entrada = $('entrada');
+
+  // --- imagens: colar (Ctrl+V) ou arrastar para a caixa -----------------------
+  const anexos = []; // { tipo, dados (base64) }
+  const MAX_IMAGEM = 5 * 1024 * 1024;
+  function desenharAnexos() {
+    $('anexos').hidden = !anexos.length;
+    $('anexos').innerHTML = anexos.map((a, i) => `<div class="anexo"><img src="data:${a.tipo};base64,${a.dados}" alt="imagem anexada">
+      <button type="button" data-tirar-anexo="${i}" aria-label="Tirar imagem" title="Tirar">✕</button></div>`).join('');
+  }
+  function anexar(arquivo) {
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(arquivo.type)) return;
+    if (arquivo.size > MAX_IMAGEM) { aviso('Imagem acima de 5 MB não vai: diminua antes.', 'erro'); return; }
+    const r = new FileReader();
+    r.onload = () => { anexos.push({ tipo: arquivo.type, dados: String(r.result).split(',')[1] }); desenharAnexos(); };
+    r.readAsDataURL(arquivo);
+  }
+  entrada.addEventListener('paste', (ev) => {
+    const imgs = [...(ev.clipboardData?.items || [])].filter((i) => i.kind === 'file' && i.type.startsWith('image/'));
+    if (!imgs.length) return;
+    ev.preventDefault();
+    imgs.forEach((i) => anexar(i.getAsFile()));
+  });
+  const compositor = $('compositor');
+  compositor.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.items].some((i) => i.type.startsWith('image/'))) { ev.preventDefault(); compositor.classList.add('soltando'); } });
+  compositor.addEventListener('dragleave', () => compositor.classList.remove('soltando'));
+  compositor.addEventListener('drop', (ev) => {
+    compositor.classList.remove('soltando');
+    const arqs = [...ev.dataTransfer.files].filter((f) => f.type.startsWith('image/'));
+    if (!arqs.length) return;
+    ev.preventDefault();
+    arqs.forEach(anexar);
+  });
+  $('anexos').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-tirar-anexo]');
+    if (b) { anexos.splice(Number(b.dataset.tirarAnexo), 1); desenharAnexos(); entrada.focus(); }
+  });
 
   // --- autocompletar de comandos (/…) ---------------------------------------
   // Como no terminal: digitou "/" no começo, aparece a lista filtrada; setas
@@ -564,15 +727,21 @@
   $('compositor').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const t = entrada.value.trim();
-    if (!t) return;
+    if (!t && !anexos.length) return;
     // /exit fecha o app, como o X do topo.
     if (t === '/exit' || t === '/quit') { (window.orq.janela ? window.orq.janela.fechar() : window.close()); return; }
+    // Comandos que no terminal abrem uma janelinha de escolha: aqui também.
+    if (t === '/model' || t === '/effort') { $('botao-modelo').click(); return; }
+    if (t === '/config') { abrirPopupConfig(); return; }
+    if (t === '/permissions' || t === '/allowed-tools') { abrirPopupPermissoes(); return; }
     // /restart: o app reinicia o Claude por trás (--resume), como no terminal.
     if (t === '/restart') { if (C.reiniciar) { await C.reiniciar(ativa); aviso('Claude reiniciado; a conversa continua do mesmo ponto.'); } return; }
     entrada.value = ''; ajustarAltura();
     colado = true;
     if (ativa === 'orquestrador') pet.definir('pensando');
-    await C.mandar(ativa, t);
+    const imagens = anexos.splice(0);
+    desenharAnexos();
+    await C.mandar(ativa, t, imagens);
   });
   $('parar').addEventListener('click', () => C.interromper(ativa));
   $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', () => {
@@ -581,9 +750,18 @@
   }));
   $('nova-conversa').addEventListener('click', async () => trocar(await C.nova()));
 
+  // Configuração mudada na engrenagem: vale na hora (bichinho, comandos).
+  window.addEventListener('orq:config', (ev) => {
+    cfg = ev.detail;
+    $('palco-pet').classList.toggle('desligado', cfg.mostrarBichinho === false);
+    desenharLista(listaConversas);
+  });
   Promise.all([window.orq.config.ler(), C.lista()]).then(([c, l]) => {
     cfg = c;
     desenharLista(l);
     trocar('orquestrador');
   });
+  // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
+  // Fica no fim do script: tudo o que ele expõe já existe aqui.
+  if (window.orq.teste) window.__orqTeste = { desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes };
 })();

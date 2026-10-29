@@ -805,3 +805,68 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .menu-contexto li span { color: var(--fg-4); font: 11px var(--mono); }
 .menu-contexto .sep { height: 1px; background: var(--borda); margin: 4px 6px; }
 .linha-arvore .nome[contenteditable="plaintext-only"] { outline: 1px solid var(--claude); background: var(--bg); border-radius: 3px; padding: 0 3px; }
+
+/* --- popups (/config, /permissions) -------------------------------------- */
+.config.popup { width: min(640px, 100%); max-height: min(80vh, 760px); display: flex; flex-direction: column; }
+.popup-corpo { overflow-y: auto; padding: 4px 0 12px; }
+.popup-nota { margin: 12px 18px 6px; font-size: 12px; color: var(--fg-3); line-height: 1.5; }
+.popup-nota code, .popup-linha code { font: 11px var(--mono); color: var(--fg-4); }
+.popup-linha { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; align-items: center; padding: 8px 18px; border-bottom: 1px solid var(--borda); }
+.popup-linha > span { display: grid; gap: 1px; }
+.popup-linha strong { font-weight: 500; color: var(--fg); font-size: 13px; }
+.popup-linha select, .popup-linha input, .perm-nova input {
+  height: 30px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--borda-forte); background: var(--bg-afundado); color: var(--fg); font: inherit; width: 100%;
+}
+.popup-linha.mudou { background: var(--claude-suave); }
+.perm-lista { padding: 10px 18px; border-bottom: 1px solid var(--borda); }
+.perm-lista h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--fg); }
+.perm-lista h4 span { font: 400 11px var(--mono); color: var(--fg-4); margin-left: 6px; }
+.perm-lista ul { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.perm-lista li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px 4px 10px; border-radius: var(--r-sm); background: var(--bg-afundado); }
+.perm-lista li code { font: 12px var(--mono); color: var(--fg-2); overflow-wrap: anywhere; }
+.perm-lista .vazio-regra { background: none; color: var(--fg-4); font-size: 12px; padding-left: 0; }
+.perm-nova { display: flex; gap: 8px; }
+.perm-acoes { display: flex; justify-content: flex-end; padding: 12px 18px 0; }
+/* Caminho clicável na conversa. */
+.md code.caminho-clicavel { cursor: pointer; text-decoration: underline dotted color-mix(in srgb, var(--claude) 70%, transparent); text-underline-offset: 3px; }
+.md code.caminho-clicavel:hover { color: var(--claude); border-color: color-mix(in srgb, var(--claude) 50%, transparent); }
+.md code.caminho-sumiu { text-decoration: line-through; cursor: not-allowed; }
+.menu-contexto li.desligado { opacity: .45; pointer-events: none; }
+
+/* --- configurações: seções, campos e chaves -------------------------------- */
+.config { max-height: min(86vh, 900px); overflow-y: auto; }
+.config-secao { margin: 0; padding: 18px 18px 4px; font: 600 11px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--fg-4); }
+.config-coluna { grid-template-columns: minmax(0, 1fr); }
+.campo-config { width: 230px; height: 30px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--borda-forte); background: var(--bg-afundado); color: var(--fg); font: inherit; }
+textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
+.campo-config.mono { font: 12px var(--mono); }
+.campo-config.largo { width: 100%; }
+.campo-config:focus { outline: none; border-color: var(--claude); }
+.chave { position: relative; width: 38px; height: 22px; flex: none; cursor: pointer; }
+.chave input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chave span { position: absolute; inset: 0; border-radius: 999px; background: var(--painel); border: 1px solid var(--borda-forte); transition: background .15s; }
+.chave span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--fg-3); transition: transform .15s, background .15s; }
+.chave input:checked + span { background: var(--claude); border-color: var(--claude); }
+.chave input:checked + span::after { transform: translateX(16px); background: #fff; }
+.chave input:focus-visible + span { outline: 2px solid var(--claude); outline-offset: 2px; }
+.config-pastas { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.config-pastas li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 4px 6px 4px 10px; border-radius: var(--r-sm); background: var(--bg-afundado); }
+.config-pastas .nome { font-weight: 500; color: var(--fg); }
+.config-pastas code { font: 11px var(--mono); color: var(--fg-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.config-pastas [data-confirmando] { width: auto; padding: 0 6px; color: var(--perigo); font-size: 11px; }
+.config-coluna > .botao-texto { justify-self: start; }
+.config-avancado { border-top: 1px solid var(--borda); }
+.config-avancado > summary { padding: 14px 18px; cursor: pointer; font: 600 11px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--fg-4); }
+.config-arquivo { margin: 0; padding: 12px 18px 16px; font: 11px var(--mono); color: var(--fg-4); }
+.config-arquivo.erro { color: var(--perigo); }
+.pet-palco.desligado { display: none; }
+
+/* --- imagens na conversa ---------------------------------------------------- */
+.anexos { display: flex; gap: 8px; flex-wrap: wrap; }
+.anexos[hidden] { display: none; }
+.anexo { position: relative; width: 72px; height: 72px; border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--borda-forte); background: var(--bg-afundado); }
+.anexo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.anexo button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0, 0, 0, .65); color: #fff; font-size: 10px; display: grid; place-items: center; }
+.compositor.soltando .caixa-entrada { border-color: var(--claude); box-shadow: 0 0 0 3px var(--claude-suave); }
+.balao-imagens { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px; background: var(--painel); }
+.balao-imagens img { max-width: 240px; max-height: 180px; border-radius: 10px; display: block; }

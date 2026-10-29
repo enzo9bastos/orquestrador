@@ -93,6 +93,7 @@
           <div id="trabalhando" class="trabalhando" hidden><span class="pontinhos"><i></i><i></i><i></i></span><span id="trabalhando-texto">Pensando…</span>
             <button id="parar" class="botao-texto" type="button">Parar</button></div>
           <ul id="sugestoes" class="sugestoes" role="listbox" hidden></ul>
+          <div id="anexos" class="anexos" hidden></div>
           <div class="caixa-entrada">
             <textarea id="entrada" rows="1" placeholder="Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)"></textarea>
             <button id="enviar" class="botao-enviar" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-enviar"/></svg></button>
@@ -161,6 +162,13 @@
 
   <div id="palco-pet" class="pet-palco"></div>
 
+  <div id="popup" class="config-fundo" hidden>
+    <section class="config popup" role="dialog" aria-modal="true" aria-labelledby="popup-titulo">
+      <header><strong id="popup-titulo"></strong><button id="fechar-popup" class="botao-icone" type="button" aria-label="Fechar">✕</button></header>
+      <div id="popup-corpo" class="popup-corpo"></div>
+    </section>
+  </div>
+
   <div id="config" class="config-fundo" hidden>
     <section class="config" role="dialog" aria-modal="true" aria-labelledby="config-titulo">
       <header><strong id="config-titulo">Configurações</strong>
@@ -175,6 +183,80 @@
         <div><strong>Cor de destaque</strong><span>Marca do Claude, seleção, perguntas e o aviso de "espera você". Verde (trabalhando) e vermelho (erro) não mudam.</span></div>
         <div class="amostras" id="config-cores"></div>
       </div>
+      <div class="config-linha">
+        <div><strong>Bichinho do orquestrador</strong><span>O orquestrador em pessoa, no canto da conversa.</span></div>
+        <label class="chave"><input type="checkbox" data-cfg="mostrarBichinho"><span></span></label>
+      </div>
+
+      <h3 class="config-secao">Notificações</h3>
+      <div class="config-linha">
+        <div><strong>Quando precisar de você</strong><span>Pergunta ou pedido de permissão em qualquer conversa do app.</span></div>
+        <label class="chave"><input type="checkbox" data-cfg="notificacoes.pedidos"><span></span></label>
+      </div>
+      <div class="config-linha">
+        <div><strong>Quando terminar de responder</strong><span>Só com a janela fora de foco.</span></div>
+        <label class="chave"><input type="checkbox" data-cfg="notificacoes.respostas"><span></span></label>
+      </div>
+
+      <h3 class="config-secao">Orquestração</h3>
+      <div class="config-linha">
+        <div><strong>Comando que abre a rodada</strong><span>Mandado ao orquestrador na primeira abertura. Vazio: nenhum.</span></div>
+        <input class="campo-config" data-cfg="comandoInicial" placeholder="/orquestrar">
+      </div>
+      <div class="config-linha">
+        <div><strong>Comando que encerra a rodada</strong><span>O botão Desligar manda este comando. Vazio: sem botão.</span></div>
+        <input class="campo-config" data-cfg="comandoDesligar" placeholder="/desligar">
+      </div>
+
+      <h3 class="config-secao">Projetos e agentes</h3>
+      <div class="config-linha">
+        <div><strong>Pasta dos projetos</strong><span>Onde ficam os projetos dos agentes.</span></div>
+        <input class="campo-config" data-cfg="raizProjetos" placeholder="~/projetos">
+      </div>
+      <div class="config-linha">
+        <div><strong>Níveis de pasta</strong><span>1: pasta/projeto · 2: pasta/grupo/projeto.</span></div>
+        <div class="segmentado" data-segmento="niveis"><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button></div>
+      </div>
+
+      <h3 class="config-secao">Notas</h3>
+      <div class="config-linha config-coluna">
+        <div><strong>Pastas abertas na aba Notas</strong><span>Tirar daqui só tira do app; nada é apagado do disco.</span></div>
+        <ul id="config-pastas" class="config-pastas"></ul>
+        <button type="button" class="botao-texto" id="config-pasta-mais">+ Abrir pasta do computador</button>
+      </div>
+      <div class="config-linha">
+        <div><strong>Pasta de tópicos e diários</strong><span>Onde o orquestrador guarda topicos.md e o diário.</span></div>
+        <input class="campo-config" data-cfg="pastaNotas" placeholder="~/notas">
+      </div>
+
+      <details class="config-avancado">
+        <summary>Avançado</summary>
+        <div class="config-linha">
+          <div><strong>Pastas ignoradas</strong><span>Expressão regular dos nomes de pasta que não são projeto.</span></div>
+          <input class="campo-config mono" data-cfg="ignorar" placeholder="^[_.-]">
+        </div>
+        <div class="config-linha config-coluna">
+          <div><strong>Linha da tarefa nos tópicos</strong><span>Expressão com os grupos numero, alvo e tarefa.</span></div>
+          <input class="campo-config mono largo" data-cfg="linhaTarefa">
+        </div>
+        <div class="config-linha config-coluna">
+          <div><strong>Ordem a um agente</strong><span>Expressão com os grupos acao e alvo (o bichinho anuncia).</span></div>
+          <input class="campo-config mono largo" data-cfg="comandoOrdem">
+        </div>
+        <div class="config-linha">
+          <div><strong>Rótulo do devcontainer</strong><span>Rótulo do Docker com a pasta do projeto.</span></div>
+          <input class="campo-config mono" data-cfg="rotuloContainer">
+        </div>
+        <div class="config-linha">
+          <div><strong>Pasta de transcripts no container</strong><span>{projeto} vira o nome do projeto.</span></div>
+          <input class="campo-config mono" data-cfg="pastaTranscript">
+        </div>
+        <div class="config-linha config-coluna">
+          <div><strong>Variáveis de ambiente extras</strong><span>Uma por linha, NOME=valor. Valem para conversas e terminais novos.</span></div>
+          <textarea class="campo-config mono largo" data-cfg="ambiente" rows="3"></textarea>
+        </div>
+      </details>
+      <p class="config-arquivo" id="config-arquivo"></p>
     </section>
   </div>
 

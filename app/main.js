@@ -12,6 +12,7 @@ const pty = require('node-pty');
 const coletor = require('./coletor');
 const conversa = require('./conversa');
 const notas = require('./notas');
+const permissoes = require('./permissoes');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
 // (conversa.js), sem tela de terminal.
@@ -109,6 +110,10 @@ ipcMain.on('janela:maximizar', () => { if (janela) janela.isMaximized() ? janela
 // (a próxima abertura começa do zero) e os terminais.
 ipcMain.on('janela:fechar', () => app.quit());
 
+// --- /permissions: regras do settings.json do Claude ------------------------
+ipcMain.handle('permissoes:ler', () => permissoes.ler());
+ipcMain.handle('permissoes:gravar', (_e, novo) => permissoes.gravar(novo || {}));
+
 // --- editor de notas ------------------------------------------------------
 ipcMain.handle('notas:pastas', () => notas.pastas());
 ipcMain.handle('notas:adicionarPasta', async () => {
@@ -135,9 +140,41 @@ ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janel
 
 // --- conversas (orquestrador e avulsas) -----------------------------------
 conversa.ligar((canal, dado) => enviar(canal, dado));
+
+// Notificação do app quando uma conversa precisa do usuário (no lugar de hook
+// do Claude). Clicar traz a janela e abre a conversa certa.
+const config = require('./config');
+const avisosAbertos = new Map(); // conversa → notificação na tela (uma por vez)
+conversa.ligarAvisos((a) => {
+  const n = config.ler().notificacoes || {};
+  const emFoco = janela && janela.isFocused() && !janela.isMinimized();
+  if (a.tipo === 'pedido' && n.pedidos === false) return;
+  if (a.tipo === 'resposta' && (n.respostas === false || emFoco)) return;
+  if (!Notification.isSupported()) return;
+  const quem = a.orquestrador ? 'O orquestrador' : `"${a.titulo}"`;
+  const titulo = a.tipo === 'pedido' ? `${quem} precisa de você` : `${quem} respondeu`;
+  const corpo = String(a.texto || '').replace(/\s+/g, ' ').slice(0, 220);
+  if (avisosAbertos.has(a.id)) avisosAbertos.get(a.id).close();
+  const aviso = new Notification({ title: titulo, body: corpo, urgency: a.tipo === 'pedido' ? 'critical' : 'normal' });
+  aviso.on('click', () => {
+    if (!janela) return;
+    if (janela.isMinimized()) janela.restore();
+    janela.show(); janela.focus();
+    enviar('conversa:focar', a.id);
+  });
+  aviso.show();
+  avisosAbertos.set(a.id, aviso);
+});
 ipcMain.handle('conversa:lista', () => conversa.lista());
 ipcMain.handle('conversa:abrir', (_e, id) => conversa.abrir(id));
-ipcMain.handle('conversa:mandar', (_e, id, texto) => typeof texto === 'string' && texto.trim() && conversa.mandar(id, texto));
+// Imagens: só os tipos que o Claude aceita, até 5 MB cada e 6 por mensagem.
+const TIPOS_IMAGEM = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+ipcMain.handle('conversa:mandar', (_e, id, texto, imagens = []) => {
+  const imgs = (Array.isArray(imagens) ? imagens : []).filter((i) => i && TIPOS_IMAGEM.includes(i.tipo) && typeof i.dados === 'string' && i.dados.length < 7_000_000).slice(0, 6);
+  const t = typeof texto === 'string' ? texto.trim() : '';
+  if (!t && !imgs.length) return false;
+  return conversa.mandar(id, t, imgs);
+});
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));
 ipcMain.handle('conversa:configurar', (_e, id, o) => conversa.configurar(id, o));
@@ -146,18 +183,15 @@ ipcMain.handle('conversa:nova', () => conversa.nova());
 ipcMain.handle('conversa:fechar', (_e, id) => conversa.fechar(id));
 
 // --- configurações --------------------------------------------------------
-const config = require('./config');
 // A tela só lê o que precisa para desenhar; grava só a aparência.
-ipcMain.handle('config:ler', () => {
-  const c = config.ler();
-  return { tema: c.tema, destaque: c.destaque, comandoInicial: c.comandoInicial, comandoDesligar: c.comandoDesligar, comandoOrdem: c.comandoOrdem, temNotas: !!c.pastaNotas };
-});
+// A tela lê a configuração como está escrita (sem expandir ~) e grava
+// chave por chave; o processo principal valida antes de gravar.
+ipcMain.handle('config:ler', () => ({ ...config.cru(), arquivo: config.ARQ }));
 ipcMain.handle('config:gravar', (_e, mudancas) => {
-  const m = {};
-  if (['dark', 'light'].includes(mudancas.tema)) m.tema = mudancas.tema;
-  if (/^#[0-9a-f]{6}$/i.test(mudancas.destaque || '')) m.destaque = mudancas.destaque.toLowerCase();
-  const c = config.gravar(m);
-  return { tema: c.tema, destaque: c.destaque };
+  const { ok, recusado } = config.validar(mudancas);
+  if (Object.keys(ok).length) config.gravar(ok);
+  if (ok.pastasNotas) enviar('notas:pastasMudaram');
+  return { ...config.cru(), arquivo: config.ARQ, recusado };
 });
 
 // --- dados ---------------------------------------------------------------
@@ -184,6 +218,16 @@ ipcMain.handle('abrir-terminal', (_e, sessao) => {
     } catch { /* tenta o próximo */ }
   }
   return false;
+});
+// Caminho clicado na conversa: pasta abre no explorador; arquivo aparece
+// selecionado na pasta dele (nunca é aberto nem executado).
+ipcMain.handle('abrir-caminho', (_e, p) => {
+  if (typeof p !== 'string') return false;
+  const abs = path.resolve(p.replace(/^~(?=$|\/)/, os.homedir()));
+  let st;
+  try { st = fs.statSync(abs); } catch { return false; }
+  if (st.isDirectory()) shell.openPath(abs); else shell.showItemInFolder(abs);
+  return true;
 });
 ipcMain.handle('abrir-pasta', (_e, dir) => dir.startsWith(coletor.raiz()) && shell.openPath(dir));
 

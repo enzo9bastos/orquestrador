@@ -88,6 +88,53 @@ function arrumarGrade() {
   requestAnimationFrame(() => { for (const [id, t] of terminais) { t.ajuste.fit(); window.orq.pty.tamanho(id, t.term.cols, t.term.rows); } });
 }
 
+// Copiar e colar no terminal, como no terminal do Linux:
+//   Ctrl+Shift+C copia · Ctrl+Shift+V cola · Ctrl+C com seleção copia
+//   (sem seleção continua sendo o Ctrl+C de interromper) · botão direito: menu.
+async function copiarDoTerminal(term) {
+  const sel = term.getSelection();
+  if (!sel) return false;
+  try { await navigator.clipboard.writeText(sel); } catch { return false; }
+  term.clearSelection();
+  return true;
+}
+async function colarNoTerminal(id) {
+  try { const t = await navigator.clipboard.readText(); if (t) window.orq.pty.escrever(id, t); } catch { /* sem área de transferência */ }
+}
+function ligarCopiarColar(term, id, painel) {
+  term.attachCustomKeyEventHandler((ev) => {
+    if (ev.type !== 'keydown') return true;
+    const k = ev.key.toLowerCase();
+    if (ev.ctrlKey && ev.shiftKey && k === 'c') { copiarDoTerminal(term); return false; }
+    if (ev.ctrlKey && ev.shiftKey && k === 'v') { colarNoTerminal(id); return false; }
+    if (ev.ctrlKey && !ev.shiftKey && k === 'c' && term.hasSelection()) { copiarDoTerminal(term); return false; }
+    return true;
+  });
+  painel.addEventListener('contextmenu', (ev) => {
+    ev.preventDefault();
+    document.querySelector('.menu-terminal')?.remove();
+    const menu = document.createElement('ul');
+    menu.className = 'menu-contexto menu-terminal';
+    menu.innerHTML = `<li role="menuitem" data-f="copiar"${term.hasSelection() ? '' : ' class="desligado"'}>Copiar<span>Ctrl+Shift+C</span></li>
+      <li role="menuitem" data-f="colar">Colar<span>Ctrl+Shift+V</span></li>
+      <li role="menuitem" data-f="tudo">Selecionar tudo</li>`;
+    document.body.append(menu);
+    menu.style.left = `${Math.min(ev.clientX, innerWidth - menu.offsetWidth - 8)}px`;
+    menu.style.top = `${Math.min(ev.clientY, innerHeight - menu.offsetHeight - 8)}px`;
+    const fechar = () => { menu.remove(); document.removeEventListener('mousedown', fora); };
+    const fora = (e) => { if (!menu.contains(e.target)) fechar(); };
+    setTimeout(() => document.addEventListener('mousedown', fora), 0);
+    menu.addEventListener('click', async (e) => {
+      const f = e.target.closest('li')?.dataset.f;
+      if (f === 'copiar') await copiarDoTerminal(term);
+      else if (f === 'colar') await colarNoTerminal(id);
+      else if (f === 'tudo') term.selectAll();
+      fechar();
+      term.focus();
+    });
+  });
+}
+
 async function criarTerminal(id, sessao) {
   if (terminais.size >= MAX_TERMINAIS) return false;
   id = id || `t${proximoTerminal}`;
@@ -105,6 +152,7 @@ async function criarTerminal(id, sessao) {
   terminais.set(id, { term, ajuste, painel, sessao: sessao || null });
   if (sessao) painel.classList.add('de-agente');
   term.onData((d) => window.orq.pty.escrever(id, d));
+  ligarCopiarColar(term, id, painel);
   term.textarea.addEventListener('focus', () => { document.querySelectorAll('.painel-terminal').forEach((p) => p.classList.remove('focado')); painel.classList.add('focado'); });
   new ResizeObserver(() => {
     if (!$('aba-terminal').classList.contains('ativa')) return;

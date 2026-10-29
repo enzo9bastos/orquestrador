@@ -38,6 +38,9 @@ function ambienteLimpo() {
 }
 
 let enviarTela = () => {};
+// Quem avisa o usuário (notificação do sistema) quando uma conversa precisa
+// dele: main.js liga isto. tipo: 'pedido' (pergunta/permissão) ou 'resposta'.
+let avisar = () => {};
 
 // Modelos e esforços que o botão da barra oferece.
 const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-1' };
@@ -186,6 +189,10 @@ class Conversa {
           info.contexto = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
           this.avisarInfo();
         }
+        if (!d.parent_tool_use_id) {
+          const t = (d.message.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(' ').trim();
+          if (t) this.ultimoTexto = t;
+        }
         this.registrar({ tipo: 'assistant', message: d.message, sub: d.parent_tool_use_id || null });
         return;
       }
@@ -205,6 +212,9 @@ class Conversa {
         if (mu && mu.contextWindow) info.janela = mu.contextWindow;
         this.avisarInfo();
         this.registrar({ tipo: 'resultado', erro: d.is_error, duracao: d.duration_ms, texto: d.is_error ? d.result : null });
+        // Fim de turno: o Claude parou e espera o usuário (a tela decide se avisa).
+        if (!this.desligando) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (d.is_error ? 'Terminou com erro.' : 'Terminou.') });
+        this.ultimoTexto = '';
         if (this.desligando) { this.desligando = false; this.encerrar(); return; }
         if (this.reiniciarDepois) { this.reiniciarDepois = false; this.reiniciar(); }
         return;
@@ -215,6 +225,9 @@ class Conversa {
           this.pendentes.set(d.request_id, p);
           this.enviar('conversa:pedido', p);
           avisarLista();
+          const q = (p.entrada && p.entrada.questions && p.entrada.questions[0]) || null;
+          avisar({ tipo: 'pedido', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador,
+            texto: q ? `${q.header ? q.header + ': ' : ''}${q.question}` : `Quer usar ${p.ferramenta}${p.entrada && p.entrada.command ? `: ${p.entrada.command}` : ''}` });
         }
         return;
       default:
@@ -235,7 +248,8 @@ class Conversa {
     return true;
   }
 
-  mandar(texto) {
+  // imagens: [{ tipo: 'image/png', dados: '<base64>' }] (coladas ou arrastadas).
+  mandar(texto, imagens = []) {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
@@ -247,8 +261,11 @@ class Conversa {
     }
     this.info.ocupado = true;
     this.avisarInfo();
-    this.registrar({ tipo: 'user', message: { role: 'user', content: texto }, local: true });
-    return this.escrever({ type: 'user', message: { role: 'user', content: texto } });
+    const content = imagens.length
+      ? [...imagens.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.tipo, data: i.dados } })), ...(texto ? [{ type: 'text', text: texto }] : [])]
+      : texto;
+    this.registrar({ tipo: 'user', message: { role: 'user', content }, local: true });
+    return this.escrever({ type: 'user', message: { role: 'user', content } });
   }
 
   // decisao: { permitir: bool, respostas?: {pergunta: resposta}, motivo?: string }
@@ -393,8 +410,10 @@ carregarLista();
 
 module.exports = {
   ligar: (fn) => { enviarTela = fn; },
+  ligarAvisos: (fn) => { avisar = fn; },
+  _Conversa: Conversa, // só para os testes de unidade
   lista, abrir, nova, fechar, pararTodas, encerrarTodas, ambienteLimpo,
-  mandar: (id, t) => pegar(id).mandar(t),
+  mandar: (id, t, imagens) => pegar(id).mandar(t, imagens),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   interromper: (id) => pegar(id).interromper(),
   configurar: (id, o) => pegar(id).configurar(o || {}),

@@ -7,7 +7,8 @@
   "scripts": {
     "start": "electron .",
     "rebuild": "electron-rebuild -f -w node-pty",
-    "editor": "esbuild tela/editor/fonte.js --bundle --minify --format=iife --target=chrome130 --outfile=tela/editor.bundle.js --legal-comments=external"
+    "editor": "esbuild tela/editor/fonte.js --bundle --minify --format=iife --target=chrome130 --outfile=tela/editor.bundle.js --legal-comments=external",
+    "test": "node testes/rodar.js"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

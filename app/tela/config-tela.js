@@ -1,5 +1,7 @@
-// Configurações do app (tema e cor de destaque), guardadas em
-// ~/.config/orq-app/config.json pelo processo principal.
+// Configurações do app (aba da engrenagem): tudo o que é configurável fica
+// aqui. Grava em ~/.config/orq-app/config.json pelo processo principal, que
+// valida chave por chave. Avisa as outras partes da tela com o evento
+// "orq:config".
 (() => {
   const $ = (id) => document.getElementById(id);
   const CORES = [
@@ -31,7 +33,63 @@
     config = { ...config, ...m };
     aplicar();
     config = await window.orq.config.gravar(m);
+    if (config.recusado && config.recusado.length) avisoConfig(`Não gravei: ${config.recusado.join(', ')} (valor inválido).`);
+    preencher();
+    window.dispatchEvent(new CustomEvent('orq:config', { detail: config }));
   }
+
+  // --- campos das outras seções -------------------------------------------------
+  const pegar = (k) => k.split('.').reduce((o, p) => (o == null ? o : o[p]), config);
+  function avisoConfig(t) { const el = $('config-arquivo'); el.textContent = t; el.classList.add('erro'); setTimeout(() => { el.classList.remove('erro'); preencher(); }, 4000); }
+  function preencher() {
+    for (const el of document.querySelectorAll('#config [data-cfg]')) {
+      if (el === document.activeElement) continue;
+      const v = pegar(el.dataset.cfg);
+      if (el.type === 'checkbox') el.checked = v !== false;
+      else if (el.dataset.cfg === 'ambiente') el.value = Object.entries(v || {}).map(([a, b]) => `${a}=${b}`).join('\n');
+      else el.value = v == null ? '' : v;
+    }
+    for (const seg of document.querySelectorAll('#config [data-segmento]')) {
+      for (const b of seg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.v) === pegar(seg.dataset.segmento)));
+    }
+    $('config-pastas').innerHTML = (config.pastasNotas || []).map((p, i) => `<li><span class="nome">${esc(p.nome || p.caminho.split('/').pop())}</span>
+      <code>${esc(p.caminho)}</code><button type="button" class="botao-icone" data-tirar-pasta="${i}" title="Tirar do app (nada é apagado)">✕</button></li>`).join('')
+      || '<li class="vazio-regra">Nenhuma pasta.</li>';
+    $('config-arquivo').textContent = config.arquivo ? `Arquivo: ${config.arquivo}` : '';
+  }
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function valorDe(el) {
+    const k = el.dataset.cfg;
+    if (el.type === 'checkbox') {
+      if (k.startsWith('notificacoes.')) return { notificacoes: { ...(config.notificacoes || {}), [k.split('.')[1]]: el.checked } };
+      return { [k]: el.checked };
+    }
+    if (k === 'ambiente') {
+      const amb = {};
+      for (const l of el.value.split('\n')) { const m = l.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=(.*)$/); if (m) amb[m[1]] = m[2].trim(); }
+      return { ambiente: amb };
+    }
+    return { [k]: el.value };
+  }
+  $('config').addEventListener('change', (ev) => {
+    const el = ev.target.closest('[data-cfg]');
+    if (el) mudar(valorDe(el));
+  });
+  $('config').addEventListener('click', async (ev) => {
+    const seg = ev.target.closest('[data-segmento] button');
+    if (seg) { mudar({ [seg.parentElement.dataset.segmento]: Number(seg.dataset.v) }); return; }
+    const tirar = ev.target.closest('[data-tirar-pasta]');
+    if (tirar) {
+      if (!tirar.dataset.confirmando) { tirar.dataset.confirmando = '1'; tirar.textContent = 'Tirar?'; return; }
+      const lista = (config.pastasNotas || []).filter((_, i) => i !== Number(tirar.dataset.tirarPasta));
+      mudar({ pastasNotas: lista });
+      return;
+    }
+    if (ev.target.closest('#config-pasta-mais') && window.orq.notas) {
+      const i = await window.orq.notas.adicionarPasta();
+      if (i != null) { config = await window.orq.config.ler(); preencher(); window.dispatchEvent(new CustomEvent('orq:config', { detail: config })); }
+    }
+  });
 
   $('config-cores').innerHTML = CORES.map(([nome, cor]) =>
     `<button type="button" class="amostra" data-cor="${cor}" title="${nome}" aria-label="${nome}" style="--cor:${cor}"></button>`).join('') +
@@ -49,7 +107,7 @@
   $('tema').addEventListener('click', () => mudar({ tema: config.tema === 'dark' ? 'light' : 'dark' }));
 
   const painel = $('config');
-  $('abrir-config').addEventListener('click', () => { painel.hidden = false; });
+  $('abrir-config').addEventListener('click', async () => { config = await window.orq.config.ler(); preencher(); painel.hidden = false; });
   $('fechar-config').addEventListener('click', () => { painel.hidden = true; });
   painel.addEventListener('click', (ev) => { if (ev.target === painel) painel.hidden = true; });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') painel.hidden = true; });
@@ -74,5 +132,5 @@
   }
 
   aplicar();
-  window.orq.config.ler().then((c) => { config = c; aplicar(); });
+  window.orq.config.ler().then((c) => { config = c; aplicar(); preencher(); window.dispatchEvent(new CustomEvent('orq:config', { detail: config })); });
 })();
