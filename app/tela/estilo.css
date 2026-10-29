@@ -363,7 +363,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .opcao:hover { border-color: var(--claude); }
 .opcao.marcada { border-color: var(--claude); box-shadow: inset 0 0 0 1px var(--claude); }
 .pergunta.falta .opcao { border-color: var(--perigo); }
-.outra { height: 32px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--borda); background: var(--bg-elevado); color: var(--fg); font: inherit; }
+.outra { min-height: 34px; max-height: 240px; padding: 7px 10px; resize: none; overflow-y: auto; line-height: 1.45; display: block; width: 100%; border-radius: var(--r-sm); border: 1px solid var(--borda); background: var(--bg-elevado); color: var(--fg); font: inherit; }
 .cartao-pedido .acoes { display: flex; gap: 8px; }
 
 .compositor { padding: 10px max(24px, calc((100% - 860px) / 2)) 18px; display: grid; gap: 8px; }

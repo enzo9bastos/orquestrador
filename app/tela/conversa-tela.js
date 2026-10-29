@@ -191,7 +191,7 @@
             <button type="button" class="opcao" data-rotulo="${esc(o.label)}">
               <strong>${esc(o.label)}</strong>${o.description ? `<span>${esc(o.description)}</span>` : ''}</button>`).join('')}
           </div>
-          <input class="outra" type="text" placeholder="Outra resposta…">
+          <textarea class="outra" rows="1" placeholder="Outra resposta…  (Enter responde · Shift+Enter quebra linha)"></textarea>
         </fieldset>`).join('') +
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
     } else {
@@ -236,12 +236,16 @@
   // a tela nunca mostrar duas respostas ao mesmo tempo.
   caixa.addEventListener('input', (ev) => {
     const outra = ev.target.closest('.outra');
-    if (!outra || !outra.value.trim()) return;
+    if (!outra) return;
+    // Cresce para baixo conforme o texto, até um limite; dali em diante rola.
+    outra.style.height = 'auto';
+    outra.style.height = Math.min(outra.scrollHeight + 2, 240) + 'px';
+    if (!outra.value.trim()) return;
     outra.closest('.pergunta').querySelectorAll('.opcao.marcada').forEach((o) => o.classList.remove('marcada'));
   });
   caixa.addEventListener('keydown', (ev) => {
     const outra = ev.target.closest('.outra');
-    if (outra && ev.key === 'Enter' && outra.value.trim()) { ev.preventDefault(); enviarRespostas(outra.closest('.cartao-pedido')); }
+    if (outra && ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing && outra.value.trim()) { ev.preventDefault(); enviarRespostas(outra.closest('.cartao-pedido')); }
   });
 
   async function enviarRespostas(cartao) {
