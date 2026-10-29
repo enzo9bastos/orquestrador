@@ -728,6 +728,12 @@
     ev.preventDefault();
     const t = entrada.value.trim();
     if (!t && !anexos.length) return;
+    // Ponte antiga (app aberto antes da versão com imagens): ela só leva o
+    // texto. Nunca perder imagem em silêncio: avisa e deixa os anexos na caixa.
+    if (anexos.length && !window.orq.permissoes) {
+      aviso('Este app foi aberto antes da versão que manda imagens: feche e abra o app. Nada foi enviado; as imagens continuam na caixa.', 'erro');
+      return;
+    }
     // /exit fecha o app, como o X do topo.
     if (t === '/exit' || t === '/quit') { (window.orq.janela ? window.orq.janela.fechar() : window.close()); return; }
     // Comandos que no terminal abrem uma janelinha de escolha: aqui também.

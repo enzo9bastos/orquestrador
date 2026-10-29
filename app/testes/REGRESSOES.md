@@ -20,3 +20,4 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Não dava para mandar imagem na conversa | `tela/conversa.e2e.js` › regressão: imagem colada… |
 | 2026-10-29 | Agente trabalhando aparecia como "espera você" (só "esc to interrupt" contava) | `unidade/coletor.test.js` › regressão: estado pela tela… |
 | 2026-10-29 | Botão Desligar sumia depois de mexer na engrenagem (resposta parcial trocava a configuração inteira) | `tela/conversa.e2e.js` › regressão: botão Desligar continua… |
+| 2026-10-29 | Imagem colada sumia em silêncio quando a ponte do app era antiga (só o texto ia) | `tela/conversa.e2e.js` › regressão: imagem colada… (envio com ponte nova) |
