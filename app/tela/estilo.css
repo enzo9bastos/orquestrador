@@ -450,7 +450,8 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .mensagens-area { position: relative; flex: 1; min-height: 0; display: flex; }
 .mensagens-area .mensagens { flex: 1; }
 /* Camada da janela inteira: cada painel é uma sala dele (pet.js). */
-.pet-palco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 40; }
+/* Acima do conteúdo, abaixo de qualquer menu, lista ou janelinha (z 20+). */
+.pet-palco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 15; }
 .pet-palco[hidden] { display: none; }
 .pet { position: absolute; left: 0; top: 0; width: 64px; height: 48px; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; }
 .pet.arrastado { cursor: grabbing; }

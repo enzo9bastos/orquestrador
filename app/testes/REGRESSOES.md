@@ -23,3 +23,4 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Imagem colada sumia em silêncio quando a ponte do app era antiga (só o texto ia) | `tela/conversa.e2e.js` › regressão: imagem colada… (envio com ponte nova) |
 | 2026-10-29 | Menu de modelo abria por baixo da conversa (a barra cortava o que saía dela) | `tela/menus.e2e.js` › regressão: menu de modelo… |
 | 2026-10-29 | Chip da pasta mostrava o caminho embaralhado (direction: rtl) | `tela/menus.e2e.js` › regressão: chip da pasta… |
+| 2026-10-29 | Bichinho ficava por cima da lista de comandos (/) | `tela/menus.e2e.js` › lista de comandos aparece inteira |
