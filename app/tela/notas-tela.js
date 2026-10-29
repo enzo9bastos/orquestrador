@@ -35,68 +35,146 @@
       <span>${pastas.length ? 'Escolha uma nota à esquerda ou crie uma com o +.' : 'Configure "pastasNotas" em ~/.config/orq-app/config.json.'}</span></div>`;
   }
 
-  // --- árvore -----------------------------------------------------------------
+  // --- abas das pastas (em cima) e explorador (à esquerda) --------------------
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const DATA = /^(\d{4})-(\d{2})-(\d{2})$/;
+  let ativa = Number(lerPref('notas-pasta-ativa')) || 0;
+  let selecionada = null; // pasta (rel) onde a próxima nota nasce
+
+  const ICO_PASTA = '<svg class="ico ico-arvore" viewBox="0 0 16 16"><path d="M2 4.5h4.2l1.3 1.5H14v6.5H2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+  const ICO_NOTA = '<svg class="ico ico-arvore" viewBox="0 0 16 16"><path d="M4 2.5h5l3 3v8H4zM9 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+
+  function desenharAbas() {
+    $('abas-pastas').innerHTML = pastas.map((p, i) => `
+      <div class="aba-pasta${i === ativa ? ' ativa' : ''}" role="tab" aria-selected="${i === ativa}">
+        <button type="button" data-pasta="${i}" title="${esc(p.nome)}">${ICO_PASTA}<span>${esc(p.nome)}</span></button>
+        <button type="button" class="tirar-pasta" data-tirar="${i}" title="Tirar esta pasta do app (nada é apagado do disco)" aria-label="Tirar pasta">✕</button>
+      </div>`).join('') +
+      '<button type="button" class="aba-pasta-mais" data-mais title="Abrir outra pasta">+ Pasta</button>';
+    $('nome-pasta-ativa').textContent = pastas[ativa] ? pastas[ativa].nome : 'Notas';
+  }
+
+  // Diários (AAAA-MM-DD.md) aparecem como antes: por mês, com dia e dia da semana.
+  function linhasDaPasta(filhos, nivel, filtro) {
+    const pastasF = filhos.filter((n) => n.tipo === 'pasta');
+    const notas = filhos.filter((n) => n.tipo === 'nota');
+    const datadas = notas.filter((n) => DATA.test(n.nome)).sort((a, b) => b.nome.localeCompare(a.nome));
+    const outras = notas.filter((n) => !DATA.test(n.nome));
+    let html = pastasF.map((n) => linhaPasta(n, nivel, filtro)).join('');
+    html += outras.filter((n) => !filtro || n.rel.toLowerCase().includes(filtro)).map((n) => linhaNota(n, nivel, n.nome)).join('');
+    let mes = '';
+    for (const n of datadas) {
+      const [, a, m, d] = n.nome.match(DATA);
+      const data = new Date(Number(a), Number(m) - 1, Number(d));
+      const rotulo = `${d} · ${SEMANA[data.getDay()]}`;
+      if (filtro && !`${n.rel} ${rotulo} ${MESES[data.getMonth()]}`.toLowerCase().includes(filtro)) continue;
+      const titulo = `${MESES[data.getMonth()]} de ${a}`;
+      if (titulo !== mes) { html += `<div class="linha-mes" style="--nivel:${nivel}">${titulo}</div>`; mes = titulo; }
+      html += linhaNota(n, nivel, rotulo, true);
+    }
+    return html;
+  }
+  function linhaPasta(n, nivel, filtro) {
+    const chave = `${ativa}:${n.rel}`;
+    const dentro = linhasDaPasta(n.filhos, nivel + 1, filtro);
+    if (filtro && !dentro) return '';
+    const aberta = !!filtro || abertasNaArvore.has(chave);
+    return `<div class="no-pasta${aberta ? ' aberta' : ''}">
+      <button type="button" class="linha-arvore linha-pasta${selecionada === n.rel ? ' selecionada' : ''}" data-pasta-rel="${esc(n.rel)}" style="--nivel:${nivel}" role="treeitem" aria-expanded="${aberta}">
+        <span class="chevron">›</span>${ICO_PASTA}<span class="nome">${esc(n.nome)}</span></button>
+      <div class="filhos" style="--nivel:${nivel}">${aberta ? dentro : ''}</div></div>`;
+  }
+  function linhaNota(n, nivel, rotulo, data = false) {
+    const ativo = aberta && aberta.i === ativa && aberta.rel === n.rel;
+    return `<button type="button" class="linha-arvore linha-nota${ativo ? ' ativo' : ''}${data ? ' data' : ''}" data-rel="${esc(n.rel)}" style="--nivel:${nivel}" title="${esc(n.rel)}" role="treeitem">
+      <span class="chevron vazio"></span>${ICO_NOTA}<span class="nome">${esc(rotulo)}</span></button>`;
+  }
+
   function desenharArvore() {
+    desenharAbas();
+    if (!pastas.length) {
+      $('arvore-notas').innerHTML = '<p class="nota explorador-vazio">Nenhuma pasta aberta. Use "+ Pasta" em cima para abrir uma.</p>';
+      return;
+    }
     const filtro = $('filtro-notas').value.trim().toLowerCase();
-    const item = (n, i, nivel) => {
-      if (n.tipo === 'pasta') {
-        const chave = `${i}:${n.rel}`;
-        const dentro = n.filhos.map((f) => item(f, i, nivel + 1)).join('');
-        if (filtro && !dentro) return '';
-        const aberto = filtro || abertasNaArvore.has(chave);
-        return `<details class="pasta-nota" data-chave="${esc(chave)}"${aberto ? ' open' : ''}>
-          <summary style="padding-left:${8 + nivel * 12}px"><span class="seta-pasta">▸</span>${esc(n.nome)}</summary>${dentro}</details>`;
-      }
-      if (filtro && !n.rel.toLowerCase().includes(filtro)) return '';
-      const ativo = aberta && aberta.i === i && aberta.rel === n.rel;
-      return `<button type="button" class="item-arvore${ativo ? ' ativo' : ''}" data-i="${i}" data-rel="${esc(n.rel)}"
-        style="padding-left:${20 + nivel * 12}px" title="${esc(n.rel)}"><svg class="ico"><use href="#i-notas"/></svg><span>${esc(n.nome)}</span></button>`;
-    };
-    $('arvore-notas').innerHTML = pastas.map((p, i) => `
-      <section class="raiz-notas">
-        <header><strong>${esc(p.nome)}</strong>
-          <button type="button" class="botao-icone" data-nova="${i}" title="Nova nota em ${esc(p.nome)}" aria-label="Nova nota">+</button></header>
-        <div class="nova-nota" data-form="${i}" hidden><input type="text" placeholder="Nome da nota (Enter)" aria-label="Nome da nota"></div>
-        ${(arvores[i] || []).map((n) => item(n, i, 0)).join('') || '<p class="nota">Nenhuma nota .md aqui.</p>'}
-      </section>`).join('');
+    $('arvore-notas').innerHTML = linhasDaPasta(arvores[ativa] || [], 0, filtro) || '<p class="nota explorador-vazio">Nenhuma nota .md aqui.</p>';
   }
 
   async function carregarArvore() {
     pastas = await N.pastas();
+    if (ativa >= pastas.length) ativa = 0;
     arvores = await Promise.all(pastas.map((_, i) => N.arvore(i).catch(() => [])));
     desenharArvore();
     if (!aberta) vazio(true);
   }
 
-  $('arvore-notas').addEventListener('toggle', (ev) => {
-    const d = ev.target.closest('details[data-chave]');
-    if (!d || $('filtro-notas').value) return;
-    if (d.open) abertasNaArvore.add(d.dataset.chave); else abertasNaArvore.delete(d.dataset.chave);
-    gravarPref('notas-pastas-abertas', [...abertasNaArvore]);
-  }, true);
-
-  $('arvore-notas').addEventListener('click', (ev) => {
-    const b = ev.target.closest('.item-arvore');
-    if (b) return abrir(Number(b.dataset.i), b.dataset.rel);
-    const nova = ev.target.closest('[data-nova]');
-    if (nova) {
-      const f = document.querySelector(`[data-form="${nova.dataset.nova}"]`);
-      f.hidden = !f.hidden;
-      if (!f.hidden) f.querySelector('input').focus();
+  $('abas-pastas').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-pasta]');
+    if (b) { ativa = Number(b.dataset.pasta); gravarPref('notas-pasta-ativa', ativa); selecionada = null; desenharArvore(); return; }
+    if (ev.target.closest('[data-mais]')) {
+      const i = await N.adicionarPasta();
+      if (i == null) return;
+      await carregarArvore();
+      if (i >= 0) { ativa = i; gravarPref('notas-pasta-ativa', ativa); desenharArvore(); }
+      return;
+    }
+    const t = ev.target.closest('[data-tirar]');
+    if (t) {
+      // Confirma no segundo clique; tirar a pasta do app não apaga nada do disco.
+      if (!t.dataset.confirmando) {
+        t.dataset.confirmando = '1'; t.textContent = 'Tirar?';
+        setTimeout(() => { if (t.isConnected) { delete t.dataset.confirmando; t.textContent = '✕'; } }, 3500);
+        return;
+      }
+      const i = Number(t.dataset.tirar);
+      if (aberta && aberta.i === i) { if (sujo) { clearTimeout(timer); await salvar(); } aberta = null; N.vigiar(0, null); vazio(true); }
+      await N.removerPasta(i);
+      ativa = 0; gravarPref('notas-pasta-ativa', 0);
+      await carregarArvore();
     }
   });
-  $('arvore-notas').addEventListener('keydown', async (ev) => {
-    const f = ev.target.closest('[data-form]');
-    if (!f) return;
+
+  $('arvore-notas').addEventListener('click', (ev) => {
+    const nota = ev.target.closest('.linha-nota');
+    if (nota) return abrir(ativa, nota.dataset.rel);
+    const p = ev.target.closest('.linha-pasta');
+    if (p) {
+      const chave = `${ativa}:${p.dataset.pastaRel}`;
+      if (abertasNaArvore.has(chave)) abertasNaArvore.delete(chave); else abertasNaArvore.add(chave);
+      selecionada = p.dataset.pastaRel;
+      gravarPref('notas-pastas-abertas', [...abertasNaArvore]);
+      desenharArvore();
+    }
+  });
+
+  document.querySelector('.explorador-topo').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-acao]');
+    if (!b) return;
+    if (b.dataset.acao === 'nova') {
+      const f = $('nova-nota-form');
+      f.hidden = !f.hidden;
+      f.querySelector('input').placeholder = `Nome da nota em ${selecionada || pastas[ativa]?.nome || ''} (Enter)`;
+      if (!f.hidden) f.querySelector('input').focus();
+    } else if (b.dataset.acao === 'recolher') {
+      for (const k of [...abertasNaArvore]) if (k.startsWith(`${ativa}:`)) abertasNaArvore.delete(k);
+      gravarPref('notas-pastas-abertas', [...abertasNaArvore]);
+      desenharArvore();
+    } else if (b.dataset.acao === 'atualizar') {
+      carregarArvore();
+    }
+  });
+  $('nova-nota-form').addEventListener('keydown', async (ev) => {
+    const f = $('nova-nota-form');
     if (ev.key === 'Escape') { f.hidden = true; return; }
-    if (ev.key !== 'Enter') return;
+    if (ev.key !== 'Enter' || !pastas[ativa]) return;
     const nome = ev.target.value.trim();
     if (!nome) return;
-    const i = Number(f.dataset.form);
-    const r = await N.criar(i, '', nome);
+    const r = await N.criar(ativa, selecionada || '', nome);
     f.hidden = true; ev.target.value = '';
+    if (selecionada) abertasNaArvore.add(`${ativa}:${selecionada}`);
     await carregarArvore();
-    abrir(i, r.rel);
+    abrir(ativa, r.rel);
   });
   $('filtro-notas').addEventListener('input', desenharArvore);
 
@@ -112,7 +190,8 @@
     editor.definir(r.conteudo);
     editor.editavel(!soLeitura);
     if (manterRolagem) folha.scrollTop = rolagem; else folha.scrollTop = 0;
-    $('caminho-nota').textContent = `${pastas[i].nome} / ${rel.replace(/\.md$/i, '')}`;
+    $('caminho-nota').textContent = `${pastas[i].nome} / ${rel.replace(/\.md$/i, '').split('/').join(' / ')}`;
+    if (ativa !== i) { ativa = i; gravarPref('notas-pasta-ativa', ativa); }
     estado(soLeitura ? 'Só leitura' : 'Salvo');
     aviso(soLeitura ? `Arquivo grande (${(r.bytes / 1024 / 1024).toFixed(1)} MB): aberto só para leitura, porque editar deixaria tudo lento.
       <button type="button" class="botao-texto" data-editar-mesmo>Editar mesmo assim</button>` : '');

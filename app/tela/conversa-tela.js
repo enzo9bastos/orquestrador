@@ -490,7 +490,7 @@
   // O Claude, por trás, só anuncia as skills; os comandos próprios dele vêm
   // daqui. /exit é tratado pelo app (fecha a janela).
   const COMANDOS_CLAUDE = [
-    ['exit', 'Fecha o app (as conversas ficam pausadas)'], ['model', 'Mostra ou troca o modelo', '[modelo]'],
+    ['exit', 'Fecha o app e encerra as conversas'], ['restart', 'Reinicia o Claude desta conversa e continua do mesmo ponto'], ['model', 'Mostra ou troca o modelo', '[modelo]'],
     ['effort', 'Troca o esforço', '<low|medium|high|xhigh|max>'], ['usage', 'Uso do plano: janelas de 5 h e 7 dias'],
     ['context', 'Quanto do contexto está em uso'], ['cost', 'Custo e tokens da sessão'],
     ['compact', 'Resume a conversa para liberar contexto', '[instruções]'], ['clear', 'Limpa o histórico da conversa'],
@@ -511,17 +511,22 @@
     if (!m) return fecharSugestoes();
     const busca = m[1].toLowerCase();
     const recebidos = comandosPor.get(ativa) || [];
+    // Junta a lista do Claude com a nossa: a descrição nossa preenche os que
+    // vieram sem descrição; os do app (/exit, /restart) entram sempre.
+    const nossos = new Map(COMANDOS_CLAUDE.map((c) => [c.nome, c]));
     const nomes = new Set(recebidos.map((c) => c.nome));
-    const todos = [...COMANDOS_CLAUDE.filter((c) => !nomes.has(c.nome)), ...recebidos];
+    const todos = [...COMANDOS_CLAUDE.filter((c) => !nomes.has(c.nome)),
+      ...recebidos.map((c) => (c.descricao || !nossos.has(c.nome) ? c : { ...c, descricao: nossos.get(c.nome).descricao, dica: c.dica || nossos.get(c.nome).dica }))];
     const comeca = todos.filter((c) => c.nome.toLowerCase().startsWith(busca));
     const contem = todos.filter((c) => !c.nome.toLowerCase().startsWith(busca) && c.nome.toLowerCase().includes(busca));
-    sugestoes = [...comeca, ...contem].slice(0, 8);
+    sugestoes = [...comeca, ...contem].slice(0, 60);
     if (!sugestoes.length) return fecharSugestoes();
     escolhida = Math.min(escolhida, sugestoes.length - 1);
     $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
       <span class="nome-comando">/${esc(c.nome)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
       <span class="desc-comando">${esc(curto(c.descricao, 110))}</span></li>`).join('');
     $('sugestoes').hidden = false;
+    $('sugestoes').querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }
   function completar(i) {
     const c = sugestoes[i];
@@ -562,6 +567,8 @@
     if (!t) return;
     // /exit fecha o app, como o X do topo.
     if (t === '/exit' || t === '/quit') { (window.orq.janela ? window.orq.janela.fechar() : window.close()); return; }
+    // /restart: o app reinicia o Claude por trás (--resume), como no terminal.
+    if (t === '/restart') { if (C.reiniciar) { await C.reiniciar(ativa); aviso('Claude reiniciado; a conversa continua do mesmo ponto.'); } return; }
     entrada.value = ''; ajustarAltura();
     colado = true;
     if (ativa === 'orquestrador') pet.definir('pensando');

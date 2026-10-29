@@ -3,7 +3,7 @@
 // Casca por cima do tmux e do orq: os agentes continuam vivendo no tmux, dentro
 // dos devcontainers. Fechar o app não derruba nada. O orquestrador também roda
 // numa sessão tmux própria ("orquestrador"), então sobrevive ao app.
-const { app, BrowserWindow, ipcMain, Notification, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -111,6 +111,12 @@ ipcMain.on('janela:fechar', () => app.quit());
 
 // --- editor de notas ------------------------------------------------------
 ipcMain.handle('notas:pastas', () => notas.pastas());
+ipcMain.handle('notas:adicionarPasta', async () => {
+  const r = await dialog.showOpenDialog(janela, { title: 'Abrir pasta de notas', properties: ['openDirectory', 'createDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  return notas.adicionarPasta(r.filePaths[0]);
+});
+ipcMain.handle('notas:removerPasta', (_e, i) => notas.removerPasta(i));
 ipcMain.handle('notas:arvore', (_e, i) => notas.arvore(i));
 ipcMain.handle('notas:ler', (_e, i, rel) => notas.ler(i, rel));
 ipcMain.handle('notas:gravar', (_e, i, rel, conteudo, mtime) => notas.gravar(i, rel, conteudo, mtime));
@@ -126,6 +132,7 @@ ipcMain.handle('conversa:mandar', (_e, id, texto) => typeof texto === 'string' &
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));
 ipcMain.handle('conversa:configurar', (_e, id, o) => conversa.configurar(id, o));
+ipcMain.handle('conversa:reiniciar', (_e, id) => conversa.reiniciar(id));
 ipcMain.handle('conversa:nova', () => conversa.nova());
 ipcMain.handle('conversa:fechar', (_e, id) => conversa.fechar(id));
 

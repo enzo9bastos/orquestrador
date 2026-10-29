@@ -17,10 +17,14 @@ const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir(
 
 // Lista de pastas: config.pastasNotas ([{nome, caminho}]); sem ela, a
 // pastaNotas da orquestração.
-function pastas() {
+function listaConfigurada() {
   const c = config.ler();
   let lista = Array.isArray(c.pastasNotas) && c.pastasNotas.length ? c.pastasNotas : [];
   if (!lista.length && c.pastaNotas) lista = [{ nome: 'Notas', caminho: c.pastaNotas }];
+  return lista;
+}
+function pastas() {
+  const lista = listaConfigurada();
   return lista.map((p) => ({ nome: p.nome || path.basename(casa(p.caminho)), caminho: casa(p.caminho) }))
     .filter((p) => p.caminho && fs.existsSync(p.caminho));
 }
@@ -133,4 +137,20 @@ function vigiar(i, rel, avisar) {
   } catch { vigia = null; }
 }
 
-module.exports = { pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+// Acrescentar/tirar pasta só mexe na lista da configuração; nada no disco.
+function adicionarPasta(caminho) {
+  const lista = listaConfigurada().map((p) => ({ ...p }));
+  if (lista.some((p) => casa(p.caminho) === caminho)) return pastas().findIndex((p) => p.caminho === caminho);
+  lista.push({ nome: path.basename(caminho), caminho });
+  config.gravar({ pastasNotas: lista });
+  return pastas().findIndex((p) => p.caminho === caminho);
+}
+function removerPasta(i) {
+  const alvo = pastas()[i];
+  if (!alvo) return false;
+  const lista = listaConfigurada().filter((p) => casa(p.caminho) !== alvo.caminho);
+  config.gravar({ pastasNotas: lista });
+  return true;
+}
+
+module.exports = { adicionarPasta, removerPasta, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };

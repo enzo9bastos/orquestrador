@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('orq', {
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
+    reiniciar: (id) => ipcRenderer.invoke('conversa:reiniciar', id),
     nova: () => ipcRenderer.invoke('conversa:nova'),
     fechar: (id) => ipcRenderer.invoke('conversa:fechar', id),
     aoEvento: (fn) => ipcRenderer.on('conversa:evento', (_e, m) => fn(m.id, m.dado)),
@@ -30,6 +31,8 @@ contextBridge.exposeInMainWorld('orq', {
   },
   notas: {
     pastas: () => ipcRenderer.invoke('notas:pastas'),
+    adicionarPasta: () => ipcRenderer.invoke('notas:adicionarPasta'),
+    removerPasta: (i) => ipcRenderer.invoke('notas:removerPasta', i),
     arvore: (i) => ipcRenderer.invoke('notas:arvore', i),
     ler: (i, rel) => ipcRenderer.invoke('notas:ler', i, rel),
     gravar: (i, rel, conteudo, mtime) => ipcRenderer.invoke('notas:gravar', i, rel, conteudo, mtime),

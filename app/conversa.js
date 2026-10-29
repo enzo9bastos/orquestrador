@@ -157,13 +157,15 @@ class Conversa {
     switch (d.type) {
       case 'system':
         // Lista de comandos (/…) para o autocompletar da caixa de texto.
-        if (d.subtype === 'commands_changed' && Array.isArray(d.commands)) {
-          this.comandos = d.commands.map((c) => ({ nome: c.name, descricao: c.description || '', dica: c.argumentHint || c.argument_hint || '' }));
-          this.enviar('conversa:comandos', this.comandos);
+        // O init traz o nome de todos os comandos; o commands_changed traz a
+        // descrição de parte deles. A lista é a união dos dois.
+        if (d.subtype === 'init' && Array.isArray(d.slash_commands)) {
+          this.nomesComandos = d.slash_commands.filter((n) => !n.startsWith('__'));
+          this.juntarComandos();
         }
-        if (d.subtype === 'init' && !this.comandos && Array.isArray(d.slash_commands)) {
-          this.comandos = d.slash_commands.map((n) => ({ nome: n, descricao: '', dica: '' }));
-          this.enviar('conversa:comandos', this.comandos);
+        if (d.subtype === 'commands_changed' && Array.isArray(d.commands)) {
+          this.descComandos = new Map(d.commands.map((c) => [c.name, { descricao: c.description || '', dica: c.argumentHint || c.argument_hint || '' }]));
+          this.juntarComandos();
         }
         if (d.subtype === 'init') {
           info.modelo = d.model; info.pasta = d.cwd;
@@ -217,6 +219,14 @@ class Conversa {
         return;
       default:
     }
+  }
+
+  juntarComandos() {
+    const desc = this.descComandos || new Map();
+    const nomes = new Set([...(this.nomesComandos || []), ...desc.keys()]);
+    this.comandos = [...nomes].filter((n) => !n.startsWith('__')).sort()
+      .map((nome) => ({ nome, descricao: (desc.get(nome) || {}).descricao || '', dica: (desc.get(nome) || {}).dica || '' }));
+    this.enviar('conversa:comandos', this.comandos);
   }
 
   escrever(o) {
@@ -388,4 +398,5 @@ module.exports = {
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   interromper: (id) => pegar(id).interromper(),
   configurar: (id, o) => pegar(id).configurar(o || {}),
+  reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },
 };
