@@ -218,6 +218,8 @@
       const fs = opcao.closest('.pergunta');
       if (fs.dataset.multi !== '1') fs.querySelectorAll('.opcao').forEach((o) => o.classList.remove('marcada'));
       opcao.classList.toggle('marcada');
+      // Escolheu uma opção: o texto de "Outra resposta" deixa de valer.
+      fs.querySelector('.outra').value = '';
       // Uma pergunta só, de escolha única: o clique já responde.
       if (fs.dataset.multi !== '1' && cartao.querySelectorAll('.pergunta').length === 1) enviarRespostas(cartao);
       return;
@@ -228,6 +230,18 @@
       await C.responder(ativa, cartao.dataset.pedido, { permitir: b.dataset.permitir === '1' });
       fecharPedido(cartao, b.dataset.permitir === '1' ? 'Permitido' : 'Negado');
     }
+  });
+
+  // Escrevendo em "Outra resposta": as opções marcadas deixam de valer, para
+  // a tela nunca mostrar duas respostas ao mesmo tempo.
+  caixa.addEventListener('input', (ev) => {
+    const outra = ev.target.closest('.outra');
+    if (!outra || !outra.value.trim()) return;
+    outra.closest('.pergunta').querySelectorAll('.opcao.marcada').forEach((o) => o.classList.remove('marcada'));
+  });
+  caixa.addEventListener('keydown', (ev) => {
+    const outra = ev.target.closest('.outra');
+    if (outra && ev.key === 'Enter' && outra.value.trim()) { ev.preventDefault(); enviarRespostas(outra.closest('.cartao-pedido')); }
   });
 
   async function enviarRespostas(cartao) {
