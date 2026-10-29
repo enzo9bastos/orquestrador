@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+// orq-nav: controla as janelas da aba Navegador do App de Orquestração.
+// O usuário vê, ao vivo, tudo o que acontece nelas.
+//
+//   orq-nav listar                         janelas abertas (id, endereço, título)
+//   orq-nav abrir <url> [--preset P]       abre uma janela nova
+//   orq-nav ir <url>                       muda o endereço
+//   orq-nav texto [--max N]                texto da página
+//   orq-nav elementos                      links, botões e campos, numerados
+//   orq-nav clicar <nº|seletor>            clica (nº vem de "elementos")
+//   orq-nav digitar <nº|seletor> <texto> [--enter]
+//   orq-nav tecla <Enter|Tab|Escape|…>
+//   orq-nav print                          grava um PNG e diz onde
+//   orq-nav js <código>                    roda JavaScript na página
+//   orq-nav preset <P>                     muda a identidade (ver "presets")
+//   orq-nav voltar | avancar | recarregar | fechar | presets
+//
+// --janela nK escolhe a janela (sem ela: a última aberta). --json: saída crua.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const http = require('http');
+
+const ARQ = path.join(os.homedir(), '.config', 'orq-app', 'navegador.json');
+const args = process.argv.slice(2);
+const opc = {};
+const pos = [];
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--enter' || a === '--json') opc[a.slice(2)] = true;
+  else if (a.startsWith('--')) opc[a.slice(2)] = args[++i];
+  else pos.push(a);
+}
+const [acao, ...resto] = pos;
+const sair = (msg, cod = 1) => { process.stderr.write(msg + '\n'); process.exit(cod); };
+if (!acao || acao === 'ajuda' || acao === '-h' || opc.help !== undefined) {
+  const topo = fs.readFileSync(__filename, 'utf8').split('\n').slice(1).filter((l) => l.startsWith('//')).map((l) => l.replace(/^\/\/ ?/, ''));
+  sair(topo.join('\n'), acao ? 0 : 1);
+}
+
+const alvo = (v) => (/^\d+$/.test(String(v)) ? { n: Number(v) } : { seletor: v });
+const pedido = { acao, id: opc.janela };
+switch (acao) {
+  case 'abrir': Object.assign(pedido, { url: resto[0], preset: opc.preset }); break;
+  case 'ir': pedido.url = resto[0]; break;
+  case 'texto': pedido.max = opc.max; break;
+  case 'clicar': Object.assign(pedido, alvo(resto[0])); break;
+  case 'digitar':
+    if (resto.length >= 2) Object.assign(pedido, alvo(resto[0]), { texto: resto.slice(1).join(' ') });
+    else pedido.texto = resto[0];
+    pedido.enter = !!opc.enter; break;
+  case 'tecla': pedido.tecla = resto[0]; break;
+  case 'js': pedido.codigo = resto.join(' '); break;
+  case 'preset': pedido.preset = resto[0]; break;
+  default: break;
+}
+if (['ir', 'abrir'].includes(acao) && pedido.url && !/^[a-z]+:/i.test(pedido.url)) pedido.url = `https://${pedido.url}`;
+
+let ctl;
+try { ctl = JSON.parse(fs.readFileSync(ARQ, 'utf8')); } catch { sair('O App de Orquestração não está aberto (ou o controle do navegador está desligado nas configurações).'); }
+const corpo = JSON.stringify(pedido);
+const req = http.request({ host: '127.0.0.1', port: ctl.porta, path: '/acao', method: 'POST', headers: { authorization: `Bearer ${ctl.chave}`, 'content-type': 'application/json', 'content-length': Buffer.byteLength(corpo) }, timeout: 60000 }, (res) => {
+  let d = '';
+  res.on('data', (c) => { d += c; });
+  res.on('end', () => {
+    let r;
+    try { r = JSON.parse(d); } catch { sair(`resposta estranha do app: ${d.slice(0, 200)}`); }
+    if (opc.json) { process.stdout.write(JSON.stringify(r, null, 2) + '\n'); process.exit(r.ok ? 0 : 1); }
+    if (!r.ok) sair(r.erro || 'falhou');
+    mostrar(r.r);
+  });
+});
+req.on('error', () => sair('Não consegui falar com o app (ele foi fechado?).'));
+req.on('timeout', () => { req.destroy(); sair('O app demorou demais para responder.'); });
+req.end(corpo);
+
+function mostrar(r) {
+  const out = (t) => process.stdout.write(t + '\n');
+  if (acao === 'listar') return out(r.length ? r.map((j) => `${j.id}  [${j.preset}]  ${j.titulo || '(sem título)'}\n    ${j.url}`).join('\n') : 'nenhuma janela aberta');
+  if (acao === 'presets') return out(r.map((p) => `${p.id.padEnd(16)} ${p.nome}`).join('\n'));
+  if (acao === 'texto') return out(`# ${r.titulo}\n${r.url}\n\n${r.texto}${r.cortado ? '\n\n[… cortado; use --max N]' : ''}`);
+  if (acao === 'elementos') return out(r.map((e) => `[${e.n}] ${e.tipo}  ${e.texto}${e.href ? `  → ${e.href}` : ''}`).join('\n') || 'nada clicável na página');
+  if (acao === 'print') return out(r.arquivo);
+  if (acao === 'js') return out(typeof r === 'string' ? r : JSON.stringify(r, null, 2));
+  if (r && typeof r === 'object') return out([r.id, r.preset && `[${r.preset}]`, r.titulo, r.url].filter(Boolean).join('  '));
+  return out('ok');
+}

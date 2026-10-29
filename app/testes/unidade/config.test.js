@@ -19,3 +19,12 @@ test('config: gravar guarda só a chave mudada, sem copiar os padrões', () => {
   const bruto = JSON.parse(require('fs').readFileSync(config.ARQ, 'utf8'));
   assert.deepStrictEqual(Object.keys(bruto).sort(), ['destaque', 'raizProjetos', 'tema']);
 });
+
+test('config: navegador ligado por padrão; porta 0 (livre) ou 1024–65535', () => {
+  assert.strictEqual(config.ler().navegadorControle, true);
+  const { ok, recusado } = config.validar({ navegadorControle: false, navegadorPorta: 47811 });
+  assert.deepStrictEqual(ok, { navegadorControle: false, navegadorPorta: 47811 });
+  assert.deepStrictEqual(recusado, []);
+  assert.deepStrictEqual(config.validar({ navegadorPorta: 80 }).recusado, ['navegadorPorta']);
+  assert.deepStrictEqual(config.validar({ navegadorControle: 'sim' }).recusado, ['navegadorControle']);
+});

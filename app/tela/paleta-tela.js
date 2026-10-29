@@ -72,6 +72,7 @@
     { grupo: 'Abas', titulo: 'Orquestrador', faz: clicar('[data-aba="aba-orquestrador"]') },
     { grupo: 'Abas', titulo: 'Terminais (espelho dos agentes)', faz: clicar('[data-aba="aba-grade"]') },
     { grupo: 'Abas', titulo: 'Notas', faz: clicar('[data-aba="aba-notas"]') },
+    { grupo: 'Abas', titulo: 'Navegador', faz: clicar('[data-aba="aba-navegador"]') },
     { grupo: 'Abas', titulo: 'Terminal', faz: clicar('[data-aba="aba-terminal"]') },
     { grupo: 'Ações', titulo: 'Nova conversa', faz: clicar('#nova-conversa') },
     { grupo: 'Ações', titulo: 'Novo terminal', faz: () => { clicar('[data-aba="aba-terminal"]')(); setTimeout(clicar('#novo-terminal'), 300); } },

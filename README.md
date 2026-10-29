@@ -21,6 +21,11 @@ e conversa com um Claude "orquestrador" que distribui o trabalho.
 - **Terminais**: até 4 em grade, inclusive anexados à sessão de um agente.
 - **Notas**: editor de Markdown no estilo Notion (blocos, `/` para inserir, tarefas,
   tabelas) sobre as pastas que você configurar; salva sozinho guardando versões.
+- **Navegador**: até 6 janelas lado a lado, cada uma como Chrome, Firefox, Edge
+  ou celular (iPhone, Android). O orquestrador usa as mesmas janelas pelo
+  comando `app/bin/orq-nav` (abrir, ler, clicar, digitar, print) e você vê
+  tudo acontecendo. O motor é sempre o Chromium do app; o preset muda a
+  identidade e a tela que o site enxerga.
 - **O orquestrador em pessoa**: um bichinho em pixel art que pensa, trabalha,
   dá ordem aos agentes e pode ser arremessado com o mouse.
 - Tema claro/escuro e cor de destaque configuráveis.

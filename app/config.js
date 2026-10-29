@@ -57,6 +57,12 @@ const PADRAO = {
   // de responder (só quando a janela não está em foco).
   notificacoes: { pedidos: true, respostas: true },
 
+  // Aba Navegador: o orquestrador (e scripts) controlam as janelas pelo
+  // comando orq-nav, por um servidor só em 127.0.0.1 com chave.
+  // navegadorPorta 0 = escolhe uma porta livre a cada abertura.
+  navegadorControle: true,
+  navegadorPorta: 0,
+
   // Variáveis extras no ambiente das conversas e dos terminais do app.
   ambiente: {},
 };
@@ -100,6 +106,8 @@ function validar(m) {
       case 'linhaTarefa': case 'comandoOrdem': aceitar(k, regexOk(v), texto(v) || null); break;
       case 'rotuloContainer': case 'pastaTranscript': aceitar(k, !!texto(v), texto(v)); break;
       case 'ambiente': aceitar(k, v && typeof v === 'object' && Object.entries(v).every(([a, b]) => /^[A-Z_][A-Z0-9_]*$/.test(a) && typeof b === 'string'), v); break;
+      case 'navegadorControle': aceitar(k, typeof v === 'boolean', v); break;
+      case 'navegadorPorta': aceitar(k, Number.isInteger(v) && (v === 0 || (v >= 1024 && v <= 65535)), v); break;
       case 'detectarFerramentas': aceitar(k, typeof v === 'boolean', v); break;
       case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
       case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;

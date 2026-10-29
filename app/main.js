@@ -20,6 +20,7 @@ const conversa = require('./conversa');
 const notas = require('./notas');
 const permissoes = require('./permissoes');
 const repertorio = require('./repertorio');
+const navegador = require('./navegador');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
 // (conversa.js), sem tela de terminal.
@@ -51,6 +52,9 @@ function criarJanela() {
       nodeIntegration: false,
       sandbox: true,
       backgroundThrottling: !emTeste,
+      // Aba Navegador: as páginas da web rodam em <webview>, presas pelo
+      // navegador.js (sem Node, sem preload, só http/https).
+      webviewTag: true,
     },
   });
   // Escondida, mas com foco no conteúdo (área de transferência e teclado
@@ -287,6 +291,7 @@ app.whenReady().then(() => {
     } catch { return new Response('', { status: 404 }); }
   });
   criarJanela();
+  navegador.ligar(() => janela);
   // Sinal de vida a cada 3 s: o hook só espera resposta do app se este
   // arquivo foi tocado há menos de 15 s.
   setInterval(() => coletor.sinalDeVida(), 3000);
@@ -295,6 +300,7 @@ app.whenReady().then(() => {
 function encerrarTudo() {
   for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
   terminais.clear();
+  navegador.desligarControle();
   if (reiniciando) conversa.pararTodas(); else conversa.encerrarTodas();
 }
 app.on('before-quit', encerrarTudo);

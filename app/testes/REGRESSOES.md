@@ -28,3 +28,4 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Ctrl+Shift+V no terminal colava duas vezes | `tela/terminais.e2e.js` › regressão: Ctrl+Shift+V não cola duas vezes |
 | 2026-10-29 | Menu / das notas não rolava junto com as setas do teclado | `tela/notas.e2e.js` › regressão: menu / rola junto… |
 | 2026-10-29 | Agente trabalhando aparecia como parado quando a dica do Claude empurrava o contador para fora da leitura | `unidade/coletor.test.js` › regressão: contador com dica embaixo… |
+| 2026-10-29 | Preset de celular mostrava a página com 980 px (o modo de tela do Electron ignorava a meta viewport dentro da janela de navegador) | `tela/navegador.e2e.js` › preset de celular: identidade de iPhone e tela de 390 px |
