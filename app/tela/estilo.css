@@ -352,9 +352,10 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .pergunta { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
 .pergunta legend { padding: 0; font-size: 14.5px; font-weight: 600; color: var(--fg); display: flex; flex-direction: column; gap: 6px; }
 .etiqueta { align-self: flex-start; font: 500 10.5px var(--mono); text-transform: uppercase; letter-spacing: .04em; color: var(--claude); }
-.opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+/* Uma opção por linha: com 4 opções, nada de 3 em cima e 1 sobrando embaixo. */
+.opcoes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .opcao {
-  display: grid; gap: 3px; text-align: left; padding: 10px 12px; border-radius: var(--r-md);
+  display: grid; gap: 3px; align-content: start; text-align: left; padding: 10px 12px; border-radius: var(--r-md);
   border: 1px solid var(--borda-forte); background: var(--bg-elevado); color: var(--fg-2);
 }
 .opcao strong { color: var(--fg); font-weight: 600; }
