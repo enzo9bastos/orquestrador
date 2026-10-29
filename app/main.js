@@ -23,7 +23,7 @@ function criarJanela() {
   janela = new BrowserWindow({
     width: 1480,
     height: 920,
-    minWidth: 1100,
+    minWidth: 900,
     minHeight: 680,
     title: 'Orquestração',
     icon: path.join(__dirname, 'icone', 'orquestracao-256.png'),

@@ -62,7 +62,8 @@ body {
   background: var(--bg);
   color: var(--fg);
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr) 340px;
+  /* Colunas que encolhem junto com a janela, até um mínimo legível. */
+  grid-template-columns: clamp(210px, 19vw, 272px) minmax(0, 1fr) clamp(250px, 23vw, 340px);
   grid-template-rows: var(--barra) minmax(0, 1fr);
   grid-template-areas: "topo topo topo" "lateral painel inspetor";
   overflow: hidden;
@@ -575,3 +576,34 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .controles-janela button.fechar:hover { background: var(--perigo); color: #fff; }
 .pet.balao-embaixo .pet-balao { bottom: auto; top: calc(100% + 8px); }
 .pet.balao-embaixo .pet-balao::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--borda-forte); }
+
+/* --- janela adaptável ------------------------------------------------------
+   Abas e barra da conversa nunca quebram linha: em largura curta, os rótulos
+   viram só ícones (a aba ativa mantém o nome) e os medidores perdem a barra. */
+.painel { container-type: inline-size; }
+.painel-cabecalho { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.painel-cabecalho::-webkit-scrollbar { display: none; }
+.sub-aba { white-space: nowrap; flex: none; }
+.conversa-barra { flex-wrap: nowrap; overflow: hidden; }
+.conversa-barra > * { flex: none; }
+.conversa-barra .botao-texto { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.so-icone { display: none; width: 14px; height: 14px; }
+@container (max-width: 760px) {
+  .sub-aba:not(.ativa) .rotulo-aba { display: none; }
+  .barra-uso { display: none; }
+  .chip .rotulo { font-size: 10.5px; }
+}
+@container (max-width: 640px) {
+  .conversa-barra .rotulo-botao { display: none; }
+  .conversa-barra .so-icone { display: block; }
+  #info-contexto { display: none; }
+  .conversa-barra .chip #info-pasta { max-width: 70px; }
+}
+@container (max-width: 520px) {
+  .sub-aba .rotulo-aba { display: none; }
+  .esforco { display: none; }
+}
+.pet.balao-esq .pet-balao { left: 0; translate: 0 0; }
+.pet.balao-esq .pet-balao::after { left: 24px; }
+.pet.balao-dir .pet-balao { left: auto; right: 0; translate: 0 0; }
+.pet.balao-dir .pet-balao::after { left: auto; right: 24px; translate: 0 0; }

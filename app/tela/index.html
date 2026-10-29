@@ -58,11 +58,11 @@
 
   <main class="painel">
     <div class="painel-cabecalho" role="tablist">
-      <button class="sub-aba ativa" data-aba="aba-orquestrador" type="button" role="tab"><svg class="ico"><use href="#i-balao"/></svg>Orquestrador</button>
-      <button class="sub-aba" data-aba="aba-grade" type="button" role="tab"><svg class="ico"><use href="#i-grade"/></svg>Terminais</button>
-      <button class="sub-aba" data-aba="aba-tempo" type="button" role="tab"><svg class="ico"><use href="#i-relogio"/></svg>Linha do tempo</button>
-      <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg>Tópicos e diário</button>
-      <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg>Terminal</button>
+      <button class="sub-aba ativa" data-aba="aba-orquestrador" type="button" role="tab"><svg class="ico"><use href="#i-balao"/></svg><span class="rotulo-aba">Orquestrador</span></button>
+      <button class="sub-aba" data-aba="aba-grade" type="button" role="tab"><svg class="ico"><use href="#i-grade"/></svg><span class="rotulo-aba">Terminais</span></button>
+      <button class="sub-aba" data-aba="aba-tempo" type="button" role="tab"><svg class="ico"><use href="#i-relogio"/></svg><span class="rotulo-aba">Linha do tempo</span></button>
+      <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg><span class="rotulo-aba">Tópicos e diário</span></button>
+      <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg><span class="rotulo-aba">Terminal</span></button>
     </div>
     <div class="painel-corpo">
       <section id="aba-orquestrador" class="aba ativa conversa" aria-label="Conversa com o orquestrador">
@@ -83,8 +83,8 @@
           <span class="chip medidor" id="info-contexto" title="Contexto usado nesta conversa"></span>
           <span class="chip medidor" id="info-5h" title="Uso da janela de 5 horas"></span>
           <span class="chip medidor" id="info-7d" title="Uso da janela de 7 dias"></span>
-          <button id="desligar" class="botao-texto perigo" type="button" title="Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança">Desligar</button>
-          <button id="nova-conversa" class="botao-texto sem-margem" type="button" title="Abre outra conversa com o Claude ao lado do orquestrador">+ Nova conversa</button>
+          <button id="desligar" class="botao-texto perigo" type="button" title="Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança"><span class="rotulo-botao">Desligar</span><svg class="ico so-icone" viewBox="0 0 16 16"><path d="M8 2.5v5M4.6 4.6a4.8 4.8 0 1 0 6.8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <button id="nova-conversa" class="botao-texto sem-margem" type="button" title="Abre outra conversa com o Claude ao lado do orquestrador">+<span class="rotulo-botao"> Nova conversa</span></button>
         </header>
         <div class="mensagens-area">
           <div id="mensagens" class="mensagens" aria-live="polite"></div>

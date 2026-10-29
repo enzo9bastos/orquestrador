@@ -103,6 +103,9 @@
       this.el.style.transform = `translate(${this.x}px, ${this.y}px)`;
       const s = this.sala();
       this.el.classList.toggle('balao-embaixo', this.y - (s ? s.teto : 0) < 44); // perto do teto, fala para baixo
+      // Perto da borda da janela, o balão encosta para dentro em vez de ser cortado.
+      this.el.classList.toggle('balao-esq', this.x < 110);
+      this.el.classList.toggle('balao-dir', this.x > innerWidth - LARG - 110);
     }
     // Ao soltar: a sala é a do painel sob o centro dele (ou a mais perto).
     escolherSala() {
