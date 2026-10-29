@@ -387,6 +387,15 @@
     if (!sujo) { await abrir(m.i, m.rel, { manterRolagem: true }); estado('Atualizado por fora'); }
   });
 
+  // Paleta Ctrl+K: todas as notas das pastas abertas.
+  const todasAsNotas = (nos, i, l = []) => { for (const n of nos || []) { if (n.tipo === 'nota') l.push({ i, n }); else todasAsNotas(n.filhos, i, l); } return l; };
+  window.orqPaleta?.registrar(() => pastas.flatMap((p, i) => todasAsNotas(arvores[i], i)).map(({ i, n }) => ({
+    grupo: 'Notas', titulo: n.nome, sub: `${pastas[i].nome} / ${n.rel}`,
+    faz: () => { document.querySelector('[data-aba="aba-notas"]').click(); setTimeout(() => abrir(i, n.rel), 300); },
+  })));
+  // A paleta precisa da lista de notas mesmo sem a aba ter sido aberta.
+  carregarArvore().catch(() => {});
+
   // Pastas mudadas na engrenagem: a aba Notas acompanha.
   window.addEventListener('orq:config', () => { if (document.getElementById('aba-notas').classList.contains('ativa')) carregarArvore(); });
 

@@ -593,6 +593,12 @@
       : 'Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)';
   }
   C.aoLista(desenharLista);
+  // Paleta Ctrl+K: conversas (com pergunta pendente = esperando você) e comandos.
+  window.orqPaleta?.registrar(() => [
+    ...listaConversas.map((c) => ({ grupo: 'Conversas', titulo: c.titulo, sub: c.pedidos ? 'pergunta esperando você' : c.ocupado ? 'trabalhando' : '', atencao: c.pedidos > 0, faz: () => trocar(c.id) })),
+    ...COMANDOS_CLAUDE.concat(comandosPor.get(ativa) || []).filter((c, i, l) => l.findIndex((x) => x.nome === c.nome) === i)
+      .map((c) => ({ grupo: 'Comandos', titulo: `/${c.nome}`, sub: c.descricao, faz: () => { trocar(ativa); entrada.value = `/${c.nome} `; entrada.focus(); } })),
+  ]);
   // Clique numa notificação do sistema: abre a conversa que precisa de você.
   if (C.aoFocar) C.aoFocar((id) => trocar(id));
 

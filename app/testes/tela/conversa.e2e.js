@@ -49,6 +49,16 @@ test('conversa', async (t) => {
     assert.ok(await app.avaliar("!!document.querySelector('.balao-imagens img')"));
   });
 
+  await t.test('clicar na print abre o visor, com zoom', async () => {
+    await app.avaliar("document.querySelector('.balao-imagens img').click()");
+    assert.ok(await app.avaliar('window.orqVisor.estado().aberto'));
+    const antes = await app.avaliar('window.orqVisor.estado().escala');
+    await app.avaliar("document.querySelector('[data-v=\"mais\"]').click()");
+    assert.ok((await app.avaliar('window.orqVisor.estado().escala')) > antes);
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))");
+    assert.ok(!(await app.avaliar('window.orqVisor.estado().aberto')));
+  });
+
   await t.test('saída de comando (/model, /usage) aparece', async () => {
     await injetar({ tipo: 'user', message: { role: 'user', content: '<local-command-stdout>Current model: X</local-command-stdout>' } });
     assert.ok(await app.avaliar("[...document.querySelectorAll('.saida-comando')].some((s) => s.innerText.includes('Current model'))"));

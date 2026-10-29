@@ -41,11 +41,12 @@ test('agentes', async (t) => {
     assert.ok(await app.avaliar("!!document.querySelector('#fila [data-resp=\"permitir\"]') && !!document.querySelector('#fila [data-resp=\"negar\"]')"));
   });
 
-  await t.test('detalhe da frente selecionada e linha do tempo', async () => {
+  await t.test('detalhe da frente: última resposta e atividade (a aba Linha do tempo saiu)', async () => {
     await app.avaliar("document.querySelector('.cartao-agente').click()");
-    assert.match(await app.avaliar("document.getElementById('detalhe').innerText"), /Terminei a parte 1/);
-    await app.avaliar("document.querySelector('[data-aba=aba-tempo]').click()");
-    assert.match(await app.avaliar("document.getElementById('tempo-completo').innerText"), /layout\.json|Edit/);
+    const d = await app.avaliar("document.getElementById('detalhe').innerText");
+    assert.match(d, /Terminei a parte 1/);
+    assert.match(d, /layout\.json|Edit/);
+    assert.ok(await app.avaliar("!document.querySelector('[data-aba=aba-tempo]')"));
   });
 
   await t.test('busca filtra os agentes', async () => {

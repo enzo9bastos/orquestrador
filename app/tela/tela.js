@@ -285,7 +285,6 @@ function desenharDetalhe(r) {
   if (!f) {
     $('titulo-detalhe').textContent = 'Frente';
     $('detalhe').innerHTML = VAZIO('i-lista', 'Nenhuma frente selecionada', 'Clique numa frente à esquerda.');
-    $('tempo-completo').innerHTML = VAZIO('i-relogio', 'Nenhuma frente selecionada', 'Clique numa frente à esquerda.');
     return;
   }
   $('titulo-detalhe').textContent = nomeDaFrente(f, i);
@@ -302,9 +301,6 @@ function desenharDetalhe(r) {
       ? `<div class="resposta">${esc(f.ultimaResposta)}</div>`
       : `<p class="nota">${f.fonte === 'tela' ? 'Esta frente ainda não tem o hook de sinais: o estado vem da tela e a resposta inteira não fica disponível.' : 'Sem resposta registrada ainda.'}</p>`}
     ${eventos.length ? `<div class="rotulo-pequeno">Atividade</div><ul class="tempo">${eventos.slice(0, 25).map((e) => `<li><span class="hora">${hora(e.ts)}</span><span class="o-que" title="${esc(descreverEvento(e))}">${esc(descreverEvento(e))}</span></li>`).join('')}</ul>` : ''}`;
-  $('tempo-completo').innerHTML = eventos.length
-    ? `<div class="secao-titulo">${esc(nomeDaFrente(f, i))}</div><ul class="tempo tempo-largo">${eventos.map((e) => `<li><span class="hora">${hora(e.ts)}</span><span class="o-que">${esc(e.evento === 'Stop' ? 'Respondeu:\n' + (e.last_assistant_message || '') : descreverEvento(e))}</span></li>`).join('')}</ul>`
-    : VAZIO('i-relogio', 'Sem atividade registrada', 'A linha do tempo aparece quando a frente tem o hook de sinais.');
 }
 
 // Cores do terminal (sequências SGR do `tmux capture-pane -e`) para HTML.
@@ -426,6 +422,13 @@ document.addEventListener('click', async (ev) => {
 });
 
 $('filtro').addEventListener('input', () => ultimo && desenharFrentes(ultimo));
+
+// Paleta Ctrl+K: agentes (pedindo permissão ou esperando = esperando você).
+window.orqPaleta?.registrar(() => (ultimo ? ultimo.frentes : []).map((f, i) => ({
+  grupo: 'Agentes', titulo: nomeDaFrente(f, i), sub: `${ROTULO[f.estado]}${f.tarefa ? ' · ' + f.tarefa : ''}`,
+  atencao: f.estado === 'permissao' || f.estado === 'esperando',
+  faz: () => { selecionada = f.chave; desenharFrentes(ultimo); desenharDetalhe(ultimo); },
+})));
 
 atualizar();
 setInterval(atualizar, 2000);

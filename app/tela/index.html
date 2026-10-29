@@ -60,7 +60,6 @@
     <div class="painel-cabecalho" role="tablist">
       <button class="sub-aba ativa" data-aba="aba-orquestrador" type="button" role="tab"><svg class="ico"><use href="#i-balao"/></svg><span class="rotulo-aba">Orquestrador</span></button>
       <button class="sub-aba" data-aba="aba-grade" type="button" role="tab"><svg class="ico"><use href="#i-grade"/></svg><span class="rotulo-aba">Terminais</span></button>
-      <button class="sub-aba" data-aba="aba-tempo" type="button" role="tab"><svg class="ico"><use href="#i-relogio"/></svg><span class="rotulo-aba">Linha do tempo</span></button>
       <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg><span class="rotulo-aba">Notas</span></button>
       <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg><span class="rotulo-aba">Terminal</span></button>
     </div>
@@ -109,9 +108,6 @@
       </section>
       <section id="aba-grade" class="aba" aria-label="Terminais">
         <div id="grade" class="grade"></div>
-      </section>
-      <section id="aba-tempo" class="aba" aria-label="Linha do tempo">
-        <div id="tempo-completo"></div>
       </section>
       <section id="aba-notas" class="aba" aria-label="Notas">
         <div class="notas-app">
@@ -264,8 +260,10 @@
   <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
   <script src="../node_modules/marked/lib/marked.umd.js"></script>
   <script src="../node_modules/dompurify/dist/purify.min.js"></script>
+  <script src="paleta-tela.js"></script>
   <script src="config-tela.js"></script>
   <script src="tela.js"></script>
+  <script src="visor-tela.js"></script>
   <script src="pet.js"></script>
   <script src="editor.bundle.js"></script>
   <script src="notas-tela.js"></script>

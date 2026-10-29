@@ -38,6 +38,18 @@ test('menus', async (t) => {
     await digitar('');
   });
 
+  await t.test('Ctrl+K abre a paleta inteira; acha nota, ação e comando; Enter executa', async () => {
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))");
+    await app.esperar("!document.querySelector('.paleta-fundo').hidden");
+    assert.strictEqual(await app.visivel('.paleta'), 'ok');
+    const grupos = await app.avaliar("[...document.querySelectorAll('.paleta-grupo')].map((g) => g.textContent)");
+    for (const g of ['Abas', 'Ações', 'Conversas', 'Comandos']) assert.ok(grupos.includes(g), `faltou o grupo ${g}`);
+    await app.avaliar("(() => { const i = document.querySelector('.paleta-busca input'); i.value = 'notas'; i.dispatchEvent(new Event('input')); })()");
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))");
+    await app.esperar("document.querySelector('[data-aba=aba-notas]').classList.contains('ativa')");
+    await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
+  });
+
   await t.test('popups de /config e /permissions aparecem inteiros', async () => {
     await app.avaliar('window.__orqTeste.abrirPopupConfig()');
     assert.strictEqual(await app.visivel('#popup .config'), 'ok');
