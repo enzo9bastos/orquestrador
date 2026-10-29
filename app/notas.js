@@ -52,7 +52,10 @@ function arvore(i) {
       const r = rel ? `${rel}/${d.name}` : d.name;
       if (d.isDirectory()) {
         const filhos = andar(path.join(dir, d.name), r, nivel + 1);
-        if (filhos.length) pastasF.push({ tipo: 'pasta', nome: d.name, rel: r, filhos });
+        // Pasta entra se leva a algum .md ou se está vazia (acabou de ser criada).
+        let vazia = false;
+        if (!filhos.length) { try { vazia = fs.readdirSync(path.join(dir, d.name)).length === 0; } catch { /* sem acesso */ } }
+        if (filhos.length || vazia) pastasF.push({ tipo: 'pasta', nome: d.name, rel: r, filhos });
       } else if (d.name.toLowerCase().endsWith('.md')) {
         conta++;
         let m = 0;
@@ -137,6 +140,16 @@ function vigiar(i, rel, avisar) {
   } catch { vigia = null; }
 }
 
+function criarPasta(i, relPai, nome) {
+  const limpo = String(nome || '').replace(/[\\/:*?"<>|]/g, '').trim();
+  if (!limpo) throw new Error('nome vazio');
+  const rel = (relPai ? `${relPai}/` : '') + limpo;
+  const abs = resolver(i, rel);
+  if (fs.existsSync(abs)) return { rel, existia: true };
+  fs.mkdirSync(abs, { recursive: true });
+  return { rel };
+}
+
 // Acrescentar/tirar pasta só mexe na lista da configuração; nada no disco.
 function adicionarPasta(caminho) {
   const lista = listaConfigurada().map((p) => ({ ...p }));
@@ -153,4 +166,4 @@ function removerPasta(i) {
   return true;
 }
 
-module.exports = { adicionarPasta, removerPasta, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+module.exports = { adicionarPasta, removerPasta, criarPasta, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };

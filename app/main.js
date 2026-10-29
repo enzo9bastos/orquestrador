@@ -121,6 +121,7 @@ ipcMain.handle('notas:arvore', (_e, i) => notas.arvore(i));
 ipcMain.handle('notas:ler', (_e, i, rel) => notas.ler(i, rel));
 ipcMain.handle('notas:gravar', (_e, i, rel, conteudo, mtime) => notas.gravar(i, rel, conteudo, mtime));
 ipcMain.handle('notas:guardarCopia', (_e, i, rel, texto) => notas.guardarCopia(i, rel, texto));
+ipcMain.handle('notas:criarPasta', (_e, i, pai, nome) => notas.criarPasta(i, pai, nome));
 ipcMain.handle('notas:criar', (_e, i, pasta, nome) => notas.criar(i, pasta, nome));
 ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janela && janela.webContents.send('notas:mudou', m)));
 

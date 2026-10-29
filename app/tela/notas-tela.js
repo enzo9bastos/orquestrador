@@ -151,10 +151,13 @@
   document.querySelector('.explorador-topo').addEventListener('click', async (ev) => {
     const b = ev.target.closest('[data-acao]');
     if (!b) return;
-    if (b.dataset.acao === 'nova') {
+    if (b.dataset.acao === 'nova' || b.dataset.acao === 'nova-pasta') {
+      // O mesmo campo serve para nota e para pasta; o tipo fica marcado nele.
       const f = $('nova-nota-form');
-      f.hidden = !f.hidden;
-      f.querySelector('input').placeholder = `Nome da nota em ${selecionada || pastas[ativa]?.nome || ''} (Enter)`;
+      const tipo = b.dataset.acao === 'nova' ? 'nota' : 'pasta';
+      f.hidden = !f.hidden && f.dataset.tipo === tipo;
+      f.dataset.tipo = tipo;
+      f.querySelector('input').placeholder = `Nome da ${tipo} em ${selecionada || pastas[ativa]?.nome || ''} (Enter)`;
       if (!f.hidden) f.querySelector('input').focus();
     } else if (b.dataset.acao === 'recolher') {
       for (const k of [...abertasNaArvore]) if (k.startsWith(`${ativa}:`)) abertasNaArvore.delete(k);
@@ -170,11 +173,13 @@
     if (ev.key !== 'Enter' || !pastas[ativa]) return;
     const nome = ev.target.value.trim();
     if (!nome) return;
-    const r = await N.criar(ativa, selecionada || '', nome);
+    const pasta = f.dataset.tipo === 'pasta';
+    const r = pasta ? await N.criarPasta(ativa, selecionada || '', nome) : await N.criar(ativa, selecionada || '', nome);
     f.hidden = true; ev.target.value = '';
     if (selecionada) abertasNaArvore.add(`${ativa}:${selecionada}`);
+    if (pasta) { abertasNaArvore.add(`${ativa}:${r.rel}`); selecionada = r.rel; gravarPref('notas-pastas-abertas', [...abertasNaArvore]); }
     await carregarArvore();
-    abrir(ativa, r.rel);
+    if (!pasta) abrir(ativa, r.rel);
   });
   $('filtro-notas').addEventListener('input', desenharArvore);
 

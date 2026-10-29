@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('orq', {
     ler: (i, rel) => ipcRenderer.invoke('notas:ler', i, rel),
     gravar: (i, rel, conteudo, mtime) => ipcRenderer.invoke('notas:gravar', i, rel, conteudo, mtime),
     criar: (i, pasta, nome) => ipcRenderer.invoke('notas:criar', i, pasta, nome),
+    criarPasta: (i, pai, nome) => ipcRenderer.invoke('notas:criarPasta', i, pai, nome),
     guardarCopia: (i, rel, texto) => ipcRenderer.invoke('notas:guardarCopia', i, rel, texto),
     vigiar: (i, rel) => ipcRenderer.invoke('notas:vigiar', i, rel),
     aoMudar: (fn) => ipcRenderer.on('notas:mudou', (_e, m) => fn(m)),
