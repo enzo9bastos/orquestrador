@@ -28,10 +28,23 @@ test('pet: desenho veste o que foi escolhido; item na parte errada é ignorado',
   assert.match(s, /item-caneca/);
   assert.doesNotMatch(s, /item-bigode/, 'bigode não é de olhos');
   assert.match(s, /--pet-cor:#8b5cf6/);
-  assert.deepStrictEqual(JSON.parse(JSON.stringify(V.limpar({ cor: 'xyz', itens: { cabeca: 'nada' } }))), { cor: 'padrao', itens: {} });
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(V.limpar({ cor: 'xyz', itens: { cabeca: 'nada' } }))), { especie: 'bicho', cor: 'padrao', itens: {} });
   assert.ok(s.indexOf('item-capa') < 0);
   const capa = V.svg({ itens: { corpo: 'capa' } });
   assert.ok(capa.indexOf('item-capa') < capa.indexOf('class="perna p1"'), 'a capa fica atrás do corpo');
+});
+
+// Pedido de 2026-10-30: outros bichinhos, compatíveis com o guarda-roupa.
+test('pet: 4 espécies, todas vestem os 30 itens e as cores', () => {
+  assert.deepStrictEqual(Object.keys(V.ESPECIES), ['bicho', 'fantasma', 'nuvem', 'gosma']);
+  for (const especie of Object.keys(V.ESPECIES)) {
+    for (const [id, i] of Object.entries(V.ITENS)) assert.match(V.svg({ especie, cor: 'branco', itens: { [i.parte]: id } }), new RegExp(`item-${id}`), `${especie} + ${id}`);
+    const s = V.svg({ especie });
+    assert.match(s, new RegExp(`especie-${especie}`));
+    assert.strictEqual((s.match(/class="perna p\d"/g) || []).length, 4, `${especie}: 4 pernas para a animação de andar`);
+    assert.match(s, /class="braco braco-d"/, `${especie}: mão direita para os itens`);
+  }
+  assert.strictEqual(V.limpar({ especie: 'dragao' }).especie, 'bicho');
 });
 
 test('pet: preferências guardam a roupa e o aviso fora do app', () => {

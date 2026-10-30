@@ -15,7 +15,17 @@
     ['rosa', 'Rosa', '#e8559a'],
     ['amarelo', 'Amarelo', '#e5b31a'],
     ['cinza', 'Cinza', '#8a8f98'],
+    ['branco', 'Branco', '#e8eaf0'],
   ];
+  // Espécies: o mesmo "esqueleto" (olhos em x 3 e 8, braços nas laterais, mão
+  // direita em x 10–11), então todas vestem os mesmos 30 itens.
+  // corpo: retângulos da pele; pernas: 4 (animam ao andar); braços: [x, y, l, a].
+  const ESPECIES = {
+    bicho: { nome: 'Bichinho', corpo: [[2, 0, 8, 5]], pernas: [[2, 5, 1, 2], [4, 5, 1, 2], [7, 5, 1, 2], [9, 5, 1, 2]], bracoE: [0, 2, 2, 2], bracoD: [10, 2, 2, 2] },
+    fantasma: { nome: 'Fantasminha', corpo: [[3, 0, 6, 1], [2, 1, 8, 5]], pernas: [[2, 6, 1, 1], [4, 6, 2, 1], [7, 6, 1, 1], [9, 6, 1, 1]], bracoE: [0, 3, 2, 1], bracoD: [10, 3, 2, 1] },
+    nuvem: { nome: 'Nuvem', corpo: [[4, 0, 4, 1], [2, 1, 8, 1], [1, 2, 10, 2], [2, 4, 8, 1]], pernas: [[3, 6, 1, 1], [5, 6.5, 1, 1], [7, 6, 1, 1], [9, 6.5, 1, 1]], bracoE: [0, 2, 1, 1], bracoD: [11, 2, 1, 1] },
+    gosma: { nome: 'Gosminha', corpo: [[4, 0, 4, 1], [3, 1, 6, 1], [2, 2, 8, 3]], pernas: [[1, 5, 3, 2], [4, 5, 2, 2], [6, 5, 2, 2], [8, 5, 3, 2]], bracoE: [1, 3, 1, 1], bracoD: [10, 3, 1, 1] },
+  };
   const PARTES = [
     ['cabeca', 'Cabeça'], ['olhos', 'Olhos'], ['rosto', 'Rosto'],
     ['pescoco', 'Pescoço'], ['corpo', 'Roupa'], ['mao', 'Na mão'],
@@ -67,7 +77,7 @@
   function limpar(v) {
     const itens = {};
     for (const [p] of PARTES) { const id = v && v.itens && v.itens[p]; if (ITENS[id] && ITENS[id].parte === p) itens[p] = id; }
-    return { cor: CORES.some((c) => c[0] === v?.cor) ? v.cor : 'padrao', itens };
+    return { especie: ESPECIES[v?.especie] ? v.especie : 'bicho', cor: CORES.some((c) => c[0] === v?.cor) ? v.cor : 'padrao', itens };
   }
 
   function svg(visual) {
@@ -75,19 +85,18 @@
     const cor = CORES.find((c) => c[0] === v.cor)[2];
     const it = (p) => item(v.itens[p]);
     const atras = v.itens.corpo && ITENS[v.itens.corpo].atras;
-    return `<svg class="pet-svg" viewBox="-3 -7 18 14" shape-rendering="crispEdges" aria-hidden="true"${cor ? ` style="--pet-cor:${cor}"` : ''}>
+    const e = ESPECIES[v.especie];
+    const r = ([x, y, w, h], cls) => `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}"/>`;
+    return `<svg class="pet-svg especie-${v.especie}" viewBox="-3 -7 18 14" shape-rendering="crispEdges" aria-hidden="true"${cor ? ` style="--pet-cor:${cor}"` : ''}>
       ${atras ? it('corpo') : ''}
-      <rect class="perna p1" x="2" y="5" width="1" height="2"/>
-      <rect class="perna p2" x="4" y="5" width="1" height="2"/>
-      <rect class="perna p3" x="7" y="5" width="1" height="2"/>
-      <rect class="perna p4" x="9" y="5" width="1" height="2"/>
+      ${e.pernas.map((p, i) => r(p, `perna p${i + 1}`)).join('')}
       <g class="pet-corpo">
-        <rect class="braco braco-e pele" x="0" y="2" width="2" height="2"/>
-        <rect class="pele" x="2" y="0" width="8" height="5"/>
+        ${r(e.bracoE, 'braco braco-e pele')}
+        ${e.corpo.map((c) => r(c, 'pele')).join('')}
         ${atras ? '' : it('corpo')}
         <g class="olhos"><rect class="olho" x="3" y="1" width="1" height="2"/><rect class="olho" x="8" y="1" width="1" height="2"/></g>
         ${it('rosto')}${it('pescoco')}${it('olhos')}${it('cabeca')}
-        <g class="braco braco-d"><rect class="pele" x="10" y="2" width="2" height="2"/>${it('mao')}</g>
+        <g class="braco braco-d">${r(e.bracoD, 'pele')}${it('mao')}</g>
       </g>
     </svg>`;
   }
@@ -99,5 +108,5 @@
     return `<svg class="pet-mini" viewBox="-3 -7 18 14" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="0" width="8" height="5" class="pele fantasma"/>${rects(i.px)}</svg>`;
   }
 
-  window.petVisual = { CORES, PARTES, ITENS, svg, miniatura, limpar };
+  window.petVisual = { CORES, PARTES, ITENS, ESPECIES, svg, miniatura, limpar };
 })();

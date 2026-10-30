@@ -873,9 +873,66 @@
     "Cor: Vermelho": "Color: Red",
     "Idioma do app": "App language",
     "A tela recarrega na hora; as conversas continuam.": "The screen reloads right away; your conversations carry on.",
-    "Idioma · Language": "Language · Idioma"
+    "Idioma · Language": "Language · Idioma",
+    "IAs conectadas (CLI)": "Connected AIs (CLI)",
+    "Ferramentas de IA neste computador": "AI tools on this computer",
+    "O app procura cada uma no PATH e pergunta só a versão.": "The app looks for each one on the PATH and only asks for its version.",
+    "Procurando…": "Searching…",
+    "Detectar de novo": "Detect again",
+    "Orquestrador usa": "Orchestrator uses",
+    "Hoje só o Claude Code sabe ser o orquestrador.": "Today only Claude Code can be the Orchestrator.",
+    "Agentes novos usam": "New agents use",
+    "A IA dos próximos agentes. As outras entram aqui quando forem suportadas.": "The AI for the next agents. The others join here once supported.",
+    "instalado": "installed",
+    "não encontrado": "not found",
+    "em breve como orquestrador": "coming soon as Orchestrator",
+    "Tópicos": "Topics",
+    "+ Novo tópico": "+ New topic",
+    "Título da demanda": "Request title",
+    "Título do tópico": "Topic title",
+    "Código (opcional)": "Code (optional)",
+    "Código do ticket": "Ticket code",
+    "Agente (opcional)": "Agent (optional)",
+    "Agente do tópico": "Topic agent",
+    "Criar": "Create",
+    "Cancelar": "Cancel",
+    "Aberto": "Open",
+    "Concluído": "Finished",
+    "+ Item do checklist": "+ Checklist item",
+    "Novo item do checklist": "New checklist item",
+    "Marcar esperando": "Mark as waiting",
+    "Voltar a aberto": "Back to open",
+    "Concluir": "Finish",
+    "Confirmar conclusão": "Confirm finish",
+    "Reabrir": "Reopen",
+    "Nenhum tópico em andamento": "No topics in progress",
+    "Não consegui ler os tópicos": "Couldn't read the topics",
+    "Um tópico é uma demanda sendo feita: o que pediram, quem está nela e o checklist do que falta. O orquestrador abre e atualiza pelo comando orq-topico; você também pode criar um em \"+ Novo tópico\".": "A topic is a request being worked on: what was asked, who is on it and the checklist of what is left. The Orchestrator opens and updates it with the orq-topico command; you can also create one with \"+ New topic\".",
+    "Fantasminha": "Ghost",
+    "Nuvem": "Cloud",
+    "Gosminha": "Slime",
+    "Branco": "White",
+    "Pergunta de uma conversa": "A conversation asks something",
+    "Aviso do sistema quando o orquestrador ou outra conversa do app pergunta algo ou pede permissão.": "System notification when the Orchestrator or another conversation asks something or needs permission.",
+    "Aviso do sistema quando uma conversa termina de responder, só com a janela fora de foco.": "System notification when a conversation finishes replying, only while the window is out of focus.",
+    "Agente pedindo permissão": "An agent asks for permission",
+    "Aviso do sistema quando um agente entra na fila \"Precisa de você\".": "System notification when an agent joins the \"Needs you\" queue.",
+    "Ajudante traz a pergunta": "The helper brings the question",
+    "O bichinho vem à tela com a pergunta para você responder ali, quando o app está fora de foco.": "The pet walks onto your screen with the question so you can answer right there, while the app is out of focus."
   },
   "padroes": [
+    [
+      "^Faltam (\\d+)\\. Concluir mesmo assim\\?$",
+      "$1 left. Finish anyway?"
+    ],
+    [
+      "^(\\d+) de (\\d+) feitos$",
+      "$1 of $2 done"
+    ],
+    [
+      "^Concluídos \\((\\d+)\\)$",
+      "Finished ($1)"
+    ],
     [
       "^(\\d{1,2}) · domingo$",
       "$1 · Sunday"
@@ -1451,6 +1508,26 @@
     [
       "^ação desconhecida: (.+)$",
       "unknown action: $1"
+    ],
+    [
+      "^instalado v(.+)$",
+      "installed v$1"
+    ],
+    [
+      "^(.+) — em breve$",
+      "$1 — coming soon"
+    ],
+    [
+      "^(.+) — não encontrado$",
+      "$1 — not found"
+    ],
+    [
+      "^O orquestrador: (.+) ainda não roda aqui; o app usa o (.+)\\.$",
+      "Orchestrator: $1 doesn't run here yet; the app uses $2."
+    ],
+    [
+      "^Os agentes novos: (.+) ainda não roda aqui; o app usa o (.+)\\.$",
+      "New agents: $1 doesn't run here yet; the app uses $2."
     ]
   ]
 }

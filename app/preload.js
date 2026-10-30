@@ -105,6 +105,18 @@ contextBridge.exposeInMainWorld('orq', {
     fechar: () => ipcRenderer.send('janela:fechar'),
     aoMaximizar: (fn) => ipcRenderer.on('janela:maximizada', (_e, sim) => fn(sim)),
   },
+  ias: {
+    listar: (forcar) => ipcRenderer.invoke('ias:listar', forcar === true),
+  },
+  topicos: {
+    lista: () => ipcRenderer.invoke('topicos:lista'),
+    abrir: (o) => ipcRenderer.invoke('topicos:abrir', o),
+    item: (id, txt) => ipcRenderer.invoke('topicos:item', id, txt),
+    marcar: (id, item, feito) => ipcRenderer.invoke('topicos:marcar', id, item, feito),
+    estado: (id, e) => ipcRenderer.invoke('topicos:estado', id, e),
+    concluir: (id) => ipcRenderer.invoke('topicos:concluir', id),
+    aoMudar: (fn) => ipcRenderer.on('topicos:mudou', (_e, m) => fn(m)),
+  },
   config: {
     ler: () => ipcRenderer.invoke('config:ler'),
     gravar: (m) => ipcRenderer.invoke('config:gravar', m),

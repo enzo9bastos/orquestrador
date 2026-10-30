@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+// orq-topico: mantém os Tópicos do App de Orquestração (a coluna da direita).
+// Um tópico é uma demanda em andamento; o app mostra as mudanças na hora.
+//
+//   orq-topico listar [--todos] [--json]     tópicos em andamento (--todos: com os concluídos)
+//   orq-topico abrir "<título>" [--codigo X] [--agente "Agente 3"]   cria e mostra o id
+//   orq-topico item <id> "<texto>"           acrescenta um item ao checklist
+//   orq-topico marcar <id> <nº do item>      item feito
+//   orq-topico desmarcar <id> <nº do item>   item volta a pendente
+//   orq-topico estado <id> aberto|esperando|concluido
+//   orq-topico agente <id> "<nome>"          põe mais um agente no tópico
+//   orq-topico nota <id> "<texto>"           acrescenta uma linha às notas
+//   orq-topico concluir <id> [--mesmo-assim] conclui (recusa se falta item)
+//
+// Arquivo: ~/.config/orq-app/topicos.json (a versão anterior fica em
+// ~/.local/share/orq-app/versoes/topicos/ a cada mudança).
+const fs = require('fs');
+const topicos = require('../topicos');
+
+const args = process.argv.slice(2);
+const opc = {};
+const pos = [];
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (['--json', '--todos', '--mesmo-assim'].includes(a)) opc[a.slice(2)] = true;
+  else if (a.startsWith('--')) opc[a.slice(2)] = args[++i];
+  else pos.push(a);
+}
+const [acao, ...resto] = pos;
+const sair = (msg, cod = 1) => { process.stderr.write(msg + '\n'); process.exit(cod); };
+if (!acao || acao === 'ajuda' || opc.help !== undefined || args.includes('-h')) {
+  const topo = fs.readFileSync(__filename, 'utf8').split('\n').slice(1).filter((l) => l.startsWith('//')).map((l) => l.replace(/^\/\/ ?/, ''));
+  sair(topo.join('\n'), acao ? 0 : 1);
+}
+
+const ROTULO = { aberto: 'aberto', esperando: 'esperando você', concluido: 'concluído' };
+function mostrar(t) {
+  const feitos = t.itens.filter((i) => i.feito).length;
+  const cab = [`#${t.id} [${ROTULO[t.estado]}] ${t.titulo}`];
+  if (t.codigo) cab.push(`(${t.codigo})`);
+  if (t.agentes.length) cab.push(`· ${t.agentes.join(', ')}`);
+  if (t.itens.length) cab.push(`· ${feitos}/${t.itens.length}`);
+  const linhas = [cab.join(' ')];
+  t.itens.forEach((i, n) => linhas.push(`   [${i.feito ? 'x' : ' '}] ${n + 1}. ${i.texto}`));
+  if (t.notas) for (const l of t.notas.split('\n')) linhas.push(`   nota: ${l}`);
+  return linhas.join('\n');
+}
+const precisa = (n, uso) => { if (resto.length < n) sair(`uso: orq-topico ${uso}`); };
+const ok = (t) => { console.log(opc.json ? JSON.stringify(t) : mostrar(t)); };
+
+try {
+  switch (acao) {
+    case 'listar': {
+      const l = topicos.ler().filter((t) => opc.todos || t.estado !== 'concluido');
+      if (opc.json) console.log(JSON.stringify({ topicos: l }, null, 2));
+      else console.log(l.length ? l.map(mostrar).join('\n') : 'Nenhum tópico em andamento.');
+      break;
+    }
+    case 'abrir': {
+      precisa(1, 'abrir "<título>" [--codigo X] [--agente "Agente 3"]');
+      const t = topicos.abrir({ titulo: resto.join(' '), codigo: opc.codigo, agente: opc.agente });
+      // Só o id na saída: dá para guardar direto numa variável do shell.
+      console.log(opc.json ? JSON.stringify(t) : t.id);
+      break;
+    }
+    case 'item': precisa(2, 'item <id> "<texto>"'); ok(topicos.item(resto[0], resto.slice(1).join(' '))); break;
+    case 'marcar': precisa(2, 'marcar <id> <nº do item>'); ok(topicos.marcar(resto[0], resto[1], true)); break;
+    case 'desmarcar': precisa(2, 'desmarcar <id> <nº do item>'); ok(topicos.marcar(resto[0], resto[1], false)); break;
+    case 'estado': precisa(2, 'estado <id> aberto|esperando|concluido'); ok(topicos.estado(resto[0], resto[1], { mesmoAssim: opc['mesmo-assim'] })); break;
+    case 'agente': precisa(2, 'agente <id> "<nome>"'); ok(topicos.agente(resto[0], resto.slice(1).join(' '))); break;
+    case 'nota': precisa(2, 'nota <id> "<texto>"'); ok(topicos.nota(resto[0], resto.slice(1).join(' '))); break;
+    case 'concluir': precisa(1, 'concluir <id> [--mesmo-assim]'); ok(topicos.concluir(resto[0], { mesmoAssim: opc['mesmo-assim'] })); break;
+    default: sair(`não conheço "${acao}". Veja: orq-topico ajuda`);
+  }
+} catch (e) {
+  sair(`orq-topico: ${e.message}`);
+}

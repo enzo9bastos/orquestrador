@@ -289,6 +289,8 @@ function desenharFrentes(r) {
 
 function desenharFila(r) {
   $('n-fila').textContent = r.fila.length ? String(r.fila.length) : '';
+  // Vazia, a faixa some: o espaço fica para os tópicos.
+  $('bloco-fila').hidden = !r.fila.length;
   const ul = $('fila');
   if (!r.fila.length) {
     trocarHtml(ul, `<li>${VAZIO('i-sino', 'Nada esperando por você', 'Permissões e pedidos ao servidor aparecem aqui.')}</li>`);
@@ -314,6 +316,10 @@ function desenharFila(r) {
     </li>`;
   }).join(''));
 }
+
+// O detalhe do agente fica recolhido embaixo dos tópicos; clicar num agente
+// (ou escolhê-lo no Ctrl+K) abre.
+function abrirDetalhe() { $('bloco-detalhe').open = true; }
 
 function desenharDetalhe(r) {
   const i = r.frentes.findIndex((x) => x.chave === selecionada);
@@ -437,6 +443,7 @@ document.addEventListener('click', async (ev) => {
   if (!alvo) return;
   if (alvo.dataset.chave) {
     selecionada = alvo.dataset.chave;
+    abrirDetalhe();
     if (ultimo) { desenharFrentes(ultimo); desenharDetalhe(ultimo); }
   } else if (alvo.dataset.resp) {
     alvo.disabled = true;
@@ -463,7 +470,7 @@ $('filtro').addEventListener('input', () => ultimo && desenharFrentes(ultimo));
 window.orqPaleta?.registrar(() => (ultimo ? ultimo.frentes : []).map((f, i) => ({
   grupo: 'Agentes', titulo: nomeDaFrente(f, i), sub: `${ROTULO[f.estado]}${f.tarefa ? ' · ' + f.tarefa : ''}`,
   atencao: f.estado === 'permissao' || f.estado === 'esperando',
-  faz: () => { selecionada = f.chave; desenharFrentes(ultimo); desenharDetalhe(ultimo); },
+  faz: () => { selecionada = f.chave; abrirDetalhe(); desenharFrentes(ultimo); desenharDetalhe(ultimo); },
 })));
 
 atualizar();

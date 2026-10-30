@@ -1,15 +1,17 @@
 <div align="center">
 
+<img src="docs/images/pet-hello.gif" alt="The pixel helper waving hello" width="120">
+
 # Orquestrador
 
-**A desktop cockpit for running many Claude Code agents at once.**
+**A desktop cockpit for AI agents and orchestrators — built on the AI coding CLIs you already use.**
 
-Chat with an orchestrator Claude, watch every agent at a glance, answer what needs you from one queue,<br>
+Chat with an orchestrator, watch every agent at a glance, answer what needs you from one queue,<br>
 automate your machine with visual workflows — and meet the little pixel helper that lives on your desktop.
 
 ![Electron](https://img.shields.io/badge/Electron-45-47848F?logo=electron&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)
-![Claude Code](https://img.shields.io/badge/built%20for-Claude%20Code-D97757)
+![AI CLIs](https://img.shields.io/badge/AI%20CLIs-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20%C2%B7%20OpenCode-D97757)
 ![Languages](https://img.shields.io/badge/UI-English%20%7C%20Portugu%C3%AAs-3b82f6)
 ![License](https://img.shields.io/badge/license-MIT-22a06b)
 
@@ -21,10 +23,17 @@ automate your machine with visual workflows — and meet the little pixel helper
 
 ## Why
 
-Running several [Claude Code](https://claude.com/claude-code) agents in parallel quickly turns into a wall
-of terminals. Orquestrador keeps the agents exactly where they already work — `tmux` sessions, ideally
-inside devcontainers — and puts a calm shell on top: one place to talk to the orchestrator, see who is
-doing what, and act on whatever is waiting for you. Closing the app never stops an agent.
+Running several AI coding agents in parallel quickly turns into a wall of terminals. Orquestrador keeps
+the agents exactly where they already work — `tmux` sessions, ideally inside devcontainers — and puts a
+calm shell on top: one place to talk to the orchestrator, see who is doing what, and act on whatever is
+waiting for you. Closing the app never stops an agent.
+
+**It drives the AIs through their own command-line tools** — no API keys to paste, no extra accounts:
+whatever CLI you are already logged into does the work. Settings → *Connected AIs (CLI)* shows which
+ones are installed. Today the orchestrator and the agents run on
+[Claude Code](https://claude.com/claude-code); Codex CLI, Gemini CLI, OpenCode and others are on the
+roadmap — see [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md). The Library, the browser and the
+workflows already work with any of them.
 
 The app speaks **English and Portuguese** — switch in ⚙ Settings → *App language*.
 
@@ -122,7 +131,7 @@ characters it read.
 
 ### 👾 The desktop helper
 
-<img src="docs/images/wardrobe.png" alt="The wardrobe: 30 items and 8 colors" width="900">
+<p align="center"><img src="docs/images/pet-asks.gif" alt="The helper walks onto the desktop with a question and its options" width="760"></p>
 
 The orchestrator in person: a pixel pet that thinks, types, gives orders to the agents, naps when you are
 idle, dances, follows your mouse with its eyes and can be thrown around. It stands on top of the things on
@@ -135,16 +144,26 @@ screen (the input box, attachments, agent cards).
   with the question and its options (or the permission, with *Allow / Deny*) and you answer right there.
 - **Call it from anywhere** with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> (`orq-pet`): chat right
   there, or **📷 crop a piece of your screen** and ask about it.
-- **Wardrobe:** 30 items across 6 slots — hats, glasses, moustaches, ties, capes, a coffee mug… — and 8
-  colors. Right-click the pet to open it.
+- **Pick a friend and dress it up:** four species — the classic critter, a ghost, a cloud and a slime —
+  that all wear the same 30 items across 6 slots (hats, glasses, moustaches, ties, capes, a coffee mug…)
+  in 9 colors. Right-click the pet to open the wardrobe.
 
-### ⚙️ Settings
+<table>
+  <tr>
+    <td><img src="docs/images/pet-wardrobe.gif" alt="A parade of species and outfits"></td>
+    <td><img src="docs/images/wardrobe.png" alt="The wardrobe dialog"></td>
+  </tr>
+</table>
 
-<img src="docs/images/settings.png" alt="Settings: theme, accent color, language, notifications" width="900">
+### ⚙️ Settings, themes and colors
 
-Theme, accent color, **language (English / Português)**, notifications, the Start / Shut down commands,
-browser control, project folders, notes folders and environment variables — all from the gear menu,
-applied immediately.
+<img src="docs/images/themes.gif" alt="Dark and light themes with different accent colors" width="900">
+
+Dark or light theme, any accent color, **language (English / Português)**, the connected AI CLIs,
+notifications, the Start / Shut down commands, browser control, project folders, notes folders and
+environment variables — all from the gear menu, applied immediately.
+
+<img src="docs/images/settings.png" alt="The settings dialog" width="900">
 
 ## Getting started
 

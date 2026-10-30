@@ -73,7 +73,49 @@
   }
   $('config').addEventListener('change', (ev) => {
     const el = ev.target.closest('[data-cfg]');
-    if (el) mudar(valorDe(el));
+    // Trocar a IA muda o aviso de "o app usa o Claude": relê depois de gravar.
+    if (el) mudar(valorDe(el)).then(() => { if (/^ia[A-Z]/.test(el.dataset.cfg)) carregarIas(); });
+  });
+
+  // --- IAs conectadas (CLIs no PATH, ias.js) -----------------------------------
+  // Um cartão por CLI; nas listas só dá para escolher a que o app já conduz e
+  // está instalada. Escolha guardada que não roda (ex.: config escrita à mão)
+  // aparece com o aviso de que o app usa o Claude no lugar.
+  let ias = null;
+  function desenharIas() {
+    if (!ias) return;
+    $('config-ias').innerHTML = ias.ias.map((c) => `<li data-ia="${esc(c.id)}" class="${c.encontrado ? 'achada' : 'faltando'}">
+      <span class="ponto${c.encontrado ? ' ok' : ''}"></span>
+      <span class="nome">${esc(c.nome)}</span>
+      <span class="estado">${c.encontrado ? (c.versao ? `instalado v${esc(c.versao)}` : 'instalado') : 'não encontrado'}</span>
+      ${c.caminho ? `<code title="${esc(c.caminho)}" data-sem-traducao>${esc(c.caminho)}</code>` : `<code class="sem-caminho" data-sem-traducao>${esc(c.comando)}</code>`}
+      ${c.suportado ? '' : '<span class="em-breve">em breve como orquestrador</span>'}
+    </li>`).join('');
+    const opcoes = ias.ias.map((c) => {
+      const pode = c.suportado && c.encontrado;
+      const rotulo = pode ? c.nome : `${c.nome} — ${c.suportado ? 'não encontrado' : 'em breve'}`;
+      return `<option value="${esc(c.id)}"${pode ? '' : ' disabled'}>${esc(rotulo)}</option>`;
+    }).join('');
+    const nomeDe = (id) => (ias.ias.find((c) => c.id === id) || { nome: id }).nome;
+    const avisos = [];
+    for (const [sel, chave, efetiva, papel] of [['config-ia-orquestrador', 'iaOrquestrador', ias.orquestrador, 'O orquestrador'], ['config-ia-agentes', 'iaAgentes', ias.agentes, 'Os agentes novos']]) {
+      const el = $(sel);
+      const escolhida = config[chave] || 'claude';
+      if (el !== document.activeElement) { el.innerHTML = opcoes; el.value = escolhida; }
+      if (escolhida !== efetiva) avisos.push(`${papel}: ${nomeDe(escolhida)} ainda não roda aqui; o app usa o ${nomeDe(efetiva)}.`);
+    }
+    $('config-ia-aviso').innerHTML = avisos.map((a) => `<span>${esc(a)}</span>`).join(' ');
+    $('config-ia-aviso').hidden = !avisos.length;
+  }
+  async function carregarIas(forcar = false) {
+    if (!window.orq.ias) return;
+    const botao = $('config-ias-detectar');
+    botao.disabled = true;
+    try { ias = await window.orq.ias.listar(forcar); desenharIas(); } finally { botao.disabled = false; }
+  }
+  $('config-ias-detectar').addEventListener('click', () => {
+    $('config-ias').innerHTML = '<li class="vazio-regra">Procurando…</li>';
+    carregarIas(true);
   });
   $('config').addEventListener('click', async (ev) => {
     const seg = ev.target.closest('[data-segmento] button');
@@ -107,7 +149,7 @@
   $('tema').addEventListener('click', () => mudar({ tema: config.tema === 'dark' ? 'light' : 'dark' }));
 
   const painel = $('config');
-  $('abrir-config').addEventListener('click', async () => { config = await window.orq.config.ler(); preencher(); painel.hidden = false; });
+  $('abrir-config').addEventListener('click', async () => { config = await window.orq.config.ler(); preencher(); painel.hidden = false; carregarIas(); });
   $('fechar-config').addEventListener('click', () => { painel.hidden = true; });
   painel.addEventListener('click', (ev) => { if (ev.target === painel) painel.hidden = true; });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') painel.hidden = true; });
@@ -139,4 +181,7 @@
 
   aplicar();
   window.orq.config.ler().then((c) => { config = c; aplicar(); preencher(); window.dispatchEvent(new CustomEvent('orq:config', { detail: config })); });
+  // Detecta as IAs já ao abrir o app (por trás): quando a engrenagem abrir, a
+  // lista já está desenhada e a altura do painel não pula debaixo do mouse.
+  carregarIas();
 })();

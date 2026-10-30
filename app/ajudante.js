@@ -32,10 +32,15 @@ let servidor = null;
 function ler() {
   let p = {};
   try { p = JSON.parse(fs.readFileSync(ARQ, 'utf8')); } catch { /* primeira vez */ }
-  return { visual: p.visual || { cor: 'padrao', itens: {} }, avisarFora: p.avisarFora !== false };
+  // Vir à tela avisar é uma das notificações da engrenagem (notificacoes.ajudante).
+  return { visual: p.visual || { cor: 'padrao', itens: {} }, avisarFora: (config.ler().notificacoes || {}).ajudante !== false };
 }
 function gravar(mudanca) {
-  const p = { ...ler(), ...mudanca };
+  if ('avisarFora' in mudanca) {
+    config.gravar({ notificacoes: { ...(config.ler().notificacoes || {}), ajudante: mudanca.avisarFora !== false } });
+    delete mudanca.avisarFora; // eslint-disable-line no-param-reassign
+  }
+  const { avisarFora, ...p } = { ...ler(), ...mudanca }; // eslint-disable-line no-unused-vars
   fs.mkdirSync(path.dirname(ARQ), { recursive: true });
   fs.writeFileSync(`${ARQ}.tmp`, JSON.stringify(p, null, 2) + '\n');
   fs.renameSync(`${ARQ}.tmp`, ARQ);

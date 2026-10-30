@@ -1217,3 +1217,87 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .wf-no.grupo-ia { border-left: 3px solid #a78bfa; }
 .wf-no.grupo-arquivos { border-left: 3px solid #38bdf8; }
 .wf-menu-quadro li.perigo:hover, .wf-menu-quadro li[data-confirmando] { color: var(--perigo); background: color-mix(in srgb, var(--perigo) 15%, transparent); }
+
+/* --- bichinho: espécies -------------------------------------------------- */
+.pet-svg.especie-fantasma .pele { opacity: .92; }
+.pet-svg.especie-fantasma, .pet-svg.especie-nuvem { animation: flutuar 2.6s ease-in-out infinite; }
+@keyframes flutuar { 50% { translate: 0 -3px; } }
+.pet-svg.especie-nuvem .perna { fill: #74b9ff; }
+.pet-svg.especie-gosma { animation: gelatina 1.8s ease-in-out infinite; transform-origin: center bottom; }
+@keyframes gelatina { 50% { scale: 1.04 .96; } }
+.pet.andando .pet-svg.especie-gosma { animation-duration: .5s; }
+.gr-especies { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; width: 100%; }
+.gr-especie { display: grid; justify-items: center; gap: 2px; padding: 4px; border-radius: 8px; border: 1px solid var(--borda); color: var(--fg-3); font-size: 11px; }
+.gr-especie:hover { border-color: var(--borda-forte); color: var(--fg); }
+.gr-especie.ativa { border-color: var(--claude); color: var(--fg); background: var(--claude-suave); }
+.gr-especie-mini .pet-svg { width: 64px; height: 50px; filter: none; animation: none; }
+@media (prefers-reduced-motion: reduce) { .pet-svg { animation: none !important; } }
+
+/* --- IAs conectadas (CLI) na engrenagem: um cartão por ferramenta ---------- */
+/* Bloco próprio, só acrescentado: nada acima foi mudado. */
+.config-ias { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.config-ias li[data-ia] { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: 8px; row-gap: 2px; align-items: center; padding: 7px 10px; border-radius: var(--r-sm); background: var(--bg-afundado); border: 1px solid var(--borda); }
+.config-ias .ponto.ok { background: var(--ativo); box-shadow: 0 0 0 3px var(--ativo-suave); }
+.config-ias .nome { font-size: 13px; font-weight: 500; color: var(--fg); }
+/* .estado é a pílula de estado das frentes; instalado fica no verde de "ativo". */
+.config-ias .estado { justify-self: end; }
+.config-ias li.achada .estado { background: var(--ativo-suave); color: var(--ativo); }
+.config-ias li.faltando .nome { color: var(--fg-3); }
+.config-ias code { grid-column: 2 / -1; font: 11px var(--mono); color: var(--fg-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.config-ias code.sem-caminho { font-style: italic; }
+.config-ias .em-breve { grid-column: 2 / -1; font-size: 11px; color: var(--claude); }
+.config-ias .vazio-regra { color: var(--fg-4); font-size: 12px; padding: 4px 0; }
+.config-ia-aviso { margin: 0; padding: 10px 18px; border-bottom: 1px solid var(--borda); background: var(--claude-suave); color: var(--fg-2); font-size: 12px; line-height: 1.45; }
+.config-ia-aviso[hidden] { display: none; }
+.config-ia-aviso span { display: block; }
+
+/* --- Tópicos na coluna da direita (topicos-tela.js) ----------------------- */
+/* Bloco próprio, só acrescentado. A coluna vira pilha: faixa "Precisa de você"
+   (só quando tem algo), tópicos ocupando o resto, detalhe do agente recolhível. */
+.inspetor { display: flex; flex-direction: column; }
+.inspetor > .bloco { flex: none; }
+.inspetor > .bloco[hidden] { display: none; }
+.bloco-fila { max-height: 34vh; background: var(--esperando-suave); }
+.bloco-fila .bloco-cabecalho { background: transparent; position: static; }
+.inspetor > .bloco-topicos { flex: 1 1 auto; min-height: 120px; max-height: none; overflow-y: auto; }
+.novo-topico { margin-left: auto; }
+.bloco-detalhe { border-top: 1px solid var(--borda); max-height: 45vh; overflow-y: auto; }
+.bloco-detalhe > summary { cursor: pointer; list-style: none; }
+.bloco-detalhe > summary::-webkit-details-marker { display: none; }
+.bloco-detalhe > summary::after { content: '▸'; margin-left: auto; color: var(--fg-4); }
+.bloco-detalhe[open] > summary::after { content: '▾'; }
+.form-topico { display: grid; gap: 6px; margin-bottom: 10px; padding: 10px; border: 1px solid var(--borda); border-radius: var(--r-md); background: var(--bg-elevado); }
+.form-topico[hidden] { display: none; }
+.form-topico input, .novo-item-topico input {
+  width: 100%; height: 28px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--borda);
+  background: var(--bg-afundado); color: var(--fg); font: inherit; min-width: 0;
+}
+.linha-form-topico { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.lista-topicos { display: grid; gap: 8px; }
+.erro-topico { margin: 0 0 8px; color: var(--perigo); }
+.topico { border: 1px solid var(--borda); border-radius: var(--r-md); background: var(--bg-elevado); padding: 10px; display: grid; gap: 7px; }
+.topico.estado-esperando { border-color: color-mix(in srgb, var(--esperando) 45%, var(--borda)); }
+.topico-cab { display: flex; align-items: flex-start; gap: 8px; }
+.topico-titulo { font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+/* Estado sempre escrito, nunca só a cor. */
+.chip-topico { flex: none; font: 500 10.5px/1 var(--mono); padding: 3px 6px; border-radius: var(--r-sm); background: var(--parado-suave); color: var(--fg-2); white-space: nowrap; margin-top: 1px; }
+.chip-topico.chip-aberto { background: var(--ativo-suave); color: var(--ativo); }
+.chip-topico.chip-esperando { background: var(--esperando-suave); color: color-mix(in srgb, var(--esperando) 55%, var(--fg)); }
+.topico-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font: 400 11px var(--mono); color: var(--fg-3); }
+.topico-codigo { color: var(--fg-2); }
+.topico-progresso { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.barra-topico { width: 48px; height: 4px; border-radius: 2px; background: var(--painel); overflow: hidden; }
+.barra-topico i { display: block; height: 100%; background: var(--ativo); }
+.itens-topico { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.itens-topico label { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; color: var(--fg-2); cursor: pointer; padding: 2px 0; }
+.itens-topico input { margin: 2px 0 0; flex: none; accent-color: var(--ativo); }
+.itens-topico label.feito span { text-decoration: line-through; color: var(--fg-4); }
+.topico-notas { font-size: 12px; color: var(--fg-3); white-space: pre-wrap; border-left: 2px solid var(--borda-forte); padding-left: 8px; }
+.novo-item-topico input { height: 26px; font-size: 12px; }
+.topico .acoes { justify-content: flex-end; flex-wrap: wrap; }
+.topico .botao { height: 26px; padding: 0 10px; font-size: 12px; }
+.topico .botao[data-confirmando] { background: var(--perigo); color: #fff; }
+.topicos-concluidos { margin-top: 10px; }
+.topicos-concluidos[hidden] { display: none; }
+.topicos-concluidos > summary { cursor: pointer; color: var(--fg-3); font-size: 12px; padding: 4px 0 8px; }
+.topicos-concluidos .topico { opacity: .75; }

@@ -259,14 +259,33 @@
   </main>
 
   <aside class="inspetor">
-    <section class="bloco" aria-label="Precisa de você">
+    <!-- Faixa no topo: só aparece quando há permissão ou pedido esperando. -->
+    <section class="bloco bloco-fila" id="bloco-fila" aria-label="Precisa de você" hidden>
       <header class="bloco-cabecalho"><svg class="ico"><use href="#i-sino"/></svg><strong>Precisa de você</strong><span id="n-fila" class="contador"></span></header>
       <ul id="fila" class="lista-fila"></ul>
     </section>
-    <section class="bloco bloco-detalhe" aria-label="Frente selecionada">
-      <header class="bloco-cabecalho"><svg class="ico"><use href="#i-lista"/></svg><strong id="titulo-detalhe">Frente</strong></header>
-      <div id="detalhe"></div>
+    <section class="bloco bloco-topicos" aria-label="Tópicos">
+      <header class="bloco-cabecalho"><svg class="ico"><use href="#i-lista"/></svg><strong>Tópicos</strong><span id="n-topicos" class="contador"></span>
+        <button type="button" class="botao-texto novo-topico" id="novo-topico">+ Novo tópico</button></header>
+      <form id="form-topico" class="form-topico" hidden autocomplete="off">
+        <input id="topico-titulo" type="text" maxlength="200" placeholder="Título da demanda" aria-label="Título do tópico" required>
+        <div class="linha-form-topico">
+          <input id="topico-codigo" type="text" maxlength="60" placeholder="Código (opcional)" aria-label="Código do ticket">
+          <input id="topico-agente" type="text" maxlength="80" placeholder="Agente (opcional)" aria-label="Agente do tópico">
+        </div>
+        <div class="acoes"><button type="submit" class="botao primario">Criar</button><button type="button" class="botao secundario" id="cancelar-topico">Cancelar</button></div>
+      </form>
+      <div id="topicos" class="lista-topicos"></div>
+      <details id="topicos-concluidos" class="topicos-concluidos" hidden>
+        <summary id="resumo-concluidos">Concluídos (0)</summary>
+        <div id="lista-concluidos" class="lista-topicos"></div>
+      </details>
     </section>
+    <!-- Detalhe do agente: secundário, recolhível; abre ao clicar num agente à esquerda. -->
+    <details class="bloco bloco-detalhe" id="bloco-detalhe" aria-label="Frente selecionada">
+      <summary class="bloco-cabecalho"><svg class="ico"><use href="#i-terminal"/></svg><strong id="titulo-detalhe">Frente</strong></summary>
+      <div id="detalhe"></div>
+    </details>
   </aside>
 
   <div id="palco-pet" class="pet-palco"></div>
@@ -309,12 +328,20 @@
 
       <h3 class="config-secao">Notificações</h3>
       <div class="config-linha">
-        <div><strong>Quando precisar de você</strong><span>Pergunta ou pedido de permissão em qualquer conversa do app.</span></div>
+        <div><strong>Pergunta de uma conversa</strong><span>Aviso do sistema quando o orquestrador ou outra conversa do app pergunta algo ou pede permissão.</span></div>
         <label class="chave"><input type="checkbox" data-cfg="notificacoes.pedidos"><span></span></label>
       </div>
       <div class="config-linha">
-        <div><strong>Quando terminar de responder</strong><span>Só com a janela fora de foco.</span></div>
+        <div><strong>O orquestrador respondeu</strong><span>Aviso do sistema quando uma conversa termina de responder, só com a janela fora de foco.</span></div>
         <label class="chave"><input type="checkbox" data-cfg="notificacoes.respostas"><span></span></label>
+      </div>
+      <div class="config-linha">
+        <div><strong>Agente pedindo permissão</strong><span>Aviso do sistema quando um agente entra na fila "Precisa de você".</span></div>
+        <label class="chave"><input type="checkbox" data-cfg="notificacoes.agentes"><span></span></label>
+      </div>
+      <div class="config-linha">
+        <div><strong>Ajudante traz a pergunta</strong><span>O bichinho vem à tela com a pergunta para você responder ali, quando o app está fora de foco.</span></div>
+        <label class="chave"><input type="checkbox" data-cfg="notificacoes.ajudante"><span></span></label>
       </div>
 
       <h3 class="config-secao">Orquestração</h3>
@@ -326,6 +353,22 @@
         <div><strong>Comando que encerra a rodada</strong><span>O botão Desligar manda este comando. Vazio: sem botão.</span></div>
         <input class="campo-config" data-cfg="comandoDesligar" placeholder="/desligar">
       </div>
+
+      <h3 class="config-secao">IAs conectadas (CLI)</h3>
+      <div class="config-linha config-coluna">
+        <div><strong>Ferramentas de IA neste computador</strong><span>O app procura cada uma no PATH e pergunta só a versão.</span></div>
+        <ul id="config-ias" class="config-ias" aria-live="polite"><li class="vazio-regra">Procurando…</li></ul>
+        <button type="button" class="botao-texto" id="config-ias-detectar">Detectar de novo</button>
+      </div>
+      <div class="config-linha">
+        <div><strong>Orquestrador usa</strong><span>Hoje só o Claude Code sabe ser o orquestrador.</span></div>
+        <select class="campo-config" data-cfg="iaOrquestrador" id="config-ia-orquestrador"></select>
+      </div>
+      <div class="config-linha">
+        <div><strong>Agentes novos usam</strong><span>A IA dos próximos agentes. As outras entram aqui quando forem suportadas.</span></div>
+        <select class="campo-config" data-cfg="iaAgentes" id="config-ia-agentes"></select>
+      </div>
+      <p class="config-ia-aviso" id="config-ia-aviso" hidden></p>
 
       <h3 class="config-secao">Navegador</h3>
       <div class="config-linha">
@@ -397,6 +440,7 @@
   <script src="paleta-tela.js"></script>
   <script src="config-tela.js"></script>
   <script src="tela.js"></script>
+  <script src="topicos-tela.js"></script>
   <script src="visor-tela.js"></script>
   <script src="pet-visual.js"></script>
   <script src="pet.js"></script>

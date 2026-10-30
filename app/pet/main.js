@@ -77,8 +77,21 @@ function entrarPelaBorda(a, lado, destinoX, depois) {
   andar(Math.min(Math.max(destinoX, a.x), a.x + a.width - tam.w), 320, () => { modo = 'parado'; if (depois) depois(); });
 }
 
+// Cada saída tem um número: chegar de novo cancela a saída em andamento (os
+// passos dela, que vêm depois, veem que perderam a vez).
+let saida = 0;
 function aparecer(depois) {
   if (modo === 'parado' || modo === 'entrando') { if (depois) depois(); return; }
+  if (modo === 'saindo') {
+    // Estava indo embora: desiste e volta andando para o meio da tela.
+    saida++;
+    const a = area();
+    modo = 'entrando';
+    paraTela({ t: 'entrar', lado: 'dir' });
+    andar(a.x + Math.round(a.width * 0.78) - tam.w, 320, () => { modo = 'parado'; if (depois) depois(); });
+    return;
+  }
+  saida++;
   const a = screen.getPrimaryDisplay().workArea;
   if (!TESTE) win.showInactive();
   win.setAlwaysOnTop(true, 'screen-saver');
@@ -96,12 +109,15 @@ function sumir() {
   if (modo === 'escondido') return;
   fecharConversa();
   modo = 'saindo';
+  const minha = ++saida;
   paraTela({ t: 'tchau' });
   const a = area();
   // Anda até encostar na borda (por dentro do monitor) e some atrás dela.
-  setTimeout(() => andar(a.x + a.width - tam.w, 360, () => {
+  setTimeout(() => minha === saida && andar(a.x + a.width - tam.w, 360, () => {
+    if (minha !== saida) return;
     paraTela({ t: 'sair', lado: 'dir' });
     setTimeout(() => {
+      if (minha !== saida) return;
       modo = 'escondido';
       win.hide();
       paraApp({ t: 'visivel', visivel: false });

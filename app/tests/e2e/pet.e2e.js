@@ -30,7 +30,7 @@ test('bichinho no app: menu e guarda-roupa', async (t) => {
     await app.esperar("!!document.querySelector('#palco-pet .item-bigode') && /#22a06b/.test(document.querySelector('#palco-pet .pet-svg').getAttribute('style'))");
     await app.espera(300);
     const p = JSON.parse(app.ler('.config/orq-app/pet.json'));
-    assert.deepStrictEqual(p.visual, { cor: 'verde', itens: { cabeca: 'cartola', rosto: 'bigode' } });
+    assert.deepStrictEqual(p.visual, { especie: 'bicho', cor: 'verde', itens: { cabeca: 'cartola', rosto: 'bigode' } });
     assert.ok(await app.avaliar("document.querySelector('[data-gr-item=cartola]').classList.contains('ativo')"));
   });
 

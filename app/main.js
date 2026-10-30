@@ -23,6 +23,8 @@ const repertorio = require('./repertorio');
 const navegador = require('./navegador');
 const workflows = require('./workflows');
 const ajudante = require('./ajudante');
+const ias = require('./ias');
+const topicos = require('./topicos');
 const { t } = require('./i18n');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
@@ -246,6 +248,28 @@ ipcMain.handle('config:gravar', (_e, mudancas) => {
   return { ...config.cru(), arquivo: config.ARQ, recusado };
 });
 
+// --- IAs conectadas (CLIs no PATH) ----------------------------------------
+// O resultado fica 1 min guardado; "Detectar de novo" passa forcar. Volta
+// junto a IA que de fato roda (escolhida não suportada = Claude).
+ipcMain.handle('ias:listar', async (_e, forcar) => {
+  const lista = await ias.listar({ env: conversa.ambienteLimpo(), forcar: forcar === true });
+  const c = config.ler();
+  return { ias: lista, orquestrador: ias.efetiva(c.iaOrquestrador, lista), agentes: ias.efetiva(c.iaAgentes, lista) };
+});
+
+// --- tópicos (coluna da direita) -------------------------------------------
+// O orquestrador mexe pelo bin/orq-topico; a tela, por aqui. Erro volta como
+// { erro } para a tela mostrar, em vez de estourar no invoke.
+const pelaTela = (fn) => (_e, ...a) => { try { return { topicos: (fn(...a), topicos.ler()) }; } catch (e) { return { erro: e.message }; } };
+ipcMain.handle('topicos:lista', () => { try { return { topicos: topicos.ler() }; } catch (e) { return { topicos: null, erro: e.message }; } });
+ipcMain.handle('topicos:abrir', pelaTela((o) => topicos.abrir(o || {})));
+ipcMain.handle('topicos:item', pelaTela((id, txt) => topicos.item(id, txt)));
+ipcMain.handle('topicos:marcar', pelaTela((id, item, feito) => topicos.marcar(id, item, feito)));
+ipcMain.handle('topicos:estado', pelaTela((id, e) => topicos.estado(id, e)));
+// Pela tela, o segundo clique já foi a confirmação: conclui mesmo com item aberto.
+ipcMain.handle('topicos:concluir', pelaTela((id) => topicos.concluir(id, { mesmoAssim: true })));
+let pararTopicos = null;
+
 // --- dados ---------------------------------------------------------------
 // O que espera o usuário: permissões e pedidos dos agentes (fila) e
 // perguntas das conversas do app. O ajudante vem avisar das novas.
@@ -327,6 +351,7 @@ ipcMain.handle('abrir-pasta', (_e, dir) => dir.startsWith(coletor.raiz()) && she
 // Notificação do sistema quando algo novo precisa do usuário (substitui o apito
 // de aviso do terminal enquanto o app estiver aberto).
 function avisarNovidades(r) {
+  if ((config.ler().notificacoes || {}).agentes === false) return; // desligado na engrenagem
   for (const p of r.fila) {
     const chave = `${p.tipo}:${p.proj}:${p.id}`;
     if (avisados.has(chave)) continue;
@@ -357,6 +382,8 @@ app.whenReady().then(() => {
     enviarTela: (canal, dado) => enviar(canal, dado),
     avisar: (titulo, corpo) => { if (Notification.isSupported()) new Notification({ title: titulo, body: corpo }).show(); },
   });
+  // Tópicos: o orq-topico grava o arquivo; a tela recebe a lista nova na hora.
+  try { pararTopicos = topicos.vigiar((m) => enviar('topicos:mudou', m)); } catch { /* sem pasta de config: a tela ainda lê ao abrir */ }
   // Sinal de vida a cada 3 s: o hook só espera resposta do app se este
   // arquivo foi tocado há menos de 15 s.
   setInterval(() => coletor.sinalDeVida(), 3000);
@@ -367,6 +394,7 @@ function encerrarTudo() {
   terminais.clear();
   navegador.desligarControle();
   workflows.desligar();
+  if (pararTopicos) { pararTopicos(); pararTopicos = null; }
   ajudante.desligar();
   if (reiniciando) conversa.pararTodas(); else conversa.encerrarTodas();
 }

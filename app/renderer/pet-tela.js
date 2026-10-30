@@ -77,6 +77,7 @@
         <button type="button" class="botao-icone" data-gr-fechar aria-label="Fechar">✕</button></header>
       <div class="gr-corpo">
         <div class="gr-vitrine"><div class="pet gr-pet"><div class="pet-vira">${V.svg(visual)}</div></div>
+          <div class="gr-especies">${Object.entries(V.ESPECIES).map(([k, e]) => `<button type="button" class="gr-especie${visual.especie === k ? ' ativa' : ''}" data-gr-especie="${k}" title="${esc(e.nome)}"><span class="gr-especie-mini">${V.svg({ ...visual, especie: k })}</span><span>${esc(e.nome)}</span></button>`).join('')}</div>
           <div class="gr-cores">${V.CORES.map(([k, nome, cor]) => `<button type="button" class="gr-cor${visual.cor === k ? ' ativa' : ''}" data-gr-cor="${k}" title="${esc(nome)}" aria-label="${esc(nome)}" style="--c:${cor || 'var(--claude)'}"></button>`).join('')}</div></div>
         <div class="gr-partes">${V.PARTES.map(([parte, rot]) => `<section><div class="menu-titulo">${rot}</div><div class="gr-itens">
           <button type="button" class="gr-item${visual.itens[parte] ? '' : ' ativo'}" data-gr-parte="${parte}" data-gr-item=""><span class="gr-nada">—</span><span>Nenhum</span></button>
@@ -109,13 +110,14 @@
     if (!b) return;
     if (b.dataset.grFechar !== undefined) return fechar();
     if (b.dataset.grCor) return vestir({ ...visual, cor: b.dataset.grCor });
+    if (b.dataset.grEspecie) { pet.classe('feliz'); setTimeout(() => pet.classe('feliz', false), 700); return vestir({ ...visual, especie: b.dataset.grEspecie }); }
     if (b.dataset.grParte) {
       const itens = { ...visual.itens };
       if (b.dataset.grItem) itens[b.dataset.grParte] = b.dataset.grItem; else delete itens[b.dataset.grParte];
       pet.classe('feliz'); setTimeout(() => pet.classe('feliz', false), 700);
       return vestir({ ...visual, itens });
     }
-    if (b.dataset.grTirar !== undefined) return vestir({ cor: visual.cor, itens: {} });
+    if (b.dataset.grTirar !== undefined) return vestir({ especie: visual.especie, cor: visual.cor, itens: {} });
     if (b.dataset.grSortear !== undefined) {
       const itens = {};
       for (const [parte] of V.PARTES) {
@@ -124,7 +126,8 @@
         itens[parte] = ops[Math.floor(Math.random() * ops.length)];
       }
       const cor = V.CORES[Math.floor(Math.random() * V.CORES.length)][0];
-      return vestir({ cor, itens });
+      const especies = Object.keys(V.ESPECIES);
+      return vestir({ especie: especies[Math.floor(Math.random() * especies.length)], cor, itens });
     }
     if (b.dataset.criarAtalho !== undefined) {
       b.disabled = true;

@@ -4,6 +4,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const ias = require('./ias');
 
 const ARQ = path.join(os.homedir(), '.config', 'orq-app', 'config.json');
 
@@ -56,7 +57,10 @@ const PADRAO = {
   // Notificações do sistema quando uma conversa do app precisa de você:
   // pedidos = pergunta ou permissão (sempre); respostas = o Claude terminou
   // de responder (só quando a janela não está em foco).
-  notificacoes: { pedidos: true, respostas: true },
+  // pedidos: pergunta/permissão de conversa do app; respostas: o orquestrador
+  // terminou de responder; agentes: pedido de permissão de agente (fila);
+  // ajudante: o bichinho vem à tela trazer a pergunta.
+  notificacoes: { pedidos: true, respostas: true, agentes: true, ajudante: true },
 
   // Aba Navegador: o orquestrador (e scripts) controlam as janelas pelo
   // comando orq-nav, por um servidor só em 127.0.0.1 com chave.
@@ -66,6 +70,12 @@ const PADRAO = {
 
   // Variáveis extras no ambiente das conversas e dos terminais do app.
   ambiente: {},
+
+  // IAs conectadas (ias.js): qual CLI conduz o orquestrador e qual os agentes
+  // novos usam. Hoje só o 'claude' está ligado; outra escolha fica guardada,
+  // mas o app usa o Claude até ela ser suportada.
+  iaOrquestrador: 'claude',
+  iaAgentes: 'claude',
 };
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
@@ -98,7 +108,7 @@ function validar(m) {
       case 'idioma': aceitar(k, ['pt-BR', 'en'].includes(v), v); break;
       case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
-      case 'notificacoes': aceitar(k, v && typeof v === 'object', { pedidos: v.pedidos !== false, respostas: v.respostas !== false }); break;
+      case 'notificacoes': aceitar(k, v && typeof v === 'object', { pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false }); break;
       case 'comandoInicial': case 'comandoDesligar':
         aceitar(k, !texto(v) || /^\/\S+/.test(texto(v)), texto(v) || null); break;
       case 'raizProjetos': aceitar(k, !!texto(v), texto(v)); break;
@@ -110,6 +120,7 @@ function validar(m) {
       case 'ambiente': aceitar(k, v && typeof v === 'object' && Object.entries(v).every(([a, b]) => /^[A-Z_][A-Z0-9_]*$/.test(a) && typeof b === 'string'), v); break;
       case 'navegadorControle': aceitar(k, typeof v === 'boolean', v); break;
       case 'navegadorPorta': aceitar(k, Number.isInteger(v) && (v === 0 || (v >= 1024 && v <= 65535)), v); break;
+      case 'iaOrquestrador': case 'iaAgentes': aceitar(k, ias.IDS.includes(v), v); break;
       case 'detectarFerramentas': aceitar(k, typeof v === 'boolean', v); break;
       case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
       case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;
