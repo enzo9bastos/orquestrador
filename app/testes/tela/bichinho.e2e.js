@@ -28,7 +28,11 @@ test('bichinho', async (t) => {
     // Espera ele pousar (pode dar um pulinho sozinho no meio do caminho).
     await app.esperar('!window.__orqTeste.pet.noAr', 6000);
     assert.strictEqual(await app.avaliar('window.__orqTeste.pet.salaNome'), 'esquerda');
-    const dentro = await app.avaliar("(() => { const p = document.querySelector('.pet').getBoundingClientRect(), l = document.querySelector('.lateral').getBoundingClientRect(); return p.left >= l.left - 1 && p.right <= l.right + 1 && Math.abs(p.bottom - (l.bottom - 4)) < 6; })()");
-    assert.ok(dentro, 'dentro da lateral e no chão');
+    // Desde 2026-10-30 ele pisa em cima das coisas (cartão de agente, conversa,
+    // busca): o chão é o fundo da lateral ou o topo de uma delas.
+    const dentro = await app.avaliar(`(() => { const p = document.querySelector('.pet').getBoundingClientRect(), l = document.querySelector('.lateral').getBoundingClientRect();
+      const chaos = [l.bottom - 4, ...[...document.querySelectorAll('.lateral .cartao-agente, .lateral .item-conversa, .lateral .busca')].map((e) => e.getBoundingClientRect().top)];
+      return p.left >= l.left - 1 && p.right <= l.right + 1 && chaos.some((c) => Math.abs(p.bottom - c) < 6); })()`);
+    assert.ok(dentro, 'dentro da lateral, de pé no chão ou em cima de alguma coisa');
   });
 });

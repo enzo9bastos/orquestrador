@@ -50,6 +50,16 @@ test('bichinho no app: menu e guarda-roupa', async (t) => {
     await app.esperar("!!document.querySelector('#palco-pet .item-gorro')", 8000);
   });
 
+  // Regressão 2026-10-30: ele ficava "voando" acima da caixa de escrever.
+  await t.test('regressão: pisa em cima da caixa de escrever, sem flutuar', async () => {
+    await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
+    await app.avaliar(`(() => { const p = window.orqPetAtual; const c = document.querySelector('.caixa-entrada').getBoundingClientRect();
+      p.salaNome = 'centro'; p.modo = 'outro'; p.x = Math.round(c.left + 100); p.y = 0; p.noAr = false; p.encaixar(); })()`);
+    await app.esperar('!window.orqPetAtual.noAr', 8000); // cai e pousa
+    const r = await app.avaliar("({ pe: Math.round(window.orqPetAtual.el.getBoundingClientRect().bottom), topo: Math.round(document.querySelector('.caixa-entrada').getBoundingClientRect().top) })");
+    assert.ok(Math.abs(r.pe - r.topo) <= 2, `pés em ${r.pe}, topo da caixa em ${r.topo}`);
+  });
+
   // Regressão 2026-10-30: virado (desenho espelhado), ele olhava para o lado oposto ao do mouse.
   await t.test('regressão: virado, os olhos continuam indo para o lado certo', async () => {
     const r = await app.avaliar(`(() => { const p = window.orqPetAtual; const out = [];
@@ -88,4 +98,15 @@ test('ajudante fora do app: protocolo da janelinha', { skip: !process.env.DISPLA
   recebidas.length = 0;
   await espera((m) => m.t === 'visivel' && !m.visivel);
   assert.strictEqual((await estado()).modo, 'escondido');
+
+  // Troca de área de trabalho (monitor principal): entra pela borda e volta ao mesmo lugar.
+  manda({ t: 'pendencia', texto: 'teste', total: 1 });
+  for (let i = 0; i < 60 && (await estado()).modo !== 'parado'; i++) await new Promise((x) => setTimeout(x, 100));
+  const antes = (await estado()).pos.x;
+  manda({ t: 'trocarArea', de: 1, para: 0 });
+  const entrando = await estado();
+  assert.strictEqual(entrando.modo, 'entrando');
+  assert.ok(entrando.janela.x >= antes, 'começa na borda direita, por dentro do monitor');
+  for (let i = 0; i < 60 && (await estado()).modo !== 'parado'; i++) await new Promise((x) => setTimeout(x, 100));
+  assert.strictEqual((await estado()).pos.x, antes, 'volta para onde estava');
 });

@@ -11,7 +11,7 @@ const { app, BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const os = require('os');
 const readline = require('readline');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 
 app.commandLine.appendSwitch('enable-transparent-visuals');
 app.commandLine.appendSwitch('ozone-platform', 'x11');
@@ -65,17 +65,26 @@ function andar(x, vel, depois) {
   }, 33);
 }
 
+// Entra pela borda do monitor sem passar pelo monitor vizinho: a janela
+// começa encostada na borda, por dentro, e o bichinho sai de trás da borda
+// (deslizando dentro da janela) enquanto a janela anda até o destino.
+function entrarPelaBorda(a, lado, destinoX, depois) {
+  clearInterval(timer); timer = null;
+  pos = { x: lado === 'dir' ? a.x + a.width - tam.w : a.x, y: chao(a) };
+  mover();
+  modo = 'entrando';
+  paraTela({ t: 'entrar', lado });
+  andar(Math.min(Math.max(destinoX, a.x), a.x + a.width - tam.w), 320, () => { modo = 'parado'; if (depois) depois(); });
+}
+
 function aparecer(depois) {
   if (modo === 'parado' || modo === 'entrando') { if (depois) depois(); return; }
   const a = screen.getPrimaryDisplay().workArea;
-  pos = { x: a.x + a.width, y: chao(a) };
-  modo = 'entrando';
-  mover();
   if (!TESTE) win.showInactive();
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true); // depois de mostrar: antes disso o X11 ignora
   paraApp({ t: 'visivel', visivel: true });
-  andar(a.x + Math.round(a.width * 0.78) - tam.w, 320, () => { modo = 'parado'; if (depois) depois(); });
+  entrarPelaBorda(a, 'dir', a.x + Math.round(a.width * 0.78) - tam.w, depois);
 }
 
 function sumir() {
@@ -86,10 +95,14 @@ function sumir() {
   modo = 'saindo';
   paraTela({ t: 'tchau' });
   const a = area();
-  setTimeout(() => andar(a.x + a.width + 10, 360, () => {
-    modo = 'escondido';
-    win.hide();
-    paraApp({ t: 'visivel', visivel: false });
+  // Anda até encostar na borda (por dentro do monitor) e some atrás dela.
+  setTimeout(() => andar(a.x + a.width - tam.w, 360, () => {
+    paraTela({ t: 'sair', lado: 'dir' });
+    setTimeout(() => {
+      modo = 'escondido';
+      win.hide();
+      paraApp({ t: 'visivel', visivel: false });
+    }, 480);
   }), 500);
 }
 
@@ -147,6 +160,7 @@ function receber(m) {
   else if (m.t === 'sumir') sumir();
   else if (m.t === 'pensando' || m.t === 'resposta') paraTela(m);
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') win.showInactive(); win.focus(); paraTela(m); }
+  else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
   else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
   else if (m.t === 'print-tela' && TESTE) win.webContents.capturePage().then((img) => paraApp({ t: 'print', png: img.toPNG().toString('base64') }));
 }
@@ -169,17 +183,19 @@ function vigiarAreas() {
     areaAtual = n;
   });
 }
+// No GNOME, por padrão, só o monitor principal troca de área de trabalho; os
+// outros ficam iguais em todas. Lido uma vez ao abrir.
+let soNoPrincipal = true;
+try { soNoPrincipal = execFileSync('gsettings', ['get', 'org.gnome.mutter', 'workspaces-only-on-primary'], { encoding: 'utf8' }).trim() !== 'false'; } catch { /* sem GNOME: trata como padrão */ }
 function trocouArea(de, para) {
   if (!win || modo === 'escondido') return;
   win.setVisibleOnAllWorkspaces(true);
   if (conversaAberta || modo === 'saindo') return; // com a conversa aberta, fica onde está
-  const a = area();
-  const volta = Math.min(Math.max(pos.x, a.x), a.x + a.width - tam.w);
-  clearInterval(timer); timer = null;
-  pos.x = para < de ? a.x + a.width : a.x - tam.w;
-  mover();
-  modo = 'entrando';
-  andar(volta, 420, () => { modo = 'parado'; if (Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
+  const d = screen.getDisplayNearestPoint({ x: Math.round(pos.x + tam.w / 2), y: Math.round(pos.y + tam.h / 2) });
+  if (soNoPrincipal && d.id !== screen.getPrimaryDisplay().id) return; // monitor que não trocou: fica
+  const a = d.workArea;
+  const volta = pos.x;
+  entrarPelaBorda(a, para < de ? 'dir' : 'esq', volta, () => { if (Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
 }
 
 ipcMain.on('ajudante', (_e, m) => {

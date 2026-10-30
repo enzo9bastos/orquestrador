@@ -11,7 +11,15 @@
   const QUIQUE = 0.42;             // quanto da velocidade sobra ao bater
   const CHAVE = 'pet-sala';        // sala onde ele mora (guardada entre aberturas)
   // As salas: o painel de cada uma, em coordenadas da janela.
-  const SALAS = { esquerda: '.lateral', centro: '.mensagens-area', direita: '.inspetor' };
+  const SALAS = { esquerda: '.lateral', centro: '#aba-orquestrador', direita: '.inspetor' };
+  // O que tem "chão" dentro de cada sala: ele pisa em cima destas coisas
+  // (a caixa de escrever, as miniaturas de anexo, os cartões de agente…).
+  const PLATAFORMAS = {
+    centro: ['.caixa-entrada', '#anexos:not([hidden]) .anexo', '#sugestoes:not([hidden])'],
+    esquerda: ['.cartao-agente', '.item-conversa', '.busca'],
+    direita: [],
+  };
+  const PE0 = 26, PE1 = 70; // onde ficam as pernas dentro da caixa do bichinho (px)
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const sorteia = (l) => l[Math.floor(Math.random() * l.length)];
   const parado = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -77,7 +85,24 @@
       return { x0: r.left + 6, x1: r.right - LARG - 6 - barra, teto: r.top, chao: r.bottom - ALT - 4 };
     }
     sala() { return this.medir(this.salaNome); }
-    chao() { const s = this.sala(); return s ? s.chao : this.y; }
+    chao() { return this.chaoEm(this.x, this.y + ALT); }
+    // Chão debaixo das pernas: o fundo da sala ou o topo da primeira coisa
+    // embaixo dele. pes: altura dos pés agora (só vale o que não está acima deles).
+    chaoEm(x, pes) {
+      const s = this.sala();
+      if (!s) return this.y;
+      let ch = s.chao;
+      for (const sel of PLATAFORMAS[this.salaNome] || []) {
+        for (const el of document.querySelectorAll(sel)) {
+          const r = el.getBoundingClientRect();
+          if (!r.width || !r.height || r.right < x + PE0 || r.left > x + PE1) continue;
+          if (r.bottom <= pes - ALT + 4) continue; // inteira acima da cabeça: não é chão
+          const topo = r.top - ALT;
+          if (topo < ch && topo >= s.teto) ch = topo;
+        }
+      }
+      return ch;
+    }
     direita() { const s = this.sala(); return s ? s.x1 : this.x; }
     // Onde ele pode passear: na conversa com tela larga, só na margem à
     // direita da coluna (para não ficar em cima do texto); nas outras salas,
@@ -102,7 +127,10 @@
       if (!s) return;
       if (this.x == null) { this.x = s.x1; this.y = s.chao; }
       this.x = Math.min(Math.max(this.x, s.x0), s.x1);
-      this.y = s.chao;
+      const ch = this.chaoEm(this.x, this.y + ALT);
+      if (ch > this.y + 2 && this.y < s.chao) { this.voar(); return; } // a coisa embaixo sumiu: cai
+      this.x = Math.min(Math.max(this.x, s.x0), s.x1);
+      this.y = ch;
       this.desenhar();
     }
     desenhar() {
@@ -310,7 +338,12 @@
           if (!this.vale(passo)) return fim();
           const dx = destino - this.x;
           if (Math.abs(dx) < 1) return fim();
+          const antes = this.x;
           this.x += Math.sign(dx) * Math.min(Math.abs(dx), vel * dt);
+          // Saiu da beirada: cai. Coisa mais alta na frente: é parede, para.
+          const ch = this.chaoEm(this.x, this.y + ALT);
+          if (ch > this.y + 2) { this.desenhar(); this.classe('andando', false); this.voar(); return fim(); }
+          if (ch < this.y - 2) { this.x = antes; this.desenhar(); return fim(); }
           this.desenhar();
           quadroSeguinte(quadro);
         };
@@ -334,13 +367,14 @@
         if (this.arrastando) return;
         const dt = Math.min((t - ultimo) / 1000, 0.04); ultimo = t;
         this.vy += GRAVIDADE * dt;
+        const pesAntes = this.y + ALT;
         this.x += this.vx * dt; this.y += this.vy * dt;
         // Paredes, teto e chão da sala dele (o painel onde foi solto).
         const s = this.sala() || { x0: 0, x1: innerWidth - LARG, teto: 0, chao: innerHeight - ALT };
         if (this.x < s.x0) { this.x = s.x0; this.vx = -this.vx * QUIQUE; }
         if (this.x > s.x1) { this.x = s.x1; this.vx = -this.vx * QUIQUE; }
         if (this.y < s.teto) { this.y = s.teto; this.vy = -this.vy * QUIQUE; }
-        const chao = s.chao;
+        const chao = this.vy >= 0 ? this.chaoEm(this.x, pesAntes) : s.chao;
         if (this.y >= chao) {
           this.y = chao;
           const forte = this.vy > 900;

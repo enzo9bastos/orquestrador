@@ -2,7 +2,10 @@
    conversa aparecem. Reaproveita os estilos e animações do app. */
 html, body { background: transparent !important; margin: 0; height: 100%; overflow: hidden; user-select: none; }
 body { position: relative; font: 13px var(--sans); color: var(--fg); }
-.aj-pet { position: absolute; left: auto; top: auto; right: 18px; bottom: 2px; transform: none; }
+.aj-pet { position: absolute; left: auto; top: auto; right: 18px; bottom: 2px; transform: none; transition: translate .45s linear; }
+/* Atrás da borda do monitor (a janela encosta nela): entra e sai deslizando. */
+.aj-pet.fora-dir { translate: 130px 0; }
+.aj-pet.fora-esq { translate: -300px 0; }
 .aj-bolha { position: absolute; right: 12px; bottom: 84px; max-width: 250px; padding: 8px 11px; border-radius: 12px; background: var(--bg-elevado); border: 1px solid var(--borda-forte); box-shadow: 0 6px 18px rgba(0, 0, 0, .4); font-size: 12.5px; line-height: 1.4; display: grid; gap: 8px; }
 .aj-bolha[hidden] { display: none; }
 .aj-bolha::after { content: ''; position: absolute; top: 100%; right: 54px; border: 6px solid transparent; border-top-color: var(--borda-forte); }

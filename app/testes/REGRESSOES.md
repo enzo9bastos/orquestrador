@@ -31,3 +31,4 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Preset de celular mostrava a página com 980 px (o modo de tela do Electron ignorava a meta viewport dentro da janela de navegador) | `tela/navegador.e2e.js` › preset de celular: identidade de iPhone e tela de 390 px |
 | 2026-10-30 | Bichinho virado (espelhado) olhava para o lado oposto ao do mouse | `tela/pet.e2e.js` › regressão: virado, os olhos continuam indo para o lado certo |
 | 2026-10-30 | Bloco de código com linha comprida: os botões Copiar/▶ Terminal rolavam junto e ficavam em cima do texto | `tela/conversa.e2e.js` › regressão: botões do bloco de código ficam no canto, sem rolagem lateral |
+| 2026-10-30 | Bichinho "voando" acima da caixa de escrever (o chão era o fim da área de mensagens) | `tela/pet.e2e.js` › regressão: pisa em cima da caixa de escrever, sem flutuar |

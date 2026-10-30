@@ -124,6 +124,17 @@
       vira.innerHTML = window.petVisual.svg(m.visual);
       document.documentElement.dataset.theme = m.tema || 'dark';
       if (m.destaque) document.documentElement.style.setProperty('--claude', m.destaque);
+    } else if (m.t === 'entrar') {
+      // Começa escondido atrás da borda e sai de lá andando.
+      pet.style.transition = 'none';
+      pet.classList.remove('fora-dir', 'fora-esq');
+      pet.classList.add(m.lado === 'esq' ? 'fora-esq' : 'fora-dir');
+      void pet.offsetWidth;
+      pet.style.transition = '';
+      pet.classList.remove('fora-dir', 'fora-esq');
+    } else if (m.t === 'sair') {
+      pet.classList.add(m.lado === 'esq' ? 'fora-esq' : 'fora-dir');
+      setTimeout(() => pet.classList.remove('fora-dir', 'fora-esq'), 900);
     } else if (m.t === 'andando') {
       classe('andando', m.ligado);
       if (m.lado) vira.classList.toggle('virado', m.lado === 'esq');
