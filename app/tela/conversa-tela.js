@@ -810,7 +810,7 @@
       faixaToken = [ate.length - tok.length, ate.length];
       if (tok.startsWith('//')) { busca = tok.slice(2); itens = itensRepertorio(); if (!repertorioEm) carregarRepertorio().then(atualizarSugestoes); }
       else if (tok.startsWith('@nota:')) { busca = tok.slice(6).replace(/^"/, ''); itens = itensMencao('nota'); }
-      else if (tok.startsWith('@workflow:')) { busca = tok.slice(10).replace(/^"/, ''); itens = itensMencao('workflow'); if (!itens.length) itens = [{ rotulo: 'Nenhum workflow ainda', desc: 'A aba Workflows está chegando', origem: '', inserir: tok, chave: '' }]; }
+      else if (tok.startsWith('@workflow:')) { busca = tok.slice(10).replace(/^"/, ''); itens = itensMencao('workflow'); if (!itens.length) itens = [{ rotulo: 'Nenhum workflow ainda', desc: 'Crie um na aba Workflows', origem: '', inserir: tok, chave: '' }]; }
       else { busca = tok.slice(1); itens = itensMencao(''); }
     } else {
       const c = entrada.value.match(/^\/(\S*)$/);
@@ -875,6 +875,10 @@
         const texto = r.conteudo.length > 30000 ? `${r.conteudo.slice(0, 30000)}\n…(cortado: a nota inteira está no arquivo)` : r.conteudo;
         enviar += `\n\n---\nNota mencionada «${c}» (arquivo ${abs}):\n\n${texto}`;
       } catch { /* nota sumiu */ }
+    }
+    for (const m of t.matchAll(/@workflow:(?:"([^"]+)"|(\S+))/g)) {
+      const d = window.orqWorkflows && window.orqWorkflows.descrever(m[1] || m[2]);
+      if (d) enviar += `\n\n---\n${d}`;
     }
     return { enviar, exibir: enviar === t ? null : t };
   }

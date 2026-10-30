@@ -1,10 +1,10 @@
-// Aba Navegador: até 6 janelas de navegador lado a lado, cada uma com o seu
+// Aba Navegador: até 4 janelas de navegador lado a lado, cada uma com o seu
 // endereço e a sua identidade (Chrome, Firefox, Edge, celulares). As janelas
 // voltam abertas na próxima vez. O orquestrador controla as mesmas janelas
 // pelo orq-nav e a janela mostra, ao vivo, quando está sendo controlada.
 (() => {
   const $ = (id) => document.getElementById(id);
-  const MAX = 6;
+  const MAX = 4;
   const CHAVE = 'orq-navegador';
   const janelas = new Map(); // id → { el, wv, preset, url, titulo, registrada }
   let presets = [{ id: 'padrao', nome: 'Padrão (Chromium)', celular: null }];

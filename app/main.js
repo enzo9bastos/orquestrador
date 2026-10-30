@@ -21,6 +21,7 @@ const notas = require('./notas');
 const permissoes = require('./permissoes');
 const repertorio = require('./repertorio');
 const navegador = require('./navegador');
+const workflows = require('./workflows');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
 // (conversa.js), sem tela de terminal.
@@ -139,6 +140,12 @@ ipcMain.on('janela:fechar', () => app.quit());
 ipcMain.handle('repertorio:lista', () => repertorio.lista());
 ipcMain.handle('repertorio:conteudo', (_e, id) => repertorio.conteudo(id));
 ipcMain.handle('repertorio:gravarAtalhos', (_e, l) => repertorio.gravarAtalhos(l));
+ipcMain.handle('workflows:lista', () => workflows.lista());
+ipcMain.handle('workflows:tipos', () => workflows.tipos());
+ipcMain.handle('workflows:gravar', (_e, w) => workflows.gravar(w));
+ipcMain.handle('workflows:apagar', (_e, id) => workflows.apagar(id));
+ipcMain.handle('workflows:rodar', (_e, id) => workflows.rodar(id).catch((e) => ({ ok: false, erro: e.message })));
+ipcMain.handle('workflows:execucoes', (_e, id) => workflows.execucoes(id));
 
 // --- /permissions: regras do settings.json do Claude ------------------------
 ipcMain.handle('permissoes:ler', () => permissoes.ler());
@@ -292,6 +299,12 @@ app.whenReady().then(() => {
   });
   criarJanela();
   navegador.ligar(() => janela);
+  // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
+  workflows.ligar({
+    conversa,
+    enviarTela: (canal, dado) => enviar(canal, dado),
+    avisar: (titulo, corpo) => { if (Notification.isSupported()) new Notification({ title: titulo, body: corpo }).show(); },
+  });
   // Sinal de vida a cada 3 s: o hook só espera resposta do app se este
   // arquivo foi tocado há menos de 15 s.
   setInterval(() => coletor.sinalDeVida(), 3000);
@@ -301,6 +314,7 @@ function encerrarTudo() {
   for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
   terminais.clear();
   navegador.desligarControle();
+  workflows.desligar();
   if (reiniciando) conversa.pararTodas(); else conversa.encerrarTodas();
 }
 app.on('before-quit', encerrarTudo);

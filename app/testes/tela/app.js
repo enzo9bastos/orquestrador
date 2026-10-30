@@ -82,6 +82,8 @@ async function abrirApp({ config = {}, arquivos = {} } = {}) {
     tamanho: (largura, altura) => cdp('Emulation.setDeviceMetricsOverride', { width: largura, height: altura, deviceScaleFactor: 1, mobile: false }),
     // Mouse de verdade (arrastar o bichinho).
     async mouse(tipo, x, y) { await cdp('Input.dispatchMouseEvent', { type: tipo, x, y, button: 'left', buttons: tipo === 'mouseReleased' ? 0 : 1, clickCount: 1 }); },
+    // Print da janela (PNG), para conferir o visual à mão.
+    async print(arq) { const d = await cdp('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(arq, Buffer.from(d.result.data, 'base64')); },
     ler: (rel) => fs.readFileSync(path.join(casa, rel), 'utf8'),
     escrever: (rel, t) => fs.writeFileSync(path.join(casa, rel), t),
     espera,

@@ -56,6 +56,15 @@ contextBridge.exposeInMainWorld('orq', {
     conteudo: (id) => ipcRenderer.invoke('repertorio:conteudo', id),
     gravarAtalhos: (l) => ipcRenderer.invoke('repertorio:gravarAtalhos', l),
   },
+  workflows: {
+    lista: () => ipcRenderer.invoke('workflows:lista'),
+    tipos: () => ipcRenderer.invoke('workflows:tipos'),
+    gravar: (w) => ipcRenderer.invoke('workflows:gravar', w),
+    apagar: (id) => ipcRenderer.invoke('workflows:apagar', id),
+    rodar: (id) => ipcRenderer.invoke('workflows:rodar', id),
+    execucoes: (id) => ipcRenderer.invoke('workflows:execucoes', id),
+    aoExecucao: (fn) => ipcRenderer.on('workflows:execucao', (_e, e) => fn(e)),
+  },
   navegador: {
     presets: () => ipcRenderer.invoke('navegador:presets'),
     registrar: (id, wcId, preset, url) => ipcRenderer.invoke('navegador:registrar', id, wcId, preset, url),

@@ -14,6 +14,7 @@
 <body>
   <!-- Ícones (traço de 1.6 px, 16 px), usados com <svg><use href="#i-..."/></svg> -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-fluxo" viewBox="0 0 16 16"><rect x="1.8" y="2.5" width="4.4" height="3.6" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9.8" y="9.9" width="4.4" height="3.6" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.2 4.3h2.3a1.5 1.5 0 0 1 1.5 1.5v4.1" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
     <symbol id="i-globo" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2.4 8h11.2M8 2.4c1.6 1.6 2.3 3.5 2.3 5.6S9.6 12 8 13.6M8 2.4C6.4 4 5.7 5.9 5.7 8S6.4 12 8 13.6" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
     <symbol id="i-terminal" viewBox="0 0 16 16"><path d="M3 4.5 6.5 8 3 11.5M8 12h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-grade" viewBox="0 0 16 16"><path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
@@ -64,6 +65,7 @@
       <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg><span class="rotulo-aba">Notas</span></button>
       <button class="sub-aba" data-aba="aba-repertorio" type="button" role="tab"><svg class="ico"><use href="#i-lista"/></svg><span class="rotulo-aba">Repertório</span></button>
       <button class="sub-aba" data-aba="aba-navegador" type="button" role="tab"><svg class="ico"><use href="#i-globo"/></svg><span class="rotulo-aba">Navegador</span></button>
+      <button class="sub-aba" data-aba="aba-workflows" type="button" role="tab"><svg class="ico"><use href="#i-fluxo"/></svg><span class="rotulo-aba">Workflows</span></button>
       <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg><span class="rotulo-aba">Terminal</span></button>
     </div>
     <div class="painel-corpo">
@@ -128,6 +130,30 @@
           <button id="nova-janela-nav" class="botao-texto" type="button">+ Nova janela</button>
         </header>
         <div id="navegadores" class="navegadores" data-n="0"></div>
+      </section>
+      <section id="aba-workflows" class="aba" aria-label="Workflows">
+        <div class="workflows">
+          <aside class="wf-lista">
+            <button type="button" class="botao-texto" id="novo-workflow">+ Novo workflow</button>
+            <div id="lista-workflows"></div>
+          </aside>
+          <div class="wf-centro">
+            <header class="wf-barra" id="wf-barra" hidden>
+              <input id="wf-nome" class="wf-nome" aria-label="Nome do workflow" spellcheck="false">
+              <label class="wf-ligado" title="Ligado: o relógio dispara sozinho enquanto o app estiver aberto"><span class="chave"><input type="checkbox" id="wf-ativo"><span></span></span> Ligado</label>
+              <span class="wf-barra-acoes">
+                <button type="button" class="botao-texto" id="wf-mais-passo">+ Passo</button>
+                <button type="button" class="botao primario" id="wf-rodar">Rodar agora</button>
+                <button type="button" class="botao-texto perigo" id="wf-apagar" title="Apaga este workflow (a versão anterior fica guardada)">Apagar</button>
+              </span>
+              <div id="wf-menu-passos" class="menu-modelo wf-menu-passos" hidden></div>
+            </header>
+            <div class="wf-vazio" id="wf-vazio"><p><strong>Nenhum workflow aberto.</strong></p><p class="nota">Crie um em “+ Novo workflow”: um gatilho (relógio ou botão) e os passos que vêm depois.</p></div>
+            <div class="wf-quadro"><div class="wf-area" id="wf-area"><svg class="wf-linhas" id="wf-linhas"></svg><div id="wf-nos"></div></div></div>
+            <div class="wf-execucoes" id="wf-execucoes"></div>
+          </div>
+          <aside class="wf-inspetor" id="wf-inspetor"></aside>
+        </div>
       </section>
       <section id="aba-grade" class="aba" aria-label="Terminais">
         <div id="grade" class="grade"></div>
@@ -345,5 +371,6 @@
   <script src="conversa-tela.js"></script>
   <script src="repertorio-tela.js"></script>
   <script src="navegador-tela.js"></script>
+  <script src="workflows-tela.js"></script>
 </body>
 </html>

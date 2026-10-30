@@ -130,6 +130,20 @@ test('navegador', async (t) => {
     assert.match((await nav('texto')).saida, /Olá do site/, 'a página continua usável com a aba escondida');
   });
 
+  // Pedido de 2026-10-30: no máximo 4 janelas (6 ficava apertado demais).
+  await t.test('no máximo 4 janelas, em grade 2×2', async () => {
+    for (let i = 0; i < 4; i++) await nav('abrir', base);
+    await app.avaliar("document.querySelector('[data-aba=aba-navegador]').click()");
+    await app.esperar("document.querySelectorAll('.painel-navegador').length === 4");
+    const r = await nav('abrir', base);
+    assert.ok(!r.ok);
+    assert.match(r.erro, /já há 4 janelas/);
+    assert.ok(await app.avaliar("document.getElementById('nova-janela-nav').disabled"));
+    assert.strictEqual(await app.avaliar("getComputedStyle(document.getElementById('navegadores')).gridTemplateColumns.split(' ').length"), 2);
+    for (const j of await app.avaliar('window.orqNavegador.janelas()')) await nav('fechar', '--janela', j.id);
+    await app.esperar("document.querySelectorAll('.painel-navegador').length === 0");
+  });
+
   await t.test('engrenagem: opção de deixar o orquestrador usar o navegador', async () => {
     await app.avaliar("document.getElementById('abrir-config').click()");
     await app.esperar("document.querySelector('[data-cfg=navegadorControle]').checked === true");
