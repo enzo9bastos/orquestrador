@@ -140,11 +140,17 @@
   // do app sem executar; a pessoa confere e aperta Enter).
   function botoesDeCodigo(raiz) {
     for (const pre of raiz.querySelectorAll('pre')) {
-      if (pre.querySelector('.acoes-codigo')) continue;
+      if (pre.parentElement.classList.contains('caixa-codigo')) continue;
+      // Os botões ficam numa caixa em volta do bloco (que não rola): dentro
+      // do bloco, rolar para o lado arrastava os botões para cima do texto.
+      const embrulho = document.createElement('div');
+      embrulho.className = 'caixa-codigo';
+      pre.before(embrulho);
+      embrulho.append(pre);
       const barra = document.createElement('div');
       barra.className = 'acoes-codigo';
       barra.innerHTML = '<button type="button" data-codigo="copiar" title="Copiar">Copiar</button><button type="button" data-codigo="terminal" title="Escrever no terminal do app (sem executar)">▶ Terminal</button>';
-      pre.append(barra);
+      embrulho.append(barra);
     }
   }
 
@@ -258,7 +264,7 @@
   caixa.addEventListener('click', async (ev) => {
     const bc = ev.target.closest('[data-codigo]');
     if (bc) {
-      const texto = bc.closest('pre').querySelector('code')?.textContent ?? '';
+      const texto = bc.closest('.caixa-codigo').querySelector('pre code, pre')?.textContent ?? '';
       if (bc.dataset.codigo === 'copiar') {
         try { await navigator.clipboard.writeText(texto); bc.textContent = 'Copiado'; setTimeout(() => { bc.textContent = 'Copiar'; }, 1500); } catch { /* sem área de transferência */ }
       } else if (window.orqTerminal) {

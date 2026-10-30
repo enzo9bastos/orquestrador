@@ -71,6 +71,22 @@ test('conversa', async (t) => {
     assert.ok(!(await app.avaliar('window.orqVisor.estado().aberto')));
   });
 
+  // Regressão 2026-10-30: com linha comprida o bloco rolava para o lado e os
+  // botões Copiar/▶ Terminal iam junto, parando em cima do texto.
+  await t.test('regressão: botões do bloco de código ficam no canto, sem rolagem lateral', async () => {
+    const longa = 'PESSOAS: quem escolhe o tipo de usuário define o campo '.repeat(12);
+    await injetar({ tipo: 'assistant', message: { content: [{ type: 'text', text: `Passei o pedido:\n\n\`\`\`\n${longa}\n\`\`\`` }] } });
+    const r = await app.avaliar(`(() => { const c = [...document.querySelectorAll('.caixa-codigo')].pop(); const pre = c.querySelector('pre'); const b = c.querySelector('.acoes-codigo').getBoundingClientRect(), p = pre.getBoundingClientRect();
+      return { rola: pre.scrollWidth > pre.clientWidth + 1, dist: Math.round(p.right - b.right), dentro: c.querySelector('pre .acoes-codigo') === null }; })()`);
+    assert.strictEqual(r.rola, false, 'linha comprida quebra');
+    assert.ok(r.dist >= 0 && r.dist <= 12, `botões no canto direito (distância ${r.dist})`);
+    assert.ok(r.dentro, 'botões fora do bloco que rola');
+    await app.avaliar("navigator.clipboard.writeText = async (t) => { window.__copiado = t; }");
+    await app.avaliar("[...document.querySelectorAll('[data-codigo=\"copiar\"]')].pop().click()");
+    await app.esperar('!!window.__copiado');
+    assert.strictEqual((await app.avaliar('window.__copiado')).trim(), longa.trim(), 'copia o texto inteiro');
+  });
+
   await t.test('bloco de código: ▶ Terminal escreve no terminal do app sem executar', async () => {
     await injetar({ tipo: 'assistant', message: { content: [{ type: 'text', text: 'Rode:\n\n```\necho texto-do-bloco\n```' }] } });
     await app.avaliar("[...document.querySelectorAll('[data-codigo=\"terminal\"]')].pop().click()");

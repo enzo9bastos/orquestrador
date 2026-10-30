@@ -1019,9 +1019,11 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .tipo-item { font: 600 9.5px var(--sans); text-transform: uppercase; letter-spacing: .04em; color: var(--fg-4); border: 1px solid var(--borda); border-radius: 999px; padding: 0 5px; }
 
 /* Botões dos blocos de código na conversa. */
-.md pre { position: relative; }
+.caixa-codigo { position: relative; }
+/* Na conversa, linha comprida quebra (são quase sempre prompts): sem rolagem lateral. */
+.md.texto-claude .caixa-codigo pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .acoes-codigo { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
-.md pre:hover .acoes-codigo, .acoes-codigo:focus-within { opacity: 1; }
+.caixa-codigo:hover .acoes-codigo, .acoes-codigo:focus-within { opacity: 1; }
 .acoes-codigo button { height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); color: var(--fg-2); font: 11.5px var(--sans); }
 .acoes-codigo button:hover { color: var(--fg); border-color: var(--claude); }
 .acoes-codigo [data-codigo="terminal"] { color: var(--claude); }
