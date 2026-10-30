@@ -460,6 +460,7 @@
       let pegou = { dx: 0, dy: 0 };
       let clique = { x: 0, y: 0, t: 0, falou: false }; // onde apertou: para saber se foi só um clique
       this.el.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0) return; // botão direito é o menu, não arrasto
         ev.preventDefault();
         this.el.setPointerCapture(ev.pointerId);
         this.arrastando = true; this.noAr = false;
@@ -488,7 +489,9 @@
         const a = rastro[0], b = rastro[rastro.length - 1];
         // Só um clique (sem arrastar): pula e fala, em vez de cair.
         if (Math.hypot(b.x - clique.x, b.y - clique.y) < 5 && performance.now() - clique.t < 400) {
-          this.escolherSala(); this.y = this.chao(); this.desenhar();
+          this.escolherSala();
+          if (this.jeito() !== 'voa') this.y = this.chao(); // quem voa fica onde está
+          this.desenhar();
           if (this.modo === 'livre') { this.pular(-520); this.falar(sorteia(FALAS.clique), 1400); }
           return;
         }

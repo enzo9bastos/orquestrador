@@ -223,6 +223,7 @@ ipcMain.handle('conversa:abrir', (_e, id) => conversa.abrir(id));
 // Imagens: só os tipos que o Claude aceita, até 5 MB cada e 6 por mensagem.
 const TIPOS_IMAGEM = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 ipcMain.handle('conversa:mandar', (_e, id, texto, imagens = [], exibir = null) => {
+  ajudante.limparAcoes(id);
   const imgs = (Array.isArray(imagens) ? imagens : []).filter((i) => i && TIPOS_IMAGEM.includes(i.tipo) && typeof i.dados === 'string' && i.dados.length < 7_000_000).slice(0, 6);
   const t = typeof texto === 'string' ? texto.trim() : '';
   if (!t && !imgs.length) return false;

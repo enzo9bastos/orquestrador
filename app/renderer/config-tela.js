@@ -104,11 +104,11 @@
       <span class="ponto${c.encontrado ? ' ok' : ''}"></span>
       <span class="nome">${esc(c.nome)}</span>
       <span class="estado">${c.encontrado ? (c.versao ? `instalado v${esc(c.versao)}` : 'instalado') : 'não encontrado'}</span>
-      ${c.caminho ? `<code title="${esc(c.caminho)}" data-sem-traducao>${esc(c.caminho)}</code>` : `<code class="sem-caminho" data-sem-traducao>${esc(c.comando)}</code>`}
+      <code class="sem-caminho" data-sem-traducao>${esc(c.comando)}</code>
       ${c.suportado ? '' : '<span class="em-breve">em breve como orquestrador</span>'}
       ${notaCaminho(c)}
       <div class="ia-caminho">
-        <input type="text" class="campo-config mono" data-ia-caminho="${esc(c.id)}" value="${esc(escolhidos[c.id] || '')}" placeholder="Vazio: o app acha no PATH" aria-label="Caminho do executável" spellcheck="false" autocomplete="off">
+        <input type="text" class="campo-config mono" data-ia-caminho="${esc(c.id)}" value="${esc(escolhidos[c.id] || '')}" placeholder="${c.caminho && !escolhidos[c.id] ? esc(`${c.caminho} (achado no PATH)`) : 'Vazio: o app acha no PATH'}" aria-label="Caminho do executável" spellcheck="false" autocomplete="off">
         <button type="button" class="botao-texto" data-ia-escolher="${esc(c.id)}">Escolher…</button>
         <button type="button" class="botao-texto" data-ia-detectado="${esc(c.id)}"${escolhidos[c.id] ? '' : ' hidden'}>Usar o detectado</button>
       </div>

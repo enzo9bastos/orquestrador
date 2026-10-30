@@ -7,7 +7,7 @@
 // borda quando alguém chama ou quando há pendência e sai pela borda quando vai
 // embora. A janela é do tamanho dele (cresce só com a conversa aberta), para
 // não tapar o que está atrás.
-const { app, BrowserWindow, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, clipboard } = require('electron');
 const path = require('path');
 const os = require('os');
 const readline = require('readline');
@@ -255,6 +255,7 @@ ipcMain.on('ajudante', (_e, m) => {
   else if (m.t === 'fecharConversa') fecharConversa();
   else if (m.t === 'avisoFechado') aviso = false;
   else if (m.t === 'perguntar' || m.t === 'responder') paraApp(m);
+  else if (m.t === 'copiar') clipboard.writeText(String(m.texto || ''));
   else if (m.t === 'capturar') { if (!TESTE) win.hide(); setTimeout(() => paraApp({ t: 'capturar' }), 250); }
   else if (m.t === 'abrirApp') paraApp(m);
   else if (m.t === 'voltar') { sumir(); paraApp({ t: 'voltar' }); }

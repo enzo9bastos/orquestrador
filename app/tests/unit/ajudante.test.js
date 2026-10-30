@@ -107,3 +107,25 @@ test('pet: resposta dada no ajudante vai para a conversa ou para o agente certo'
   ]);
   assert.strictEqual(ajudante.responder({ id: 'conversa:orquestrador:r1', respostas: {} }), false, 'a mesma não responde duas vezes');
 });
+
+// Pedido de 2026-10-30: o orquestrador pediu para rodar um comando e nada avisou.
+test('pet: resposta que pede para rodar um comando vira pendência "acao" até o Feito', () => {
+  assert.ok(ajudante.pedeAcao('Rode de novo no seu computador:\n\n```\n./instalar.sh --aplicar\n```'));
+  assert.strictEqual(ajudante.pedeAcao('Rodou tudo certo:\n```\nok\n```'), null, 'relato, não pedido');
+  assert.strictEqual(ajudante.pedeAcao('Rode os testes depois.'), null, 'sem comando para rodar');
+  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => false }), conversa: { responder: () => true }, enviarTela: () => {} });
+  ajudante.pendencias([]);
+  ajudante.aviso({ tipo: 'resposta', id: 'orquestrador', orquestrador: true, texto: 'Execute no seu terminal:\n```\nls -la\n```' });
+  const [id] = ajudante.acoesAbertas();
+  assert.ok(id, 'virou pendência');
+  ajudante.pendencias([]); // a próxima leitura do estado não a apaga
+  const msg = ajudante.confirmarAviso([id]);
+  assert.strictEqual(msg.item.tipo, 'acao');
+  assert.deepStrictEqual(msg.item.comandos, ['ls -la']);
+  assert.ok(ajudante.responder({ id, feito: true }), 'Feito');
+  assert.deepStrictEqual(ajudante.acoesAbertas(), []);
+  ajudante.aviso({ tipo: 'resposta', id: 'orquestrador', orquestrador: true, texto: 'Rode:\n```\necho oi\n```' });
+  assert.strictEqual(ajudante.acoesAbertas().length, 1);
+  ajudante.limparAcoes('orquestrador'); // o usuário escreveu ao orquestrador
+  assert.deepStrictEqual(ajudante.acoesAbertas(), []);
+});

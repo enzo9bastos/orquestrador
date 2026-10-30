@@ -146,6 +146,11 @@
         <div class="aj-opcoes">${(q.options || []).map((o) => `<button type="button" class="aj-opcao${pg.marcadas.has(o.label) ? ' marcada' : ''}" data-op="${esc(o.label)}"><strong>${esc(o.label)}</strong>${o.description ? `<small>${esc(o.description)}</small>` : ''}</button>`).join('')}</div>
         <textarea id="pg-outra" rows="2" placeholder="Outra resposta… (Enter envia)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
       $('pg-acoes').innerHTML = `<button type="button" class="botao-texto" data-pg="app">Abrir no app</button>${q.multiSelect ? '<button type="button" class="botao primario" data-pg="confirmar">Confirmar</button>' : ''}`;
+    } else if (it.tipo === 'acao') {
+      // O orquestrador pediu para rodar algo: mostra os comandos para copiar.
+      $('pg-passo').textContent = 'pede uma ação sua';
+      $('pg-corpo').innerHTML = `<p class="pergunta">Pediu para você rodar no seu computador:</p>${it.resumo ? `<p>${esc(it.resumo)}</p>` : ''}${it.comandos.map((c, i) => `<pre class="aj-comando">${esc(c)}</pre><button type="button" class="botao-texto" data-copiar="${i}">Copiar</button>`).join('')}`;
+      $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao primario" data-pg="feito">Feito</button>';
     } else {
       $('pg-passo').textContent = 'pede permissão';
       $('pg-corpo').innerHTML = `<p class="pergunta">Quer usar ${esc(it.ferramenta || 'uma ferramenta')}</p>${it.descricao ? `<p>${esc(it.descricao)}</p>` : ''}${it.comando ? `<pre class="aj-comando">${esc(it.comando)}</pre>` : ''}${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
@@ -175,7 +180,10 @@
       op.classList.toggle('marcada');
       return;
     }
+    const cp = ev.target.closest('[data-copiar]');
+    if (cp) { A.enviar({ t: 'copiar', texto: pg.item.comandos[Number(cp.dataset.copiar)] }); cp.textContent = 'Copiado'; setTimeout(() => { cp.textContent = 'Copiar'; }, 1500); return; }
     const a = ev.target.closest('[data-pg]')?.dataset.pg;
+    if (a === 'feito') { enviarResposta({ feito: true }); return; }
     if (a === 'app') A.enviar({ t: 'abrirApp', conversa: alvoPendencia });
     else if (a === 'permitir' || a === 'negar') enviarResposta({ permitir: a === 'permitir' });
     else if (a === 'confirmar') {
@@ -214,7 +222,7 @@
       classe('acenando'); setTimeout(() => classe('acenando', false), 1200);
       abrirConversa();
       if (m.capturar) capturar();
-    } else if (m.t === 'pendencia' && m.item && (m.item.tipo !== 'pergunta' || (m.item.perguntas || []).length)) {
+    } else if (m.t === 'pendencia' && m.item && (m.item.tipo !== 'pergunta' || (m.item.perguntas || []).length) && (m.item.tipo !== 'acao' || (m.item.comandos || []).length)) {
       alvoPendencia = m.conversa;
       classe('chamando'); setTimeout(() => classe('chamando', false), 1500);
       abrirPergunta(m.id, m.item);

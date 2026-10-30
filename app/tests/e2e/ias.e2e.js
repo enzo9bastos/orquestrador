@@ -21,7 +21,7 @@ async function abrirComCLIs(config) {
   process.env.PATH = `${bin}:/usr/bin:/bin`;
   try { return await abrirApp({ config }); } finally { process.env.PATH = antes; }
 }
-const cartao = (app, id) => app.avaliar(`(() => { const li = document.querySelector('#config-ias li[data-ia="${id}"]'); return li && { estado: li.querySelector('.estado').textContent.trim(), ok: !!li.querySelector('.ponto.ok'), caminho: li.querySelector('code').textContent.trim(), emBreve: !!li.querySelector('.em-breve') }; })()`);
+const cartao = (app, id) => app.avaliar(`(() => { const li = document.querySelector('#config-ias li[data-ia="${id}"]'); return li && { estado: li.querySelector('.estado').textContent.trim(), ok: !!li.querySelector('.ponto.ok'), caminho: (() => { const c = li.querySelector('[data-ia-caminho]'); return c.value || c.placeholder.replace(/ \\(achado no PATH\\)$/, ''); })(), emBreve: !!li.querySelector('.em-breve') }; })()`);
 
 test('ias: IAs conectadas na engrenagem', async (t) => {
   // Escolha guardada que o app ainda não conduz: tem de cair no Claude, com aviso.

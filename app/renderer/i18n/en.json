@@ -948,9 +948,17 @@
     "Escolher…": "Choose…",
     "Usar o detectado": "Use the detected one",
     "Um tópico é uma demanda sendo feita: o que pediram, quem está nela e o checklist do que falta. O orquestrador abre e atualiza pelo comando": "A topic is a request being worked on: what was asked, who is on it and the checklist of what is left. The Orchestrator suggests and updates topics with the command",
-    "; você também pode criar um em \"+ Novo tópico\".": "; you can also create one with \"+ New topic\"."
+    "; você também pode criar um em \"+ Novo tópico\".": "; you can also create one with \"+ New topic\".",
+    "pede uma ação sua": "needs you to do something",
+    "Pediu para você rodar no seu computador:": "Asked you to run this on your computer:",
+    "Feito": "Done",
+    "O orquestrador pediu para você rodar um comando": "The Orchestrator asked you to run a command"
   },
   "padroes": [
+    [
+      "^(.+) \\(achado no PATH\\)$",
+      "$1 (found on PATH)"
+    ],
     [
       "^📌 Tópico recusado: (.+)$",
       "📌 Topic rejected: $1"

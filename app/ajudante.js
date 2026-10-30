@@ -101,7 +101,8 @@ function trazerApp() {
 function responder(m) {
   const p = atuais.get(m.id);
   let ok = false;
-  if (p && p.item) {
+  if (p && p.item && p.item.tipo === 'acao') { acoes.delete(m.id); ok = true; } // "Feito"
+  else if (p && p.item) {
     try {
       if (p.item.tipo === 'agente') ok = ctx.responderAgente(p.item.emp, p.item.proj, p.item.id, m.permitir ? 'permitir' : 'negar');
       else if (p.item.tipo === 'pergunta') ok = ctx.conversa.responder(p.conversa, p.item.reqId, { permitir: true, respostas: m.respostas || {} });
@@ -128,7 +129,28 @@ function perguntar(texto, imagem) {
 }
 // O main.js passa aqui cada aviso das conversas: a resposta do ajudante
 // vai para o balão do bichinho (e não vira notificação do sistema).
+// Resposta do orquestrador que pede uma ação ao usuário (rodar um comando no
+// computador dele): não é pergunta nem permissão, então nada avisava. Vira
+// uma pendência "acao" com os comandos, até ele dizer que fez.
+const PEDE_ACAO = /\b(rode|rodar|rode de novo|execute|executar|cole|colar|no seu (computador|terminal)|me mande|me envie|me manda)\b/i;
+function pedeAcao(texto) {
+  const t = String(texto || '');
+  const comandos = [...t.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((m) => m[1].trim()).filter(Boolean);
+  if (!comandos.length || !PEDE_ACAO.test(t.replace(/```[\s\S]*?```/g, ''))) return null;
+  const resumo = t.replace(/```[\s\S]*?```/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400);
+  return { comandos, resumo };
+}
+const acoes = new Map(); // id → pendência "acao" (dura até "Feito")
 function aviso(a) {
+  if (a.tipo === 'resposta' && a.orquestrador) {
+    const p = pedeAcao(a.texto);
+    if (p) {
+      const id = `acao:${Date.now().toString(36)}`;
+      acoes.set(id, { id, conversa: a.id, texto: 'O orquestrador pediu para você rodar um comando', item: { tipo: 'acao', quem: 'O orquestrador', resumo: p.resumo, comandos: p.comandos } });
+      pendencias([...atuais.values()].filter((x) => !x.id.startsWith('acao:')));
+    }
+    return false; // a notificação do sistema segue a chave dela
+  }
   if (a.id !== CONVERSA) return false;
   if (a.tipo === 'resposta') mandar({ t: 'resposta', texto: a.texto });
   else if (a.tipo === 'pedido') mandar({ t: 'resposta', texto: `Preciso da sua permissão para continuar: ${a.texto || ''}`.trim(), abrir: true });
@@ -172,6 +194,7 @@ let atuais = new Map();
 let mostrando = null;
 const appNaFrente = () => { const j = ctx.janela(); return !!(j && j.isFocused() && !j.isMinimized()); };
 function pendencias(lista) {
+  lista = [...lista.filter((p) => !p.id.startsWith('acao:')), ...acoes.values()];
   atuais = new Map(lista.map((p) => [p.id, p]));
   for (const v of [...vistas]) if (!atuais.has(v)) vistas.delete(v);
   const novas = lista.filter((p) => !vistas.has(p.id));
@@ -252,4 +275,7 @@ function desligar() {
 
 function atualizarAparencia() { mandar({ t: 'visual', ...aparencia() }); }
 
-module.exports = { atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+// O usuário escreveu ao orquestrador: o pedido de ação já foi visto.
+function limparAcoes(conversa) { for (const [id, p] of acoes) if (p.conversa === conversa) acoes.delete(id); }
+
+module.exports = { acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
