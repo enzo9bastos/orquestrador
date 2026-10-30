@@ -28,6 +28,9 @@ let pos = { x: 0, y: 0 };
 let timer = null;
 let modo = 'escondido'; // escondido | entrando | parado | saindo
 let passeando = false;
+// Jeito de se mexer da espécie (vem com a roupa): anda, voa (fantasma, nuvem) ou pula (gosma).
+let jeito = 'anda';
+const JEITOS = { fantasma: 'voa', nuvem: 'voa', gosma: 'pula' };
 let conversaAberta = false;
 let fila = []; // mensagens que chegaram antes da tela ficar pronta
 let pronto = false;
@@ -80,6 +83,28 @@ function entrarPelaBorda(a, lado, destinoX, depois) {
 // Cada saída tem um número: chegar de novo cancela a saída em andamento (os
 // passos dela, que vêm depois, veem que perderam a vez).
 let saida = 0;
+// Voa em linha reta até (x, y). Pulando: vai em arcos de ~110 px.
+function irPara(x, y, vel, depois, pulos = false) {
+  clearInterval(timer);
+  paraTela({ t: 'andando', ligado: true, lado: x < pos.x ? 'esq' : 'dir' });
+  const ini = { x: pos.x, y: pos.y };
+  const dist = Math.hypot(x - ini.x, y - ini.y);
+  const dur = Math.max(200, (dist / vel) * 1000);
+  const comeco = Date.now();
+  const nPulos = Math.max(1, Math.round(Math.abs(x - ini.x) / 110));
+  timer = setInterval(() => {
+    const t = Math.min(1, (Date.now() - comeco) / dur);
+    pos.x = ini.x + (x - ini.x) * t;
+    pos.y = ini.y + (y - ini.y) * t - (pulos ? Math.abs(Math.sin(Math.PI * t * nPulos)) * 70 : 0);
+    mover();
+    if (t >= 1) {
+      clearInterval(timer); timer = null;
+      paraTela({ t: 'andando', ligado: false });
+      if (depois) depois();
+    }
+  }, 33);
+}
+
 function aparecer(depois) {
   if (modo === 'parado' || modo === 'entrando') { if (depois) depois(); return; }
   if (modo === 'saindo') {
@@ -132,7 +157,7 @@ function redimensionar(novo) {
   tam = novo;
   const a = area();
   pos.x = Math.min(Math.max(pos.x, a.x), a.x + a.width - tam.w);
-  pos.y = Math.min(pos.y, chao(a));
+  pos.y = Math.max(Math.min(pos.y, chao(a)), a.y); // voando alto, a conversa não sai pelo topo
   mover();
 }
 function abrirConversa() {
@@ -163,13 +188,18 @@ async function passear() {
     if (!passeando || conversaAberta || aviso || timer || modo !== 'parado') continue;
     const a = area();
     const x = a.x + Math.round(Math.random() * (a.width - tam.w));
-    await new Promise((r) => andar(x, 70, r));
+    if (jeito === 'voa') {
+      // Voa pela tela toda: qualquer altura entre o topo e o chão.
+      const y = a.y + 40 + Math.round(Math.random() * Math.max(0, chao(a) - a.y - 40));
+      await new Promise((r) => irPara(x, y, 90, r));
+    } else if (jeito === 'pula') await new Promise((r) => irPara(x, chao(a), 150, r, true));
+    else await new Promise((r) => andar(x, 70, r));
     if (Math.random() < 0.3) paraTela({ t: 'gesto' });
   }
 }
 
 function receber(m) {
-  if (m.t === 'visual') paraTela(m);
+  if (m.t === 'visual') { jeito = JEITOS[m.visual && m.visual.especie] || 'anda'; paraTela(m); if (jeito !== 'voa' && modo === 'parado' && !conversaAberta) { pos.y = chao(); mover(); } }
   // O atalho alterna: com a conversa aberta, apertar de novo manda ele embora.
   else if (m.t === 'chamar' && conversaAberta && !m.capturar) sumir();
   else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); passear(); });
@@ -231,6 +261,7 @@ ipcMain.on('ajudante', (_e, m) => {
   else if (m.t === 'irEmbora') sumir();
   else if (m.t === 'passear') { paraTela({ t: 'falar', texto: 'Oba, passeio!' }); passear(); }
   else if (m.t === 'arrastar') { clearInterval(timer); timer = null; pos.x += m.dx; pos.y += m.dy; mover(); }
+  else if (m.t === 'soltar' && jeito === 'voa') paraTela({ t: 'pousou' }); // quem voa fica no ar onde foi solto
   else if (m.t === 'soltar') {
     // Cai até o chão do monitor onde foi solto.
     const fim = chao();

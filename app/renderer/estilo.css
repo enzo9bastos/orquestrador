@@ -1301,3 +1301,86 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .topicos-concluidos[hidden] { display: none; }
 .topicos-concluidos > summary { cursor: pointer; color: var(--fg-3); font-size: 12px; padding: 4px 0 8px; }
 .topicos-concluidos .topico { opacity: .75; }
+
+/* --- bichinho: espécies, acabamento e humor da nuvem -------------------- */
+.pet-svg .brilho { fill: #fff; opacity: .45; }
+.pet-svg .bolha { fill: #fff; opacity: .28; }
+.pet-svg .sombra { fill: #000; opacity: .14; }
+.pet-svg.especie-fantasma .pele, .pet-svg.especie-fantasma .perna { opacity: .78; }
+.pet-svg.especie-gosma .pele, .pet-svg.especie-gosma .perna { opacity: .74; }
+/* A nuvem muda de cor sozinha (a não ser que uma cor tenha sido escolhida). */
+.pet, .gr-pet { --nuvem: #f2f4f8; }
+.pet.pensando, .pet.trabalhando { --nuvem: #c5cad3; }
+.pet.mandando, .pet.chamando { --nuvem: #dde1e8; }
+.pet.triste { --nuvem: #7f8794; }
+.pet-svg.especie-nuvem .pele { fill: var(--pet-cor, var(--nuvem)); opacity: .9; transition: fill .8s; }
+.pet-svg.especie-nuvem .perna { fill: #74b9ff; opacity: 0; }
+.pet.pensando .especie-nuvem .perna, .pet.trabalhando .especie-nuvem .perna, .pet.triste .especie-nuvem .perna { opacity: .9; animation: chuva .7s linear infinite; }
+.pet.triste .especie-nuvem .perna { animation-duration: .4s; }
+@keyframes chuva { from { transform: translateY(-0.5px); opacity: .9; } to { transform: translateY(1.6px); opacity: 0; } }
+/* Voando, não mexe as "pernas" como quem anda. */
+.pet.andando .especie-fantasma .perna, .pet.andando .especie-nuvem .perna { animation: none; }
+.pet.andando .especie-fantasma .perna { animation: rabo .4s steps(1) infinite; }
+@keyframes rabo { 50% { transform: translateX(0.4px); } }
+
+/* --- Tópicos sugeridos pelo orquestrador (topicos-tela.js) ---------------- */
+/* Sugestão: borda tracejada na cor do Claude, até o usuário aprovar ou recusar. */
+.topico.estado-sugerido { border: 1px dashed color-mix(in srgb, var(--claude) 60%, var(--borda)); background: color-mix(in srgb, var(--claude-suave) 40%, var(--bg-elevado)); }
+.topico-sugerido-por { margin: 0; font: 500 10.5px/1 var(--mono); color: color-mix(in srgb, var(--claude) 75%, var(--fg)); letter-spacing: .02em; }
+.chip-topico.chip-sugerido { background: var(--claude-suave); color: color-mix(in srgb, var(--claude) 70%, var(--fg)); }
+.chip-topico.chip-recusado { background: var(--parado-suave); color: var(--fg-3); }
+.topico-titulo-editavel { flex: 1 1 auto; min-width: 0; font: 600 13px var(--sans); color: var(--fg); background: transparent; border: 1px solid transparent; border-radius: var(--r-sm); padding: 1px 4px; margin: -2px 0 0 -4px; }
+.topico-titulo-editavel:hover { border-color: var(--borda-forte); }
+.topico-titulo-editavel:focus { outline: none; border-color: var(--claude); background: var(--bg); }
+.topico-resumo { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--fg-2); cursor: text; border-radius: var(--r-sm); }
+.topico-resumo[data-editar-resumo]:hover { background: var(--selecionado); }
+.topico-sem-resumo { justify-self: start; font-size: 11.5px; color: var(--fg-4); }
+.topico-resumo-edicao { width: 100%; box-sizing: border-box; resize: vertical; font: 12.5px/1.45 var(--sans); color: var(--fg); background: var(--bg); border: 1px solid var(--borda-forte); border-radius: var(--r-sm); padding: 6px 8px; }
+.topico-etapas-rotulo { margin: 0; font: 500 10.5px/1 var(--mono); color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em; }
+.etapas-sugeridas { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 12.5px; color: var(--fg-2); }
+.topicos-recusados .topico { opacity: .7; }
+
+/* --- configurações em seções (navegação à esquerda) ------------------------
+   Só o #config da engrenagem: o popup /config da conversa também usa .config.
+   Altura fixa: trocar de seção não faz a janela pular debaixo do mouse. */
+.config.config-com-secoes { width: min(860px, 100%); height: min(86vh, 680px); max-height: none; overflow: hidden; display: flex; flex-direction: column; }
+.config-com-secoes > header { flex: none; }
+.config-corpo { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 210px minmax(0, 1fr); }
+.config-lado { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 12px 10px; border-right: 1px solid var(--borda); background: var(--bg-afundado); overflow-y: auto; }
+.config-busca.campo-config { width: 100%; box-sizing: border-box; flex: none; }
+.config-nav { display: flex; flex-direction: column; gap: 2px; }
+.config-nav [role="tab"] { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: var(--r-sm); border: 1px solid transparent; background: transparent; color: var(--fg-2); font: 500 13px var(--sans); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.config-nav [role="tab"]:hover { background: var(--selecionado); color: var(--fg); }
+.config-nav [role="tab"][aria-selected="true"] { background: var(--claude-suave); color: var(--fg); box-shadow: inset 2px 0 0 var(--claude); }
+.config-nav [role="tab"]:focus-visible { outline: none; border-color: var(--claude); }
+.config-com-secoes.buscando .config-nav [role="tab"][aria-selected="true"] { background: transparent; box-shadow: none; }
+.config-paineis { min-height: 0; overflow-y: auto; }
+.config-painel[hidden], .config-painel .config-linha[hidden] { display: none; }
+.config-painel:focus { outline: none; }
+.config-com-secoes .config-secao { padding-top: 16px; }
+.config-com-secoes.buscando .config-painel + .config-painel { border-top: 1px solid var(--borda); }
+.config-sem-resultado { margin: 0; padding: 24px 18px; color: var(--fg-4); font-size: 12px; }
+.config-sem-resultado[hidden] { display: none; }
+.config-com-secoes > .config-arquivo { flex: none; padding: 8px 18px 10px; border-top: 1px solid var(--borda); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Caminho de cada IA (IAs conectadas): campo + Escolher… + Usar o detectado. */
+.config-ias .ia-caminho { grid-column: 2 / -1; display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.config-ias .ia-caminho .campo-config { flex: 1 1 auto; min-width: 0; width: auto; height: 26px; font-size: 11.5px; }
+.config-ias .ia-caminho .botao-texto { margin-left: 0; flex: none; white-space: nowrap; }
+.config-ias .ia-caminho .botao-texto[hidden] { display: none; }
+.config-ias .ia-nota { grid-column: 2 / -1; font-size: 11px; color: var(--fg-3); }
+.config-ias .ia-nota.problema { color: var(--perigo); }
+
+/* Janela estreita: as seções viram uma fileira rolável em cima. */
+@media (max-width: 680px) {
+  .config.config-com-secoes { height: min(92vh, 760px); }
+  .config-corpo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .config-lado { flex-direction: column; border-right: 0; border-bottom: 1px solid var(--borda); padding: 8px 10px; overflow: visible; }
+  .config-nav { flex-direction: row; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .config-nav [role="tab"] { width: auto; flex: none; padding: 6px 10px; }
+  .config-nav [role="tab"][aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--claude); }
+}
+@media (max-width: 480px) {
+  .config-com-secoes .config-linha:not(.config-coluna) { grid-template-columns: minmax(0, 1fr); }
+  .config-com-secoes .config-linha .campo-config:not(.largo) { width: 100%; box-sizing: border-box; }
+}

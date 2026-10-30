@@ -65,6 +65,16 @@
       caixa.append(el);
       return;
     }
+    // Aviso de tópico aprovado/recusado no painel: também é por trás.
+    const tp = /^<orq-topico id="([^"]*)" acao="([^"]*)" titulo="([^"]*)">\n?([\s\S]*?)\n?<\/orq-topico>\s*$/.exec(String(texto).trim());
+    if (tp) {
+      grupo = null;
+      const el = document.createElement('details');
+      el.className = 'msg-bastidor msg-bastidor-topico';
+      el.innerHTML = `<summary>📌 ${tp[2] === 'recusado' ? 'Tópico recusado' : 'Tópico aprovado'}: <span data-sem-traducao>${esc(tp[3])}</span></summary><div class="msg-bastidor-texto">${esc(tp[4])}</div>`;
+      caixa.append(el);
+      return;
+    }
     const u = textoDoUsuario(texto);
     if (!u) return;
     // O comando que abre a rodada não aparece: é bastidor, não conversa.

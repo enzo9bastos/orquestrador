@@ -107,6 +107,7 @@ contextBridge.exposeInMainWorld('orq', {
   },
   ias: {
     listar: (forcar) => ipcRenderer.invoke('ias:listar', forcar === true),
+    escolherCaminho: (id) => ipcRenderer.invoke('ias:escolherCaminho', id),
   },
   topicos: {
     lista: () => ipcRenderer.invoke('topicos:lista'),
@@ -115,6 +116,10 @@ contextBridge.exposeInMainWorld('orq', {
     marcar: (id, item, feito) => ipcRenderer.invoke('topicos:marcar', id, item, feito),
     estado: (id, e) => ipcRenderer.invoke('topicos:estado', id, e),
     concluir: (id) => ipcRenderer.invoke('topicos:concluir', id),
+    resumo: (id, txt) => ipcRenderer.invoke('topicos:resumo', id, txt),
+    aprovar: (id, titulo) => ipcRenderer.invoke('topicos:aprovar', id, titulo),
+    recusar: (id) => ipcRenderer.invoke('topicos:recusar', id),
+    reconsiderar: (id) => ipcRenderer.invoke('topicos:reconsiderar', id),
     aoMudar: (fn) => ipcRenderer.on('topicos:mudou', (_e, m) => fn(m)),
   },
   config: {

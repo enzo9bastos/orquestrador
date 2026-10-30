@@ -128,6 +128,11 @@
       if (this.x == null) { this.x = s.x1; this.y = s.chao; }
       this.x = Math.min(Math.max(this.x, s.x0), s.x1);
       const ch = this.chaoEm(this.x, this.y + ALT);
+      if (this.jeito() === 'voa') { // voando: fica onde está, só não atravessa o chão nem o teto
+        this.y = Math.min(Math.max(this.y, s.teto), ch);
+        this.desenhar();
+        return;
+      }
       if (ch > this.y + 2 && this.y < s.chao) { this.voar(); return; } // a coisa embaixo sumiu: cai
       this.x = Math.min(Math.max(this.x, s.x0), s.x1);
       this.y = ch;
@@ -321,7 +326,11 @@
       this.vira.innerHTML = window.petVisual ? window.petVisual.svg(this.visual) : '';
     }
     esconder(sim) { this.escondido = !!sim; this.el.hidden = !!sim; }
+    // Jeito de se mexer da espécie: anda (clássico), voa (fantasma, nuvem) ou pula (gosma).
+    jeito() { const e = window.petVisual && window.petVisual.ESPECIES[this.visual && this.visual.especie]; return (e && e.jeito) || 'anda'; }
     async g_andar(passo) {
+      if (this.jeito() === 'voa') return this.voarAte(passo);
+      if (this.jeito() === 'pula') return this.pularAte(passo);
       const [min, max] = this.faixa();
       // Fora da faixa (caiu ali depois de um arremesso): volta para ela.
       const destino = this.x < min || this.x > max
@@ -353,9 +362,50 @@
       this.olhar('');
     }
 
+    // Fantasma e nuvem: voam para um ponto qualquer da sala, balançando.
+    async voarAte(passo) {
+      const s = this.sala();
+      if (!s) return;
+      const [min, max] = this.faixa();
+      const alvo = { x: min + Math.random() * (max - min), y: s.teto + 20 + Math.random() * Math.max(10, this.chaoEm(this.x, this.y + ALT) - s.teto - 20) };
+      this.virar(alvo.x < this.x ? 'esq' : 'dir');
+      this.classe('andando');
+      const vel = 60;
+      let ultimo = performance.now();
+      await new Promise((fim) => {
+        const quadro = (t) => {
+          const dt = (t - ultimo) / 1000; ultimo = t;
+          if (!this.vale(passo)) return fim();
+          const dx = alvo.x - this.x, dy = alvo.y - this.y, d = Math.hypot(dx, dy);
+          if (d < 1.5) return fim();
+          const k = Math.min(1, (vel * dt) / d);
+          this.x += dx * k; this.y += dy * k;
+          this.desenhar();
+          quadroSeguinte(quadro);
+        };
+        quadroSeguinte(quadro);
+      });
+      this.classe('andando', false);
+    }
+    // Gosma: vai pulando até o destino (2 a 4 pulinhos).
+    async pularAte(passo) {
+      const [min, max] = this.faixa();
+      const destino = min + Math.random() * (max - min);
+      const lado = destino < this.x ? -1 : 1;
+      this.virar(lado < 0 ? 'esq' : 'dir');
+      for (let i = 0; i < 4 && this.vale(passo) && Math.abs(destino - this.x) > 20; i++) {
+        this.vx = lado * Math.min(170, Math.abs(destino - this.x) * 1.6);
+        this.vy = -760;
+        this.voar();
+        for (let k = 0; k < 60 && this.noAr; k++) await espera(40);
+        await espera(120);
+      }
+    }
+
     // --- física: pulo, queda, arremesso -----------------------------------
     pular(vy) {
       if (this.noAr || this.arrastando) return;
+      if (this.jeito() === 'pula') vy *= 1.45; // a gosma pula mais alto
       this.vy = vy; this.vx = 0;
       this.voar();
     }
@@ -366,7 +416,9 @@
       const quadro = (t) => {
         if (this.arrastando) return;
         const dt = Math.min((t - ultimo) / 1000, 0.04); ultimo = t;
-        this.vy += GRAVIDADE * dt;
+        const voa = this.jeito() === 'voa';
+        // Quem voa não tem gravidade: o empurrão vai perdendo força no ar.
+        if (voa) { this.vx *= Math.pow(0.12, dt); this.vy *= Math.pow(0.12, dt); } else this.vy += GRAVIDADE * dt;
         const pesAntes = this.y + ALT;
         this.x += this.vx * dt; this.y += this.vy * dt;
         // Paredes, teto e chão da sala dele (o painel onde foi solto).
@@ -375,6 +427,13 @@
         if (this.x > s.x1) { this.x = s.x1; this.vx = -this.vx * QUIQUE; }
         if (this.y < s.teto) { this.y = s.teto; this.vy = -this.vy * QUIQUE; }
         const chao = this.vy >= 0 ? this.chaoEm(this.x, pesAntes) : s.chao;
+        if (voa) {
+          if (this.y > chao) { this.y = chao; this.vy = -this.vy * QUIQUE; }
+          if (Math.hypot(this.vx, this.vy) < 25) { this.vx = 0; this.vy = 0; this.noAr = false; this.classe('voando', false); this.desenhar(); return; }
+          this.desenhar();
+          quadroSeguinte(quadro);
+          return;
+        }
         if (this.y >= chao) {
           this.y = chao;
           const forte = this.vy > 900;

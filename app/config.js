@@ -76,6 +76,9 @@ const PADRAO = {
   // mas o app usa o Claude até ela ser suportada.
   iaOrquestrador: 'claude',
   iaAgentes: 'claude',
+  // Caminho do executável de cada CLI, para quem instala fora do PATH:
+  // { "claude": "/opt/claude/bin/claude" }. Sem entrada: acha no PATH.
+  iasCaminhos: {},
 };
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
@@ -88,12 +91,28 @@ function ler() {
   const c = { ...PADRAO, ...lerArquivo() };
   c.raizProjetos = casa(process.env.ORQ_APP_DEV || c.raizProjetos);
   c.pastaNotas = casa(c.pastaNotas);
+  c.iasCaminhos = caminhosIas(c.iasCaminhos) || {};
   return c;
 }
 
 // Como está escrito (sem expandir ~), por cima dos padrões: o que a tela de
 // configurações mostra para editar.
 function cru() { return { ...PADRAO, ...lerArquivo() }; }
+
+// iasCaminhos: só ids conhecidos, caminho absoluto (~ expandido). Texto vazio
+// tira a entrada (volta a usar o detectado no PATH). null: valor inválido.
+function caminhosIas(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const r = {};
+  for (const [id, cam] of Object.entries(v)) {
+    if (!ias.IDS.includes(id) || (cam != null && typeof cam !== 'string')) return null;
+    const abs = casa(texto(cam));
+    if (!abs) continue;
+    if (!path.isAbsolute(abs) || abs.includes('\0')) return null;
+    r[id] = path.normalize(abs);
+  }
+  return r;
+}
 
 const regexOk = (r) => { if (r == null || r === '') return true; try { new RegExp(r); return true; } catch { return false; } };
 const texto = (v) => (typeof v === 'string' ? v.trim() : '');
@@ -121,6 +140,7 @@ function validar(m) {
       case 'navegadorControle': aceitar(k, typeof v === 'boolean', v); break;
       case 'navegadorPorta': aceitar(k, Number.isInteger(v) && (v === 0 || (v >= 1024 && v <= 65535)), v); break;
       case 'iaOrquestrador': case 'iaAgentes': aceitar(k, ias.IDS.includes(v), v); break;
+      case 'iasCaminhos': { const c = caminhosIas(v); aceitar(k, !!c, c); break; }
       case 'detectarFerramentas': aceitar(k, typeof v === 'boolean', v); break;
       case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
       case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;

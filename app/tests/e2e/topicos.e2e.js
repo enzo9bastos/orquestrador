@@ -103,5 +103,79 @@ test('topicos', async (t) => {
     assert.strictEqual(await app.avaliar("document.getElementById('titulo-detalhe').textContent"), 'Agente 2');
   });
 
+  // Pedido de 2026-10-30: o orquestrador sugere; o usuário aprova ou recusa.
+  await t.test('sugestão aparece primeiro, marcada, com Aprovar e Recusar', async () => {
+    const id = orq('sugerir', 'Revisar os backups', '--resumo', 'Conferir se os backups da semana rodaram.', '--item', 'listar os backups', '--item', 'testar uma restauração');
+    await app.esperar(`!!document.querySelector('#topicos [data-topico="${id}"].estado-sugerido')`, 4000);
+    assert.strictEqual(await app.avaliar("document.querySelector('#topicos .topico').dataset.topico"), id, 'sugerido vem antes dos outros');
+    const c = await app.avaliar(`document.querySelector('[data-topico="${id}"]').innerText.replace(/\\s+/g, ' ')`);
+    assert.match(c, /Sugerido pelo orquestrador/);
+    assert.match(c, /Conferir se os backups da semana rodaram/);
+    assert.match(c, /Etapas previstas/i); // o rótulo é em caixa alta pelo CSS
+    assert.match(c, /testar uma restauração/);
+    assert.ok(await app.avaliar(`!!document.querySelector('[data-aprovar-topico="${id}"]') && !!document.querySelector('[data-recusar-topico="${id}"]')`));
+    assert.strictEqual(await app.avaliar(`document.querySelector('[data-titulo-sugerido="${id}"]').value`), 'Revisar os backups');
+    assert.ok(await app.avaliar(`!document.querySelector('[data-topico="${id}"] [data-concluir-topico]')`), 'sugerido não tem Concluir');
+  });
+
+  await t.test('aprovar (com o título corrigido) vira aberto, com as etapas no checklist', async () => {
+    const id = lerArq().find((x) => x.estado === 'sugerido').id;
+    await app.avaliar(`(() => { const c = document.querySelector('[data-titulo-sugerido="${id}"]'); c.value = 'Revisar os backups da semana'; c.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await app.avaliar(`document.querySelector('[data-aprovar-topico="${id}"]').click()`);
+    await app.esperar(`!!document.querySelector('#topicos [data-topico="${id}"].estado-aberto')`, 4000);
+    const t = lerArq().find((x) => x.id === id);
+    assert.strictEqual(t.estado, 'aberto');
+    assert.strictEqual(t.titulo, 'Revisar os backups da semana');
+    assert.strictEqual(await app.avaliar(`document.querySelectorAll('[data-topico="${id}"] [data-item-topico]').length`), 2);
+    assert.match(await app.avaliar(`document.querySelector('[data-topico="${id}"] .topico-resumo').innerText`), /Conferir se os backups/);
+  });
+
+  await t.test('resumo editado no próprio cartão grava no arquivo', async () => {
+    const id = lerArq().find((x) => x.titulo === 'Revisar os backups da semana').id;
+    await app.avaliar(`document.querySelector('[data-topico="${id}"] p[data-editar-resumo]').click()`);
+    assert.ok(await app.avaliar("document.activeElement.classList.contains('topico-resumo-edicao')"));
+    await app.avaliar("(() => { const a = document.activeElement; a.value = 'Backups da semana conferidos um a um.'; a.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()");
+    await app.esperar(`/conferidos um a um/.test(document.querySelector('[data-topico="${id}"] .topico-resumo')?.innerText || '')`, 4000);
+    assert.strictEqual(lerArq().find((x) => x.id === id).resumo, 'Backups da semana conferidos um a um.');
+  });
+
+  await t.test('recusar vai para "Recusados (N)" e reconsiderar traz de volta', async () => {
+    const id = orq('sugerir', 'Trocar o tema do editor');
+    await app.esperar(`!!document.querySelector('[data-recusar-topico="${id}"]')`, 4000);
+    await app.avaliar(`document.querySelector('[data-recusar-topico="${id}"]').click()`);
+    await app.esperar("!document.getElementById('topicos-recusados').hidden", 4000);
+    assert.strictEqual(lerArq().find((x) => x.id === id).estado, 'recusado');
+    assert.match(await app.avaliar("document.getElementById('resumo-recusados').textContent"), /Recusados \(1\)/);
+    assert.ok(await app.avaliar(`!document.querySelector('#topicos [data-topico="${id}"]') && !!document.querySelector('#lista-recusados [data-topico="${id}"]')`));
+    assert.ok(!(await app.avaliar("document.getElementById('topicos-recusados').open")), 'recolhido');
+    await app.avaliar(`document.querySelector('[data-reconsiderar-topico="${id}"]').click()`);
+    await app.esperar(`!!document.querySelector('#topicos [data-topico="${id}"].estado-sugerido')`, 4000);
+    assert.ok(await app.avaliar("document.getElementById('topicos-recusados').hidden"));
+    assert.strictEqual(lerArq().find((x) => x.id === id).estado, 'sugerido');
+  });
+
+  // O Aprovar/Recusar lá de cima já mandou o aviso à conversa do orquestrador
+  // (o processo dela está de pé no teste): aparece como linha discreta.
+  await t.test('aprovar/recusar pela tela avisa o orquestrador por trás', async () => {
+    await app.esperar("document.querySelectorAll('#mensagens .msg-bastidor-topico').length >= 2", 4000);
+    const linhas = await app.avaliar("[...document.querySelectorAll('#mensagens .msg-bastidor-topico summary')].map((s) => s.textContent)");
+    assert.deepStrictEqual(linhas.slice(0, 2), ['📌 Tópico aprovado: Revisar os backups da semana', '📌 Tópico recusado: Trocar o tema do editor']);
+    assert.match(await app.avaliar("document.querySelector('#mensagens .msg-bastidor-topico .msg-bastidor-texto').textContent"), /aprovado pelo usuário: crie as etapas \(orq-topico item\) e mande um resumo \(orq-topico resumo\)/);
+    assert.ok(!(await app.avaliar("[...document.querySelectorAll('#mensagens .msg-voce')].some((b) => b.innerText.includes('orq-topico'))")), 'nenhum balão do usuário');
+  });
+
+  await t.test('aviso de tópico aprovado na conversa: linha discreta, não balão do usuário', async () => {
+    await app.esperar('!!window.__orqTeste', 4000);
+    const baloes = "document.querySelectorAll('#mensagens .msg-voce').length";
+    const antes = await app.avaliar(baloes);
+    const nAntes = await app.avaliar("document.querySelectorAll('#mensagens .msg-bastidor-topico').length");
+    const msg = '<orq-topico id="9" acao="aprovado" titulo="Revisar os backups">\nTópico #9 «Revisar os backups» aprovado pelo usuário: crie as etapas (orq-topico item) e mande um resumo (orq-topico resumo).\n</orq-topico>';
+    await app.avaliar(`window.__orqTeste.desenharEvento(${JSON.stringify({ tipo: 'user', local: true, message: { role: 'user', content: msg } })})`);
+    await app.avaliar(`window.__orqTeste.desenharEvento(${JSON.stringify({ tipo: 'user', antigo: true, message: { role: 'user', content: msg.replace('aprovado"', 'recusado"') } })})`);
+    assert.strictEqual(await app.avaliar(baloes), antes);
+    const linhas = await app.avaliar("[...document.querySelectorAll('#mensagens .msg-bastidor-topico summary')].map((s) => s.textContent)");
+    assert.deepStrictEqual(linhas.slice(nAntes), ['📌 Tópico aprovado: Revisar os backups', '📌 Tópico recusado: Revisar os backups']);
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });

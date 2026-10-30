@@ -252,9 +252,22 @@ ipcMain.handle('config:gravar', (_e, mudancas) => {
 // O resultado fica 1 min guardado; "Detectar de novo" passa forcar. Volta
 // junto a IA que de fato roda (escolhida não suportada = Claude).
 ipcMain.handle('ias:listar', async (_e, forcar) => {
-  const lista = await ias.listar({ env: conversa.ambienteLimpo(), forcar: forcar === true });
   const c = config.ler();
+  const lista = await ias.listar({ env: conversa.ambienteLimpo(), forcar: forcar === true, caminhos: c.iasCaminhos });
   return { ias: lista, orquestrador: ias.efetiva(c.iaOrquestrador, lista), agentes: ias.efetiva(c.iaAgentes, lista) };
+});
+// "Escolher…" no cartão de uma IA: a janela de abrir arquivo do sistema.
+// Só devolve o caminho; quem grava é a tela, por config:gravar (que valida).
+ipcMain.handle('ias:escolherCaminho', async (_e, id) => {
+  const cand = ias.CANDIDATOS.find((x) => x.id === id);
+  if (!cand) return null;
+  const atual = ias.caminhoEscolhido(id, config.ler().iasCaminhos);
+  const r = await dialog.showOpenDialog(janela, {
+    title: `Executável do ${cand.nome}`,
+    defaultPath: atual ? path.dirname(atual) : os.homedir(),
+    properties: ['openFile', 'showHiddenFiles', 'dontAddToRecent'],
+  });
+  return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
 });
 
 // --- tópicos (coluna da direita) -------------------------------------------
@@ -268,6 +281,19 @@ ipcMain.handle('topicos:marcar', pelaTela((id, item, feito) => topicos.marcar(id
 ipcMain.handle('topicos:estado', pelaTela((id, e) => topicos.estado(id, e)));
 // Pela tela, o segundo clique já foi a confirmação: conclui mesmo com item aberto.
 ipcMain.handle('topicos:concluir', pelaTela((id) => topicos.concluir(id, { mesmoAssim: true })));
+ipcMain.handle('topicos:resumo', pelaTela((id, txt) => topicos.resumo(id, txt)));
+ipcMain.handle('topicos:reconsiderar', pelaTela((id) => topicos.reconsiderar(id)));
+// Aprovar/recusar a sugestão do orquestrador: grava e avisa a conversa dele
+// por trás (só se estiver viva; senão ele vê no próximo orq-topico listar).
+const decidirTopico = (fn, acao) => (_e, ...a) => {
+  try {
+    const t = fn(...a);
+    try { topicos.avisarOrquestrador(conversa, t, acao); } catch { /* o aviso é extra; a decisão já está gravada */ }
+    return { topicos: topicos.ler() };
+  } catch (e) { return { erro: e.message }; }
+};
+ipcMain.handle('topicos:aprovar', decidirTopico((id, titulo) => topicos.aprovar(id, { titulo }), 'aprovado'));
+ipcMain.handle('topicos:recusar', decidirTopico((id) => topicos.recusar(id), 'recusado'));
 let pararTopicos = null;
 
 // --- dados ---------------------------------------------------------------

@@ -9,6 +9,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
+const configApp = require('./config');
+const ias = require('./ias');
 
 const ARQ = path.join(os.homedir(), '.config', 'orq-app', 'workflows.json');
 const VERSOES = path.join(os.homedir(), '.local', 'share', 'orq-app', 'versoes', 'workflows');
@@ -301,7 +303,8 @@ const PASSOS = {
   claude: async (c, entrada, _w, ctx) => {
     const p = preencher(c.prompt, entrada, ctx).trim();
     if (!p) throw new Error('pedido vazio');
-    const cmd = process.env.ORQ_WF_CLAUDE || 'claude';
+    // ORQ_WF_CLAUDE (testes) vale antes do caminho escolhido na engrenagem.
+    const cmd = process.env.ORQ_WF_CLAUDE || ias.comando('claude', configApp.ler().iasCaminhos);
     return { saida: await processo(cmd, ['-p', '--model', c.modelo], { cwd: os.homedir(), entrada: p, env: conversa.ambienteLimpo(), limite: 600000 }) };
   },
   comando: async (c, entrada, _w, ctx) => {

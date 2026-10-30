@@ -20,11 +20,20 @@
   // Espécies: o mesmo "esqueleto" (olhos em x 3 e 8, braços nas laterais, mão
   // direita em x 10–11), então todas vestem os mesmos 30 itens.
   // corpo: retângulos da pele; pernas: 4 (animam ao andar); braços: [x, y, l, a].
+  // detalhe: [x, y, l, a, classe] — brilho (luz) e sombra, por cima da pele.
   const ESPECIES = {
-    bicho: { nome: 'Bichinho', corpo: [[2, 0, 8, 5]], pernas: [[2, 5, 1, 2], [4, 5, 1, 2], [7, 5, 1, 2], [9, 5, 1, 2]], bracoE: [0, 2, 2, 2], bracoD: [10, 2, 2, 2] },
-    fantasma: { nome: 'Fantasminha', corpo: [[3, 0, 6, 1], [2, 1, 8, 5]], pernas: [[2, 6, 1, 1], [4, 6, 2, 1], [7, 6, 1, 1], [9, 6, 1, 1]], bracoE: [0, 3, 2, 1], bracoD: [10, 3, 2, 1] },
-    nuvem: { nome: 'Nuvem', corpo: [[4, 0, 4, 1], [2, 1, 8, 1], [1, 2, 10, 2], [2, 4, 8, 1]], pernas: [[3, 6, 1, 1], [5, 6.5, 1, 1], [7, 6, 1, 1], [9, 6.5, 1, 1]], bracoE: [0, 2, 1, 1], bracoD: [11, 2, 1, 1] },
-    gosma: { nome: 'Gosminha', corpo: [[4, 0, 4, 1], [3, 1, 6, 1], [2, 2, 8, 3]], pernas: [[1, 5, 3, 2], [4, 5, 2, 2], [6, 5, 2, 2], [8, 5, 3, 2]], bracoE: [1, 3, 1, 1], bracoD: [10, 3, 1, 1] },
+    // O clássico: o bonequinho do Claude Code (laranja, olhos de risquinho).
+    bicho: { nome: 'Bichinho', jeito: 'anda', corpo: [[2, 0, 8, 5]], pernas: [[2, 5, 1, 2], [4, 5, 1, 2], [7, 5, 1, 2], [9, 5, 1, 2]], bracoE: [0, 2, 2, 2], bracoD: [10, 2, 2, 2] },
+    // Fantasminha: cabeça redonda, rabo em três pontas, meio transparente; voa.
+    fantasma: { nome: 'Fantasminha', jeito: 'voa', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[2, 5, 2, 1.5], [4, 5, 1, 0.6], [5, 5, 2, 1.5], [8, 5, 2, 1.5]], bracoE: [0.5, 3, 1.5, 1], bracoD: [10, 3, 1.5, 1],
+      detalhe: [[3, 1, 1, 1, 'brilho'], [4, 0.4, 1, 0.6, 'brilho'], [2, 4, 8, 1, 'sombra']] },
+    // Nuvem: fofa e meio transparente; voa e muda de branco para cinza
+    // conforme o humor (pensando, trabalhando, triste — aí chove).
+    nuvem: { nome: 'Nuvem', jeito: 'voa', corpo: [[3, 0, 3, 1], [7, 0, 2, 1], [2, 1, 8, 1], [1, 2, 10, 2], [2, 4, 8, 1]], pernas: [[3, 6, 0.6, 1], [5, 6.6, 0.6, 1], [7, 6, 0.6, 1], [9, 6.6, 0.6, 1]], bracoE: [0, 2.5, 1, 1], bracoD: [11, 2.5, 1, 1],
+      detalhe: [[3, 1, 2, 0.6, 'brilho'], [7, 0.3, 1, 0.5, 'brilho'], [2, 4, 8, 1, 'sombra']] },
+    // Gosminha: gelatina transparente com brilho e bolhinha; anda pulando.
+    gosma: { nome: 'Gosminha', jeito: 'pula', corpo: [[4, 0, 4, 1], [3, 1, 6, 1], [2, 2, 8, 3]], pernas: [[1, 5, 3, 2], [4, 5, 2, 2], [6, 5, 2, 2], [8, 5, 3, 2]], bracoE: [1, 3, 1, 1], bracoD: [10, 3, 1, 1],
+      detalhe: [[3, 1, 1, 1, 'brilho'], [2, 2, 1, 1, 'brilho'], [7, 4, 1, 1, 'bolha'], [5.5, 5.5, 0.6, 0.6, 'bolha'], [1, 6, 10, 1, 'sombra']] },
   };
   const PARTES = [
     ['cabeca', 'Cabeça'], ['olhos', 'Olhos'], ['rosto', 'Rosto'],
@@ -93,6 +102,7 @@
       <g class="pet-corpo">
         ${r(e.bracoE, 'braco braco-e pele')}
         ${e.corpo.map((c) => r(c, 'pele')).join('')}
+        ${(e.detalhe || []).map(([x, y, w, h, cls]) => r([x, y, w, h], cls)).join('')}
         ${atras ? '' : it('corpo')}
         <g class="olhos"><rect class="olho" x="3" y="1" width="1" height="2"/><rect class="olho" x="8" y="1" width="1" height="2"/></g>
         ${it('rosto')}${it('pescoco')}${it('olhos')}${it('cabeca')}

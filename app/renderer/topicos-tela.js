@@ -1,16 +1,20 @@
 // Tópicos (coluna da direita): cada demanda em andamento, com o checklist do
 // que falta. O orquestrador mantém pelo orq-topico; aqui dá para criar, marcar
 // item, pôr em espera e concluir. A lista chega pronta do processo principal
-// sempre que o arquivo muda.
+// sempre que o arquivo muda. O que o orquestrador sugere aparece primeiro, com
+// Aprovar e Recusar; recusado vai para "Recusados (N)" e nunca some.
 (() => {
   const $ = (id) => document.getElementById(id);
   const T = window.orq.topicos;
   if (!T) return;
 
-  const ROTULO = { aberto: 'Aberto', esperando: 'Esperando você', concluido: 'Concluído' };
+  const ROTULO = { sugerido: 'Sugerido', aberto: 'Aberto', esperando: 'Esperando você', concluido: 'Concluído', recusado: 'Recusado' };
   let lista = [];
   let erro = null;
   let pendente = false; // chegou mudança enquanto alguém digitava num tópico
+  // Título de sugestão corrigido na tela e ainda não aprovado: sobrevive a um
+  // redesenho e vai junto no Aprovar.
+  const titulosEditados = new Map();
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const VAZIO = `<div class="vazio"><span class="ico-caixa"><svg class="ico"><use href="#i-lista"/></svg></span>
@@ -19,7 +23,52 @@
 
   // Conteúdo do usuário (título, código, itens) leva data-sem-traducao: o
   // tradutor da tela não mexe nele.
+  // Resumo: um parágrafo sob o título; clicar edita ali mesmo.
+  function resumoHtml(t, editavel) {
+    if (t.resumo) return `<p class="topico-resumo" data-sem-traducao${editavel ? ` data-editar-resumo="${esc(t.id)}" tabindex="0" role="button" title="Editar resumo"` : ''}>${esc(t.resumo)}</p>`;
+    return editavel ? `<button type="button" class="botao-texto topico-sem-resumo" data-editar-resumo="${esc(t.id)}">+ Resumo</button>` : '';
+  }
+
+  // Sugestão do orquestrador: título editável antes de aprovar, resumo, as
+  // etapas previstas e os botões Aprovar / Recusar.
+  function cartaoSugerido(t) {
+    return `<article class="topico estado-sugerido" data-topico="${esc(t.id)}">
+      <p class="topico-sugerido-por">Sugerido pelo orquestrador</p>
+      <header class="topico-cab">
+        <span class="chip-topico chip-sugerido">${ROTULO.sugerido}</span>
+        <input type="text" class="topico-titulo topico-titulo-editavel" data-titulo-sugerido="${esc(t.id)}" data-sem-traducao maxlength="200" value="${esc(titulosEditados.has(t.id) ? titulosEditados.get(t.id) : t.titulo)}" aria-label="Título do tópico sugerido" title="Dá para corrigir o título antes de aprovar">
+      </header>
+      ${resumoHtml(t, true)}
+      <div class="topico-meta">
+        <span class="topico-id" data-sem-traducao>#${esc(t.id)}</span>
+        ${t.codigo ? `<span class="topico-codigo" data-sem-traducao title="Código">${esc(t.codigo)}</span>` : ''}
+        ${t.agentes.length ? `<span class="topico-agentes" data-sem-traducao>${esc(t.agentes.join(', '))}</span>` : ''}
+      </div>
+      ${t.itens.length ? `<p class="topico-etapas-rotulo">Etapas previstas</p><ol class="etapas-sugeridas">${t.itens.map((i) => `<li data-sem-traducao>${esc(i.texto)}</li>`).join('')}</ol>` : ''}
+      <form class="novo-item-topico" data-novo-item="${esc(t.id)}" autocomplete="off">
+        <input type="text" maxlength="1000" placeholder="+ Etapa prevista" aria-label="Nova etapa prevista">
+      </form>
+      <div class="acoes">
+        <button type="button" class="botao secundario" data-recusar-topico="${esc(t.id)}">Recusar</button>
+        <button type="button" class="botao primario" data-aprovar-topico="${esc(t.id)}">Aprovar</button>
+      </div>
+    </article>`;
+  }
+
+  function cartaoRecusado(t) {
+    return `<article class="topico estado-recusado" data-topico="${esc(t.id)}">
+      <header class="topico-cab">
+        <span class="chip-topico chip-recusado">${ROTULO.recusado}</span>
+        <strong class="topico-titulo" data-sem-traducao>${esc(t.titulo)}</strong>
+      </header>
+      ${resumoHtml(t, false)}
+      <div class="acoes"><button type="button" class="botao secundario" data-reconsiderar-topico="${esc(t.id)}">Reconsiderar</button></div>
+    </article>`;
+  }
+
   function cartao(t) {
+    if (t.estado === 'sugerido') return cartaoSugerido(t);
+    if (t.estado === 'recusado') return cartaoRecusado(t);
     const feitos = t.itens.filter((i) => i.feito).length;
     const total = t.itens.length;
     const concluido = t.estado === 'concluido';
@@ -28,6 +77,7 @@
         <span class="chip-topico chip-${esc(t.estado)}">${ROTULO[t.estado]}</span>
         <strong class="topico-titulo" data-sem-traducao>${esc(t.titulo)}</strong>
       </header>
+      ${resumoHtml(t, !concluido)}
       <div class="topico-meta">
         <span class="topico-id" data-sem-traducao>#${esc(t.id)}</span>
         ${t.codigo ? `<span class="topico-codigo" data-sem-traducao title="Código">${esc(t.codigo)}</span>` : ''}
@@ -51,12 +101,16 @@
 
   function desenhar() {
     // Não redesenha debaixo de quem está digitando: espera sair do campo.
-    if ($('topicos').contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') { pendente = true; return; }
+    const ativo = document.activeElement;
+    if ($('topicos').contains(ativo) && ((ativo.tagName === 'INPUT' && ativo.type === 'text') || ativo.tagName === 'TEXTAREA')) { pendente = true; return; }
     pendente = false;
-    const abertos = lista.filter((t) => t.estado !== 'concluido');
+    const abertos = lista.filter((t) => t.estado !== 'concluido' && t.estado !== 'recusado');
     const concluidos = lista.filter((t) => t.estado === 'concluido').sort((a, b) => (b.concluido || 0) - (a.concluido || 0));
-    // Esperando você primeiro; depois os mais recentes.
-    abertos.sort((a, b) => (a.estado === 'esperando' ? 0 : 1) - (b.estado === 'esperando' ? 0 : 1) || b.atualizado - a.atualizado);
+    const recusados = lista.filter((t) => t.estado === 'recusado').sort((a, b) => (b.recusado || 0) - (a.recusado || 0));
+    // Sugeridos primeiro (esperam a sua decisão), depois esperando você; no
+    // fim os mais recentes.
+    const peso = (t) => (t.estado === 'sugerido' ? 0 : t.estado === 'esperando' ? 1 : 2);
+    abertos.sort((a, b) => peso(a) - peso(b) || b.atualizado - a.atualizado);
     $('n-topicos').textContent = abertos.length ? String(abertos.length) : '';
     const html = erro
       ? `<div class="vazio"><strong>Não consegui ler os tópicos</strong><span data-sem-traducao>${esc(erro)}</span></div>`
@@ -66,6 +120,44 @@
     $('resumo-concluidos').textContent = `Concluídos (${concluidos.length})`;
     const htmlC = concluidos.map(cartao).join('');
     if ($('lista-concluidos')._html !== htmlC) { $('lista-concluidos')._html = htmlC; $('lista-concluidos').innerHTML = htmlC; }
+    $('topicos-recusados').hidden = !recusados.length;
+    $('resumo-recusados').textContent = `Recusados (${recusados.length})`;
+    const htmlR = recusados.map(cartao).join('');
+    if ($('lista-recusados')._html !== htmlR) { $('lista-recusados')._html = htmlR; $('lista-recusados').innerHTML = htmlR; }
+  }
+
+  // Edição do resumo no próprio cartão: Enter (sem Shift) ou sair do campo
+  // grava; Esc desiste.
+  function editarResumo(alvo) {
+    const id = alvo.dataset.editarResumo;
+    const t = lista.find((x) => x.id === id);
+    if (!t) return;
+    const area = document.createElement('textarea');
+    area.className = 'topico-resumo-edicao';
+    area.maxLength = 2000;
+    area.rows = 3;
+    area.value = t.resumo || '';
+    area.placeholder = 'Resumo do tópico (um parágrafo curto)';
+    area.setAttribute('aria-label', 'Resumo do tópico');
+    area.setAttribute('data-sem-traducao', '');
+    let feito = false;
+    const fim = async (gravar) => {
+      if (feito) return;
+      feito = true;
+      const novo = area.value.replace(/\s+/g, ' ').trim();
+      if (gravar && novo !== (t.resumo || '')) { area.disabled = true; receber(await T.resumo(id, novo)); }
+      // Volta a desenhar (com o resumo novo, ou o antigo se desistiu).
+      $('topicos')._html = null; $('lista-concluidos')._html = null;
+      area.blur();
+      desenhar();
+    };
+    area.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); fim(true); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); fim(false); }
+    });
+    area.addEventListener('blur', () => fim(true));
+    alvo.replaceWith(area);
+    area.focus();
   }
 
   function receber(r) {
@@ -124,10 +216,40 @@
     receber(await T.item(f.dataset.novoItem, txt));
   });
   coluna.addEventListener('focusout', () => setTimeout(() => { if (pendente) desenhar(); }, 0));
+  coluna.addEventListener('input', (ev) => {
+    const c = ev.target.closest('[data-titulo-sugerido]');
+    if (c) titulosEditados.set(c.dataset.tituloSugerido, c.value);
+  });
+  // Resumo em parágrafo: clique ou Enter abre a edição.
+  coluna.addEventListener('click', (ev) => {
+    const p = ev.target.closest('p[data-editar-resumo]');
+    if (p) editarResumo(p);
+  });
+  coluna.addEventListener('keydown', (ev) => {
+    const p = ev.target.closest('p[data-editar-resumo]');
+    if (p && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); editarResumo(p); }
+    // Enter no título sugerido não envia nada: só sai do campo.
+    if (ev.target.matches && ev.target.matches('[data-titulo-sugerido]') && ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); }
+  });
   coluna.addEventListener('click', async (ev) => {
     const b = ev.target.closest('button');
     if (!b) return;
-    if (b.dataset.concluirTopico) {
+    if (b.dataset.editarResumo) {
+      editarResumo(b);
+    } else if (b.dataset.aprovarTopico) {
+      const id = b.dataset.aprovarTopico;
+      const campo = b.closest('[data-topico]').querySelector('[data-titulo-sugerido]');
+      const t = lista.find((x) => x.id === id);
+      const titulo = campo && campo.value.trim();
+      b.disabled = true;
+      if (receber(await T.aprovar(id, titulo && t && titulo !== t.titulo ? titulo : undefined))) titulosEditados.delete(id);
+    } else if (b.dataset.recusarTopico) {
+      b.disabled = true;
+      receber(await T.recusar(b.dataset.recusarTopico));
+    } else if (b.dataset.reconsiderarTopico) {
+      b.disabled = true;
+      receber(await T.reconsiderar(b.dataset.reconsiderarTopico));
+    } else if (b.dataset.concluirTopico) {
       // Confirma no segundo clique (nada de janela de confirmação); avisa se
       // ainda tem item por fazer.
       if (!b.dataset.confirmando) {

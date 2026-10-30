@@ -147,6 +147,7 @@ test('navegador', async (t) => {
   await t.test('engrenagem: opção de deixar o orquestrador usar o navegador', async () => {
     await app.avaliar("document.getElementById('abrir-config').click()");
     await app.esperar("document.querySelector('[data-cfg=navegadorControle]').checked === true");
+    await app.avaliar("document.getElementById('config-aba-navegador').click()");
     await app.avaliar("document.querySelector('[data-cfg=navegadorControle]').closest('.config-linha').scrollIntoView({ block: 'center' })");
     assert.strictEqual(await app.visivel('[data-cfg=navegadorControle] + span'), 'ok');
     await app.tecla('Escape');

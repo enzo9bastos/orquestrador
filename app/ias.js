@@ -1,5 +1,6 @@
 // IAs conectadas: acha as ferramentas de IA de linha de comando (CLIs) que
-// estão no PATH do app, com a versão de cada uma. Primeiro passo para o app
+// estão no PATH do app (ou no caminho escolhido na engrenagem), com a versão
+// de cada uma. Primeiro passo para o app
 // conduzir agentes de outras IAs além do Claude Code: por enquanto só o
 // Claude sabe ser o orquestrador (conversa.js); as outras aparecem na lista.
 //
@@ -7,6 +8,7 @@
 // ambiente das conversas. Da saída fica só o número da versão: nada do que a
 // ferramenta imprimir (que pode ter conta, chave ou caminho) vai para a tela.
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
 
@@ -56,21 +58,61 @@ function perguntarVersao(abs, env) {
   });
 }
 
-async function detectar(env) {
+// Executável de verdade: arquivo (não pasta) com permissão de executar.
+// Devolve null se estiver tudo certo, ou o motivo: 'nao-existe' ou
+// 'nao-executavel'.
+function problemaDe(abs) {
+  let st;
+  try { st = fs.statSync(abs); } catch { return 'nao-existe'; }
+  if (!st.isFile()) return 'nao-executavel';
+  try { fs.accessSync(abs, fs.constants.X_OK); return null; } catch { return 'nao-executavel'; }
+}
+
+// Caminho escolhido na engrenagem para esta IA (iasCaminhos da config), já
+// com ~ expandido; só caminho absoluto conta.
+function caminhoEscolhido(id, caminhos) {
+  const v = caminhos && typeof caminhos === 'object' ? caminhos[id] : null;
+  if (typeof v !== 'string' || !v.trim()) return null;
+  const abs = v.trim().replace(/^~(?=$|\/)/, os.homedir());
+  return path.isAbsolute(abs) ? path.normalize(abs) : null;
+}
+
+// O que rodar para esta IA: o caminho escolhido, se existir e for
+// executável; senão o nome do comando, achado no PATH por quem roda (como
+// era antes de haver a escolha). Nunca vai por shell.
+function comando(id, caminhos) {
+  const c = CANDIDATOS.find((x) => x.id === id);
+  const escolhido = caminhoEscolhido(id, caminhos);
+  if (escolhido && !problemaDe(escolhido)) return escolhido;
+  return c ? c.comando : id;
+}
+
+// caminhos: { [id]: '/caminho/absoluto' } escolhidos na engrenagem. Com um
+// caminho escolhido e válido, ele é o usado; inválido, o cartão diz o motivo e
+// a detecção volta ao PATH (o mesmo que comando() faz na hora de rodar).
+async function detectar(env, caminhos) {
   return Promise.all(CANDIDATOS.map(async (c) => {
-    const caminho = acharNoPath(c.comando, env);
+    const escolhido = caminhoEscolhido(c.id, caminhos);
+    const problema = escolhido ? problemaDe(escolhido) : null;
+    const caminho = escolhido && !problema ? escolhido : acharNoPath(c.comando, env);
     const versao = caminho ? await perguntarVersao(caminho, env) : null;
-    return { id: c.id, nome: c.nome, comando: c.comando, encontrado: !!caminho, caminho, versao, suportado: c.suportado };
+    const r = { id: c.id, nome: c.nome, comando: c.comando, encontrado: !!caminho, caminho, versao, suportado: c.suportado };
+    if (escolhido) Object.assign(r, { escolhido, problema });
+    return r;
   }));
 }
 
-let cache = null; // { em, lista }
+let cache = null; // { em, chave, lista }
 let andando = null; // detecção em curso: quem pedir junto espera a mesma
 // forcar: o botão "Detectar de novo" (ignora o que está guardado).
-async function listar({ env = process.env, forcar = false } = {}) {
-  if (!forcar && cache && Date.now() - cache.em < VALIDADE) return cache.lista;
-  if (!andando) {
-    andando = detectar(env).then((lista) => { cache = { em: Date.now(), lista }; return lista; }).finally(() => { andando = null; });
+// Trocar um caminho escolhido invalida o que está guardado.
+async function listar({ env = process.env, forcar = false, caminhos = {} } = {}) {
+  const chave = JSON.stringify(caminhos || {});
+  if (!forcar && cache && cache.chave === chave && Date.now() - cache.em < VALIDADE) return cache.lista;
+  if (!andando || andando.chave !== chave) {
+    const p = detectar(env, caminhos).then((lista) => { cache = { em: Date.now(), chave, lista }; return lista; }).finally(() => { if (andando === p) andando = null; });
+    p.chave = chave;
+    andando = p;
   }
   return andando;
 }
@@ -82,4 +124,4 @@ function efetiva(escolhida, lista) {
   return c && c.suportado && c.encontrado ? c.id : PADRAO;
 }
 
-module.exports = { CANDIDATOS, IDS, PADRAO, listar, efetiva, versaoDe, acharNoPath, _limpar: () => { cache = null; } };
+module.exports = { CANDIDATOS, IDS, PADRAO, listar, efetiva, versaoDe, acharNoPath, comando, caminhoEscolhido, problemaDe, _limpar: () => { cache = null; } };

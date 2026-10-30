@@ -13,6 +13,7 @@ const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
 const config = require('./config');
+const ias = require('./ias');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
 const TESTE = process.env.ORQ_APP_TESTE === '1';
@@ -129,7 +130,9 @@ class Conversa {
     this.eventos = retomando ? historicoDoTranscript(this.sessao) : [];
     this.enviar('conversa:tudo', this.estado());
 
-    const proc = spawn('claude', args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
+    // O caminho escolhido na engrenagem (IAs conectadas), se houver e for
+    // executável; senão 'claude' do PATH.
+    const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
     let iniciou = false;
     proc.on('error', (e) => this.registrar({ tipo: 'erro', texto: `Não consegui abrir o Claude: ${e.message}` }));
@@ -255,8 +258,9 @@ class Conversa {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
-    // Mensagem de workflow (por trás): a resposta não vira notificação.
-    this.bastidor = /^<orq-workflow /.test(texto);
+    // Mensagem de workflow ou de tópico aprovado/recusado (por trás): a
+    // resposta não vira notificação.
+    this.bastidor = /^<orq-(workflow|topico) /.test(texto);
     if (!this.proc) this.iniciar();
     // Conversa avulsa ganha o nome da primeira coisa escrita nela.
     if (!this.orquestrador && /^Conversa \d+$/.test(this.titulo)) {

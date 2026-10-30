@@ -116,6 +116,9 @@ test('ajudante fora do app: protocolo da janelinha', { skip: !process.env.DISPLA
   manda({ t: 'respondido', ok: true });
   for (let i = 0; i < 40 && !(await js("document.getElementById('pergunta').hidden")); i++) await new Promise((x) => setTimeout(x, 100));
   assert.ok(await js("document.getElementById('pergunta').hidden"), 'fecha depois de responder');
+  // Depois de responder ele agradece e vai embora sozinho: espera sair de vez.
+  recebidas.length = 0;
+  await espera((m) => m.t === 'visivel' && !m.visivel, 15000);
 
   // Troca de área de trabalho (monitor principal): entra pela borda e volta ao mesmo lugar.
   manda({ t: 'pendencia', texto: 'teste', total: 1 });

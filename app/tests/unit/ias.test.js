@@ -85,3 +85,55 @@ test('config: iaOrquestrador e iaAgentes valem claude sem configuração e aceit
   assert.deepStrictEqual(recusado, []);
   assert.deepStrictEqual(config.validar({ iaOrquestrador: 'rm -rf', iaAgentes: 3 }).recusado, ['iaOrquestrador', 'iaAgentes']);
 });
+
+// Caminho escolhido na engrenagem (iasCaminhos): para quem instala o CLI fora
+// do PATH. Um executável numa pasta que não está no PATH.
+const fora = path.join(casa, 'instalado-a-mao');
+fs.mkdirSync(fora);
+fs.writeFileSync(path.join(fora, 'meu-claude'), '#!/bin/sh\necho "7.7.7 (Claude Code)"\n', { mode: 0o755 });
+fs.writeFileSync(path.join(fora, 'sem-permissao'), '#!/bin/sh\necho 1.0.0\n', { mode: 0o644 });
+
+test('ias: caminho escolhido vale no lugar do PATH, com a versão dele', async () => {
+  const caminhos = { claude: path.join(fora, 'meu-claude'), gemini: path.join(fora, 'meu-claude') };
+  const por = Object.fromEntries((await ias.listar({ env, caminhos })).map((c) => [c.id, c]));
+  assert.strictEqual(por.claude.caminho, path.join(fora, 'meu-claude'));
+  assert.strictEqual(por.claude.versao, '7.7.7');
+  assert.strictEqual(por.claude.escolhido, path.join(fora, 'meu-claude'));
+  assert.strictEqual(por.claude.problema, null);
+  assert.strictEqual(por.gemini.encontrado, true, 'gemini sem versão no PATH, mas o caminho escolhido responde');
+  assert.strictEqual(por.codex.caminho, path.join(bin, 'codex'), 'sem caminho escolhido: continua o PATH');
+  assert.ok(!('escolhido' in por.codex));
+  assert.strictEqual(ias.comando('claude', caminhos), path.join(fora, 'meu-claude'));
+  assert.strictEqual(ias.comando('codex', caminhos), 'codex');
+  assert.strictEqual(ias.comando('cursor', {}), 'cursor-agent');
+});
+
+test('ias: caminho escolhido inválido diz o motivo e volta ao PATH', async () => {
+  const caminhos = { claude: path.join(fora, 'nao-existe'), codex: path.join(fora, 'sem-permissao'), opencode: fora };
+  const por = Object.fromEntries((await ias.listar({ env, caminhos })).map((c) => [c.id, c]));
+  assert.strictEqual(por.claude.problema, 'nao-existe');
+  assert.strictEqual(por.claude.caminho, path.join(bin, 'claude'), 'volta ao do PATH');
+  assert.strictEqual(por.claude.versao, '9.8.7');
+  assert.strictEqual(por.codex.problema, 'nao-executavel');
+  assert.strictEqual(por.opencode.problema, 'nao-executavel', 'pasta não é executável');
+  assert.strictEqual(ias.comando('claude', caminhos), 'claude', 'na hora de rodar também volta ao PATH');
+  assert.strictEqual(ias.comando('codex', caminhos), 'codex');
+  assert.strictEqual(ias.caminhoEscolhido('claude', { claude: 'relativo/claude' }), null, 'caminho relativo não conta');
+  assert.strictEqual(ias.caminhoEscolhido('claude', { claude: '~/x/claude' }), path.join(casa, 'x', 'claude'), '~ vira a pasta pessoal');
+});
+
+test('ias: trocar o caminho escolhido não usa a lista guardada', async () => {
+  const a = await ias.listar({ env, caminhos: {} });
+  const b = await ias.listar({ env, caminhos: { claude: path.join(fora, 'meu-claude') } });
+  assert.notStrictEqual(a, b);
+  assert.strictEqual(b.find((c) => c.id === 'claude').versao, '7.7.7');
+});
+
+test('config: iasCaminhos aceita só ids conhecidos com caminho absoluto (~ expandido)', () => {
+  assert.deepStrictEqual(config.ler().iasCaminhos, {});
+  assert.deepStrictEqual(config.validar({ iasCaminhos: { claude: '~/bin/claude', codex: ' /opt/codex ', gemini: '' } }).ok,
+    { iasCaminhos: { claude: path.join(casa, 'bin', 'claude'), codex: '/opt/codex' } });
+  for (const ruim of [{ claude: 'bin/claude' }, { nada: '/x' }, { claude: 3 }, ['/x'], 'claude', null]) {
+    assert.deepStrictEqual(config.validar({ iasCaminhos: ruim }).recusado, ['iasCaminhos'], JSON.stringify(ruim));
+  }
+});

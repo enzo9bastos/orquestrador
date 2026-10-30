@@ -918,9 +918,51 @@
     "Agente pedindo permissão": "An agent asks for permission",
     "Aviso do sistema quando um agente entra na fila \"Precisa de você\".": "System notification when an agent joins the \"Needs you\" queue.",
     "Ajudante traz a pergunta": "The helper brings the question",
-    "O bichinho vem à tela com a pergunta para você responder ali, quando o app está fora de foco.": "The pet walks onto your screen with the question so you can answer right there, while the app is out of focus."
+    "O bichinho vem à tela com a pergunta para você responder ali, quando o app está fora de foco.": "The pet walks onto your screen with the question so you can answer right there, while the app is out of focus.",
+    "Sugerido": "Suggested",
+    "Recusado": "Rejected",
+    "Sugerido pelo orquestrador": "Suggested by the orchestrator",
+    "Aprovar": "Approve",
+    "Recusar": "Reject",
+    "Reconsiderar": "Reconsider",
+    "Etapas previstas": "Planned steps",
+    "+ Etapa prevista": "+ Planned step",
+    "Nova etapa prevista": "New planned step",
+    "Título do tópico sugerido": "Suggested topic title",
+    "Dá para corrigir o título antes de aprovar": "You can fix the title before approving",
+    "+ Resumo": "+ Summary",
+    "Editar resumo": "Edit summary",
+    "Resumo do tópico (um parágrafo curto)": "Topic summary (one short paragraph)",
+    "Resumo do tópico": "Topic summary",
+    "📌 Tópico aprovado:": "📌 Topic approved:",
+    "📌 Tópico recusado:": "📌 Topic rejected:",
+    "Aparência": "Appearance",
+    "Buscar nas configurações": "Search settings",
+    "Seções das configurações": "Settings sections",
+    "O app procura cada uma no PATH, ou no caminho que você escolher, e pergunta só a versão.": "The app looks for each one on the PATH, or at the path you choose, and only asks for its version.",
+    "Usando o caminho escolhido.": "Using the chosen path.",
+    "O caminho escolhido não existe; o app usa o do PATH.": "The chosen path doesn't exist; the app uses the one on the PATH.",
+    "O caminho escolhido não é um executável; o app usa o do PATH.": "The chosen path isn't an executable; the app uses the one on the PATH.",
+    "Vazio: o app acha no PATH": "Empty: the app finds it on the PATH",
+    "Caminho do executável": "Executable path",
+    "Escolher…": "Choose…",
+    "Usar o detectado": "Use the detected one",
+    "Um tópico é uma demanda sendo feita: o que pediram, quem está nela e o checklist do que falta. O orquestrador abre e atualiza pelo comando": "A topic is a request being worked on: what was asked, who is on it and the checklist of what is left. The Orchestrator suggests and updates topics with the command",
+    "; você também pode criar um em \"+ Novo tópico\".": "; you can also create one with \"+ New topic\"."
   },
   "padroes": [
+    [
+      "^📌 Tópico recusado: (.+)$",
+      "📌 Topic rejected: $1"
+    ],
+    [
+      "^📌 Tópico aprovado: (.+)$",
+      "📌 Topic approved: $1"
+    ],
+    [
+      "^Recusados \\((\\d+)\\)$",
+      "Rejected ($1)"
+    ],
     [
       "^Faltam (\\d+)\\. Concluir mesmo assim\\?$",
       "$1 left. Finish anyway?"

@@ -280,6 +280,11 @@
         <summary id="resumo-concluidos">Concluídos (0)</summary>
         <div id="lista-concluidos" class="lista-topicos"></div>
       </details>
+      <!-- Sugestões recusadas: guardadas, nunca apagadas; dá para reconsiderar. -->
+      <details id="topicos-recusados" class="topicos-concluidos topicos-recusados" hidden>
+        <summary id="resumo-recusados">Recusados (0)</summary>
+        <div id="lista-recusados" class="lista-topicos"></div>
+      </details>
     </section>
     <!-- Detalhe do agente: secundário, recolhível; abre ao clicar num agente à esquerda. -->
     <details class="bloco bloco-detalhe" id="bloco-detalhe" aria-label="Frente selecionada">
@@ -298,136 +303,164 @@
   </div>
 
   <div id="config" class="config-fundo" hidden>
-    <section class="config" role="dialog" aria-modal="true" aria-labelledby="config-titulo">
+    <section class="config config-com-secoes" role="dialog" aria-modal="true" aria-labelledby="config-titulo">
       <header><strong id="config-titulo">Configurações</strong>
         <button id="fechar-config" class="botao-icone" type="button" aria-label="Fechar">✕</button></header>
-      <div class="config-linha">
-        <div><strong>Tema</strong><span>Fundo escuro ou claro.</span></div>
-        <div class="segmentado" id="config-tema">
-          <button type="button" data-tema="dark">Escuro</button><button type="button" data-tema="light">Claro</button>
+      <div class="config-corpo">
+        <div class="config-lado">
+          <input type="search" id="config-busca" class="campo-config config-busca" placeholder="Buscar nas configurações" aria-label="Buscar nas configurações" autocomplete="off">
+          <nav class="config-nav" id="config-nav" role="tablist" aria-label="Seções das configurações" aria-orientation="vertical">
+            <button type="button" role="tab" id="config-aba-aparencia" data-secao-config="aparencia" aria-controls="config-sec-aparencia" aria-selected="false" tabindex="-1">Aparência</button>
+            <button type="button" role="tab" id="config-aba-idioma" data-secao-config="idioma" aria-controls="config-sec-idioma" aria-selected="false" tabindex="-1">Idioma · Language</button>
+            <button type="button" role="tab" id="config-aba-notificacoes" data-secao-config="notificacoes" aria-controls="config-sec-notificacoes" aria-selected="false" tabindex="-1">Notificações</button>
+            <button type="button" role="tab" id="config-aba-orquestracao" data-secao-config="orquestracao" aria-controls="config-sec-orquestracao" aria-selected="false" tabindex="-1">Orquestração</button>
+            <button type="button" role="tab" id="config-aba-ias" data-secao-config="ias" aria-controls="config-sec-ias" aria-selected="false" tabindex="-1">IAs conectadas (CLI)</button>
+            <button type="button" role="tab" id="config-aba-navegador" data-secao-config="navegador" aria-controls="config-sec-navegador" aria-selected="false" tabindex="-1">Navegador</button>
+            <button type="button" role="tab" id="config-aba-projetos" data-secao-config="projetos" aria-controls="config-sec-projetos" aria-selected="false" tabindex="-1">Projetos e agentes</button>
+            <button type="button" role="tab" id="config-aba-notas" data-secao-config="notas" aria-controls="config-sec-notas" aria-selected="false" tabindex="-1">Notas</button>
+            <button type="button" role="tab" id="config-aba-avancado" data-secao-config="avancado" aria-controls="config-sec-avancado" aria-selected="false" tabindex="-1">Avançado</button>
+          </nav>
+        </div>
+        <div class="config-paineis" id="config-paineis">
+          <div class="config-painel" role="tabpanel" id="config-sec-aparencia" data-secao="aparencia" aria-labelledby="config-aba-aparencia" tabindex="-1" hidden>
+            <h3 class="config-secao">Aparência</h3>
+            <div class="config-linha">
+              <div><strong>Tema</strong><span>Fundo escuro ou claro.</span></div>
+              <div class="segmentado" id="config-tema">
+                <button type="button" data-tema="dark">Escuro</button><button type="button" data-tema="light">Claro</button>
+              </div>
+            </div>
+            <div class="config-linha">
+              <div><strong>Cor de destaque</strong><span>Marca do Claude, seleção, perguntas e o aviso de "espera você". Verde (trabalhando) e vermelho (erro) não mudam.</span></div>
+              <div class="amostras" id="config-cores"></div>
+            </div>
+            <div class="config-linha">
+              <div><strong>Bichinho do orquestrador</strong><span>O orquestrador em pessoa, no canto da conversa.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="mostrarBichinho"><span></span></label>
+            </div>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-idioma" data-secao="idioma" aria-labelledby="config-aba-idioma" tabindex="-1" hidden>
+            <h3 class="config-secao">Idioma · Language</h3>
+            <div class="config-linha">
+              <div><strong>Idioma do app</strong><span>A tela recarrega na hora; as conversas continuam.</span></div>
+              <select class="campo-config" data-cfg="idioma" data-sem-traducao><option value="pt-BR">Português (Brasil)</option><option value="en">English</option></select>
+            </div>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-notificacoes" data-secao="notificacoes" aria-labelledby="config-aba-notificacoes" tabindex="-1" hidden>
+            <h3 class="config-secao">Notificações</h3>
+            <div class="config-linha">
+              <div><strong>Pergunta de uma conversa</strong><span>Aviso do sistema quando o orquestrador ou outra conversa do app pergunta algo ou pede permissão.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="notificacoes.pedidos"><span></span></label>
+            </div>
+            <div class="config-linha">
+              <div><strong>O orquestrador respondeu</strong><span>Aviso do sistema quando uma conversa termina de responder, só com a janela fora de foco.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="notificacoes.respostas"><span></span></label>
+            </div>
+            <div class="config-linha">
+              <div><strong>Agente pedindo permissão</strong><span>Aviso do sistema quando um agente entra na fila "Precisa de você".</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="notificacoes.agentes"><span></span></label>
+            </div>
+            <div class="config-linha">
+              <div><strong>Ajudante traz a pergunta</strong><span>O bichinho vem à tela com a pergunta para você responder ali, quando o app está fora de foco.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="notificacoes.ajudante"><span></span></label>
+            </div>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-orquestracao" data-secao="orquestracao" aria-labelledby="config-aba-orquestracao" tabindex="-1" hidden>
+            <h3 class="config-secao">Orquestração</h3>
+            <div class="config-linha">
+              <div><strong>Comando que abre a rodada</strong><span>O botão Iniciar manda este comando. Vazio: sem botão.</span></div>
+              <input class="campo-config" data-cfg="comandoInicial" placeholder="/orquestrar">
+            </div>
+            <div class="config-linha">
+              <div><strong>Comando que encerra a rodada</strong><span>O botão Desligar manda este comando. Vazio: sem botão.</span></div>
+              <input class="campo-config" data-cfg="comandoDesligar" placeholder="/desligar">
+            </div>
+            <div class="config-linha">
+              <div><strong>Reiniciar o app</strong><span>Aplica as atualizações. As conversas continuam de onde pararam, com toda a memória; só uma resposta em andamento é interrompida.</span></div>
+              <button type="button" class="botao-texto" id="reiniciar-app">Reiniciar mantendo as conversas</button>
+            </div>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-ias" data-secao="ias" aria-labelledby="config-aba-ias" tabindex="-1" hidden>
+            <h3 class="config-secao">IAs conectadas (CLI)</h3>
+            <div class="config-linha config-coluna">
+              <div><strong>Ferramentas de IA neste computador</strong><span>O app procura cada uma no PATH, ou no caminho que você escolher, e pergunta só a versão.</span></div>
+              <ul id="config-ias" class="config-ias" aria-live="polite"><li class="vazio-regra">Procurando…</li></ul>
+              <button type="button" class="botao-texto" id="config-ias-detectar">Detectar de novo</button>
+            </div>
+            <div class="config-linha">
+              <div><strong>Orquestrador usa</strong><span>Hoje só o Claude Code sabe ser o orquestrador.</span></div>
+              <select class="campo-config" data-cfg="iaOrquestrador" id="config-ia-orquestrador"></select>
+            </div>
+            <div class="config-linha">
+              <div><strong>Agentes novos usam</strong><span>A IA dos próximos agentes. As outras entram aqui quando forem suportadas.</span></div>
+              <select class="campo-config" data-cfg="iaAgentes" id="config-ia-agentes"></select>
+            </div>
+            <p class="config-ia-aviso" id="config-ia-aviso" hidden></p>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-navegador" data-secao="navegador" aria-labelledby="config-aba-navegador" tabindex="-1" hidden>
+            <h3 class="config-secao">Navegador</h3>
+            <div class="config-linha">
+              <div><strong>O orquestrador pode usar o navegador</strong><span>Pelo comando orq-nav, só de dentro deste computador e com uma chave que muda a cada abertura. Vale na próxima vez que o app abrir.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="navegadorControle"><span></span></label>
+            </div>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-projetos" data-secao="projetos" aria-labelledby="config-aba-projetos" tabindex="-1" hidden>
+            <h3 class="config-secao">Projetos e agentes</h3>
+            <div class="config-linha">
+              <div><strong>Pasta dos projetos</strong><span>Onde ficam os projetos dos agentes.</span></div>
+              <input class="campo-config" data-cfg="raizProjetos" placeholder="~/projetos">
+            </div>
+            <div class="config-linha">
+              <div><strong>Níveis de pasta</strong><span>1: pasta/projeto · 2: pasta/grupo/projeto.</span></div>
+              <div class="segmentado" data-segmento="niveis"><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button></div>
+            </div>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-notas" data-secao="notas" aria-labelledby="config-aba-notas" tabindex="-1" hidden>
+            <h3 class="config-secao">Notas</h3>
+            <div class="config-linha config-coluna">
+              <div><strong>Pastas abertas na aba Notas</strong><span>Tirar daqui só tira do app; nada é apagado do disco.</span></div>
+              <ul id="config-pastas" class="config-pastas"></ul>
+              <button type="button" class="botao-texto" id="config-pasta-mais">+ Abrir pasta do computador</button>
+            </div>
+            <div class="config-linha">
+              <div><strong>Pasta de tópicos e diários</strong><span>Onde o orquestrador guarda topicos.md e o diário.</span></div>
+              <input class="campo-config" data-cfg="pastaNotas" placeholder="~/notas">
+            </div>
+          </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-avancado" data-secao="avancado" aria-labelledby="config-aba-avancado" tabindex="-1" hidden>
+            <h3 class="config-secao">Avançado</h3>
+            <div class="config-linha">
+              <div><strong>Achar o que criei nas ferramentas de IA</strong><span>Repertório: skills, comandos, subagentes, prompts e workflows do Claude, Codex, Gemini, OpenCode, Windsurf, Cursor e do padrão dos agentes.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="detectarFerramentas"><span></span></label>
+            </div>
+            <div class="config-linha">
+              <div><strong>Pastas ignoradas</strong><span>Expressão regular dos nomes de pasta que não são projeto.</span></div>
+              <input class="campo-config mono" data-cfg="ignorar" placeholder="^[_.-]">
+            </div>
+            <div class="config-linha config-coluna">
+              <div><strong>Linha da tarefa nos tópicos</strong><span>Expressão com os grupos numero, alvo e tarefa.</span></div>
+              <input class="campo-config mono largo" data-cfg="linhaTarefa">
+            </div>
+            <div class="config-linha config-coluna">
+              <div><strong>Ordem a um agente</strong><span>Expressão com os grupos acao e alvo (o bichinho anuncia).</span></div>
+              <input class="campo-config mono largo" data-cfg="comandoOrdem">
+            </div>
+            <div class="config-linha">
+              <div><strong>Rótulo do devcontainer</strong><span>Rótulo do Docker com a pasta do projeto.</span></div>
+              <input class="campo-config mono" data-cfg="rotuloContainer">
+            </div>
+            <div class="config-linha">
+              <div><strong>Pasta de transcripts no container</strong><span>{projeto} vira o nome do projeto.</span></div>
+              <input class="campo-config mono" data-cfg="pastaTranscript">
+            </div>
+            <div class="config-linha config-coluna">
+              <div><strong>Variáveis de ambiente extras</strong><span>Uma por linha, NOME=valor. Valem para conversas e terminais novos.</span></div>
+              <textarea class="campo-config mono largo" data-cfg="ambiente" rows="3"></textarea>
+            </div>
+          </div>
+            <p class="config-sem-resultado" id="config-sem-resultado" hidden>Nada encontrado.</p>
         </div>
       </div>
-      <div class="config-linha">
-        <div><strong>Cor de destaque</strong><span>Marca do Claude, seleção, perguntas e o aviso de "espera você". Verde (trabalhando) e vermelho (erro) não mudam.</span></div>
-        <div class="amostras" id="config-cores"></div>
-      </div>
-      <div class="config-linha">
-        <div><strong>Reiniciar o app</strong><span>Aplica as atualizações. As conversas continuam de onde pararam, com toda a memória; só uma resposta em andamento é interrompida.</span></div>
-        <button type="button" class="botao-texto" id="reiniciar-app">Reiniciar mantendo as conversas</button>
-      </div>
-      <div class="config-linha">
-        <div><strong>Bichinho do orquestrador</strong><span>O orquestrador em pessoa, no canto da conversa.</span></div>
-        <label class="chave"><input type="checkbox" data-cfg="mostrarBichinho"><span></span></label>
-      </div>
-
-      <h3 class="config-secao">Idioma · Language</h3>
-      <div class="config-linha">
-        <div><strong>Idioma do app</strong><span>A tela recarrega na hora; as conversas continuam.</span></div>
-        <select class="campo-config" data-cfg="idioma" data-sem-traducao><option value="pt-BR">Português (Brasil)</option><option value="en">English</option></select>
-      </div>
-
-      <h3 class="config-secao">Notificações</h3>
-      <div class="config-linha">
-        <div><strong>Pergunta de uma conversa</strong><span>Aviso do sistema quando o orquestrador ou outra conversa do app pergunta algo ou pede permissão.</span></div>
-        <label class="chave"><input type="checkbox" data-cfg="notificacoes.pedidos"><span></span></label>
-      </div>
-      <div class="config-linha">
-        <div><strong>O orquestrador respondeu</strong><span>Aviso do sistema quando uma conversa termina de responder, só com a janela fora de foco.</span></div>
-        <label class="chave"><input type="checkbox" data-cfg="notificacoes.respostas"><span></span></label>
-      </div>
-      <div class="config-linha">
-        <div><strong>Agente pedindo permissão</strong><span>Aviso do sistema quando um agente entra na fila "Precisa de você".</span></div>
-        <label class="chave"><input type="checkbox" data-cfg="notificacoes.agentes"><span></span></label>
-      </div>
-      <div class="config-linha">
-        <div><strong>Ajudante traz a pergunta</strong><span>O bichinho vem à tela com a pergunta para você responder ali, quando o app está fora de foco.</span></div>
-        <label class="chave"><input type="checkbox" data-cfg="notificacoes.ajudante"><span></span></label>
-      </div>
-
-      <h3 class="config-secao">Orquestração</h3>
-      <div class="config-linha">
-        <div><strong>Comando que abre a rodada</strong><span>O botão Iniciar manda este comando. Vazio: sem botão.</span></div>
-        <input class="campo-config" data-cfg="comandoInicial" placeholder="/orquestrar">
-      </div>
-      <div class="config-linha">
-        <div><strong>Comando que encerra a rodada</strong><span>O botão Desligar manda este comando. Vazio: sem botão.</span></div>
-        <input class="campo-config" data-cfg="comandoDesligar" placeholder="/desligar">
-      </div>
-
-      <h3 class="config-secao">IAs conectadas (CLI)</h3>
-      <div class="config-linha config-coluna">
-        <div><strong>Ferramentas de IA neste computador</strong><span>O app procura cada uma no PATH e pergunta só a versão.</span></div>
-        <ul id="config-ias" class="config-ias" aria-live="polite"><li class="vazio-regra">Procurando…</li></ul>
-        <button type="button" class="botao-texto" id="config-ias-detectar">Detectar de novo</button>
-      </div>
-      <div class="config-linha">
-        <div><strong>Orquestrador usa</strong><span>Hoje só o Claude Code sabe ser o orquestrador.</span></div>
-        <select class="campo-config" data-cfg="iaOrquestrador" id="config-ia-orquestrador"></select>
-      </div>
-      <div class="config-linha">
-        <div><strong>Agentes novos usam</strong><span>A IA dos próximos agentes. As outras entram aqui quando forem suportadas.</span></div>
-        <select class="campo-config" data-cfg="iaAgentes" id="config-ia-agentes"></select>
-      </div>
-      <p class="config-ia-aviso" id="config-ia-aviso" hidden></p>
-
-      <h3 class="config-secao">Navegador</h3>
-      <div class="config-linha">
-        <div><strong>O orquestrador pode usar o navegador</strong><span>Pelo comando orq-nav, só de dentro deste computador e com uma chave que muda a cada abertura. Vale na próxima vez que o app abrir.</span></div>
-        <label class="chave"><input type="checkbox" data-cfg="navegadorControle"><span></span></label>
-      </div>
-
-      <h3 class="config-secao">Projetos e agentes</h3>
-      <div class="config-linha">
-        <div><strong>Pasta dos projetos</strong><span>Onde ficam os projetos dos agentes.</span></div>
-        <input class="campo-config" data-cfg="raizProjetos" placeholder="~/projetos">
-      </div>
-      <div class="config-linha">
-        <div><strong>Níveis de pasta</strong><span>1: pasta/projeto · 2: pasta/grupo/projeto.</span></div>
-        <div class="segmentado" data-segmento="niveis"><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button></div>
-      </div>
-
-      <h3 class="config-secao">Notas</h3>
-      <div class="config-linha config-coluna">
-        <div><strong>Pastas abertas na aba Notas</strong><span>Tirar daqui só tira do app; nada é apagado do disco.</span></div>
-        <ul id="config-pastas" class="config-pastas"></ul>
-        <button type="button" class="botao-texto" id="config-pasta-mais">+ Abrir pasta do computador</button>
-      </div>
-      <div class="config-linha">
-        <div><strong>Pasta de tópicos e diários</strong><span>Onde o orquestrador guarda topicos.md e o diário.</span></div>
-        <input class="campo-config" data-cfg="pastaNotas" placeholder="~/notas">
-      </div>
-
-      <details class="config-avancado">
-        <summary>Avançado</summary>
-        <div class="config-linha">
-          <div><strong>Achar o que criei nas ferramentas de IA</strong><span>Repertório: skills, comandos, subagentes, prompts e workflows do Claude, Codex, Gemini, OpenCode, Windsurf, Cursor e do padrão dos agentes.</span></div>
-          <label class="chave"><input type="checkbox" data-cfg="detectarFerramentas"><span></span></label>
-        </div>
-        <div class="config-linha">
-          <div><strong>Pastas ignoradas</strong><span>Expressão regular dos nomes de pasta que não são projeto.</span></div>
-          <input class="campo-config mono" data-cfg="ignorar" placeholder="^[_.-]">
-        </div>
-        <div class="config-linha config-coluna">
-          <div><strong>Linha da tarefa nos tópicos</strong><span>Expressão com os grupos numero, alvo e tarefa.</span></div>
-          <input class="campo-config mono largo" data-cfg="linhaTarefa">
-        </div>
-        <div class="config-linha config-coluna">
-          <div><strong>Ordem a um agente</strong><span>Expressão com os grupos acao e alvo (o bichinho anuncia).</span></div>
-          <input class="campo-config mono largo" data-cfg="comandoOrdem">
-        </div>
-        <div class="config-linha">
-          <div><strong>Rótulo do devcontainer</strong><span>Rótulo do Docker com a pasta do projeto.</span></div>
-          <input class="campo-config mono" data-cfg="rotuloContainer">
-        </div>
-        <div class="config-linha">
-          <div><strong>Pasta de transcripts no container</strong><span>{projeto} vira o nome do projeto.</span></div>
-          <input class="campo-config mono" data-cfg="pastaTranscript">
-        </div>
-        <div class="config-linha config-coluna">
-          <div><strong>Variáveis de ambiente extras</strong><span>Uma por linha, NOME=valor. Valem para conversas e terminais novos.</span></div>
-          <textarea class="campo-config mono largo" data-cfg="ambiente" rows="3"></textarea>
-        </div>
-      </details>
       <p class="config-arquivo" id="config-arquivo"></p>
     </section>
   </div>

@@ -37,6 +37,7 @@ test('ias: IAs conectadas na engrenagem', async (t) => {
     assert.strictEqual(gemini.estado, 'não encontrado');
     assert.strictEqual(gemini.ok, false);
     assert.strictEqual(gemini.emBreve, true);
+    await app.avaliar("document.getElementById('config-aba-ias').click()");
     await app.avaliar("document.querySelector('#config-ias li[data-ia=\"claude\"]').scrollIntoView({ block: 'center' })");
     assert.strictEqual(await app.visivel('#config-ias li[data-ia="claude"]'), 'ok');
   });
@@ -84,6 +85,76 @@ test('ias: em inglês', async (t) => {
     await app.esperar("document.querySelector('#config-ia-agentes option[value=\"codex\"]').textContent === 'Codex CLI — coming soon'");
     await app.esperar("document.getElementById('config-ia-aviso').textContent.trim() === \"New agents: Codex CLI doesn't run here yet; the app uses Claude Code.\"");
     assert.strictEqual(await app.avaliar("document.getElementById('config-ias-detectar').textContent.trim()"), 'Detect again');
+  });
+
+  await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
+});
+
+// Caminho escolhido: um "claude" de mentira fora do PATH, que anota quando é
+// aberto para conversar (sem --version). O PATH do app não tem claude nenhum.
+test('ias: caminho escolhido para o CLI', async (t) => {
+  const fora = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-ias-fora-'));
+  const falso = path.join(fora, 'claude-meu');
+  const marca = path.join(fora, 'abriu.txt');
+  fs.writeFileSync(falso, `#!/bin/sh\n[ "$1" = --version ] && { echo "6.5.4 (Claude Code)"; exit 0; }\necho "$@" >> "${marca}"\nexit 0\n`, { mode: 0o755 });
+  const antes = process.env.PATH;
+  process.env.PATH = '/usr/bin:/bin';
+  let app;
+  try { app = await abrirApp({ config: { iasCaminhos: { claude: falso } } }); } finally { process.env.PATH = antes; }
+  t.after(() => app.fechar());
+  await app.avaliar("document.getElementById('abrir-config').click()");
+  await app.avaliar("document.getElementById('config-aba-ias').click()");
+  await app.esperar("document.querySelectorAll('#config-ias li[data-ia]').length === 7", 15000);
+  const campo = "document.querySelector('[data-ia-caminho=\"claude\"]')";
+  const gravarCampo = (v) => app.avaliar(`(() => { const c = ${campo}; c.value = ${JSON.stringify(v)}; c.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  const nota = () => app.avaliar("(document.querySelector('#config-ias li[data-ia=\"claude\"] .ia-nota') || {}).textContent || ''");
+  const gravado = () => JSON.parse(app.ler('.config/orq-app/config.json')).iasCaminhos;
+
+  await t.test('o cartão usa o caminho escolhido, com a versão dele', async () => {
+    const c = await cartao(app, 'claude');
+    assert.deepStrictEqual(c, { estado: 'instalado v6.5.4', ok: true, caminho: falso, emBreve: false });
+    assert.strictEqual(await app.avaliar(`${campo}.value`), falso);
+    assert.strictEqual(await nota(), 'Usando o caminho escolhido.');
+    assert.strictEqual(await app.avaliar("document.querySelector('[data-ia-detectado=\"claude\"]').hidden"), false);
+    assert.strictEqual(await app.avaliar("document.querySelector('[data-ia-detectado=\"codex\"]').hidden"), true);
+    await app.avaliar(`${campo}.scrollIntoView({ block: 'center' })`);
+    assert.strictEqual(await app.visivel('[data-ia-escolher="claude"]'), 'ok');
+  });
+
+  await t.test('a conversa do orquestrador abre o Claude do caminho escolhido', async () => {
+    for (let i = 0; i < 100 && !fs.existsSync(marca); i++) await app.espera(100);
+    assert.ok(fs.existsSync(marca), 'o claude escolhido não foi aberto');
+    assert.match(fs.readFileSync(marca, 'utf8'), /--output-format stream-json/);
+  });
+
+  await t.test('caminho que não existe: grava, avisa e volta ao PATH', async () => {
+    await gravarCampo(path.join(fora, 'sumiu'));
+    await app.esperar("!!document.querySelector('#config-ias li[data-ia=\"claude\"] .ia-nota.problema')", 10000);
+    assert.strictEqual(await nota(), 'O caminho escolhido não existe; o app usa o do PATH.');
+    assert.strictEqual(gravado().claude, path.join(fora, 'sumiu'));
+    assert.strictEqual((await cartao(app, 'claude')).estado, 'não encontrado', 'o PATH do app não tem claude');
+  });
+
+  await t.test('caminho relativo não é gravado', async () => {
+    await gravarCampo('bin/claude');
+    await app.esperar("document.getElementById('config-arquivo').classList.contains('erro')");
+    assert.strictEqual(gravado().claude, path.join(fora, 'sumiu'));
+  });
+
+  await t.test('"Usar o detectado" tira o caminho escolhido', async () => {
+    await app.avaliar("document.querySelector('[data-ia-detectado=\"claude\"]').click()");
+    await app.esperar(`${campo}.value === '' && !document.querySelector('#config-ias li[data-ia="claude"] .ia-nota')`, 10000);
+    assert.deepStrictEqual(gravado(), {});
+    assert.strictEqual(await app.avaliar("document.querySelector('[data-ia-detectado=\"claude\"]').hidden"), true);
+  });
+
+  await t.test('~ no campo vira a pasta pessoal', async () => {
+    fs.mkdirSync(path.join(app.casa, 'ferramentas'));
+    fs.copyFileSync(falso, path.join(app.casa, 'ferramentas', 'claude'));
+    fs.chmodSync(path.join(app.casa, 'ferramentas', 'claude'), 0o755);
+    await gravarCampo('~/ferramentas/claude');
+    await app.esperar("(document.querySelector('#config-ias li[data-ia=\"claude\"] .estado') || {}).textContent === 'instalado v6.5.4'", 10000);
+    assert.strictEqual(gravado().claude, path.join(app.casa, 'ferramentas', 'claude'));
   });
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));

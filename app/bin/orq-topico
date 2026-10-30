@@ -2,12 +2,18 @@
 // orq-topico: mantém os Tópicos do App de Orquestração (a coluna da direita).
 // Um tópico é uma demanda em andamento; o app mostra as mudanças na hora.
 //
-//   orq-topico listar [--todos] [--json]     tópicos em andamento (--todos: com os concluídos)
-//   orq-topico abrir "<título>" [--codigo X] [--agente "Agente 3"]   cria e mostra o id
+//   orq-topico listar [--todos] [--json]     sugeridos, em andamento e recusados (--todos: com os concluídos)
+//   orq-topico listar --sugeridos            só os que esperam aprovação (--estado X: só aquele estado)
+//   orq-topico sugerir "<título>" [--resumo "…"] [--codigo X] [--agente "…"] [--item "…"]…
+//                                            sugere um tópico (o usuário aprova no app); mostra o id
+//   orq-topico resumo <id> "<texto>"         troca o resumo (um parágrafo curto)
+//   orq-topico titulo <id> "<texto>"         troca o título
+//   orq-topico aprovar <id> / recusar <id>   só quando o usuário mandar (o normal é ele fazer no app)
+//   orq-topico abrir "<título>" [--codigo X] [--agente "Agente 3"]   cria já aberto (só se o usuário pediu)
 //   orq-topico item <id> "<texto>"           acrescenta um item ao checklist
 //   orq-topico marcar <id> <nº do item>      item feito
 //   orq-topico desmarcar <id> <nº do item>   item volta a pendente
-//   orq-topico estado <id> aberto|esperando|concluido
+//   orq-topico estado <id> aberto|esperando|concluido|sugerido|recusado
 //   orq-topico agente <id> "<nome>"          põe mais um agente no tópico
 //   orq-topico nota <id> "<texto>"           acrescenta uma linha às notas
 //   orq-topico concluir <id> [--mesmo-assim] conclui (recusa se falta item)
@@ -22,7 +28,8 @@ const opc = {};
 const pos = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
-  if (['--json', '--todos', '--mesmo-assim'].includes(a)) opc[a.slice(2)] = true;
+  if (['--json', '--todos', '--mesmo-assim', '--sugeridos'].includes(a)) opc[a.slice(2)] = true;
+  else if (a === '--item') (opc.item = opc.item || []).push(args[++i]);
   else if (a.startsWith('--')) opc[a.slice(2)] = args[++i];
   else pos.push(a);
 }
@@ -33,14 +40,18 @@ if (!acao || acao === 'ajuda' || opc.help !== undefined || args.includes('-h')) 
   sair(topo.join('\n'), acao ? 0 : 1);
 }
 
-const ROTULO = { aberto: 'aberto', esperando: 'esperando você', concluido: 'concluído' };
+const ROTULO = { sugerido: 'sugerido, esperando aprovação', aberto: 'aberto', esperando: 'esperando você', concluido: 'concluído', recusado: 'recusado' };
 function mostrar(t) {
   const feitos = t.itens.filter((i) => i.feito).length;
   const cab = [`#${t.id} [${ROTULO[t.estado]}] ${t.titulo}`];
   if (t.codigo) cab.push(`(${t.codigo})`);
   if (t.agentes.length) cab.push(`· ${t.agentes.join(', ')}`);
-  if (t.itens.length) cab.push(`· ${feitos}/${t.itens.length}`);
+  if (t.itens.length && t.estado !== 'sugerido' && t.estado !== 'recusado') cab.push(`· ${feitos}/${t.itens.length}`);
   const linhas = [cab.join(' ')];
+  // Recusado ocupa uma linha só: está ali para não ser sugerido de novo.
+  if (t.estado === 'recusado') return linhas[0];
+  if (t.resumo) linhas.push(`   resumo: ${t.resumo}`);
+  if (t.estado === 'sugerido' && t.itens.length) linhas.push('   etapas previstas:');
   t.itens.forEach((i, n) => linhas.push(`   [${i.feito ? 'x' : ' '}] ${n + 1}. ${i.texto}`));
   if (t.notas) for (const l of t.notas.split('\n')) linhas.push(`   nota: ${l}`);
   return linhas.join('\n');
@@ -51,11 +62,26 @@ const ok = (t) => { console.log(opc.json ? JSON.stringify(t) : mostrar(t)); };
 try {
   switch (acao) {
     case 'listar': {
-      const l = topicos.ler().filter((t) => opc.todos || t.estado !== 'concluido');
+      if (opc.estado && !topicos.ESTADOS.includes(opc.estado)) sair(`estado deve ser ${topicos.ESTADOS.join(', ')}`);
+      const so = opc.sugeridos ? 'sugerido' : opc.estado;
+      // Sugeridos primeiro, depois o que anda, por fim os recusados.
+      const ordem = { sugerido: 0, esperando: 1, aberto: 2, concluido: 3, recusado: 4 };
+      const l = topicos.ler().filter((t) => (so ? t.estado === so : opc.todos || t.estado !== 'concluido'))
+        .sort((a, b) => ordem[a.estado] - ordem[b.estado] || Number(a.id) - Number(b.id));
       if (opc.json) console.log(JSON.stringify({ topicos: l }, null, 2));
-      else console.log(l.length ? l.map(mostrar).join('\n') : 'Nenhum tópico em andamento.');
+      else console.log(l.length ? l.map(mostrar).join('\n') : (so === 'sugerido' ? 'Nenhum tópico esperando aprovação.' : 'Nenhum tópico em andamento.'));
       break;
     }
+    case 'sugerir': {
+      precisa(1, 'sugerir "<título>" [--resumo "…"] [--codigo X] [--agente "…"] [--item "…"]…');
+      const t = topicos.sugerir({ titulo: resto.join(' '), resumo: opc.resumo, codigo: opc.codigo, agente: opc.agente, itens: opc.item });
+      console.log(opc.json ? JSON.stringify(t) : t.id);
+      break;
+    }
+    case 'resumo': precisa(2, 'resumo <id> "<texto>"'); ok(topicos.resumo(resto[0], resto.slice(1).join(' '))); break;
+    case 'titulo': precisa(2, 'titulo <id> "<texto>"'); ok(topicos.renomear(resto[0], resto.slice(1).join(' '))); break;
+    case 'aprovar': precisa(1, 'aprovar <id>'); ok(topicos.aprovar(resto[0])); break;
+    case 'recusar': precisa(1, 'recusar <id>'); ok(topicos.recusar(resto[0])); break;
     case 'abrir': {
       precisa(1, 'abrir "<título>" [--codigo X] [--agente "Agente 3"]');
       const t = topicos.abrir({ titulo: resto.join(' '), codigo: opc.codigo, agente: opc.agente });
@@ -66,7 +92,7 @@ try {
     case 'item': precisa(2, 'item <id> "<texto>"'); ok(topicos.item(resto[0], resto.slice(1).join(' '))); break;
     case 'marcar': precisa(2, 'marcar <id> <nº do item>'); ok(topicos.marcar(resto[0], resto[1], true)); break;
     case 'desmarcar': precisa(2, 'desmarcar <id> <nº do item>'); ok(topicos.marcar(resto[0], resto[1], false)); break;
-    case 'estado': precisa(2, 'estado <id> aberto|esperando|concluido'); ok(topicos.estado(resto[0], resto[1], { mesmoAssim: opc['mesmo-assim'] })); break;
+    case 'estado': precisa(2, 'estado <id> aberto|esperando|concluido|sugerido|recusado'); ok(topicos.estado(resto[0], resto[1], { mesmoAssim: opc['mesmo-assim'] })); break;
     case 'agente': precisa(2, 'agente <id> "<nome>"'); ok(topicos.agente(resto[0], resto.slice(1).join(' '))); break;
     case 'nota': precisa(2, 'nota <id> "<texto>"'); ok(topicos.nota(resto[0], resto.slice(1).join(' '))); break;
     case 'concluir': precisa(1, 'concluir <id> [--mesmo-assim]'); ok(topicos.concluir(resto[0], { mesmoAssim: opc['mesmo-assim'] })); break;

@@ -79,7 +79,9 @@ async function receber(m) {
   } else if (m.t === 'abrirApp') {
     trazerApp();
     if (m.conversa) ctx.enviarTela('conversa:focar', m.conversa);
-  } else if (m.t === 'voltar') { mandar({ t: 'sumir' }); mudarLugar(false); }
+  // Voltar para o app: ele só reaparece aqui dentro quando a janelinha avisar
+  // que terminou de sair ("visivel: false"); antes, os dois apareciam juntos.
+  } else if (m.t === 'voltar') { /* a janelinha já está saindo */ }
   else if (m.t === 'responder') responder(m);
 }
 

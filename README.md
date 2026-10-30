@@ -62,6 +62,16 @@ its current task, a progress bar and its model. Click one to see its last reply 
 right, or open its terminal. **Needs you** gathers every permission request and pending question from
 all agents into one queue with buttons.
 
+### 📌 Topics
+
+The right column keeps one card per request being worked on: title, ticket code, the agents on it, its state,
+a short summary and a checklist with progress. As requests come in, the **orchestrator suggests a topic**
+(title, summary and planned steps) with `orq-topico sugerir`; you **approve or reject** it on the card —
+fixing the title first if you want. Once approved, the orchestrator creates the steps, ticks them as the
+work gets done and finishes the topic when everything is done. Finished and rejected topics stay in
+collapsed lists (*Reopen*, *Reconsider*); nothing is ever deleted. *Needs you* sits above as a strip that only
+shows up when something is waiting.
+
 ### 🖥️ Terminals
 
 Up to four terminals in a grid, including ones attached to an agent's own `tmux` session — plus a spare
@@ -144,9 +154,14 @@ screen (the input box, attachments, agent cards).
   with the question and its options (or the permission, with *Allow / Deny*) and you answer right there.
 - **Call it from anywhere** with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> (`orq-pet`): chat right
   there, or **📷 crop a piece of your screen** and ask about it.
-- **Pick a friend and dress it up:** four species — the classic critter, a ghost, a cloud and a slime —
-  that all wear the same 30 items across 6 slots (hats, glasses, moustaches, ties, capes, a coffee mug…)
-  in 9 colors. Right-click the pet to open the wardrobe.
+- **Pick a friend and dress it up.** Four species, each with its own way of moving:
+  - the **classic critter** (Claude Code style) walks;
+  - the translucent **ghost** really flies around — inside the app and across your desktop;
+  - the **cloud** flies too, and changes from white to gray with its mood (it rains when something goes wrong);
+  - the see-through **slime** gets around by hopping, and jumps higher than anyone.
+
+  They all wear the same 30 items across 6 slots (hats, glasses, moustaches, ties, capes, a coffee mug…) in
+  9 colors. Right-click the pet to open the wardrobe.
 
 <table>
   <tr>
@@ -159,9 +174,10 @@ screen (the input box, attachments, agent cards).
 
 <img src="docs/images/themes.gif" alt="Dark and light themes with different accent colors" width="900">
 
-Dark or light theme, any accent color, **language (English / Português)**, the connected AI CLIs,
-notifications, the Start / Shut down commands, browser control, project folders, notes folders and
-environment variables — all from the gear menu, applied immediately.
+Settings are split into sections with search: appearance (dark or light theme, any accent color, the pet),
+**language (English / Português)**, one switch per notification, orchestration (Start / Shut down
+commands), **connected AI CLIs** (detected on your PATH, or point each one to a custom executable), browser
+control, projects, notes and advanced options — applied immediately.
 
 <img src="docs/images/settings.png" alt="The settings dialog" width="900">
 
