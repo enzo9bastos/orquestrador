@@ -301,8 +301,8 @@ class Conversa {
   }
 
   // Fim da rodada: o Claude sai, e o id da sessão deixa de ser o atual. Na
-  // próxima abertura o orquestrador começa uma rodada nova (comandoInicial) em
-  // vez de retomar esta. A conversa continua no histórico do Claude.
+  // próxima abertura o orquestrador começa uma conversa nova (e a rodada, no
+  // botão Iniciar) em vez de retomar esta. A conversa continua no histórico do Claude.
   encerrar() {
     if (this.sessao) { this.anteriores = [...(this.anteriores || []), this.sessao].slice(-20); this.sessao = null; }
     if (this.proc) { this.proc.encerrando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
@@ -365,11 +365,11 @@ function pegar(id) {
   return c;
 }
 
-// Abre (ou só mostra) uma conversa. O orquestrador, na primeira vez, já começa
-// rodando o comandoInicial da configuração — menos no modo de teste.
+// Abre (ou só mostra) uma conversa. O orquestrador não manda nada sozinho: a
+// rodada começa quando o usuário aperta Iniciar (que manda o comandoInicial).
 function abrir(id) {
   const c = pegar(id);
-  c.iniciar({ primeiraMensagem: c.orquestrador && !TESTE ? config.ler().comandoInicial : null });
+  c.iniciar();
   return c.estado();
 }
 

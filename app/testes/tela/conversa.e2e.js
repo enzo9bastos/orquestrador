@@ -132,6 +132,16 @@ test('conversa', async (t) => {
     assert.ok(await app.avaliar("!!document.querySelector('[data-pedido=\"perm-x\"] [data-permitir=\"1\"]')"));
   });
 
+  // Pedido de 2026-10-30: o app não começa a rodada sozinho; tem o botão Iniciar.
+  await t.test('abrir o app não manda o comando da rodada; o botão Iniciar fica ao lado do Desligar', async () => {
+    const e = await app.avaliar("window.orq.conversa.abrir('orquestrador')");
+    assert.ok(!e.eventos.some((x) => x.tipo === 'user'), 'nada foi mandado ao orquestrador');
+    assert.strictEqual(await app.visivel('#iniciar-rodada'), 'ok');
+    assert.strictEqual(await app.avaliar("document.getElementById('iniciar-rodada').nextElementSibling.id"), 'desligar');
+    await app.avaliar("window.dispatchEvent(new CustomEvent('orq:config', { detail: { tema: 'dark' } }))");
+    assert.strictEqual(await app.avaliar("document.getElementById('iniciar-rodada').hidden"), false);
+  });
+
   await t.test('Desligar pede confirmação no segundo clique', async () => {
     await app.avaliar("document.getElementById('desligar').click()");
     assert.match(await app.avaliar("document.getElementById('desligar').textContent"), /Confirmar/);
@@ -141,6 +151,7 @@ test('conversa', async (t) => {
     await app.avaliar("document.getElementById('nova-conversa').click()");
     await app.esperar("document.querySelectorAll('.item-conversa').length === 2");
     assert.ok(await app.avaliar("document.getElementById('desligar').hidden"), 'Desligar só no orquestrador');
+    assert.ok(await app.avaliar("document.getElementById('iniciar-rodada').hidden"), 'Iniciar só no orquestrador');
     await app.avaliar("document.querySelector('[data-conversa=\"orquestrador\"]').click()");
     await app.esperar("!document.getElementById('desligar').hidden");
   });

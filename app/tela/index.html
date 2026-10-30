@@ -85,6 +85,7 @@
           <span class="chip medidor" id="info-contexto" title="Contexto usado nesta conversa"></span>
           <span class="chip medidor" id="info-5h" title="Uso da janela de 5 horas"></span>
           <span class="chip medidor" id="info-7d" title="Uso da janela de 7 dias"></span>
+          <button id="iniciar-rodada" class="botao-texto iniciar-rodada" type="button" title="Manda o comando que abre a rodada ao orquestrador"><span class="rotulo-botao">Iniciar</span><svg class="ico so-icone" viewBox="0 0 16 16"><path d="M5 3.2v9.6L12.5 8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
           <button id="desligar" class="botao-texto perigo" type="button" title="Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança"><span class="rotulo-botao">Desligar</span><svg class="ico so-icone" viewBox="0 0 16 16"><path d="M8 2.5v5M4.6 4.6a4.8 4.8 0 1 0 6.8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
           <button id="nova-conversa" class="botao-texto sem-margem" type="button" title="Abre outra conversa com o Claude ao lado do orquestrador">+<span class="rotulo-botao"> Nova conversa</span></button>
         </header>
@@ -260,7 +261,7 @@
 
       <h3 class="config-secao">Orquestração</h3>
       <div class="config-linha">
-        <div><strong>Comando que abre a rodada</strong><span>Mandado ao orquestrador na primeira abertura. Vazio: nenhum.</span></div>
+        <div><strong>Comando que abre a rodada</strong><span>O botão Iniciar manda este comando. Vazio: sem botão.</span></div>
         <input class="campo-config" data-cfg="comandoInicial" placeholder="/orquestrar">
       </div>
       <div class="config-linha">

@@ -609,6 +609,7 @@
     const atual = l.find((c) => c.id === ativa);
     const aba = document.querySelector('[data-aba="aba-orquestrador"]');
     aba.lastChild.textContent = atual && !atual.orquestrador ? curto(atual.titulo, 24) : 'Orquestrador';
+    $('iniciar-rodada').hidden = !(atual && atual.orquestrador && cfg.comandoInicial);
     $('desligar').hidden = !(atual && atual.orquestrador && cfg.comandoDesligar);
     $('palco-pet').hidden = !!(atual && !atual.orquestrador);
     $('entrada').placeholder = atual && !atual.orquestrador
@@ -944,6 +945,13 @@
     await C.mandar(ativa, e.enviar, imagens, e.exibir);
   });
   $('parar').addEventListener('click', () => C.interromper(ativa));
+  // A rodada não começa sozinha ao abrir o app: começa aqui.
+  $('iniciar-rodada').addEventListener('click', () => {
+    if (!cfg.comandoInicial) return;
+    colado = true;
+    pet.definir('pensando');
+    C.mandar('orquestrador', cfg.comandoInicial);
+  });
   $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', () => {
     colado = true;
     if (cfg.comandoDesligar) C.mandar('orquestrador', cfg.comandoDesligar);
