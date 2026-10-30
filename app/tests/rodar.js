@@ -18,8 +18,8 @@ const area = (arq) => (fs.readFileSync(arq, 'utf8').match(/^\/\/ Área: (\S+)/m)
 const escolhe = (arq) => !areas.length || areas.includes(area(arq));
 
 const pasta = (p) => path.join(__dirname, p);
-const unidade = fs.readdirSync(pasta('unidade')).filter((f) => f.endsWith('.test.js')).map((f) => pasta(`unidade/${f}`)).filter(escolhe);
-const tela = fs.readdirSync(pasta('tela')).filter((f) => f.endsWith('.e2e.js')).map((f) => pasta(`tela/${f}`)).filter(escolhe);
+const unidade = fs.readdirSync(pasta('unit')).filter((f) => f.endsWith('.test.js')).map((f) => pasta(`unit/${f}`)).filter(escolhe);
+const tela = fs.readdirSync(pasta('e2e')).filter((f) => f.endsWith('.e2e.js')).map((f) => pasta(`e2e/${f}`)).filter(escolhe);
 
 let falhou = false;
 if (unidade.length) {

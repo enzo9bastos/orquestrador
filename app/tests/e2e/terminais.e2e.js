@@ -51,7 +51,7 @@ test('terminais', async (t) => {
     await app.avaliar(`${term}.focus()`);
     const tratado = await app.avaliar(`(() => { const e = new KeyboardEvent('keydown', { key: 'V', code: 'KeyV', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }); ${term}.dispatchEvent(e); return true; })()`);
     assert.ok(tratado);
-    const fonte = require('fs').readFileSync(require('path').join(__dirname, '../../tela/tela.js'), 'utf8');
+    const fonte = require('fs').readFileSync(require('path').join(__dirname, '../../renderer/tela.js'), 'utf8');
     assert.doesNotMatch(fonte, /k === 'v'\) \{ colarNoTerminal/, 'o atalho não pode colar por conta própria');
   });
 

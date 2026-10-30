@@ -12,7 +12,7 @@ const ajudante = require('../../ajudante');
 
 // O catálogo é código de tela (window.petVisual): roda num contexto à parte.
 const ctx = { window: {} };
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../tela/pet-visual.js'), 'utf8'), ctx);
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../renderer/pet-visual.js'), 'utf8'), ctx);
 const V = ctx.window.petVisual;
 
 test('pet: guarda-roupa tem 30 itens nas 6 partes do corpo', () => {

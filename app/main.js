@@ -43,7 +43,7 @@ function criarJanela() {
     minWidth: 900,
     minHeight: 680,
     title: 'Orquestração',
-    icon: path.join(__dirname, 'icone', 'orquestracao-256.png'),
+    icon: path.join(__dirname, 'icons', 'orquestracao-256.png'),
     backgroundColor: '#101114',
     // Sem a barra do sistema: o topo do app faz o papel dela (arrastar,
     // minimizar, maximizar, fechar), como os apps que desenham a própria barra.
@@ -63,7 +63,7 @@ function criarJanela() {
   // dependem disso nos testes).
   if (emTeste) janela.webContents.once('did-finish-load', () => janela.webContents.focus());
   janela.setMenuBarVisibility(false);
-  janela.loadFile(path.join(__dirname, 'tela', 'index.html'));
+  janela.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   janela.on('closed', () => { janela = null; });
   janela.on('maximize', () => janela.webContents.send('janela:maximizada', true));
   janela.on('unmaximize', () => janela.webContents.send('janela:maximizada', false));
@@ -73,7 +73,7 @@ function criarJanela() {
   // Ajuste em tempo real: salvar qualquer arquivo da tela recarrega a janela.
   // O terminal do orquestrador vive aqui no processo principal e não cai.
   let espera;
-  fs.watch(path.join(__dirname, 'tela'), () => {
+  fs.watch(path.join(__dirname, 'renderer'), () => {
     clearTimeout(espera);
     espera = setTimeout(() => janela && janela.webContents.reload(), 150);
   });

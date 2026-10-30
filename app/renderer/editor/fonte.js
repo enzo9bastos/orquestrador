@@ -1,6 +1,6 @@
 // Editor de notas no estilo Notion: blocos já formatados, "/" para inserir,
 // e o arquivo continua sendo Markdown. Empacotado pelo esbuild em
-// tela/editor.bundle.js (npm run editor), que expõe window.EditorNotas.
+// renderer/editor.bundle.js (npm run editor), que expõe window.EditorNotas.
 import { Editor, Extension, Mark, Node, mergeAttributes } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
 import { Details, DetailsSummary, DetailsContent } from '@tiptap/extension-details';
