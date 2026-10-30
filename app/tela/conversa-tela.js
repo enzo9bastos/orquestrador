@@ -54,6 +54,17 @@
   }
 
   function balaoUsuario(texto) {
+    // Mensagem que um workflow mandou por trás: não é do usuário, vira só uma
+    // linha discreta (abre para ver o texto).
+    const wf = /^<orq-workflow nome="([^"]*)">\n?([\s\S]*?)\n?<\/orq-workflow>\s*$/.exec(String(texto).trim());
+    if (wf) {
+      grupo = null;
+      const el = document.createElement('details');
+      el.className = 'msg-bastidor';
+      el.innerHTML = `<summary>⏱ Por trás · workflow «${esc(wf[1])}»</summary><div class="msg-bastidor-texto">${esc(wf[2])}</div>`;
+      caixa.append(el);
+      return;
+    }
     const u = textoDoUsuario(texto);
     if (!u) return;
     // O comando que abre a rodada não aparece: é bastidor, não conversa.

@@ -132,28 +132,51 @@
         <div id="navegadores" class="navegadores" data-n="0"></div>
       </section>
       <section id="aba-workflows" class="aba" aria-label="Workflows">
-        <div class="workflows">
-          <aside class="wf-lista">
-            <button type="button" class="botao-texto" id="novo-workflow">+ Novo workflow</button>
-            <div id="lista-workflows"></div>
-          </aside>
-          <div class="wf-centro">
-            <header class="wf-barra" id="wf-barra" hidden>
-              <input id="wf-nome" class="wf-nome" aria-label="Nome do workflow" spellcheck="false">
-              <label class="wf-ligado" title="Ligado: o relógio dispara sozinho enquanto o app estiver aberto"><span class="chave"><input type="checkbox" id="wf-ativo"><span></span></span> Ligado</label>
-              <span class="wf-barra-acoes">
-                <button type="button" class="botao-texto" id="wf-mais-passo">+ Passo</button>
-                <button type="button" class="botao primario" id="wf-rodar">Rodar agora</button>
-                <button type="button" class="botao-texto perigo" id="wf-apagar" title="Apaga este workflow (a versão anterior fica guardada)">Apagar</button>
-              </span>
-              <div id="wf-menu-passos" class="menu-modelo wf-menu-passos" hidden></div>
-            </header>
-            <div class="wf-vazio" id="wf-vazio"><p><strong>Nenhum workflow aberto.</strong></p><p class="nota">Crie um em “+ Novo workflow”: um gatilho (relógio ou botão) e os passos que vêm depois.</p></div>
-            <div class="wf-quadro"><div class="wf-area" id="wf-area"><svg class="wf-linhas" id="wf-linhas"></svg><div id="wf-nos"></div></div></div>
-            <div class="wf-execucoes" id="wf-execucoes"></div>
-          </div>
-          <aside class="wf-inspetor" id="wf-inspetor"></aside>
+        <div class="wf-inicio" id="wf-inicio">
+          <header class="wf-inicio-topo">
+            <div class="wf-abas" role="tablist">
+              <button type="button" role="tab" data-wf-aba="workflows">Workflows</button>
+              <button type="button" role="tab" data-wf-aba="credenciais">Credenciais</button>
+              <button type="button" role="tab" data-wf-aba="execucoes">Execuções</button>
+            </div>
+            <label class="busca wf-busca"><svg class="ico"><use href="#i-busca"/></svg><input id="wf-busca" type="search" placeholder="Buscar" aria-label="Buscar"></label>
+            <button type="button" class="botao primario" id="wf-criar">Criar workflow</button>
+          </header>
+          <div class="wf-lista-corpo" id="wf-lista-corpo"></div>
         </div>
+        <div class="wf-editor" id="wf-editor" hidden>
+          <header class="wf-editor-topo">
+            <button type="button" class="botao-texto wf-voltar" id="wf-voltar" title="Voltar à lista de workflows">← Workflows</button>
+            <input id="wf-nome" class="wf-nome" aria-label="Nome do workflow" spellcheck="false">
+            <div class="wf-abas wf-modos" role="tablist">
+              <button type="button" role="tab" data-wf-modo="editor">Editor</button>
+              <button type="button" role="tab" data-wf-modo="execucoes">Execuções</button>
+            </div>
+            <label class="wf-ligado" title="Ligado: o relógio dispara sozinho enquanto o app estiver aberto"><span class="chave"><input type="checkbox" id="wf-ativo"><span></span></span> <span id="wf-ativo-rotulo">Desligado</span></label>
+            <button type="button" class="botao-icone wf-mais" id="wf-mais" title="Mais" aria-label="Mais opções">⋯</button>
+            <div class="menu-modelo wf-menu-mais" id="wf-menu-mais" hidden>
+              <button type="button" class="menu-item" data-wf-acao="descricao">Descrição…</button>
+              <button type="button" class="menu-item" data-wf-acao="duplicar">Duplicar</button>
+              <button type="button" class="menu-item perigo" data-wf-acao="apagar">Apagar workflow</button>
+            </div>
+          </header>
+          <div class="wf-tela-editor" id="wf-tela-editor">
+            <div class="wf-quadro" id="wf-quadro">
+              <div class="wf-area" id="wf-area"><svg class="wf-linhas" id="wf-linhas"></svg><div id="wf-nos"></div></div>
+              <button type="button" class="wf-mais-passo" id="wf-mais-passo" title="Acrescentar passo" aria-label="Acrescentar passo">+</button>
+              <div class="wf-controles">
+                <button type="button" class="botao-icone" data-zoom="ajustar" title="Ajustar à tela" aria-label="Ajustar à tela">⤢</button>
+                <button type="button" class="botao-icone" data-zoom="menos" title="Diminuir" aria-label="Diminuir">−</button>
+                <span class="mono" id="wf-zoom-valor">100%</span>
+                <button type="button" class="botao-icone" data-zoom="mais" title="Aumentar" aria-label="Aumentar">+</button>
+              </div>
+              <div class="wf-rodar-caixa"><button type="button" class="botao primario" id="wf-rodar">▶ Rodar workflow</button></div>
+            </div>
+            <aside class="wf-gaveta" id="wf-gaveta" hidden></aside>
+          </div>
+          <div class="wf-execs-editor" id="wf-execs-editor" hidden></div>
+        </div>
+        <div class="wf-modal-fundo" id="wf-modal" hidden><div class="wf-modal" id="wf-modal-corpo" role="dialog" aria-modal="true"></div></div>
       </section>
       <section id="aba-grade" class="aba" aria-label="Terminais">
         <div id="grade" class="grade"></div>

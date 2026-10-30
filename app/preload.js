@@ -63,6 +63,11 @@ contextBridge.exposeInMainWorld('orq', {
     apagar: (id) => ipcRenderer.invoke('workflows:apagar', id),
     rodar: (id) => ipcRenderer.invoke('workflows:rodar', id),
     execucoes: (id) => ipcRenderer.invoke('workflows:execucoes', id),
+    credenciais: () => ipcRenderer.invoke('workflows:credenciais'),
+    tiposCred: () => ipcRenderer.invoke('workflows:tiposCred'),
+    gravarCredencial: (c) => ipcRenderer.invoke('workflows:gravarCredencial', c),
+    apagarCredencial: (id) => ipcRenderer.invoke('workflows:apagarCredencial', id),
+    testarCredencial: (id) => ipcRenderer.invoke('workflows:testarCredencial', id),
     aoExecucao: (fn) => ipcRenderer.on('workflows:execucao', (_e, e) => fn(e)),
   },
   navegador: {

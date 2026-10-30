@@ -213,7 +213,7 @@ class Conversa {
         this.avisarInfo();
         this.registrar({ tipo: 'resultado', erro: d.is_error, duracao: d.duration_ms, texto: d.is_error ? d.result : null });
         // Fim de turno: o Claude parou e espera o usuário (a tela decide se avisa).
-        if (!this.desligando) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (d.is_error ? 'Terminou com erro.' : 'Terminou.') });
+        if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (d.is_error ? 'Terminou com erro.' : 'Terminou.') });
         this.ultimoTexto = '';
         if (this.desligando) { this.desligando = false; this.encerrar(); return; }
         if (this.reiniciarDepois) { this.reiniciarDepois = false; this.reiniciar(); }
@@ -255,6 +255,8 @@ class Conversa {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
+    // Mensagem de workflow (por trás): a resposta não vira notificação.
+    this.bastidor = /^<orq-workflow /.test(texto);
     if (!this.proc) this.iniciar();
     // Conversa avulsa ganha o nome da primeira coisa escrita nela.
     if (!this.orquestrador && /^Conversa \d+$/.test(this.titulo)) {

@@ -4,7 +4,7 @@ const assert = require('node:assert');
 const { abrirApp } = require('./app');
 
 test('workflows', async (t) => {
-  const app = await abrirApp();
+  const app = await abrirApp({ arquivos: { 'segredo.txt': 'valor-secreto-123' } });
   t.after(() => app.fechar());
   await app.esperar('!!window.orqWorkflows');
   const centro = (sel) => app.avaliar(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()`);
@@ -14,50 +14,86 @@ test('workflows', async (t) => {
     await app.mouse('mouseReleased', ...para);
   };
   const salvo = (id) => app.avaliar(`window.orq.workflows.lista().then((l) => l.find((w) => w.id === ${JSON.stringify(id)}))`);
+  const campo = (sel, v) => app.avaliar(`(() => { const c = document.querySelector(${JSON.stringify(sel)}); c.value = ${JSON.stringify(v)}; c.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  const clicar = (sel) => app.avaliar(`document.querySelector(${JSON.stringify(sel)}).click()`);
 
-  await t.test('aba existe e já traz a passada de 3 em 3 min, desligada', async () => {
-    await app.avaliar("document.querySelector('[data-aba=aba-workflows]').click()");
-    await app.esperar("document.querySelectorAll('.wf-no').length === 2");
-    assert.match(await app.avaliar("document.querySelector('.item-workflow.ativo').innerText"), /Passada nas frentes/);
-    assert.strictEqual(await app.avaliar("document.getElementById('wf-ativo').checked"), false);
-    assert.strictEqual(await app.avaliar("document.querySelectorAll('.wf-linha').length"), 1);
-    assert.match(await app.avaliar("document.querySelector('.wf-no').innerText"), /a cada 3 min/);
-    assert.strictEqual(await app.visivel('#wf-rodar'), 'ok');
+  await t.test('a aba abre na lista (Workflows | Credenciais | Execuções), com a passada desligada', async () => {
+    await clicar('[data-aba=aba-workflows]');
+    await app.esperar("!document.getElementById('wf-inicio').hidden && document.querySelectorAll('.wf-linha-lista').length === 1");
+    assert.ok(await app.avaliar('document.getElementById("wf-editor").hidden'));
+    assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('[data-wf-aba]')].map((b) => b.textContent)"), ['Workflows', 'Credenciais', 'Execuções']);
+    assert.match(await app.avaliar("document.querySelector('.wf-linha-lista').innerText"), /Passada nas frentes[\s\S]*Desligado/);
+    assert.ok(!(await app.avaliar('!!document.querySelector(".wf-inspetor")')), 'sem o painel “Este workflow”');
+  });
+
+  await t.test('credencial guarda só a referência; Testar diz o tamanho, nunca o valor', async () => {
+    await clicar('[data-wf-aba=credenciais]');
+    await app.esperar("/Nenhuma credencial/.test(document.getElementById('wf-lista-corpo').innerText)");
+    await clicar('#wf-criar');
+    await app.esperar("!document.getElementById('wf-modal').hidden");
+    await app.avaliar(`(() => { const f = document.querySelector('[data-cred-form]'); f.nome.value = 'Token de teste'; f.tipo.value = 'arquivo'; f.tipo.dispatchEvent(new Event('change', { bubbles: true })); f.ref.value = '~/segredo.txt'; f.variavel.value = 'meu_token'; f.requestSubmit(); })()`);
+    await app.esperar("!!document.querySelector('[data-testar-cred]')");
+    await clicar('[data-testar-cred]');
+    await app.esperar("!document.querySelector('[data-resultado-teste]').hidden");
+    const r = await app.avaliar("document.querySelector('[data-resultado-teste]').textContent");
+    assert.match(r, /Leu: 17 caracteres/);
+    assert.doesNotMatch(await app.avaliar('document.body.innerText'), /valor-secreto/);
+    const arq = app.ler('.config/orq-app/credenciais.json');
+    assert.doesNotMatch(arq, /valor-secreto/);
+    assert.match(arq, /"variavel": "MEU_TOKEN"/);
+    await clicar('[data-fechar-modal]');
+    await app.esperar("document.querySelectorAll('.wf-linha-lista[data-cred]').length === 1");
   });
 
   let id;
-  await t.test('novo workflow + passo de comando + rodar mostra a saída', async () => {
-    await app.avaliar("document.getElementById('novo-workflow').click()");
-    await app.esperar("document.querySelectorAll('.wf-no').length === 1 && document.activeElement.id === 'wf-nome'");
+  await t.test('criar workflow abre o quadro em tela cheia; + acrescenta passo e abre os ajustes', async () => {
+    await clicar('[data-wf-aba=workflows]');
+    await clicar('#wf-criar');
+    await app.esperar("!document.getElementById('wf-editor').hidden && document.querySelectorAll('.wf-no').length === 1 && document.activeElement.id === 'wf-nome'");
     await app.texto('Meu fluxo');
-    await app.avaliar("document.getElementById('wf-mais-passo').click()");
-    await app.esperar("!document.getElementById('wf-menu-passos').hidden");
-    await app.avaliar("document.querySelector('[data-novo-no=comando]').click()");
-    await app.esperar("document.querySelectorAll('.wf-no').length === 2 && document.querySelectorAll('.wf-linha').length === 1");
-    await app.avaliar("(() => { const c = document.querySelector('[data-cfg-no=comando]'); c.value = 'echo olá do workflow'; c.dispatchEvent(new Event('input', { bubbles: true })); })()");
-    assert.match(await app.avaliar("document.querySelectorAll('.wf-no')[1].innerText"), /echo olá do workflow/);
-    await app.avaliar("document.getElementById('wf-rodar').click()");
-    await app.esperar("/olá do workflow/.test(document.getElementById('wf-execucoes').innerText)", 8000);
-    assert.match(await app.avaliar("document.querySelector('.wf-exec-linha').innerText"), /manual[\s\S]*ok/);
-    id = await app.avaliar("document.querySelector('.item-workflow.ativo').dataset.wf");
-    const w = await salvo(id);
-    assert.strictEqual(w.nome, 'Meu fluxo');
-    assert.strictEqual(w.nos[1].config.comando, 'echo olá do workflow');
+    id = (await app.avaliar('window.orq.workflows.lista()')).find((w) => w.id !== 'passada-frentes').id;
+    await clicar('[data-mais-depois=n1]');
+    await app.esperar("!document.getElementById('wf-gaveta').hidden");
+    assert.ok(!(await app.avaliar("!!document.querySelector('#wf-gaveta [data-novo-no=agenda]')")), 'depois de um passo não se põe gatilho');
+    await clicar('#wf-gaveta [data-novo-no=comando]');
+    await app.esperar("document.querySelectorAll('.wf-no').length === 2 && document.querySelectorAll('.wf-linha').length === 1 && !document.getElementById('wf-modal').hidden");
+    await campo('[data-cfg-no=comando]', 'echo "olá $MEU_TOKEN"');
+    await app.avaliar("(() => { const c = document.querySelector('[data-cred-no]'); c.checked = true; c.dispatchEvent(new Event('input', { bubbles: true })); })()");
+    await clicar('[data-fechar-modal]');
+    assert.match(await app.avaliar("document.querySelectorAll('.wf-no')[1].innerText"), /echo "olá \$MEU_TOKEN" · 🔑1/);
   });
 
-  await t.test('arrastar um passo muda o lugar e grava', async () => {
+  await t.test('rodar: o comando recebe a credencial e a saída sai mascarada', async () => {
+    await clicar('#wf-rodar');
+    await app.esperar("document.querySelector('.wf-no[data-no=n2]')?.classList.contains('estado-ok')", 8000);
+    await clicar('[data-wf-modo=execucoes]');
+    await app.esperar("!!document.querySelector('#wf-execs-editor [data-exec]')");
+    // A execução que acabou de rodar já vem aberta.
+    await app.esperar("/olá ••••/.test(document.getElementById('wf-execs-editor').innerText)");
+    assert.doesNotMatch(app.ler('.cache/orq-app/workflows-execucoes.json'), /valor-secreto/);
+    await clicar('[data-wf-modo=editor]');
+  });
+
+  await t.test('arrastar o passo grava; arrastar o fundo move o quadro; zoom', async () => {
     const antes = (await salvo(id)).nos[1];
+    const z = await app.avaliar("parseFloat(document.getElementById('wf-zoom-valor').textContent) / 100");
     const de = await centro('.wf-no[data-no=n2] .wf-no-topo');
-    await arrastar(de, [de[0] - 40, de[1] + 120]);
+    await arrastar(de, [de[0] - 30, de[1] + 80]);
     await app.espera(500);
     const depois = (await salvo(id)).nos[1];
-    assert.ok(Math.abs(depois.x - antes.x + 40) <= 2 && Math.abs(depois.y - antes.y - 120) <= 2, JSON.stringify([antes, depois]));
+    assert.ok(Math.abs(depois.x - antes.x + 30 / z) <= 3 && Math.abs(depois.y - antes.y - 80 / z) <= 3, JSON.stringify([antes, depois, z]));
+    const t0 = await app.avaliar("document.getElementById('wf-area').style.transform");
+    const r = await app.avaliar("(() => { const q = document.getElementById('wf-quadro').getBoundingClientRect(); return [Math.round(q.left + 30), Math.round(q.top + 30)]; })()");
+    await arrastar(r, [r[0] + 50, r[1] + 40]);
+    assert.notStrictEqual(await app.avaliar("document.getElementById('wf-area').style.transform"), t0, 'o fundo move');
+    await clicar('[data-zoom=mais]');
+    assert.ok((await app.avaliar("parseFloat(document.getElementById('wf-zoom-valor').textContent)")) > z * 100);
+    await clicar('[data-zoom=ajustar]');
   });
 
-  await t.test('tirar a ligação e ligar de novo puxando da bolinha', async () => {
+  await t.test('tirar a ligação (Delete) e ligar de novo puxando da bolinha', async () => {
     await app.avaliar("document.querySelector('.wf-linha-toque').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))");
-    await app.esperar("!!document.querySelector('[data-wf-remover]') && /Ligação/.test(document.getElementById('wf-inspetor').innerText)");
-    await app.avaliar("document.querySelector('[data-wf-remover]').click()");
+    await app.avaliar("document.getElementById('wf-quadro').dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))");
     await app.esperar("document.querySelectorAll('.wf-linha').length === 0");
     await arrastar(await centro('.wf-no[data-no=n1] .porta.saida'), await centro('.wf-no[data-no=n2] .wf-no-resumo'));
     await app.esperar("document.querySelectorAll('.wf-linha').length === 1");
@@ -65,26 +101,46 @@ test('workflows', async (t) => {
     assert.deepStrictEqual((await salvo(id)).ligacoes, [{ de: 'n1', para: 'n2' }]);
   });
 
-  await t.test('ligar o workflow grava', async () => {
-    await app.avaliar("document.getElementById('wf-ativo').click()");
-    await app.espera(400);
-    assert.strictEqual((await salvo(id)).ativo, true);
-    assert.ok(await app.avaliar("document.querySelector('.item-workflow.ativo .ponto').classList.contains('trabalhando')"));
+  await t.test('dois cliques no passo abrem os ajustes; descrição pelo menu ⋯', async () => {
+    await app.avaliar("document.querySelector('.wf-no[data-no=n2]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))");
+    await app.esperar("!!document.querySelector('[data-passo=n2]')");
+    assert.match(await app.avaliar("document.querySelector('.wf-ultima').innerText"), /olá ••••/);
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))");
+    await app.esperar("document.getElementById('wf-modal').hidden");
+    await clicar('#wf-mais');
+    await clicar('[data-wf-acao=descricao]');
+    await campo('[data-wf-prop=descricao]', 'Diz olá');
+    await clicar('[data-fechar-modal]');
+    await app.espera(500);
+    assert.strictEqual((await salvo(id)).descricao, 'Diz olá');
+  });
+
+  await t.test('voltar à lista: aparece o workflow, a execução e o uso da credencial', async () => {
+    await clicar('#wf-ativo');
+    await clicar('#wf-voltar');
+    await app.esperar("!document.getElementById('wf-inicio').hidden && document.querySelectorAll('.wf-linha-lista').length === 2");
+    assert.match(await app.avaliar(`document.querySelector('[data-wf="${id}"]').innerText`), /Meu fluxo[\s\S]*Diz olá[\s\S]*última execução[\s\S]*Ligado/);
+    await clicar('[data-wf-aba=execucoes]');
+    assert.match(await app.avaliar("document.getElementById('wf-lista-corpo').innerText"), /Meu fluxo[\s\S]*manual/);
+    await clicar('[data-wf-aba=credenciais]');
+    assert.match(await app.avaliar("document.getElementById('wf-lista-corpo').innerText"), /usada em 1 workflow/);
+    await clicar('[data-wf-aba=workflows]');
   });
 
   await t.test('@workflow: aparece na conversa e vai com os passos', async () => {
     assert.ok(await app.avaliar("window.orqWorkflows.listar().some((w) => w.nome === 'Meu fluxo')"));
     const e = await app.avaliar("window.__orqTeste.expandir('veja @workflow:\"Meu fluxo\"')");
-    assert.match(e.enviar, /Workflow «Meu fluxo»[\s\S]*Rodar comando[\s\S]*echo olá do workflow/);
-    assert.strictEqual(e.exibir, 'veja @workflow:"Meu fluxo"');
+    assert.match(e.enviar, /Workflow «Meu fluxo»[\s\S]*Rodar comando/);
   });
 
-  await t.test('apagar pede confirmação e volta para o outro workflow', async () => {
-    await app.avaliar("document.getElementById('wf-apagar').click()");
-    assert.match(await app.avaliar("document.getElementById('wf-apagar').textContent"), /Confirmar/);
+  await t.test('apagar (menu ⋯) pede confirmação e volta à lista', async () => {
+    await clicar(`[data-wf="${id}"]`);
+    await app.esperar("!document.getElementById('wf-editor').hidden");
+    await clicar('#wf-mais');
+    await clicar('[data-wf-acao=apagar]');
     assert.ok(await salvo(id), 'um clique só não apaga');
-    await app.avaliar("document.getElementById('wf-apagar').click()");
-    await app.esperar("document.querySelectorAll('.item-workflow').length === 1 && /Passada/.test(document.querySelector('.item-workflow.ativo').innerText)");
+    await clicar('[data-wf-acao=apagar]');
+    await app.esperar("!document.getElementById('wf-inicio').hidden && document.querySelectorAll('.wf-linha-lista').length === 1");
     assert.strictEqual(await salvo(id), undefined);
   });
 

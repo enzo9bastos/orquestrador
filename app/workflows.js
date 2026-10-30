@@ -37,6 +37,7 @@ const TIPOS = {
   comando: { nome: 'Rodar comando', grupo: 'acao', descricao: 'Roda no shell; a saída segue adiante. A entrada chega em $ORQ_ENTRADA.', campos: [
     { k: 'comando', rotulo: 'Comando', tipo: 'longo', padrao: '' },
     { k: 'pasta', rotulo: 'Pasta', tipo: 'texto', padrao: '~' },
+    { k: 'credenciais', rotulo: 'Credenciais (viram variáveis de ambiente do comando)', tipo: 'credenciais', padrao: [] },
   ] },
   condicao: { nome: 'Condição', grupo: 'logica', descricao: 'Só segue se a entrada combinar.', campos: [
     { k: 'modo', rotulo: 'Segue quando a entrada', tipo: 'lista', opcoes: [['contem', 'contém o texto'], ['naoContem', 'não contém o texto'], ['regex', 'combina com a expressão'], ['naoVazia', 'não está vazia']], padrao: 'contem' },
@@ -80,6 +81,7 @@ function limpar(w) {
       if (c.tipo === 'sim') config[c.k] = v === undefined ? c.padrao : v === true;
       else if (c.tipo === 'numero') config[c.k] = Math.max(1, Math.min(10080, Math.round(Number(v)) || c.padrao));
       else if (c.tipo === 'lista') config[c.k] = c.opcoes.some((o) => o[0] === v) ? v : c.padrao;
+      else if (c.tipo === 'credenciais') config[c.k] = (Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && /^[\w-]{1,60}$/.test(x)).slice(0, 10);
       else config[c.k] = v === undefined ? c.padrao : texto(v);
     }
     return { id: /^[\w-]{1,40}$/.test(n.id || '') ? n.id : `n${i + 1}`, tipo: n.tipo, x: Math.round(Number(n.x)) || 0, y: Math.round(Number(n.y)) || 0, config };
@@ -95,6 +97,7 @@ function limpar(w) {
     nome: texto(w.nome, 80).trim() || 'Workflow sem nome',
     descricao: texto(w.descricao, 500),
     ativo: w.ativo === true,
+    atualizado: Number(w.atualizado) || null,
     nos, ligacoes,
   };
 }
@@ -123,7 +126,7 @@ function gravarArquivo(lista) {
 }
 
 function gravar(w) {
-  const limpo = limpar(w || {});
+  const limpo = limpar({ ...(w || {}), atualizado: Date.now() });
   const lista = ler();
   const i = lista.findIndex((x) => x.id === limpo.id);
   if (i >= 0) lista[i] = limpo; else lista.push(limpo);
@@ -149,7 +152,93 @@ function guardarExecucao(e) {
   fs.writeFileSync(ARQ_EXECUCOES, JSON.stringify(todas) + '\n');
 }
 const execucoes = (id) => lerExecucoes()[id] || [];
+// Todas as execuções, de todos os workflows, mais novas primeiro.
+const todasExecucoes = () => Object.values(lerExecucoes()).flat().sort((a, b) => b.inicio - a.inicio).slice(0, 150);
 
+// --- credenciais ---------------------------------------------------------
+// Só a REFERÊNCIA fica guardada (onde a credencial mora), nunca o valor. O
+// valor é lido na hora de rodar o passo, vai ao comando por variável de
+// ambiente e é trocado por •••• em qualquer saída que fique guardada.
+const ARQ_CRED = path.join(os.homedir(), '.config', 'orq-app', 'credenciais.json');
+const VERSOES_CRED = path.join(os.homedir(), '.local', 'share', 'orq-app', 'versoes', 'credenciais');
+const TIPOS_CRED = {
+  bitwarden: { nome: 'Item do cofre (Bitwarden)', ref: 'Nome ou id do item', dica: 'Lido com o bw (Bitwarden CLI, vale para servidor próprio compatível) na hora de rodar; o cofre precisa estar destravado (BW_SESSION no ambiente do app).' },
+  arquivo: { nome: 'Arquivo', ref: 'Caminho do arquivo', dica: 'O conteúdo do arquivo é a credencial. O certo é o arquivo estar com modo 600.' },
+  ambiente: { nome: 'Variável de ambiente', ref: 'Nome da variável', dica: 'Lida do ambiente em que o app foi aberto.' },
+};
+const CAMPOS_BW = [['password', 'Senha'], ['username', 'Usuário'], ['notes', 'Notas'], ['totp', 'Código TOTP']];
+function limparCred(c) {
+  const tipo = TIPOS_CRED[c.tipo] ? c.tipo : 'bitwarden';
+  return {
+    id: /^[\w-]{1,60}$/.test(c.id || '') ? c.id : `c${Date.now().toString(36)}`,
+    nome: texto(c.nome, 80).trim() || 'Credencial sem nome',
+    tipo,
+    ref: texto(c.ref, 300).trim(),
+    campo: tipo === 'bitwarden' && CAMPOS_BW.some((x) => x[0] === c.campo) ? c.campo : 'password',
+    variavel: /^[A-Z_][A-Z0-9_]{0,60}$/.test(c.variavel || '') ? c.variavel : 'SEGREDO',
+    atualizado: Date.now(),
+  };
+}
+function credenciais() { try { return JSON.parse(fs.readFileSync(ARQ_CRED, 'utf8')).credenciais || []; } catch { return []; } }
+function gravarCreds(lista) {
+  if (fs.existsSync(ARQ_CRED)) {
+    fs.mkdirSync(VERSOES_CRED, { recursive: true });
+    fs.copyFileSync(ARQ_CRED, path.join(VERSOES_CRED, `${new Date().toISOString().replace(/[:.]/g, '-')}-${process.hrtime.bigint()}.json`));
+  }
+  fs.mkdirSync(path.dirname(ARQ_CRED), { recursive: true });
+  fs.writeFileSync(`${ARQ_CRED}.tmp`, JSON.stringify({ credenciais: lista }, null, 2) + '\n', { mode: 0o600 });
+  fs.renameSync(`${ARQ_CRED}.tmp`, ARQ_CRED);
+}
+function gravarCredencial(c) {
+  const limpa = limparCred(c || {});
+  const lista = credenciais();
+  const i = lista.findIndex((x) => x.id === limpa.id);
+  if (i >= 0) lista[i] = limpa; else lista.push(limpa);
+  gravarCreds(lista);
+  return limpa;
+}
+// Pedido explícito do usuário na tela; a versão anterior fica guardada. O
+// valor de verdade (no cofre, no arquivo) não é tocado.
+function apagarCredencial(id) {
+  const lista = credenciais();
+  const resto = lista.filter((c) => c.id !== id);
+  if (resto.length === lista.length) return false;
+  gravarCreds(resto);
+  return true;
+}
+async function resolver(c) {
+  if (!c.ref) throw new Error(`a credencial «${c.nome}» está sem referência`);
+  if (c.tipo === 'arquivo') {
+    try { return fs.readFileSync(casa(c.ref), 'utf8').trim(); } catch { throw new Error(`não consegui ler o arquivo da credencial «${c.nome}»`); }
+  }
+  if (c.tipo === 'ambiente') {
+    if (!process.env[c.ref]) throw new Error(`a variável ${c.ref} (credencial «${c.nome}») não existe no ambiente do app`);
+    return process.env[c.ref];
+  }
+  try { return await processo(process.env.ORQ_WF_BW || 'bw', ['get', c.campo, c.ref], { cwd: os.homedir(), entrada: '', env: process.env, limite: 30000 }); } catch {
+    throw new Error(`não consegui ler «${c.nome}» do cofre (trancado ou item não achado)`);
+  }
+}
+// Testar diz só se deu para ler e o tamanho — nunca o valor.
+async function testarCredencial(id) {
+  const c = credenciais().find((x) => x.id === id);
+  if (!c) return { ok: false, erro: 'credencial não encontrada' };
+  try {
+    const v = await resolver(c);
+    if (!v) return { ok: false, erro: 'leu, mas veio vazia' };
+    let aviso = null;
+    if (c.tipo === 'arquivo') {
+      const modo = fs.statSync(casa(c.ref)).mode & 0o777;
+      if (modo & 0o077) aviso = `o arquivo está com modo ${modo.toString(8)}; o certo é 600`;
+    }
+    return { ok: true, tamanho: v.length, aviso };
+  } catch (e) { return { ok: false, erro: e.message }; }
+}
+const mascarar = (t, valores) => valores.filter((v) => v && v.length >= 4).reduce((s, v) => s.split(v).join('••••'), String(t ?? ''));
+
+// Mensagem de workflow ao orquestrador: vai embrulhada, para a tela (ao vivo
+// e no histórico) saber que não foi o usuário que escreveu.
+const marcarBastidor = (w, t) => `<orq-workflow nome="${String(w?.nome || 'workflow').replace(/["<>]/g, '')}">\n${t}\n</orq-workflow>`;
 const preencher = (t, entrada) => String(t || '')
   .replace(/\{\{\s*entrada\s*\}\}/g, entrada)
   .replace(/\{\{\s*data\s*\}\}/g, new Date().toLocaleString('pt-BR'));
@@ -172,13 +261,15 @@ function processo(cmd, args, { cwd, entrada, env, limite = 120000 }) {
 const PASSOS = {
   agenda: async (_c, entrada) => ({ saida: entrada }),
   manual: async (_c, entrada) => ({ saida: entrada }),
-  orquestrador: async (c, entrada) => {
+  orquestrador: async (c, entrada, w) => {
     const o = conversa.lista().find((x) => x.orquestrador);
     if (c.soComRodada && !(o && o.vivo)) return { parar: 'a rodada não está iniciada' };
     if (c.pularSeOcupado && o && o.ocupado) return { parar: 'o orquestrador estava respondendo' };
     const t = preencher(c.texto, entrada).trim();
     if (!t) return { parar: 'texto vazio' };
-    conversa.mandar(o ? o.id : 'orquestrador', t);
+    // Vai por trás, marcado: a tela não mostra como mensagem do usuário (só
+    // uma linha discreta) e a resposta não vira notificação.
+    conversa.mandar(o ? o.id : 'orquestrador', marcarBastidor(w, t));
     return { saida: t };
   },
   claude: async (c, entrada) => {
@@ -190,7 +281,19 @@ const PASSOS = {
   comando: async (c, entrada) => {
     if (!c.comando.trim()) throw new Error('comando vazio');
     const pasta = casa(c.pasta || '~');
-    return { saida: await processo('bash', ['-lc', c.comando], { cwd: fs.existsSync(pasta) ? pasta : os.homedir(), entrada, env: { ...conversa.ambienteLimpo(), ORQ_ENTRADA: entrada } }) };
+    const env = { ...conversa.ambienteLimpo(), ORQ_ENTRADA: entrada };
+    const valores = [];
+    const todas = credenciais();
+    for (const id of c.credenciais || []) {
+      const cr = todas.find((x) => x.id === id);
+      if (!cr) throw new Error('uma credencial escolhida neste passo não existe mais');
+      const v = await resolver(cr);
+      env[cr.variavel] = v;
+      valores.push(v);
+    }
+    try {
+      return { saida: mascarar(await processo('bash', ['-lc', c.comando], { cwd: fs.existsSync(pasta) ? pasta : os.homedir(), entrada, env }), valores) };
+    } catch (e) { throw new Error(mascarar(e.message, valores)); }
   },
   condicao: async (c, entrada) => {
     let passa;
@@ -228,7 +331,7 @@ async function rodar(id, { motivo = 'manual', gatilhos } = {}) {
       e.passos.push(p);
       aviso();
       try {
-        const r = await PASSOS[n.tipo](n.config, entrada);
+        const r = await PASSOS[n.tipo](n.config, entrada, w);
         if (r.parar) { p.estado = 'parou'; p.saida = r.parar; } else {
           p.estado = 'ok';
           p.saida = texto(r.saida, 2000);
@@ -285,6 +388,8 @@ function ligar({ conversa: c, avisar: a, enviarTela: t }) {
 function desligar() { clearInterval(relogio); relogio = null; }
 
 const tipos = () => TIPOS;
+const tiposCred = () => ({ tipos: TIPOS_CRED, camposBw: CAMPOS_BW });
 const lista = () => ler().map((w) => ({ ...w, rodando: rodando.has(w.id) }));
 
-module.exports = { ligar, desligar, lista, gravar, apagar, rodar, execucoes, tipos, vence, tique, TIPOS, ARQ };
+module.exports = { ligar, desligar, lista, gravar, apagar, rodar, execucoes, todasExecucoes, tipos, vence, tique, TIPOS, ARQ,
+  credenciais, gravarCredencial, apagarCredencial, testarCredencial, tiposCred };

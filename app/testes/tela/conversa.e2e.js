@@ -17,6 +17,18 @@ test('conversa', async (t) => {
     assert.deepStrictEqual((await baloes()).filter((b) => b === 'olá mundo'), ['olá mundo']);
   });
 
+  // Pedido de 2026-10-30: a passada que o workflow manda é por trás — não
+  // aparece como mensagem do usuário, nem ao vivo nem no histórico.
+  await t.test('mensagem de workflow não vira balão do usuário', async () => {
+    const antes = (await baloes()).length;
+    const msg = '<orq-workflow nome="Passada">\npasse nas frentes\n</orq-workflow>';
+    await injetar({ tipo: 'user', local: true, message: { role: 'user', content: msg } });
+    await injetar({ tipo: 'user', antigo: true, message: { role: 'user', content: msg } });
+    assert.strictEqual((await baloes()).length, antes);
+    assert.strictEqual(await app.avaliar("document.querySelectorAll('#mensagens .msg-bastidor').length"), 2);
+    assert.match(await app.avaliar("document.querySelector('#mensagens .msg-bastidor summary').textContent"), /Por trás · workflow «Passada»/);
+  });
+
   // Pedido de 2026-10-28: o comando que abre a rodada não aparece.
   await t.test('comando inicial escondido da conversa', async () => {
     await injetar({ tipo: 'user', local: true, message: { role: 'user', content: '/rodada' } });

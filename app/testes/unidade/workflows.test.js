@@ -87,7 +87,7 @@ test('workflows: mandar ao orquestrador respeita rodada iniciada e ocupado', asy
   orq = { ...orq, ocupado: false };
   r = await wf.rodar('w-orq');
   assert.strictEqual(r.execucao.passos[1].estado, 'ok');
-  assert.deepStrictEqual(mandados, [['orquestrador', 'passada fim']]);
+  assert.deepStrictEqual(mandados, [['orquestrador', '<orq-workflow nome="orq">\npassada fim\n</orq-workflow>']], 'vai por trás, marcado como workflow');
 });
 
 test('workflows: Perguntar ao Claude manda o pedido pela entrada e devolve a resposta', async () => {

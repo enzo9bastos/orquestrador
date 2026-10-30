@@ -145,7 +145,12 @@ ipcMain.handle('workflows:tipos', () => workflows.tipos());
 ipcMain.handle('workflows:gravar', (_e, w) => workflows.gravar(w));
 ipcMain.handle('workflows:apagar', (_e, id) => workflows.apagar(id));
 ipcMain.handle('workflows:rodar', (_e, id) => workflows.rodar(id).catch((e) => ({ ok: false, erro: e.message })));
-ipcMain.handle('workflows:execucoes', (_e, id) => workflows.execucoes(id));
+ipcMain.handle('workflows:execucoes', (_e, id) => (id ? workflows.execucoes(id) : workflows.todasExecucoes()));
+ipcMain.handle('workflows:credenciais', () => workflows.credenciais());
+ipcMain.handle('workflows:tiposCred', () => workflows.tiposCred());
+ipcMain.handle('workflows:gravarCredencial', (_e, c) => workflows.gravarCredencial(c));
+ipcMain.handle('workflows:apagarCredencial', (_e, id) => workflows.apagarCredencial(id));
+ipcMain.handle('workflows:testarCredencial', (_e, id) => workflows.testarCredencial(id));
 
 // --- /permissions: regras do settings.json do Claude ------------------------
 ipcMain.handle('permissoes:ler', () => permissoes.ler());
