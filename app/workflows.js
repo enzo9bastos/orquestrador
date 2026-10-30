@@ -25,12 +25,16 @@ const TIPOS = {
     { k: 'diasUteis', rotulo: 'Só de segunda a sexta', tipo: 'sim', padrao: false, se: { modo: 'diario' } },
   ] },
   manual: { nome: 'Botão', grupo: 'gatilho', descricao: 'Dispara só quando você aperta Rodar.', campos: [] },
+  pasta: { nome: 'Arquivo novo na pasta', grupo: 'gatilho', descricao: 'Dispara quando aparece um arquivo novo na pasta (ligado). A saída é o caminho do arquivo.', campos: [
+    { k: 'pasta', rotulo: 'Pasta', tipo: 'texto', padrao: '~/Downloads' },
+    { k: 'padrao', rotulo: 'Que arquivos (ex.: *.pdf, *.png; vazio = todos)', tipo: 'texto', padrao: '*.pdf' },
+  ] },
   orquestrador: { nome: 'Mandar ao orquestrador', grupo: 'acao', descricao: 'Escreve na conversa do orquestrador.', campos: [
     { k: 'texto', rotulo: 'Texto', tipo: 'longo', padrao: '' },
     { k: 'soComRodada', rotulo: 'Só com a rodada iniciada (orquestrador aberto)', tipo: 'sim', padrao: true },
     { k: 'pularSeOcupado', rotulo: 'Pular se ele estiver respondendo', tipo: 'sim', padrao: true },
   ] },
-  claude: { nome: 'Perguntar ao Claude', grupo: 'acao', descricao: 'Um Claude à parte responde; a resposta segue adiante.', campos: [
+  claude: { nome: 'Perguntar ao Claude', grupo: 'ia', descricao: 'Um Claude à parte responde; a resposta segue adiante.', campos: [
     { k: 'prompt', rotulo: 'Pedido', tipo: 'longo', padrao: '' },
     { k: 'modelo', rotulo: 'Modelo', tipo: 'lista', opcoes: [['sonnet', 'Sonnet'], ['haiku', 'Haiku'], ['opus', 'Opus']], padrao: 'sonnet' },
   ] },
@@ -42,6 +46,20 @@ const TIPOS = {
   condicao: { nome: 'Condição', grupo: 'logica', descricao: 'Só segue se a entrada combinar.', campos: [
     { k: 'modo', rotulo: 'Segue quando a entrada', tipo: 'lista', opcoes: [['contem', 'contém o texto'], ['naoContem', 'não contém o texto'], ['regex', 'combina com a expressão'], ['naoVazia', 'não está vazia']], padrao: 'contem' },
     { k: 'valor', rotulo: 'Texto ou expressão', tipo: 'texto', padrao: '', se: { modo: ['contem', 'naoContem', 'regex'] } },
+  ] },
+  ler: { nome: 'Ler arquivo', grupo: 'arquivos', descricao: 'Lê o texto de um arquivo; o texto segue adiante.', campos: [
+    { k: 'caminho', rotulo: 'Arquivo', tipo: 'texto', padrao: '{{entrada}}' },
+  ] },
+  mover: { nome: 'Mover ou copiar arquivo', grupo: 'arquivos', descricao: 'Leva o arquivo para outra pasta. Nunca sobrescreve: se já existir um com o mesmo nome, o novo ganha um número.', campos: [
+    { k: 'modo', rotulo: 'O que fazer', tipo: 'lista', opcoes: [['mover', 'Mover'], ['copiar', 'Copiar']], padrao: 'mover' },
+    { k: 'caminho', rotulo: 'Arquivo', tipo: 'texto', padrao: '{{arquivo}}' },
+    { k: 'destino', rotulo: 'Para a pasta', tipo: 'texto', padrao: '~/Documentos' },
+  ] },
+  escrever: { nome: 'Escrever arquivo', grupo: 'arquivos', descricao: 'Grava texto num arquivo. Nunca sobrescreve: arquivo novo ganha um número se o nome já existir; "acrescentar" escreve no fim.', campos: [
+    { k: 'modo', rotulo: 'Como', tipo: 'lista', opcoes: [['novo', 'Arquivo novo'], ['acrescentar', 'Acrescentar no fim']], padrao: 'novo' },
+    { k: 'pasta', rotulo: 'Pasta', tipo: 'texto', padrao: '~/Documentos' },
+    { k: 'nome', rotulo: 'Nome do arquivo', tipo: 'texto', padrao: 'resultado-{{data_arquivo}}.md' },
+    { k: 'conteudo', rotulo: 'Conteúdo', tipo: 'longo', padrao: '{{entrada}}' },
   ] },
   notificar: { nome: 'Avisar', grupo: 'acao', descricao: 'Notificação do sistema.', campos: [
     { k: 'titulo', rotulo: 'Título', tipo: 'texto', padrao: 'Workflow' },
@@ -239,9 +257,16 @@ const mascarar = (t, valores) => valores.filter((v) => v && v.length >= 4).reduc
 // Mensagem de workflow ao orquestrador: vai embrulhada, para a tela (ao vivo
 // e no histórico) saber que não foi o usuário que escreveu.
 const marcarBastidor = (w, t) => `<orq-workflow nome="${String(w?.nome || 'workflow').replace(/["<>]/g, '')}">\n${t}\n</orq-workflow>`;
-const preencher = (t, entrada) => String(t || '')
+// {{entrada}} saída do passo anterior · {{data}} data e hora · {{data_arquivo}}
+// data boa para nome de arquivo · {{arquivo}} / {{nome_arquivo}} o arquivo
+// que disparou o workflow (gatilho "Arquivo novo na pasta").
+const dataArquivo = () => new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+const preencher = (t, entrada, ctx = {}) => String(t || '')
   .replace(/\{\{\s*entrada\s*\}\}/g, entrada)
-  .replace(/\{\{\s*data\s*\}\}/g, new Date().toLocaleString('pt-BR'));
+  .replace(/\{\{\s*data_arquivo\s*\}\}/g, dataArquivo())
+  .replace(/\{\{\s*data\s*\}\}/g, new Date().toLocaleString('pt-BR'))
+  .replace(/\{\{\s*arquivo\s*\}\}/g, ctx.arquivo || '')
+  .replace(/\{\{\s*nome_arquivo\s*\}\}/g, ctx.arquivo ? path.basename(ctx.arquivo) : '');
 
 function processo(cmd, args, { cwd, entrada, env, limite = 120000 }) {
   return new Promise((ok, falha) => {
@@ -260,28 +285,29 @@ function processo(cmd, args, { cwd, entrada, env, limite = 120000 }) {
 // encerrar aquele ramo sem erro.
 const PASSOS = {
   agenda: async (_c, entrada) => ({ saida: entrada }),
+  pasta: async (_c, entrada, _w, ctx) => ({ saida: ctx.arquivo || entrada }),
   manual: async (_c, entrada) => ({ saida: entrada }),
-  orquestrador: async (c, entrada, w) => {
+  orquestrador: async (c, entrada, w, ctx) => {
     const o = conversa.lista().find((x) => x.orquestrador);
     if (c.soComRodada && !(o && o.vivo)) return { parar: 'a rodada não está iniciada' };
     if (c.pularSeOcupado && o && o.ocupado) return { parar: 'o orquestrador estava respondendo' };
-    const t = preencher(c.texto, entrada).trim();
+    const t = preencher(c.texto, entrada, ctx).trim();
     if (!t) return { parar: 'texto vazio' };
     // Vai por trás, marcado: a tela não mostra como mensagem do usuário (só
     // uma linha discreta) e a resposta não vira notificação.
     conversa.mandar(o ? o.id : 'orquestrador', marcarBastidor(w, t));
     return { saida: t };
   },
-  claude: async (c, entrada) => {
-    const p = preencher(c.prompt, entrada).trim();
+  claude: async (c, entrada, _w, ctx) => {
+    const p = preencher(c.prompt, entrada, ctx).trim();
     if (!p) throw new Error('pedido vazio');
     const cmd = process.env.ORQ_WF_CLAUDE || 'claude';
     return { saida: await processo(cmd, ['-p', '--model', c.modelo], { cwd: os.homedir(), entrada: p, env: conversa.ambienteLimpo(), limite: 600000 }) };
   },
-  comando: async (c, entrada) => {
+  comando: async (c, entrada, _w, ctx) => {
     if (!c.comando.trim()) throw new Error('comando vazio');
     const pasta = casa(c.pasta || '~');
-    const env = { ...conversa.ambienteLimpo(), ORQ_ENTRADA: entrada };
+    const env = { ...conversa.ambienteLimpo(), ORQ_ENTRADA: entrada, ORQ_ARQUIVO: ctx.arquivo || '' };
     const valores = [];
     const todas = credenciais();
     for (const id of c.credenciais || []) {
@@ -302,16 +328,57 @@ const PASSOS = {
     else passa = entrada.toLowerCase().includes(String(c.valor).toLowerCase()) === (c.modo === 'contem');
     return passa ? { saida: entrada } : { parar: 'a condição não bateu' };
   },
-  notificar: async (c, entrada) => {
-    const t = preencher(c.texto, entrada).slice(0, 400);
-    avisar(preencher(c.titulo, entrada) || 'Workflow', t);
+  ler: async (c, entrada, _w, ctx) => {
+    const arq = casa(preencher(c.caminho, entrada, ctx).trim());
+    if (!arq) throw new Error('sem arquivo');
+    let st;
+    try { st = fs.statSync(arq); } catch { throw new Error(`não achei o arquivo ${arq}`); }
+    if (!st.isFile()) throw new Error(`${arq} não é um arquivo`);
+    const buf = Buffer.alloc(Math.min(st.size, 200000));
+    const fd = fs.openSync(arq, 'r'); fs.readSync(fd, buf, 0, buf.length, 0); fs.closeSync(fd);
+    return { saida: buf.toString('utf8') + (st.size > buf.length ? '\n…(cortado: arquivo maior que 200 KB)' : '') };
+  },
+  mover: async (c, entrada, _w, ctx) => {
+    const arq = casa(preencher(c.caminho, entrada, ctx).trim());
+    const pasta = casa(preencher(c.destino, entrada, ctx).trim());
+    if (!arq || !fs.existsSync(arq)) throw new Error(`não achei o arquivo ${arq}`);
+    fs.mkdirSync(pasta, { recursive: true });
+    const destino = livre(path.join(pasta, path.basename(arq)));
+    if (c.modo === 'copiar') fs.copyFileSync(arq, destino, fs.constants.COPYFILE_EXCL);
+    else {
+      try { fs.linkSync(arq, destino); fs.unlinkSync(arq); } // mesmo disco: sem risco de sobrescrever
+      catch { fs.copyFileSync(arq, destino, fs.constants.COPYFILE_EXCL); fs.unlinkSync(arq); }
+    }
+    return { saida: destino };
+  },
+  escrever: async (c, entrada, _w, ctx) => {
+    const pasta = casa(preencher(c.pasta, entrada, ctx).trim());
+    const nome = preencher(c.nome, entrada, ctx).trim().replace(/[/\\]/g, '-') || `resultado-${dataArquivo()}.md`;
+    fs.mkdirSync(pasta, { recursive: true });
+    const conteudo = preencher(c.conteudo, entrada, ctx);
+    let alvo = path.join(pasta, nome);
+    if (c.modo === 'acrescentar') fs.appendFileSync(alvo, conteudo.endsWith('\n') ? conteudo : `${conteudo}\n`);
+    else { alvo = livre(alvo); fs.writeFileSync(alvo, conteudo, { flag: 'wx' }); }
+    return { saida: alvo };
+  },
+  notificar: async (c, entrada, _w, ctx) => {
+    const t = preencher(c.texto, entrada, ctx).slice(0, 400);
+    avisar(preencher(c.titulo, entrada, ctx) || 'Workflow', t);
     return { saida: entrada };
   },
 };
 
+// Nome que ainda não existe: "x.pdf" → "x-2.pdf", "x-3.pdf"… (nunca sobrescreve).
+function livre(alvo) {
+  if (!fs.existsSync(alvo)) return alvo;
+  const ext = path.extname(alvo), base = alvo.slice(0, alvo.length - ext.length);
+  for (let n = 2; ; n++) { const c = `${base}-${n}${ext}`; if (!fs.existsSync(c)) return c; }
+}
+
 // Roda a partir dos gatilhos indicados (ou de todos, no Rodar manual), em
 // largura: cada nó recebe a saída de quem liga nele.
-async function rodar(id, { motivo = 'manual', gatilhos } = {}) {
+async function rodar(id, { motivo = 'manual', gatilhos, arquivo = null } = {}) {
+  const ctx = { arquivo };
   const w = ler().find((x) => x.id === id);
   if (!w) throw new Error('workflow não encontrado');
   if (rodando.has(id)) return { ok: false, erro: 'já está rodando' };
@@ -331,7 +398,7 @@ async function rodar(id, { motivo = 'manual', gatilhos } = {}) {
       e.passos.push(p);
       aviso();
       try {
-        const r = await PASSOS[n.tipo](n.config, entrada, w);
+        const r = await PASSOS[n.tipo](n.config, entrada, w, ctx);
         if (r.parar) { p.estado = 'parou'; p.saida = r.parar; } else {
           p.estado = 'ok';
           p.saida = texto(r.saida, 2000);
@@ -380,16 +447,59 @@ function tique(agora = Date.now()) {
   }
 }
 
+// --- vigia de pastas ---------------------------------------------------------
+// Gatilho "Arquivo novo na pasta": a cada 3 s olha as pastas dos workflows
+// ligados. Arquivo que já estava lá quando começou a olhar não dispara; um
+// arquivo novo dispara quando o tamanho para de mudar (terminou de copiar).
+const vigias = new Map(); // "wf:no:pasta:padrao" → { conhecidos: Map(nome → tamanho), prontos: Set }
+const casaPadrao = (padrao) => {
+  const l = String(padrao || '').split(/[,;]/).map((p) => p.trim()).filter(Boolean);
+  if (!l.length) return () => true;
+  const rx = l.map((p) => new RegExp(`^${p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i'));
+  return (nome) => rx.some((r) => r.test(nome));
+};
+function olharPastas() {
+  const ativos = new Set();
+  for (const w of ler()) {
+    if (!w.ativo) continue;
+    for (const n of w.nos.filter((x) => x.tipo === 'pasta')) {
+      const pasta = casa(n.config.pasta || '');
+      const chave = `${w.id}:${n.id}:${pasta}:${n.config.padrao}`;
+      ativos.add(chave);
+      let itens;
+      try { itens = fs.readdirSync(pasta, { withFileTypes: true }).filter((d) => d.isFile() && !d.name.startsWith('.') && !/\.(part|crdownload|tmp)$/i.test(d.name)); } catch { continue; }
+      const casaNome = casaPadrao(n.config.padrao);
+      const tam = (nome) => { try { return fs.statSync(path.join(pasta, nome)).size; } catch { return -1; } };
+      let v = vigias.get(chave);
+      if (!v) { v = { conhecidos: new Map(itens.map((d) => [d.name, -2])), vistos: new Map() }; vigias.set(chave, v); continue; }
+      for (const d of itens) {
+        if (v.conhecidos.has(d.name) || !casaNome(d.name)) continue;
+        const t = tam(d.name);
+        if (v.vistos.get(d.name) === t && t >= 0) {
+          v.conhecidos.set(d.name, t); v.vistos.delete(d.name);
+          rodar(w.id, { motivo: `arquivo novo: ${d.name}`, gatilhos: [n.id], arquivo: path.join(pasta, d.name) }).catch(() => {});
+        } else v.vistos.set(d.name, t);
+      }
+      const nomes = new Set(itens.map((d) => d.name));
+      for (const k of v.conhecidos.keys()) if (!nomes.has(k)) v.conhecidos.delete(k); // saiu: se voltar, é novo
+    }
+  }
+  for (const k of vigias.keys()) if (!ativos.has(k)) vigias.delete(k);
+}
+let vigiaTimer = null;
+
 function ligar({ conversa: c, avisar: a, enviarTela: t }) {
   conversa = c; avisar = a; enviarTela = t;
   clearInterval(relogio);
   relogio = setInterval(() => { try { tique(); } catch { /* arquivo estragado: tenta no próximo */ } }, 15000);
+  clearInterval(vigiaTimer);
+  vigiaTimer = setInterval(() => { try { olharPastas(); } catch { /* tenta no próximo */ } }, 3000);
 }
-function desligar() { clearInterval(relogio); relogio = null; }
+function desligar() { clearInterval(relogio); relogio = null; clearInterval(vigiaTimer); vigiaTimer = null; }
 
 const tipos = () => TIPOS;
 const tiposCred = () => ({ tipos: TIPOS_CRED, camposBw: CAMPOS_BW });
 const lista = () => ler().map((w) => ({ ...w, rodando: rodando.has(w.id) }));
 
-module.exports = { ligar, desligar, lista, gravar, apagar, rodar, execucoes, todasExecucoes, tipos, vence, tique, TIPOS, ARQ,
+module.exports = { ligar, desligar, lista, gravar, apagar, rodar, execucoes, todasExecucoes, tipos, vence, tique, olharPastas, casaPadrao, livre, TIPOS, ARQ,
   credenciais, gravarCredencial, apagarCredencial, testarCredencial, tiposCred };

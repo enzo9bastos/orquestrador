@@ -245,7 +245,7 @@ ipcMain.handle('config:gravar', (_e, mudancas) => {
 function verPendencias(r) {
   const lista = [
     ...r.fila.map((p) => ({ id: `fila:${p.emp}:${p.proj}:${p.id}`, texto: p.tipo === 'permissao' ? `Um agente (${p.proj}) quer usar ${p.ferramenta}` : `Pedido ao servidor de ${p.proj}` })),
-    ...conversa.lista().filter((c) => c.pedidos > 0).map((c) => ({ id: `conversa:${c.id}`, texto: c.orquestrador ? 'O orquestrador tem uma pergunta para você' : `"${c.titulo}" tem uma pergunta para você` })),
+    ...conversa.lista().filter((c) => c.pedidos > 0).map((c) => ({ id: `conversa:${c.id}`, conversa: c.id, texto: c.orquestrador ? 'O orquestrador tem uma pergunta para você' : `"${c.titulo}" tem uma pergunta para você` })),
   ];
   ajudante.pendencias(lista);
 }

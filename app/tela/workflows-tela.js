@@ -18,7 +18,10 @@
   let abaInicio = 'workflows';
   let atual = null;        // workflow aberto no editor (cópia editável)
   let modo = 'editor';     // 'editor' | 'execucoes' (dentro do workflow)
-  let sel = null;          // { no } | { lig }
+  let selNos = new Set();  // passos selecionados
+  let selLig = null;       // ligação selecionada (índice)
+  let posNovo = null;      // onde pôr o próximo passo (menu do botão direito)
+  const selUnico = () => (selNos.size === 1 ? [...selNos][0] : null);
   let viva = null;         // execução em andamento do workflow aberto
   let execs = [];          // execuções do workflow aberto
   let execAberta = null;
@@ -26,7 +29,7 @@
   const vistas = new Map(); // id do workflow → { x, y, z }
   let vista = { x: 0, y: 0, z: 1 };
 
-  const ICONES = { agenda: '⏱', manual: '▶', orquestrador: '✦', claude: '◆', comando: '›_', condicao: '⑂', notificar: '🔔' };
+  const ICONES = { pasta: '📂', ler: '📄', mover: '➜', escrever: '✎', agenda: '⏱', manual: '▶', orquestrador: '✦', claude: '◆', comando: '›_', condicao: '⑂', notificar: '🔔' };
   const curto = (t, n = 70) => { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
   const quando = (ms) => {
     if (!ms) return '—';
@@ -47,6 +50,10 @@
       case 'comando': return (curto(c.comando) || 'sem comando') + (c.credenciais?.length ? ` · 🔑${c.credenciais.length}` : '');
       case 'condicao': return c.modo === 'naoVazia' ? 'entrada não vazia' : `${{ contem: 'contém', naoContem: 'não contém', regex: 'combina com' }[c.modo]} “${curto(c.valor, 30)}”`;
       case 'notificar': return curto(c.titulo);
+      case 'pasta': return `${c.padrao || 'qualquer arquivo'} em ${c.pasta}`;
+      case 'ler': return curto(c.caminho);
+      case 'mover': return `${c.modo === 'copiar' ? 'copia' : 'move'} para ${curto(c.destino, 40)}`;
+      case 'escrever': return `${c.modo === 'acrescentar' ? 'acrescenta em' : 'cria'} ${curto(`${c.pasta}/${c.nome}`, 50)}`;
       default: return '';
     }
   }
@@ -227,7 +234,7 @@
     ev.preventDefault();
     const g = await W.gravarCredencial({ id: f.dataset.credForm || undefined, nome: f.nome.value, tipo: f.tipo.value, ref: f.ref.value, campo: f.campo.value, variavel: f.variavel.value.trim().toUpperCase() });
     creds = await W.credenciais();
-    if (atual && sel?.no) abrirPasso(sel.no); else { abrirCredencial(g.id); desenharInicio(); }
+    if (atual && selUnico()) abrirPasso(selUnico()); else { abrirCredencial(g.id); desenharInicio(); }
   });
   $('wf-modal-corpo').addEventListener('click', async (ev) => {
     if (ev.target.closest('[data-fechar-modal]')) { fecharModal(); return; }
@@ -270,7 +277,7 @@
     if (!w) return mostrarInicio();
     atual = JSON.parse(JSON.stringify(w));
     delete atual.rodando;
-    sel = null; viva = null; execAberta = null; modo = 'editor';
+    selNos = new Set(); selLig = null; viva = null; execAberta = null; modo = 'editor';
     execs = await W.execucoes(id);
     $('wf-inicio').hidden = true;
     $('wf-editor').hidden = false;
@@ -351,7 +358,7 @@
     $('wf-nos').innerHTML = atual.nos.map((n) => {
       const t = tipos[n.tipo] || { nome: n.tipo, grupo: 'acao' };
       const st = estadoNo(n.id);
-      return `<div class="wf-no grupo-${t.grupo}${sel && sel.no === n.id ? ' selecionado' : ''}${st ? ` estado-${st}` : ''}" data-no="${esc(n.id)}" style="left:${n.x}px;top:${n.y}px;width:${LARGURA}px" tabindex="0" title="Dois cliques para ajustar">
+      return `<div class="wf-no grupo-${t.grupo}${selNos.has(n.id) ? ' selecionado' : ''}${st ? ` estado-${st}` : ''}" data-no="${esc(n.id)}" style="left:${n.x}px;top:${n.y}px;width:${LARGURA}px" tabindex="0" title="Dois cliques para ajustar">
         ${t.grupo === 'gatilho' ? '' : '<span class="porta entrada"></span>'}
         <div class="wf-no-topo"><span class="wf-icone">${ICONES[n.tipo] || '•'}</span><strong>${esc(t.nome)}</strong>${st ? `<span class="wf-estado">${{ rodando: 'rodando…', ok: 'ok', parou: 'parou', erro: 'erro' }[st]}</span>` : ''}</div>
         <div class="wf-no-resumo">${esc(resumo(n))}</div>
@@ -371,7 +378,7 @@
       const a = porId.get(l.de), b = porId.get(l.para);
       if (!a || !b) return '';
       const d = curva(pontoSaida(a), pontoEntrada(b));
-      return `<path class="wf-linha-toque" data-lig="${i}" d="${d}"/><path class="wf-linha${sel && sel.lig === i ? ' selecionada' : ''}" d="${d}"/>`;
+      return `<path class="wf-linha-toque" data-lig="${i}" d="${d}"/><path class="wf-linha${selLig === i ? ' selecionada' : ''}" d="${d}"/>`;
     }).join('') + (temp ? `<path class="wf-linha temporaria" d="${curva(temp[0], temp[1])}"/>` : '');
   }
 
@@ -438,17 +445,52 @@
     $('wf-quadro').addEventListener('pointerup', s);
   }
 
+  // Como no n8n e no Maestri: botão do meio (rodinha apertada) move o
+  // quadro; botão esquerdo no fundo desenha um retângulo de seleção; no passo,
+  // seleciona e arrasta (todos os selecionados juntos); Shift soma à seleção.
+  function moverQuadro(ev) {
+    const ini = { cx: ev.clientX, cy: ev.clientY, x: vista.x, y: vista.y };
+    $('wf-quadro').classList.add('movendo');
+    arrastar(ev, (e) => aplicarVista({ ...vista, x: ini.x + e.clientX - ini.cx, y: ini.y + e.clientY - ini.cy }), () => $('wf-quadro').classList.remove('movendo'));
+  }
+  const marcarSelecao = () => { for (const el of $('wf-nos').children) el.classList.toggle('selecionado', selNos.has(el.dataset.no)); };
+  // Sem colar a área de transferência nem rolar sozinho com o botão do meio (Linux).
+  $('wf-quadro').addEventListener('mousedown', (ev) => { if (ev.button === 1) ev.preventDefault(); });
+  $('wf-quadro').addEventListener('auxclick', (ev) => { if (ev.button === 1) ev.preventDefault(); });
   $('wf-quadro').addEventListener('pointerdown', (ev) => {
-    if (!atual || ev.button !== 0 || ev.target.closest('.wf-controles, .wf-rodar-caixa, .wf-mais-saida, #wf-mais-passo')) return;
+    if (!atual || ev.target.closest('.wf-controles, .wf-rodar-caixa, .wf-mais-saida, #wf-mais-passo')) return;
+    fecharMenuQuadro();
+    if (ev.button === 1) { ev.preventDefault(); moverQuadro(ev); return; }
+    if (ev.button !== 0) return;
     const linha = ev.target.closest('.wf-linha-toque');
-    if (linha) { sel = { lig: Number(linha.dataset.lig) }; desenharQuadro(); return; }
+    if (linha) { selNos = new Set(); selLig = Number(linha.dataset.lig); desenharQuadro(); return; }
     const el = ev.target.closest('.wf-no');
     if (!el) {
-      // Fundo: arrasta o quadro inteiro.
-      if (sel) { sel = null; desenharQuadro(); }
-      const ini = { cx: ev.clientX, cy: ev.clientY, x: vista.x, y: vista.y };
-      $('wf-quadro').classList.add('movendo');
-      arrastar(ev, (e) => aplicarVista({ ...vista, x: ini.x + e.clientX - ini.cx, y: ini.y + e.clientY - ini.cy }), () => $('wf-quadro').classList.remove('movendo'));
+      // Fundo: retângulo de seleção.
+      ev.preventDefault();
+      const base = ev.shiftKey ? new Set(selNos) : new Set();
+      selNos = new Set(base); selLig = null;
+      desenharLinhas(); marcarSelecao();
+      const q = $('wf-quadro').getBoundingClientRect();
+      const ini = [ev.clientX - q.left, ev.clientY - q.top];
+      const caixa = $('wf-selecao');
+      let pendente = false, fim = ini;
+      arrastar(ev, (e) => {
+        fim = [e.clientX - q.left, e.clientY - q.top];
+        if (pendente) return;
+        pendente = true;
+        noQuadro(() => {
+          pendente = false;
+          const x0 = Math.min(ini[0], fim[0]), y0 = Math.min(ini[1], fim[1]), x1 = Math.max(ini[0], fim[0]), y1 = Math.max(ini[1], fim[1]);
+          Object.assign(caixa.style, { left: `${x0}px`, top: `${y0}px`, width: `${x1 - x0}px`, height: `${y1 - y0}px` });
+          caixa.hidden = x1 - x0 < 3 && y1 - y0 < 3;
+          // Retângulo em coordenadas do desenho: entra quem encosta nele.
+          const d0 = [(x0 - vista.x) / vista.z, (y0 - vista.y) / vista.z], d1 = [(x1 - vista.x) / vista.z, (y1 - vista.y) / vista.z];
+          selNos = new Set(base);
+          for (const n of atual.nos) if (n.x < d1[0] && n.x + LARGURA > d0[0] && n.y < d1[1] && n.y + 70 > d0[1]) selNos.add(n.id);
+          marcarSelecao();
+        });
+      }, () => { caixa.hidden = true; desenharQuadro(); });
       return;
     }
     const n = atual.nos.find((x) => x.id === el.dataset.no);
@@ -470,24 +512,25 @@
       });
       return;
     }
-    sel = { no: n.id };
+    selLig = null;
+    if (ev.shiftKey) { if (selNos.has(n.id)) selNos.delete(n.id); else selNos.add(n.id); desenharQuadro(); return; }
+    if (!selNos.has(n.id)) selNos = new Set([n.id]);
+    const grupo = atual.nos.filter((x) => selNos.has(x.id)).map((x) => ({ n: x, x: x.x, y: x.y }));
     const [px, py] = noDesenho(ev);
-    const dx = px - n.x, dy = py - n.y;
     let mexeu = false;
     desenharQuadro();
-    const card = () => $('wf-nos').querySelector(`[data-no="${CSS.escape(n.id)}"]`);
-    card()?.focus();
+    $('wf-nos').querySelector(`[data-no="${CSS.escape(n.id)}"]`)?.focus();
+    const cards = new Map([...$('wf-nos').children].map((c) => [c.dataset.no, c]));
     let pendente = false;
-    const el2 = card();
     arrastar(ev, (e) => {
       const [x, y] = noDesenho(e);
-      n.x = Math.round(x - dx); n.y = Math.round(y - dy);
+      for (const g of grupo) { g.n.x = Math.round(g.x + x - px); g.n.y = Math.round(g.y + y - py); }
       mexeu = true;
       if (pendente) return;
       pendente = true;
       noQuadro(() => {
         pendente = false;
-        if (el2) { el2.style.left = `${n.x}px`; el2.style.top = `${n.y}px`; }
+        for (const g of grupo) { const c = cards.get(g.n.id); if (c) { c.style.left = `${g.n.x}px`; c.style.top = `${g.n.y}px`; } }
         desenharLinhas();
       });
     }, () => { if (mexeu) salvar(); });
@@ -496,15 +539,73 @@
     const el = ev.target.closest('.wf-no');
     if (el) abrirPasso(el.dataset.no);
   });
-  $('wf-quadro').addEventListener('keydown', (ev) => {
-    if (ev.target.closest('input, textarea, select')) return;
-    if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel) { ev.preventDefault(); remover(); }
-    if (ev.key === 'Enter' && sel?.no) { ev.preventDefault(); abrirPasso(sel.no); }
-  });
+  // Teclado no editor (fora de campos de texto e sem janela por cima).
   document.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Escape' || $('wf-editor').hidden) return;
-    if (!$('wf-modal').hidden) fecharModal(); else if (!$('wf-gaveta').hidden) $('wf-gaveta').hidden = true;
+    if ($('wf-editor').hidden || !atual) return;
+    if (ev.key === 'Escape') {
+      if (!$('wf-menu-quadro').hidden) fecharMenuQuadro();
+      else if (!$('wf-modal').hidden) fecharModal();
+      else if (!$('wf-gaveta').hidden) $('wf-gaveta').hidden = true;
+      else if (selNos.size || selLig !== null) { selNos = new Set(); selLig = null; desenharQuadro(); }
+      return;
+    }
+    if (ev.target.closest?.('input, textarea, select') || !$('wf-modal').hidden || modo !== 'editor' || $('aba-workflows').offsetParent === null) return;
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && (selNos.size || selLig !== null)) { ev.preventDefault(); remover(); }
+    else if (ev.key === 'Enter' && selUnico()) { ev.preventDefault(); abrirPasso(selUnico()); }
+    else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'a') { ev.preventDefault(); selNos = new Set(atual.nos.map((n) => n.id)); selLig = null; desenharQuadro(); }
+    else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'd' && selNos.size) { ev.preventDefault(); duplicar(); }
   });
+
+  // --- menu do botão direito -------------------------------------------------
+  function fecharMenuQuadro() { $('wf-menu-quadro').hidden = true; }
+  $('wf-quadro').addEventListener('contextmenu', (ev) => {
+    if (!atual || ev.target.closest('.wf-controles, .wf-rodar-caixa')) return;
+    ev.preventDefault();
+    const el = ev.target.closest('.wf-no');
+    if (el && !selNos.has(el.dataset.no)) { selNos = new Set([el.dataset.no]); selLig = null; desenharQuadro(); }
+    posNovo = noDesenho(ev).map(Math.round);
+    const n = selNos.size;
+    const itens = el
+      ? [n === 1 && ['ajustes', 'Ajustes do passo', 'Enter'], n === 1 && ['depois', 'Acrescentar passo depois'], ['duplicar', n > 1 ? `Duplicar ${n} passos` : 'Duplicar', 'Ctrl+D'], ['apagar', n > 1 ? `Apagar ${n} passos` : 'Apagar', 'Delete']]
+      : [['novo', 'Acrescentar passo aqui'], ['tudo', 'Selecionar tudo', 'Ctrl+A'], n && ['duplicar', `Duplicar ${n === 1 ? 'o selecionado' : `${n} selecionados`}`, 'Ctrl+D'], n && ['apagar', `Apagar ${n === 1 ? 'o selecionado' : `${n} selecionados`}`, 'Delete'], ['ajustar', 'Ajustar à tela'], atual.nos.length && ['apagar-tudo', 'Apagar tudo']];
+    const m = $('wf-menu-quadro');
+    m.innerHTML = itens.filter(Boolean).map(([k, r, atalho]) => `<li role="menuitem" data-mq="${k}"${k.startsWith('apagar') ? ' class="perigo"' : ''}>${esc(r)}${atalho ? `<span>${atalho}</span>` : ''}</li>`).join('');
+    m.hidden = false;
+    const r = m.getBoundingClientRect();
+    m.style.left = `${Math.min(ev.clientX, innerWidth - r.width - 8)}px`;
+    m.style.top = `${Math.min(ev.clientY, innerHeight - r.height - 8)}px`;
+  });
+  document.addEventListener('pointerdown', (ev) => { if (!$('wf-menu-quadro').hidden && !ev.target.closest('#wf-menu-quadro')) fecharMenuQuadro(); });
+  $('wf-menu-quadro').addEventListener('click', (ev) => {
+    const li = ev.target.closest('[data-mq]');
+    if (!li) return;
+    const k = li.dataset.mq;
+    if (k === 'apagar-tudo' && !li.dataset.confirmando) { li.dataset.confirmando = '1'; li.firstChild.textContent = `Confirmar: apagar os ${atual.nos.length} passos`; return; }
+    fecharMenuQuadro();
+    if (k === 'ajustes') abrirPasso(selUnico());
+    else if (k === 'depois') abrirGaveta(selUnico());
+    else if (k === 'novo') abrirGaveta(null, posNovo);
+    else if (k === 'tudo') { selNos = new Set(atual.nos.map((n) => n.id)); selLig = null; desenharQuadro(); }
+    else if (k === 'duplicar') duplicar();
+    else if (k === 'apagar') remover();
+    else if (k === 'ajustar') ajustarVista();
+    else if (k === 'apagar-tudo') { atual.nos = []; atual.ligacoes = []; selNos = new Set(); selLig = null; salvar(); desenharQuadro(); }
+  });
+
+  // Cópia dos selecionados (com as ligações entre eles), um pouco deslocada.
+  function duplicar() {
+    const mapa = new Map();
+    let k = atual.nos.length + 1;
+    for (const n of atual.nos.filter((x) => selNos.has(x.id))) {
+      while (atual.nos.some((x) => x.id === `n${k}`) || [...mapa.values()].some((x) => x.id === `n${k}`)) k++;
+      mapa.set(n.id, { ...JSON.parse(JSON.stringify(n)), id: `n${k}`, x: n.x + 40, y: n.y + 40 });
+    }
+    atual.nos.push(...mapa.values());
+    for (const l of atual.ligacoes.filter((x) => mapa.has(x.de) && mapa.has(x.para))) atual.ligacoes.push({ de: mapa.get(l.de).id, para: mapa.get(l.para).id });
+    selNos = new Set([...mapa.values()].map((n) => n.id));
+    salvar();
+    desenharQuadro();
+  }
 
   function ligar(de, para) {
     if (de === para) return false;
@@ -516,27 +617,28 @@
     return true;
   }
   function remover() {
-    if (!atual || !sel) return;
-    if (sel.lig !== undefined) atual.ligacoes.splice(sel.lig, 1);
-    else {
-      atual.nos = atual.nos.filter((n) => n.id !== sel.no);
-      atual.ligacoes = atual.ligacoes.filter((l) => l.de !== sel.no && l.para !== sel.no);
-    }
-    sel = null;
+    if (!atual) return;
+    if (selLig !== null) atual.ligacoes.splice(selLig, 1);
+    else if (selNos.size) {
+      atual.nos = atual.nos.filter((n) => !selNos.has(n.id));
+      atual.ligacoes = atual.ligacoes.filter((l) => !selNos.has(l.de) && !selNos.has(l.para));
+    } else return;
+    selNos = new Set(); selLig = null;
     salvar();
     desenharQuadro();
   }
 
   // --- gaveta de passos (o "+") -------------------------------------------
-  function abrirGaveta(depois) {
+  function abrirGaveta(depois, onde = null) {
     depoisDe = depois;
-    const grupos = [['gatilho', 'Gatilhos'], ['acao', 'Ações'], ['logica', 'Lógica']];
+    posNovo = onde;
+    const grupos = [['gatilho', 'Gatilhos'], ['ia', 'IA'], ['acao', 'Ações'], ['arquivos', 'Arquivos'], ['logica', 'Lógica']];
     $('wf-gaveta').innerHTML = `<header><strong>${depois ? 'O que acontece depois?' : 'Acrescentar passo'}</strong><button type="button" class="botao-icone" data-fechar-gaveta aria-label="Fechar">✕</button></header>
       ${grupos.map(([g, r]) => `<div class="menu-titulo">${r}</div>${Object.entries(tipos).filter(([, t]) => t.grupo === g && !(depois && g === 'gatilho')).map(([k, t]) =>
         `<button type="button" class="menu-item" data-novo-no="${k}"><span class="wf-icone">${ICONES[k] || ''}</span><span><strong>${esc(t.nome)}</strong><small>${esc(t.descricao)}</small></span></button>`).join('')}`).join('')}`;
     $('wf-gaveta').hidden = false;
   }
-  $('wf-mais-passo').addEventListener('click', () => abrirGaveta(sel?.no || null));
+  $('wf-mais-passo').addEventListener('click', () => abrirGaveta(selUnico()));
   $('wf-nos').addEventListener('click', (ev) => { const b = ev.target.closest('[data-mais-depois]'); if (b) abrirGaveta(b.dataset.maisDepois); });
   $('wf-gaveta').addEventListener('click', (ev) => {
     if (ev.target.closest('[data-fechar-gaveta]')) { $('wf-gaveta').hidden = true; return; }
@@ -555,11 +657,13 @@
     const q = $('wf-quadro').getBoundingClientRect();
     const n = anterior
       ? { id: `n${k}`, tipo, x: anterior.x + LARGURA + 70, y: anterior.y, config }
+      : posNovo ? { id: `n${k}`, tipo, x: posNovo[0], y: posNovo[1], config }
       : { id: `n${k}`, tipo, x: Math.round((q.width / 2 - vista.x) / vista.z - LARGURA / 2), y: Math.round((q.height / 3 - vista.y) / vista.z), config };
+    posNovo = null;
     while (atual.nos.some((o) => Math.abs(o.x - n.x) < 60 && Math.abs(o.y - n.y) < 60)) n.y += 110;
     atual.nos.push(n);
     if (anterior && tipos[tipo].grupo !== 'gatilho') atual.ligacoes.push({ de: anterior.id, para: n.id });
-    sel = { no: n.id };
+    selNos = new Set([n.id]); selLig = null;
     salvar();
     desenharQuadro();
     abrirPasso(n.id); // como no n8n: o passo novo já abre para ajustar
@@ -570,13 +674,13 @@
   function abrirPasso(id) {
     const n = atual && atual.nos.find((x) => x.id === id);
     if (!n) return;
-    sel = { no: n.id };
+    selNos = new Set([n.id]); selLig = null;
     const t = tipos[n.tipo];
     const ult = [viva, ...execs].filter(Boolean).flatMap((e) => e.passos.filter((p) => p.no === n.id))[0];
     abrirModal(`<div class="wf-form wf-passo" data-passo="${esc(n.id)}">
       <h3><span class="wf-icone">${ICONES[n.tipo] || ''}</span> ${esc(t.nome)}</h3><p class="nota">${esc(t.descricao)}</p>
       ${t.campos.filter((c) => visivelCampo(c, n.config)).map((c) => campoHtml(c, n.config[c.k])).join('') || '<p class="nota">Este passo não tem ajustes.</p>'}
-      ${n.tipo !== 'agenda' && n.tipo !== 'manual' ? '<p class="nota"><strong>{{entrada}}</strong> vira a saída do passo anterior; <strong>{{data}}</strong>, a data e a hora.</p>' : ''}
+      ${tipos[n.tipo]?.grupo !== 'gatilho' ? '<p class="nota"><strong>{{entrada}}</strong> é a saída do passo anterior · <strong>{{arquivo}}</strong> e <strong>{{nome_arquivo}}</strong>, o arquivo que disparou · <strong>{{data}}</strong> data e hora · <strong>{{data_arquivo}}</strong> data boa para nome de arquivo.</p>' : ''}
       ${ult ? `<div class="wf-ultima"><span class="menu-titulo">Última saída (${esc(ult.estado)})</span><pre>${esc(ult.saida || '(vazia)')}</pre></div>` : ''}
       <div class="wf-form-acoes"><button type="button" class="botao primario" data-fechar-modal>Pronto</button><button type="button" class="botao-texto perigo" data-wf-remover>Tirar este passo</button></div></div>`);
     desenharQuadro();

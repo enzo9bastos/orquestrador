@@ -9,6 +9,7 @@
   const sorteia = (l) => l[Math.floor(Math.random() * l.length)];
   let imagem = null; // caminho do recorte que vai junto da próxima pergunta
   let tBolha = null;
+  let alvoPendencia = null; // conversa a abrir no "Ver no app"
 
   const classe = (c, sim = true) => pet.classList.toggle(c, sim);
   function falar(texto, ms = 2200, acoes = []) {
@@ -109,7 +110,7 @@
     if (!a) return;
     calar(); classe('chamando', false);
     A.enviar({ t: 'avisoFechado' });
-    if (a === 'ver') { A.enviar({ t: 'abrirApp' }); A.enviar({ t: 'irEmbora' }); }
+    if (a === 'ver') { A.enviar({ t: 'abrirApp', conversa: alvoPendencia }); A.enviar({ t: 'irEmbora' }); }
     else if (a === 'depois') A.enviar({ t: 'irEmbora' });
     else if (a === 'abrir') A.enviar({ t: 'abrirApp', conversa: 'ajudante' });
   });
@@ -131,6 +132,7 @@
       abrirConversa();
       if (m.capturar) capturar();
     } else if (m.t === 'pendencia') {
+      alvoPendencia = m.conversa;
       classe('chamando');
       falar(m.texto, 0, [['ver', 'Ver no app'], ['depois', 'Depois']]);
     } else if (m.t === 'falar') falar(m.texto, 1800);

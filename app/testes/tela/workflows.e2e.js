@@ -84,7 +84,11 @@ test('workflows', async (t) => {
     assert.ok(Math.abs(depois.x - antes.x + 30 / z) <= 3 && Math.abs(depois.y - antes.y - 80 / z) <= 3, JSON.stringify([antes, depois, z]));
     const t0 = await app.avaliar("document.getElementById('wf-area').style.transform");
     const r = await app.avaliar("(() => { const q = document.getElementById('wf-quadro').getBoundingClientRect(); return [Math.round(q.left + 30), Math.round(q.top + 30)]; })()");
-    await arrastar(r, [r[0] + 50, r[1] + 40]);
+    // Botão do meio (rodinha apertada) move o quadro.
+    const meio = (type, x, y) => app.cdp('Input.dispatchMouseEvent', { type, x, y, button: 'middle', buttons: type === 'mouseReleased' ? 0 : 4, clickCount: 1 });
+    await meio('mousePressed', ...r);
+    for (let i = 1; i <= 4; i++) await meio('mouseMoved', r[0] + i * 12, r[1] + i * 10);
+    await meio('mouseReleased', r[0] + 48, r[1] + 40);
     await app.esperar(`document.getElementById('wf-area').style.transform !== ${JSON.stringify(t0)}`); // o fundo move
     await clicar('[data-zoom=mais]');
     await app.esperar(`parseFloat(document.getElementById('wf-zoom-valor').textContent) > ${z * 100}`);
@@ -101,6 +105,43 @@ test('workflows', async (t) => {
     await app.esperar("document.querySelectorAll('.wf-linha').length === 1");
     await app.espera(500);
     assert.deepStrictEqual((await salvo(id)).ligacoes, [{ de: 'n1', para: 'n2' }]);
+  });
+
+  // Pedido de 2026-10-30: como no n8n/Maestri — esquerdo no fundo seleciona,
+  // botão direito tem menu (acrescentar, duplicar, apagar, apagar tudo).
+  await t.test('retângulo de seleção, Ctrl+D duplica, Delete apaga os selecionados', async () => {
+    const q = await app.avaliar("(() => { const r = document.getElementById('wf-quadro').getBoundingClientRect(); return [Math.round(r.left + 8), Math.round(r.top + 8), Math.round(r.right - 60), Math.round(r.bottom - 70)]; })()");
+    await arrastar([q[0], q[1]], [q[2], q[3]]);
+    await app.esperar("document.querySelectorAll('.wf-no.selecionado').length === 2");
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true }))");
+    await app.esperar("document.querySelectorAll('.wf-no').length === 4 && document.querySelectorAll('.wf-no.selecionado').length === 2");
+    assert.strictEqual(await app.avaliar("document.querySelectorAll('.wf-linha').length"), 2, 'a cópia vem com a ligação entre eles');
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))");
+    await app.esperar("document.querySelectorAll('.wf-no').length === 2");
+    await app.espera(500);
+    assert.deepStrictEqual((await salvo(id)).nos.map((n) => n.id), ['n1', 'n2'], 'apagou só as cópias');
+  });
+
+  await t.test('botão direito: menu do fundo e do passo; acrescentar aqui; apagar tudo pede confirmação', async () => {
+    const menu = async (sel, x, y) => app.avaliar(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: ${x} ?? r.left + 20, clientY: ${y} ?? r.top + 20 })); return document.getElementById('wf-menu-quadro').innerText; })()`);
+    assert.match(await menu('.wf-no[data-no=n2] .wf-no-topo', 'null', 'null'), /Ajustes do passo[\s\S]*Duplicar[\s\S]*Apagar/);
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+    const q = await app.avaliar("(() => { const r = document.getElementById('wf-quadro').getBoundingClientRect(); return [Math.round(r.left + 40), Math.round(r.top + 40)]; })()");
+    assert.match(await menu('#wf-grade', q[0], q[1]), /Acrescentar passo aqui[\s\S]*Selecionar tudo[\s\S]*Ajustar à tela[\s\S]*Apagar tudo/);
+    await clicar('[data-mq=novo]');
+    await app.esperar("!document.getElementById('wf-gaveta').hidden");
+    assert.ok(await app.avaliar("!!document.querySelector('#wf-gaveta [data-novo-no=pasta]') && !!document.querySelector('#wf-gaveta [data-novo-no=escrever]')"), 'tem os passos de arquivo');
+    await clicar('#wf-gaveta [data-novo-no=pasta]');
+    await app.esperar("document.querySelectorAll('.wf-no').length === 3 && !document.getElementById('wf-modal').hidden");
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+    await menu('#wf-grade', q[0], q[1]);
+    await clicar('[data-mq=apagar-tudo]');
+    assert.match(await app.avaliar("document.querySelector('[data-mq=apagar-tudo]').textContent"), /Confirmar: apagar os 3 passos/);
+    assert.strictEqual(await app.avaliar("document.querySelectorAll('.wf-no').length"), 3, 'um clique só não apaga');
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+    await app.avaliar("document.querySelector('.wf-no[data-no=n3]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))");
+    await app.avaliar("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))");
+    await app.esperar("document.querySelectorAll('.wf-no').length === 2");
   });
 
   await t.test('dois cliques no passo abrem os ajustes; descrição pelo menu ⋯', async () => {

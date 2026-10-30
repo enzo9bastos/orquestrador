@@ -1093,7 +1093,7 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .wf-menu-mais .menu-item.perigo:hover, .wf-menu-mais .menu-item[data-confirmando] { color: var(--perigo); }
 .wf-gaveta .menu-item small { display: block; color: var(--fg-4); font-size: 11px; line-height: 1.35; margin-top: 1px; }
 .wf-tela-editor { flex: 1; min-height: 0; position: relative; display: flex; }
-.wf-quadro { flex: 1; position: relative; overflow: hidden; cursor: grab; background-color: var(--bg-afundado); contain: strict; }
+.wf-quadro { flex: 1; position: relative; overflow: hidden; cursor: default; background-color: var(--bg-afundado); contain: strict; }
 /* Pontilhado numa camada própria, maior que o quadro: mover é só transform. */
 .wf-grade { position: absolute; left: -100px; top: -100px; right: -100px; bottom: -100px; pointer-events: none; background-image: radial-gradient(circle, var(--borda-forte) 1px, transparent 1px); background-size: 20px 20px; will-change: transform; }
 .wf-quadro.movendo { cursor: grabbing; }
@@ -1212,3 +1212,8 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .wf-apagar-linha { margin: 0; color: var(--fg-3); }
 .wf-apagar-linha:hover, .wf-apagar-linha[data-confirmando] { color: var(--perigo); border-color: var(--perigo); }
 .wf-linha-lista[data-cred] { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+.wf-selecao { position: absolute; z-index: 2; border: 1px solid var(--claude); background: var(--claude-suave); border-radius: 3px; pointer-events: none; }
+.wf-selecao[hidden] { display: none; }
+.wf-no.grupo-ia { border-left: 3px solid #a78bfa; }
+.wf-no.grupo-arquivos { border-left: 3px solid #38bdf8; }
+.wf-menu-quadro li.perigo:hover, .wf-menu-quadro li[data-confirmando] { color: var(--perigo); background: color-mix(in srgb, var(--perigo) 15%, transparent); }

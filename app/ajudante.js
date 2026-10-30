@@ -72,10 +72,20 @@ async function receber(m) {
     const r = await capturar();
     mandar({ t: 'imagem', ...r });
   } else if (m.t === 'abrirApp') {
-    const j = ctx.janela();
-    if (j) { if (j.isMinimized()) j.restore(); j.show(); j.focus(); }
+    trazerApp();
     if (m.conversa) ctx.enviarTela('conversa:focar', m.conversa);
   } else if (m.t === 'voltar') { mandar({ t: 'sumir' }); mudarLugar(false); }
+}
+
+// Traz o app para a frente. No Wayland um programa não pode roubar o foco;
+// se o primeiro pedido não pegar, esconde e mostra a janela de novo (janela
+// que reaparece vem por cima).
+function trazerApp() {
+  const j = ctx.janela();
+  if (!j) return;
+  if (j.isMinimized()) j.restore();
+  j.show(); j.focus();
+  setTimeout(() => { if (!j.isDestroyed() && !j.isFocused()) { j.hide(); j.show(); j.focus(); } }, 350);
 }
 
 // --- perguntar ao ajudante ---------------------------------------------------
@@ -129,18 +139,35 @@ function recolher() { mandar({ t: 'sumir' }); }
 
 // lista: [{ id, texto }]. Pendência nova, com o app fora de foco: ele vem
 // avisar. As que sumiram saem da memória (se voltarem, avisa de novo).
+// Antes de sair avisando, espera e confere de novo: a pendência ainda existe
+// e o app ainda está fora de foco (não ir à toa se já foi respondida ou se o
+// usuário já está no app). Se for resolvida com ele na tela, ele vai embora.
+const ESPERA_AVISO = TESTE ? 50 : 6000;
+let atuais = new Map();
+let mostrando = null;
+const appNaFrente = () => { const j = ctx.janela(); return !!(j && j.isFocused() && !j.isMinimized()); };
 function pendencias(lista) {
-  const ids = new Set(lista.map((p) => p.id));
-  for (const v of [...vistas]) if (!ids.has(v)) vistas.delete(v);
+  atuais = new Map(lista.map((p) => [p.id, p]));
+  for (const v of [...vistas]) if (!atuais.has(v)) vistas.delete(v);
   const novas = lista.filter((p) => !vistas.has(p.id));
   for (const p of novas) vistas.add(p.id);
-  if (!novas.length || !ler().avisarFora) return novas;
-  const j = ctx.janela();
-  if (j && j.isFocused() && !j.isMinimized()) return novas;
-  iniciar();
-  const texto = novas.length === 1 ? novas[0].texto : `${novas.length} coisas esperando por você`;
-  mandar({ t: 'pendencia', texto, total: lista.length });
+  if (mostrando && ![...mostrando].some((id) => atuais.has(id))) { mostrando = null; mandar({ t: 'resolvida' }); }
+  if (novas.length && ler().avisarFora) {
+    const ids = novas.map((p) => p.id);
+    const t = setTimeout(() => confirmarAviso(ids), ESPERA_AVISO);
+    if (t.unref) t.unref();
+  }
   return novas;
+}
+function confirmarAviso(ids) {
+  const ainda = ids.filter((id) => atuais.has(id)).map((id) => atuais.get(id));
+  if (!ainda.length || appNaFrente()) return null;
+  iniciar();
+  mostrando = new Set(ainda.map((p) => p.id));
+  const texto = ainda.length === 1 ? ainda[0].texto : `${ainda.length} coisas esperando por você`;
+  const msg = { t: 'pendencia', texto, total: atuais.size, conversa: ainda[0].conversa || null };
+  mandar(msg);
+  return msg;
 }
 
 // --- atalho do sistema ---------------------------------------------------------
@@ -198,4 +225,4 @@ function desligar() {
   if (servidor) { try { servidor.close(); fs.unlinkSync(SOQUETE); } catch { /* já fechado */ } }
 }
 
-module.exports = { ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+module.exports = { ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };

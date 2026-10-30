@@ -11,6 +11,7 @@ const { app, BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const os = require('os');
 const readline = require('readline');
+const { spawn } = require('child_process');
 
 app.commandLine.appendSwitch('enable-transparent-visuals');
 app.commandLine.appendSwitch('ozone-platform', 'x11');
@@ -72,6 +73,7 @@ function aparecer(depois) {
   mover();
   if (!TESTE) win.showInactive();
   win.setAlwaysOnTop(true, 'screen-saver');
+  win.setVisibleOnAllWorkspaces(true); // depois de mostrar: antes disso o X11 ignora
   paraApp({ t: 'visivel', visivel: true });
   andar(a.x + Math.round(a.width * 0.78) - tam.w, 320, () => { modo = 'parado'; if (depois) depois(); });
 }
@@ -139,13 +141,45 @@ function receber(m) {
   // O atalho alterna: com a conversa aberta, apertar de novo manda ele embora.
   else if (m.t === 'chamar' && conversaAberta && !m.capturar) sumir();
   else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); passear(); });
-  else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total }); passear(); }); }
+  else if (m.t === 'resolvida') { if (aviso) { aviso = false; paraTela({ t: 'falar', texto: 'Já foi resolvido! 👍' }); setTimeout(() => { if (!conversaAberta) sumir(); }, 1600); } }
+  else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total, conversa: m.conversa || null }); passear(); }); }
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
   else if (m.t === 'pensando' || m.t === 'resposta') paraTela(m);
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') win.showInactive(); win.focus(); paraTela(m); }
   else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
   else if (m.t === 'print-tela' && TESTE) win.webContents.capturePage().then((img) => paraApp({ t: 'print', png: img.toPNG().toString('base64') }));
+}
+
+// Áreas de trabalho: o xprop avisa cada troca. Ele está em todas; ao trocar,
+// chega andando pelo lado de onde você "veio" (área de número menor: entra
+// pela direita, como se a tela tivesse andado para a esquerda).
+let areaAtual = null;
+const sorteia = (l) => l[Math.floor(Math.random() * l.length)];
+function vigiarAreas() {
+  if (TESTE) return;
+  let p;
+  try { p = spawn('xprop', ['-spy', '-root', '_NET_CURRENT_DESKTOP'], { stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return; }
+  p.on('error', () => {});
+  app.on('will-quit', () => { try { p.kill(); } catch { /* já saiu */ } });
+  readline.createInterface({ input: p.stdout }).on('line', (l) => {
+    const n = Number((l.match(/=\s*(\d+)/) || [])[1]);
+    if (!Number.isFinite(n)) return;
+    if (areaAtual !== null && n !== areaAtual) trocouArea(areaAtual, n);
+    areaAtual = n;
+  });
+}
+function trocouArea(de, para) {
+  if (!win || modo === 'escondido') return;
+  win.setVisibleOnAllWorkspaces(true);
+  if (conversaAberta || modo === 'saindo') return; // com a conversa aberta, fica onde está
+  const a = area();
+  const volta = Math.min(Math.max(pos.x, a.x), a.x + a.width - tam.w);
+  clearInterval(timer); timer = null;
+  pos.x = para < de ? a.x + a.width : a.x - tam.w;
+  mover();
+  modo = 'entrando';
+  andar(volta, 420, () => { modo = 'parado'; if (Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
 }
 
 ipcMain.on('ajudante', (_e, m) => {
@@ -180,6 +214,7 @@ app.whenReady().then(() => {
   win.loadFile(path.join(__dirname, 'janela.html'));
   readline.createInterface({ input: process.stdin }).on('line', (l) => { let m; try { m = JSON.parse(l); } catch { return; } receber(m); });
   process.stdin.on('end', () => app.quit()); // o app fechou
+  vigiarAreas();
   paraApp({ t: 'iniciado' });
 });
 app.on('window-all-closed', () => app.quit());

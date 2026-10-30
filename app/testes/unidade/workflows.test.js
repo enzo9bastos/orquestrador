@@ -123,3 +123,41 @@ test('workflows: relógio diário — uma vez no horário, nunca fora dele, sem 
   assert.ok(!wf.vence(c, new Date(2026, 9, 25, 8, 31).getTime(), 0), 'domingo');
   assert.ok(wf.vence({ ...c, diasUteis: false }, new Date(2026, 9, 25, 8, 31).getTime(), 0));
 });
+
+test('workflows: arquivo novo na pasta → ler → escrever e mover, sem nunca sobrescrever', async () => {
+  const entrada = path.join(casa, 'entrada'), saida = path.join(casa, 'saida');
+  fs.mkdirSync(entrada); fs.mkdirSync(saida);
+  fs.writeFileSync(path.join(entrada, 'velho.txt'), 'já estava');
+  fs.writeFileSync(path.join(saida, 'nota.txt'), 'NÃO PODE SUMIR');
+  wf.gravar({ id: 'w-pasta', nome: 'pasta', ativo: true, nos: [
+    { id: 'n1', tipo: 'pasta', config: { pasta: '~/entrada', padrao: '*.txt' } },
+    { id: 'n2', tipo: 'ler', config: { caminho: '{{arquivo}}' } },
+    { id: 'n3', tipo: 'escrever', config: { modo: 'novo', pasta: '~/saida', nome: 'resumo-{{nome_arquivo}}', conteudo: 'li: {{entrada}}' } },
+    { id: 'n4', tipo: 'mover', config: { modo: 'mover', caminho: '{{arquivo}}', destino: '~/saida' } },
+  ], ligacoes: [{ de: 'n1', para: 'n2' }, { de: 'n2', para: 'n3' }, { de: 'n3', para: 'n4' }] });
+  wf.olharPastas(); // primeira olhada: o que já existe não dispara
+  fs.writeFileSync(path.join(entrada, 'nota.txt'), 'conteúdo novo');
+  fs.writeFileSync(path.join(entrada, 'foto.png'), 'x');
+  wf.olharPastas(); // viu o arquivo; espera o tamanho parar de mudar
+  assert.strictEqual(wf.execucoes('w-pasta').length, 0);
+  wf.olharPastas(); // tamanho igual: dispara
+  for (let i = 0; i < 30 && !(wf.execucoes('w-pasta')[0]?.fim); i++) await new Promise((r) => setTimeout(r, 50));
+  const e = wf.execucoes('w-pasta');
+  assert.strictEqual(e.length, 1, 'só o .txt novo dispara (nem o velho nem o .png)');
+  assert.ok(e[0].ok, JSON.stringify(e[0].passos));
+  assert.match(e[0].motivo, /arquivo novo: nota\.txt/);
+  assert.strictEqual(fs.readFileSync(path.join(saida, 'resumo-nota.txt'), 'utf8'), 'li: conteúdo novo');
+  assert.strictEqual(fs.readFileSync(path.join(saida, 'nota.txt'), 'utf8'), 'NÃO PODE SUMIR', 'o que já existia no destino continua');
+  assert.strictEqual(fs.readFileSync(path.join(saida, 'nota-2.txt'), 'utf8'), 'conteúdo novo', 'o movido ganhou número');
+  assert.ok(!fs.existsSync(path.join(entrada, 'nota.txt')), 'saiu da origem');
+  wf.olharPastas();
+  assert.strictEqual(wf.execucoes('w-pasta').length, 1, 'não dispara de novo');
+  wf.gravar({ ...wf.lista().find((w) => w.id === 'w-pasta'), ativo: false });
+});
+
+test('workflows: escrever acrescentando vai para o fim do arquivo', async () => {
+  fs.writeFileSync(path.join(casa, 'log.md'), 'linha 1\n');
+  wf.gravar({ id: 'w-log', nome: 'log', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'escrever', config: { modo: 'acrescentar', pasta: '~', nome: 'log.md', conteudo: 'linha 2' } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+  await wf.rodar('w-log');
+  assert.strictEqual(fs.readFileSync(path.join(casa, 'log.md'), 'utf8'), 'linha 1\nlinha 2\n');
+});

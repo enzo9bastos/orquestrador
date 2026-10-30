@@ -56,3 +56,16 @@ test('pet: resposta da conversa do ajudante vai para o bichinho, não vira notif
   assert.strictEqual(ajudante.aviso({ id: 'ajudante', tipo: 'resposta', texto: 'oi' }), true);
   assert.strictEqual(ajudante.aviso({ id: 'orquestrador', tipo: 'resposta', texto: 'oi' }), false);
 });
+
+test('pet: só vai avisar se a pendência ainda existe e o app está fora de foco', () => {
+  let foco = false;
+  ajudante.ligar({ janela: () => ({ isFocused: () => foco, isMinimized: () => false }), conversa: null, enviarTela: () => {} });
+  ajudante.pendencias([{ id: 'p1', texto: 'Pergunta', conversa: 'orquestrador' }]);
+  ajudante.pendencias([]); // respondida antes da hora de avisar
+  assert.strictEqual(ajudante.confirmarAviso(['p1']), null, 'já respondida: não vai');
+  ajudante.pendencias([{ id: 'p2', texto: 'Outra', conversa: 'orquestrador' }]);
+  foco = true;
+  assert.strictEqual(ajudante.confirmarAviso(['p2']), null, 'usuário no app: não vai');
+  foco = false;
+  assert.deepStrictEqual(ajudante.confirmarAviso(['p2']), { t: 'pendencia', texto: 'Outra', total: 1, conversa: 'orquestrador' }, 'vai, e sabe qual conversa abrir');
+});
