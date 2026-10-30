@@ -239,13 +239,22 @@ function nomeDaFrente(f, i) {
   return /^Agente \d+/.test(f.nome) ? f.nome : `Agente ${i + 1} — ${f.nome}`;
 }
 
+// Troca o conteúdo só quando mudou: a cada 2 s a lateral e o inspetor são
+// recalculados, e recriar o mesmo HTML redesenharia tudo à toa (e perderia a
+// rolagem e o destaque do mouse).
+function trocarHtml(el, html) {
+  if (el._html === html) return;
+  el._html = html;
+  el.innerHTML = html;
+}
+
 function desenharTopo(r) {
   const n = (est) => r.frentes.filter((f) => f.estado === est).length;
   const pilula = (classe, num, texto) => `<span class="pilula"><span class="ponto ${classe}"></span>${num} ${texto}</span>`;
-  $('contagem').innerHTML =
+  trocarHtml($('contagem'),
     pilula('trabalhando', n('trabalhando'), 'trabalhando') +
     pilula('esperando', n('esperando'), 'esperando') +
-    pilula('permissao', n('permissao') + r.fila.filter((p) => p.tipo === 'pedido').length, 'pendências');
+    pilula('permissao', n('permissao') + r.fila.filter((p) => p.tipo === 'pedido').length, 'pendências'));
 }
 
 function desenharFrentes(r) {
@@ -254,13 +263,13 @@ function desenharFrentes(r) {
   const visiveis = numeradas.filter((f) => !filtro || `${f.rotulo} ${f.proj} ${f.tarefa || ''}`.toLowerCase().includes(filtro));
   const caixa = $('projetos');
   if (!r.frentes.length) {
-    caixa.innerHTML = VAZIO('i-terminal', 'Nenhuma frente aberta', 'Peça ao orquestrador para abrir uma frente.');
+    trocarHtml(caixa, VAZIO('i-terminal', 'Nenhuma frente aberta', 'Peça ao orquestrador para abrir uma frente.'));
   } else if (!visiveis.length) {
-    caixa.innerHTML = VAZIO('i-busca', 'Nada encontrado', `Nenhuma frente com "${esc(filtro)}".`);
+    trocarHtml(caixa, VAZIO('i-busca', 'Nada encontrado', `Nenhuma frente com "${esc(filtro)}".`));
   } else {
     // Um cartão por agente: "Agente N" em cima, o que ele está fazendo embaixo.
     const numero = (f) => Number((f.rotulo.match(/^Agente (\d+)/) || [])[1] || 999);
-    caixa.innerHTML = [...visiveis].sort((a, b) => numero(a) - numero(b)).map((f) => `
+    trocarHtml(caixa, [...visiveis].sort((a, b) => numero(a) - numero(b)).map((f) => `
       <button type="button" class="cartao-agente" data-chave="${esc(f.chave)}" aria-pressed="${f.chave === selecionada}"
           title="${esc(ROTULO[f.estado])}${f.fonte === 'tela' ? ' (lido pela tela)' : ''}">
         <span class="linha-agente">
@@ -273,7 +282,7 @@ function desenharFrentes(r) {
           <span class="rotulo-status">${esc(ROTULO_STATUS[f.statusAgente.estado] || f.statusAgente.estado)}</span>${esc(f.statusAgente.texto)}
           ${f.statusAgente.progresso ? (() => { const [a, b] = f.statusAgente.progresso.split('/').map(Number); return `<span class="progresso-agente" title="${a} de ${b}"><i style="width:${Math.min(100, (a / (b || 1)) * 100)}%"></i></span>`; })() : ''}</span>` : ''}
         <span class="proj" title="${esc(f.proj)}">${f.modeloAgente ? `<span class="modelo-agente">✳ ${esc(f.modeloAgente)}</span>` : esc(f.proj)}</span>
-      </button>`).join('');
+      </button>`).join(''));
   }
   $('sem-terminal').textContent = r.semTerminal ? `${r.semTerminal} projeto(s) sem agente aberto` : '';
 }
@@ -282,10 +291,10 @@ function desenharFila(r) {
   $('n-fila').textContent = r.fila.length ? String(r.fila.length) : '';
   const ul = $('fila');
   if (!r.fila.length) {
-    ul.innerHTML = `<li>${VAZIO('i-sino', 'Nada esperando por você', 'Permissões e pedidos ao servidor aparecem aqui.')}</li>`;
+    trocarHtml(ul, `<li>${VAZIO('i-sino', 'Nada esperando por você', 'Permissões e pedidos ao servidor aparecem aqui.')}</li>`);
     return;
   }
-  ul.innerHTML = r.fila.map((p) => {
+  trocarHtml(ul, r.fila.map((p) => {
     if (p.tipo === 'permissao') {
       const cmd = p.entrada?.command || p.entrada?.file_path || JSON.stringify(p.entrada ?? {}, null, 1);
       return `<li class="item-fila">
@@ -303,7 +312,7 @@ function desenharFila(r) {
       <code class="codigo">${esc(p.conteudo)}</code>
       <span class="nota">Quem avalia e roda é o orquestrador: diga a ele "olha o pedido ${esc(p.id)}".</span>
     </li>`;
-  }).join('');
+  }).join(''));
 }
 
 function desenharDetalhe(r) {
@@ -311,12 +320,12 @@ function desenharDetalhe(r) {
   const f = r.frentes[i];
   if (!f) {
     $('titulo-detalhe').textContent = 'Frente';
-    $('detalhe').innerHTML = VAZIO('i-lista', 'Nenhuma frente selecionada', 'Clique numa frente à esquerda.');
+    trocarHtml($('detalhe'), VAZIO('i-lista', 'Nenhuma frente selecionada', 'Clique numa frente à esquerda.'));
     return;
   }
   $('titulo-detalhe').textContent = nomeDaFrente(f, i);
   const eventos = [...f.linhaDoTempo].reverse();
-  $('detalhe').innerHTML = `
+  trocarHtml($('detalhe'), `
     <div class="detalhe-meta">
       <span class="estado ${f.estado}">${ROTULO[f.estado]}</span>
       ${f.modelo ? `<span class="modelo">${esc(f.modelo)}</span>` : ''}
@@ -327,7 +336,7 @@ function desenharDetalhe(r) {
     ${f.ultimaResposta
       ? `<div class="resposta">${esc(f.ultimaResposta)}</div>`
       : `<p class="nota">${f.fonte === 'tela' ? 'Esta frente ainda não tem o hook de sinais: o estado vem da tela e a resposta inteira não fica disponível.' : 'Sem resposta registrada ainda.'}</p>`}
-    ${eventos.length ? `<div class="rotulo-pequeno">Atividade</div><ul class="tempo">${eventos.slice(0, 25).map((e) => `<li><span class="hora">${hora(e.ts)}</span><span class="o-que" title="${esc(descreverEvento(e))}">${esc(descreverEvento(e))}</span></li>`).join('')}</ul>` : ''}`;
+    ${eventos.length ? `<div class="rotulo-pequeno">Atividade</div><ul class="tempo">${eventos.slice(0, 25).map((e) => `<li><span class="hora">${hora(e.ts)}</span><span class="o-que" title="${esc(descreverEvento(e))}">${esc(descreverEvento(e))}</span></li>`).join('')}</ul>` : ''}`);
 }
 
 // Cores do terminal (sequências SGR do `tmux capture-pane -e`) para HTML.
@@ -418,7 +427,7 @@ async function atualizar() {
     desenharDetalhe(r);
     await atualizarEspelhos(r);
   } catch (err) {
-    $('projetos').innerHTML = VAZIO('i-terminal', 'Não consegui ler as frentes', `${esc(err.message)}. Tento de novo em 2 s.`);
+    trocarHtml($('projetos'), VAZIO('i-terminal', 'Não consegui ler as frentes', `${esc(err.message)}. Tento de novo em 2 s.`));
   }
 }
 
@@ -432,7 +441,7 @@ document.addEventListener('click', async (ev) => {
   } else if (alvo.dataset.resp) {
     alvo.disabled = true;
     const ok = await window.orq.responder(alvo.dataset.emp, alvo.dataset.proj, alvo.dataset.id, alvo.dataset.resp);
-    if (!ok) alvo.closest('li').innerHTML = '<span class="nota">Já tinha sido respondido no terminal.</span>';
+    if (!ok) { alvo.closest('li').innerHTML = '<span class="nota">Já tinha sido respondido no terminal.</span>'; $('fila')._html = null; }
     atualizar();
   } else if (alvo.dataset.fecharTerminal) {
     window.orq.pty.fechar(alvo.dataset.fecharTerminal);

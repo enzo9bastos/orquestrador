@@ -50,6 +50,14 @@
       default: return '';
     }
   }
+  // Próximo quadro da tela, ou 50 ms se a janela não estiver desenhando
+  // (escondida ou minimizada), o que vier primeiro.
+  const noQuadro = (fn) => {
+    let feito = false;
+    const rodar = () => { if (feito) return; feito = true; cancelAnimationFrame(q); clearTimeout(r); fn(); };
+    const q = requestAnimationFrame(rodar);
+    const r = setTimeout(rodar, 50);
+  };
   const nomeNo = (w, id) => { const n = w?.nos.find((x) => x.id === id); return n ? tipos[n.tipo]?.nome || n.tipo : id; };
 
   // --- gravar --------------------------------------------------------------
@@ -125,8 +133,12 @@
       ${execAberta === e.id ? `<ol class="wf-exec-passos">${e.passos.map((p) => `<li class="estado-${p.estado}"><strong>${esc(nomeNo(w, p.no))}</strong> · ${esc(p.estado)}${p.saida ? `<pre>${esc(p.saida)}</pre>` : ''}</li>`).join('')}</ol>` : ''}</div>`;
   }
 
+  // Cada parte por conta própria: com o processo principal de uma versão
+  // anterior (app recarregado sem reiniciar), o que ele não sabe responder
+  // fica vazio em vez de travar a aba inteira.
+  const ou = (p, padrao) => Promise.resolve().then(p).catch(() => padrao);
   async function carregar() {
-    [lista, creds, todas] = await Promise.all([W.lista(), W.credenciais(), W.execucoes()]);
+    [lista, creds, todas] = await Promise.all([ou(() => W.lista(), []), ou(() => W.credenciais(), []), ou(() => W.execucoes(), [])]);
   }
 
   document.addEventListener('click', (ev) => {
@@ -349,13 +361,25 @@
   }
 
   // --- quadro: mover e zoom ------------------------------------------------
+  // Mover e dar zoom só mexem em "transform" de duas camadas próprias (os
+  // passos e o pontilhado), e no máximo uma vez por quadro da tela: nada é
+  // redesenhado enquanto o quadro anda.
+  let zDesenhado = null, vistaPendente = false;
   function aplicarVista(v) {
     vista = { x: v.x, y: v.y, z: Math.min(2, Math.max(0.3, v.z)) };
     if (atual) vistas.set(atual.id, vista);
-    $('wf-area').style.transform = `translate(${vista.x}px, ${vista.y}px) scale(${vista.z})`;
-    $('wf-quadro').style.backgroundPosition = `${vista.x}px ${vista.y}px`;
-    $('wf-quadro').style.backgroundSize = `${20 * vista.z}px ${20 * vista.z}px`;
-    $('wf-zoom-valor').textContent = `${Math.round(vista.z * 100)}%`;
+    if (vistaPendente) return;
+    vistaPendente = true;
+    noQuadro(() => {
+      vistaPendente = false;
+      const { x, y, z } = vista;
+      $('wf-area').style.transform = `translate3d(${x}px, ${y}px, 0) scale(${z})`;
+      const g = 20 * z;
+      // O pontilhado se repete a cada g px: basta deslocar o resto da divisão.
+      if (z !== zDesenhado) { $('wf-grade').style.backgroundSize = `${g}px ${g}px`; $('wf-zoom-valor').textContent = `${Math.round(z * 100)}%`; zDesenhado = z; }
+      const ox = (((x + 100) % g) + g) % g, oy = (((y + 100) % g) + g) % g;
+      $('wf-grade').style.transform = `translate3d(${ox}px, ${oy}px, 0)`;
+    });
   }
   // Zoom para caber todos os passos (como o n8n faz ao abrir).
   function ajustarVista() {
@@ -415,8 +439,17 @@
     const n = atual.nos.find((x) => x.id === el.dataset.no);
     ev.preventDefault();
     if (ev.target.classList.contains('saida')) {
-      arrastar(ev, (e) => desenharLinhas([pontoSaida(n), noDesenho(e)]), (e) => {
-        const alvo = document.elementFromPoint(e.clientX, e.clientY)?.closest('.wf-no');
+      let pendente = false, solto = false, ponto = null;
+      arrastar(ev, (e) => {
+        ponto = noDesenho(e);
+        if (pendente) return;
+        pendente = true;
+        // Depois de soltar, a linha provisória não volta a ser desenhada.
+        noQuadro(() => { pendente = false; if (!solto) desenharLinhas([pontoSaida(n), ponto]); });
+      }, (e) => {
+        solto = true;
+        // O primeiro passo debaixo do mouse que não seja o de origem.
+        const alvo = document.elementsFromPoint(e.clientX, e.clientY).map((x) => x.closest('.wf-no')).find((x) => x && x.dataset.no !== n.id);
         if (alvo) ligar(n.id, alvo.dataset.no);
         desenharLinhas();
       });
@@ -429,13 +462,19 @@
     desenharQuadro();
     const card = () => $('wf-nos').querySelector(`[data-no="${CSS.escape(n.id)}"]`);
     card()?.focus();
+    let pendente = false;
+    const el2 = card();
     arrastar(ev, (e) => {
       const [x, y] = noDesenho(e);
       n.x = Math.round(x - dx); n.y = Math.round(y - dy);
-      const c = card();
-      if (c) { c.style.left = `${n.x}px`; c.style.top = `${n.y}px`; }
       mexeu = true;
-      desenharLinhas();
+      if (pendente) return;
+      pendente = true;
+      noQuadro(() => {
+        pendente = false;
+        if (el2) { el2.style.left = `${n.x}px`; el2.style.top = `${n.y}px`; }
+        desenharLinhas();
+      });
     }, () => { if (mexeu) salvar(); });
   });
   $('wf-quadro').addEventListener('dblclick', (ev) => {
@@ -595,7 +634,7 @@
     if (atual) mostrarInicio(); else desenharInicio();
   });
 
-  Promise.all([W.tipos(), W.tiposCred(), carregar()]).then(([t, tc]) => {
+  Promise.all([ou(() => W.tipos(), {}), ou(() => W.tiposCred(), tiposCred), carregar()]).then(([t, tc]) => {
     tipos = t; tiposCred = tc;
     mostrarInicio();
   });

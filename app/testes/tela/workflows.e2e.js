@@ -85,10 +85,12 @@ test('workflows', async (t) => {
     const t0 = await app.avaliar("document.getElementById('wf-area').style.transform");
     const r = await app.avaliar("(() => { const q = document.getElementById('wf-quadro').getBoundingClientRect(); return [Math.round(q.left + 30), Math.round(q.top + 30)]; })()");
     await arrastar(r, [r[0] + 50, r[1] + 40]);
-    assert.notStrictEqual(await app.avaliar("document.getElementById('wf-area').style.transform"), t0, 'o fundo move');
+    await app.esperar(`document.getElementById('wf-area').style.transform !== ${JSON.stringify(t0)}`); // o fundo move
     await clicar('[data-zoom=mais]');
-    assert.ok((await app.avaliar("parseFloat(document.getElementById('wf-zoom-valor').textContent)")) > z * 100);
+    await app.esperar(`parseFloat(document.getElementById('wf-zoom-valor').textContent) > ${z * 100}`);
     await clicar('[data-zoom=ajustar]');
+    // O quadro muda no quadro de tela seguinte: medir antes daria posições velhas.
+    await app.esperar("/scale\\(1\\.1\\)|scale\\(0\\./.test(document.getElementById('wf-area').style.transform)");
   });
 
   await t.test('tirar a ligação (Delete) e ligar de novo puxando da bolinha', async () => {

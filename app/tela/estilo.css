@@ -455,7 +455,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* Acima do conteúdo, abaixo de qualquer menu, lista ou janelinha (z 20+). */
 .pet-palco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 15; }
 .pet-palco[hidden] { display: none; }
-.pet { position: absolute; left: 0; top: 0; width: 64px; height: 48px; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; }
+.pet { position: absolute; left: 0; top: 0; width: 64px; height: 48px; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; will-change: transform; }
 .pet.arrastado { cursor: grabbing; }
 .pet-vira { transition: transform .15s; transform-origin: center bottom; }
 .pet-vira.virado { transform: scaleX(-1); }
@@ -1063,9 +1063,11 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .wf-menu-mais .menu-item.perigo:hover, .wf-menu-mais .menu-item[data-confirmando] { color: var(--perigo); }
 .wf-gaveta .menu-item small { display: block; color: var(--fg-4); font-size: 11px; line-height: 1.35; margin-top: 1px; }
 .wf-tela-editor { flex: 1; min-height: 0; position: relative; display: flex; }
-.wf-quadro { flex: 1; position: relative; overflow: hidden; cursor: grab; background-color: var(--bg-afundado); background-image: radial-gradient(circle, var(--borda-forte) 1px, transparent 1px); background-size: 20px 20px; }
+.wf-quadro { flex: 1; position: relative; overflow: hidden; cursor: grab; background-color: var(--bg-afundado); contain: strict; }
+/* Pontilhado numa camada própria, maior que o quadro: mover é só transform. */
+.wf-grade { position: absolute; left: -100px; top: -100px; right: -100px; bottom: -100px; pointer-events: none; background-image: radial-gradient(circle, var(--borda-forte) 1px, transparent 1px); background-size: 20px 20px; will-change: transform; }
 .wf-quadro.movendo { cursor: grabbing; }
-.wf-area { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; touch-action: none; }
+.wf-area { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; touch-action: none; will-change: transform; }
 .wf-linhas { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
 .wf-linha { fill: none; stroke: var(--fg-4); stroke-width: 2; pointer-events: none; }
 .wf-linha.selecionada { stroke: var(--claude); stroke-width: 2.5; }
@@ -1091,8 +1093,8 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .porta.entrada { left: -7px; }
 .porta.saida { right: -7px; cursor: crosshair; }
 .porta.saida:hover { border-color: var(--claude); background: var(--claude); }
-.wf-mais-saida { position: absolute; top: 11px; right: -40px; width: 20px; height: 20px; border-radius: 6px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); color: var(--fg-3); font-size: 14px; line-height: 1; opacity: 0; transition: opacity .12s; }
-.wf-no:hover .wf-mais-saida, .wf-no.selecionado .wf-mais-saida { opacity: 1; }
+.wf-mais-saida { position: absolute; top: 11px; right: -40px; width: 20px; height: 20px; border-radius: 6px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); color: var(--fg-3); font-size: 14px; line-height: 1; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.wf-no:hover .wf-mais-saida, .wf-no.selecionado .wf-mais-saida { opacity: 1; pointer-events: auto; }
 .wf-mais-saida:hover { color: var(--fg); border-color: var(--claude); }
 .wf-mais-passo { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); color: var(--fg-2); font-size: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, .3); }
 .wf-mais-passo:hover { color: var(--fg); border-color: var(--claude); }
