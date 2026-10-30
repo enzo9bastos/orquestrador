@@ -100,6 +100,7 @@
           <span class="wf-linha-meta">${w.nos.length} passo${w.nos.length === 1 ? '' : 's'} · atualizado ${quando(w.atualizado)}</span>
           <span class="wf-linha-meta">${ult ? `última execução ${quando(ult.inicio)} · ${esc(situacao(ult)[1])}` : 'nunca rodou'}</span>
           <label class="wf-ligado" title="Ligado: o relógio dispara sozinho enquanto o app estiver aberto"><span class="chave"><input type="checkbox" data-ligar="${esc(w.id)}"${w.ativo ? ' checked' : ''}><span></span></span> ${w.ativo ? 'Ligado' : 'Desligado'}</label>
+          <button type="button" class="botao-texto wf-apagar-linha" data-apagar-wf="${esc(w.id)}" title="Apagar este workflow (pede confirmação; a versão anterior fica guardada)" aria-label="Apagar workflow">Apagar</button>
         </div>`;
       }).join('') || vazio(lista.length ? 'Nada com esse nome.' : 'Nenhum workflow ainda.', 'Um workflow junta um gatilho (relógio ou botão) e os passos que vêm depois.', lista.length ? '' : 'Criar o primeiro workflow');
     } else if (abaInicio === 'credenciais') {
@@ -109,6 +110,7 @@
           <div class="wf-linha-texto"><strong>🔑 ${esc(c.nome)}</strong><span>${esc(tiposCred.tipos[c.tipo]?.nome || c.tipo)} · ${esc(c.ref || 'sem referência')}</span></div>
           <span class="wf-linha-meta mono">$${esc(c.variavel)}</span>
           <span class="wf-linha-meta">usada em ${usos(c.id)} workflow${usos(c.id) === 1 ? '' : 's'} · atualizada ${quando(c.atualizado)}</span>
+          <button type="button" class="botao-texto wf-apagar-linha" data-apagar-cred-linha="${esc(c.id)}" title="Apagar a referência (o valor no cofre ou no arquivo não é tocado)" aria-label="Apagar credencial">Apagar</button>
         </div>`).join('') || vazio(creds.length ? 'Nada com esse nome.' : 'Nenhuma credencial ainda.', 'Aqui fica só ONDE a credencial mora (item do cofre, arquivo ou variável de ambiente), nunca o valor. Ela é lida na hora de rodar e chega ao comando como variável de ambiente.', creds.length ? '' : 'Criar a primeira credencial');
     } else {
       const l = todas.filter((e) => casa(`${lista.find((w) => w.id === e.wf)?.nome || ''} ${e.motivo}`));
@@ -158,6 +160,19 @@
   $('wf-lista-corpo').addEventListener('click', async (ev) => {
     if (ev.target.closest('[data-wf-criar-vazio]')) return criar();
     if (ev.target.closest('.wf-ligado')) return null; // o interruptor tem o seu próprio "change"
+    // Apagar na linha: o primeiro clique pede confirmação, o segundo apaga.
+    const ap = ev.target.closest('[data-apagar-wf], [data-apagar-cred-linha]');
+    if (ap) {
+      if (!ap.dataset.confirmando) {
+        ap.dataset.confirmando = '1'; ap.textContent = 'Confirmar';
+        setTimeout(() => { if (ap.isConnected) { delete ap.dataset.confirmando; ap.textContent = 'Apagar'; } }, 4000);
+        return null;
+      }
+      if (ap.dataset.apagarWf) { await W.apagar(ap.dataset.apagarWf); } else { await W.apagarCredencial(ap.dataset.apagarCredLinha); }
+      await carregar();
+      desenharInicio();
+      return null;
+    }
     const ex = ev.target.closest('[data-exec]');
     if (ex) { execAberta = execAberta === ex.dataset.exec ? null : ex.dataset.exec; desenharInicio(); return null; }
     const w = ev.target.closest('[data-wf]');

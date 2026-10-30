@@ -25,6 +25,11 @@ e conversa com um Claude "orquestrador" que distribui o trabalho.
   mandar ao orquestrador, perguntar a um Claude, rodar comando, condição,
   avisar), com o histórico de cada execução. Mencionáveis na conversa com
   `@workflow:`.
+- **Bichinho/ajudante**: o orquestrador em pessoa, com guarda-roupa (30
+  itens, 8 cores) e animações. Sai do app e anda pela tela (janelinha X11
+  transparente): vem avisar de pendência com o app fora de foco e atende ao
+  atalho Ctrl+Alt+Espaço (`orq-pet`) — conversa ali mesmo e recorta um pedaço
+  da tela para perguntar sobre ele.
 - **Navegador**: até 4 janelas lado a lado, cada uma como Chrome, Firefox, Edge
   ou celular (iPhone, Android). O orquestrador usa as mesmas janelas pelo
   comando `app/bin/orq-nav` (abrir, ler, clicar, digitar, print) e você vê

@@ -146,5 +146,21 @@ test('workflows', async (t) => {
     assert.strictEqual(await salvo(id), undefined);
   });
 
+  // Pedido de 2026-10-30: botão de apagar direto na lista.
+  await t.test('apagar pela lista: botão na linha, com confirmação', async () => {
+    const g = await app.avaliar("window.orq.workflows.gravar({ nome: 'Para apagar', nos: [{ id: 'n1', tipo: 'manual' }], ligacoes: [] })");
+    await clicar('[data-aba=aba-workflows]');
+    await app.esperar(`!!document.querySelector('[data-apagar-wf="${g.id}"]')`);
+    assert.strictEqual(await app.visivel(`[data-apagar-wf="${g.id}"]`), 'ok');
+    await clicar(`[data-apagar-wf="${g.id}"]`);
+    assert.match(await app.avaliar(`document.querySelector('[data-apagar-wf="${g.id}"]').textContent`), /Confirmar/);
+    assert.ok(await salvo(g.id), 'um clique só não apaga');
+    assert.ok(!(await app.avaliar("document.getElementById('wf-editor').hidden === false")), 'clicar em Apagar não abre o workflow');
+    await clicar(`[data-apagar-wf="${g.id}"]`);
+    await app.esperar(`!document.querySelector('[data-wf="${g.id}"]')`);
+    assert.strictEqual(await salvo(g.id), undefined);
+    assert.ok(await salvo('passada-frentes'), 'os outros continuam');
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });

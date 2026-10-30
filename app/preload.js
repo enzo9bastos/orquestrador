@@ -56,6 +56,18 @@ contextBridge.exposeInMainWorld('orq', {
     conteudo: (id) => ipcRenderer.invoke('repertorio:conteudo', id),
     gravarAtalhos: (l) => ipcRenderer.invoke('repertorio:gravarAtalhos', l),
   },
+  pet: {
+    prefs: () => ipcRenderer.invoke('pet:prefs'),
+    gravarVisual: (v) => ipcRenderer.invoke('pet:gravarVisual', v),
+    gravarPrefs: (p) => ipcRenderer.invoke('pet:gravarPrefs', p),
+    chamar: (o) => ipcRenderer.invoke('pet:chamar', o),
+    passear: () => ipcRenderer.invoke('pet:passear'),
+    recolher: () => ipcRenderer.invoke('pet:recolher'),
+    instalarAtalho: () => ipcRenderer.invoke('pet:instalarAtalho'),
+    atalhoInstalado: () => ipcRenderer.invoke('pet:atalhoInstalado'),
+    aoVisual: (fn) => ipcRenderer.on('pet:visual', (_e, v) => fn(v)),
+    aoFora: (fn) => ipcRenderer.on('pet:fora', (_e, f) => fn(f)),
+  },
   workflows: {
     lista: () => ipcRenderer.invoke('workflows:lista'),
     tipos: () => ipcRenderer.invoke('workflows:tipos'),

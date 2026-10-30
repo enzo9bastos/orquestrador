@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+// orq-pet: chama o ajudante (o bichinho do App de Orquestração) de qualquer
+// lugar — é o que o atalho Ctrl+Alt+Espaço do sistema roda.
+//
+//   orq-pet chamar     ele aparece na tela, pronto para conversar
+//   orq-pet print      ele aparece e já pede para recortar um pedaço da tela
+//   orq-pet passear    ele sai para passear pela área de trabalho
+//   orq-pet voltar     ele volta para dentro do app
+const net = require('net');
+const os = require('os');
+const path = require('path');
+
+const cmd = process.argv[2] || 'chamar';
+if (!['chamar', 'print', 'passear', 'voltar'].includes(cmd)) {
+  process.stderr.write('uso: orq-pet chamar | print | passear | voltar\n');
+  process.exit(1);
+}
+const s = net.connect(path.join(os.homedir(), '.cache', 'orq-app', 'ajudante.sock'));
+s.on('error', () => { process.stderr.write('O App de Orquestração não está aberto.\n'); process.exit(1); });
+s.on('connect', () => s.end(cmd));
+s.on('data', () => process.exit(0));

@@ -6,20 +6,7 @@
 // (lateral, conversa, inspetor) é uma "sala" com chão e paredes: segurando,
 // ele atravessa as paredes; solto, fica preso na sala onde caiu.
 (() => {
-  const SVG = `
-    <svg class="pet-svg" viewBox="0 -2 12 9" shape-rendering="crispEdges" aria-hidden="true">
-      <g class="pet-corpo">
-        <rect class="braco braco-e" x="0" y="2" width="2" height="2"/>
-        <rect class="braco braco-d" x="10" y="2" width="2" height="2"/>
-        <rect x="2" y="0" width="8" height="5"/>
-        <g class="olhos"><rect class="olho" x="3" y="1" width="1" height="2"/><rect class="olho" x="8" y="1" width="1" height="2"/></g>
-      </g>
-      <rect class="perna p1" x="2" y="5" width="1" height="2"/>
-      <rect class="perna p2" x="4" y="5" width="1" height="2"/>
-      <rect class="perna p3" x="7" y="5" width="1" height="2"/>
-      <rect class="perna p4" x="9" y="5" width="1" height="2"/>
-    </svg>`;
-  const LARG = 64, ALT = 48;       // tamanho do bichinho na tela
+  const LARG = 96, ALT = 75;       // tamanho do bichinho na tela (com espaço para chapéu e mão)
   const GRAVIDADE = 2400;          // px/s²
   const QUIQUE = 0.42;             // quanto da velocidade sobra ao bater
   const CHAVE = 'pet-sala';        // sala onde ele mora (guardada entre aberturas)
@@ -46,17 +33,25 @@
     pronto: ['Pronto!', 'Feito!', 'Prontinho!'],
     chamando: ['Ei! Preciso de você', 'Sua vez!', 'Uma pergunta!'],
     erro: ['Ops…', 'Deu ruim…'],
+    clique: ['Oi!', 'Hehe', 'Tô aqui!', 'Me chama com dois cliques!', 'Pronto para ajudar!', 'Opa!'],
+    carinho: ['Que bom te ver!', '♥', 'Hehe, cócegas!', ':)'],
+    acordar: ['Hã? Tô acordado!', 'Ahh… cochilei.', 'Bom dia!'],
   };
+  const SONO_MS = 3 * 60 * 1000; // sem mexer no mouse/teclado esse tempo, ele cochila
 
   class Pet {
     constructor(palco) {
       this.palco = palco;
       this.el = document.createElement('div');
       this.el.className = 'pet';
-      this.el.title = 'O orquestrador. Arraste para mover, solte com força para jogar.';
-      this.el.innerHTML = `<div class="pet-balao" hidden></div><div class="pet-nuvem" hidden><i></i><i></i><i></i></div><div class="pet-vira">${SVG}</div>`;
+      this.el.title = 'O orquestrador. Dois cliques para falar com ele; botão direito para o guarda-roupa. Arraste para mover.';
+      this.el.innerHTML = `<div class="pet-balao" hidden></div><div class="pet-nuvem" hidden><i></i><i></i><i></i></div><div class="pet-zzz" hidden><i>z</i><i>z</i><i>Z</i></div><div class="pet-coracao" hidden>♥</div><div class="pet-vira"></div>`;
       palco.append(this.el);
       this.vira = this.el.querySelector('.pet-vira');
+      this.vestir(null);
+      this.ultimoMovimento = Date.now();
+      this.aoChamar = () => {};
+      this.aoMenu = () => {};
       this.balao = this.el.querySelector('.pet-balao');
       this.x = null; this.y = 0; this.vx = 0; this.vy = 0;
       this.noAr = false; this.arrastando = false;
@@ -65,6 +60,7 @@
       try { this.salaNome = localStorage.getItem(CHAVE) || 'centro'; } catch { this.salaNome = 'centro'; }
       if (!SALAS[this.salaNome]) this.salaNome = 'centro';
       this.ligarMouse();
+      this.ligarReacoes();
       new ResizeObserver(() => this.encaixar()).observe(document.body);
       // Trocar de aba esconde/mostra a sala do centro: confere de tempos em tempos.
       setInterval(() => { if (!this.arrastando && !this.noAr) this.encaixar(); }, 700);
@@ -194,7 +190,8 @@
         if (!this.el.isConnected) return;
         if (this.modo !== 'livre' || this.noAr || this.arrastando || parado()) continue;
         const passo = this.passo;
-        const gesto = sorteia(['olhar', 'olhar', 'piscar', 'piscar', 'andar', 'andar', 'andar', 'acenar', 'pular', 'nada']);
+        if (Date.now() - this.ultimoMovimento > SONO_MS) { await this.dormir(); continue; }
+        const gesto = sorteia(['olhar', 'piscar', 'piscar', 'andar', 'andar', 'andar', 'acenar', 'pular', 'dancar', 'sentar', 'espreguicar', 'nada', 'nada']);
         await this[`g_${gesto}`](passo);
       }
     }
@@ -218,6 +215,78 @@
     }
     async g_pular() { this.pular(-600); }
     async g_nada() {}
+    async g_dancar(passo) {
+      this.classe('dancando');
+      if (Math.random() < 0.4) this.falar(sorteia(['♪ ♫', 'Tum tss tum tss', '♪ la la la']), 1600);
+      await espera(2200);
+      if (passo === this.passo) this.classe('dancando', false);
+    }
+    async g_sentar(passo) {
+      this.classe('sentado');
+      await espera(2500 + Math.random() * 2500);
+      if (passo === this.passo) this.classe('sentado', false);
+    }
+    async g_espreguicar(passo) {
+      this.classe('espreguicando');
+      await espera(1300);
+      if (passo === this.passo) this.classe('espreguicando', false);
+    }
+    // Cochilo: acorda quando o mouse ou o teclado mexem.
+    async dormir() {
+      const passo = this.passo;
+      this.dormindo = true;
+      this.classe('dormindo');
+      this.el.querySelector('.pet-zzz').hidden = false;
+      while (this.dormindo && passo === this.passo && this.modo === 'livre') await espera(400);
+      this.el.querySelector('.pet-zzz').hidden = true;
+      this.classe('dormindo', false);
+      if (this.dormindo === false && this.modo === 'livre') {
+        this.classe('espreguicando'); this.falar(sorteia(FALAS.acordar), 1500);
+        await espera(1200); this.classe('espreguicando', false);
+      }
+      this.dormindo = false;
+    }
+    acordar() { if (this.dormindo) this.dormindo = false; }
+
+    // --- reações ao mouse e ao teclado ----------------------------------------
+    ligarReacoes() {
+      let ultimoOlhar = 0;
+      const mexeu = () => { this.ultimoMovimento = Date.now(); this.acordar(); };
+      document.addEventListener('keydown', mexeu, { passive: true });
+      document.addEventListener('pointermove', (ev) => {
+        mexeu();
+        // Os olhos seguem o mouse (no máximo 10 vezes por segundo).
+        const agora = performance.now();
+        if (agora - ultimoOlhar < 100 || this.modo !== 'livre' || this.arrastando || this.el.classList.contains('andando')) return;
+        ultimoOlhar = agora;
+        const r = this.el.getBoundingClientRect();
+        const dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2);
+        const lado = Math.abs(dx) < 60 && dy < -40 ? 'cima' : Math.abs(dx) < 40 ? '' : dx < 0 ? 'esq' : 'dir';
+        if (this.el.dataset.olhar !== lado) this.olhar(lado);
+      }, { passive: true });
+      // Mouse em cima um tempinho: fica feliz.
+      let tCarinho = null;
+      this.el.addEventListener('pointerenter', () => {
+        clearTimeout(tCarinho);
+        tCarinho = setTimeout(() => {
+          if (this.modo !== 'livre' || this.arrastando) return;
+          this.classe('feliz');
+          const c = this.el.querySelector('.pet-coracao');
+          c.hidden = false; c.classList.remove('sobe'); void c.offsetWidth; c.classList.add('sobe');
+          if (Math.random() < 0.5) this.falar(sorteia(FALAS.carinho), 1200);
+        }, 600);
+      });
+      this.el.addEventListener('pointerleave', () => { clearTimeout(tCarinho); this.classe('feliz', false); setTimeout(() => { this.el.querySelector('.pet-coracao').hidden = true; }, 900); });
+      this.el.addEventListener('dblclick', (ev) => { ev.preventDefault(); this.calar(); this.aoChamar(); });
+      this.el.addEventListener('contextmenu', (ev) => { ev.preventDefault(); this.aoMenu(ev); });
+    }
+
+    // Troca a roupa/cor (petVisual): mantém as classes de animação.
+    vestir(visual) {
+      this.visual = window.petVisual ? window.petVisual.limpar(visual) : null;
+      this.vira.innerHTML = window.petVisual ? window.petVisual.svg(this.visual) : '';
+    }
+    esconder(sim) { this.escondido = !!sim; this.el.hidden = !!sim; }
     async g_andar(passo) {
       const [min, max] = this.faixa();
       // Fora da faixa (caiu ali depois de um arremesso): volta para ela.
@@ -290,6 +359,7 @@
     ligarMouse() {
       let rastro = [];
       let pegou = { dx: 0, dy: 0 };
+      let clique = { x: 0, y: 0, t: 0, falou: false }; // onde apertou: para saber se foi só um clique
       this.el.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
         this.el.setPointerCapture(ev.pointerId);
@@ -298,7 +368,7 @@
         const r = this.palco.getBoundingClientRect();
         pegou = { dx: ev.clientX - r.left - this.x, dy: ev.clientY - r.top - this.y };
         rastro = [{ x: ev.clientX, y: ev.clientY, t: performance.now() }];
-        if (this.modo === 'livre') this.falar(sorteia(['Ei!', 'Me solta!', 'Uiii!', 'Para onde vamos?']), 1200);
+        clique = { x: ev.clientX, y: ev.clientY, t: performance.now(), falou: false };
       });
       this.el.addEventListener('pointermove', (ev) => {
         if (!this.arrastando) return;
@@ -308,6 +378,7 @@
         this.y = Math.min(Math.max(ev.clientY - r.top - pegou.dy, 0), this.palco.clientHeight - ALT);
         rastro.push({ x: ev.clientX, y: ev.clientY, t: performance.now() });
         rastro = rastro.filter((p) => performance.now() - p.t < 90);
+        if (!clique.falou && Math.hypot(ev.clientX - clique.x, ev.clientY - clique.y) > 12 && this.modo === 'livre') { clique.falou = true; this.falar(sorteia(['Ei!', 'Me solta!', 'Uiii!', 'Para onde vamos?']), 1200); }
         if (rastro.length > 1) this.virar(rastro[rastro.length - 1].x < rastro[0].x ? 'esq' : 'dir');
         this.desenhar();
       });
@@ -316,6 +387,12 @@
         this.arrastando = false;
         this.classe('arrastado', false);
         const a = rastro[0], b = rastro[rastro.length - 1];
+        // Só um clique (sem arrastar): pula e fala, em vez de cair.
+        if (Math.hypot(b.x - clique.x, b.y - clique.y) < 5 && performance.now() - clique.t < 400) {
+          this.escolherSala(); this.y = this.chao(); this.desenhar();
+          if (this.modo === 'livre') { this.pular(-520); this.falar(sorteia(FALAS.clique), 1400); }
+          return;
+        }
         const dt = Math.max((b.t - a.t) / 1000, 0.016);
         this.vx = Math.max(-2500, Math.min(2500, (b.x - a.x) / dt));
         this.vy = Math.max(-2500, Math.min(2500, (b.y - a.y) / dt));
@@ -329,5 +406,5 @@
     }
   }
 
-  window.criarPet = (palco) => new Pet(palco);
+  window.criarPet = (palco) => { const p = new Pet(palco); window.orqPetAtual = p; return p; };
 })();

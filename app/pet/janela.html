@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data:; style-src 'self' 'unsafe-inline'; font-src 'self'">
+  <title>Ajudante</title>
+  <link rel="stylesheet" href="../tela/estilo.css">
+  <link rel="stylesheet" href="janela.css">
+</head>
+<body>
+  <section class="aj-conversa" id="conversa" hidden aria-label="Conversa com o ajudante">
+    <header><strong>Ajudante</strong><span class="nota">vai para a conversa “Ajudante” do app</span><button type="button" class="botao-icone" id="fechar" title="Fechar (Esc)" aria-label="Fechar">✕</button></header>
+    <div class="aj-resposta" id="resposta"><p class="nota">Pergunte qualquer coisa. Com “📷 Pedaço da tela”, você recorta o que está vendo e eu olho junto.</p></div>
+    <div class="aj-anexo" id="anexo" hidden><img id="miniatura" alt="Pedaço da tela recortado"><button type="button" class="botao-icone" id="tirar-anexo" title="Tirar a imagem" aria-label="Tirar a imagem">✕</button></div>
+    <form id="form" class="aj-form">
+      <textarea id="texto" rows="3" placeholder="Pergunte… (Enter envia · Shift+Enter quebra linha)"></textarea>
+      <div class="aj-acoes">
+        <button type="button" class="botao-texto" id="capturar">📷 Pedaço da tela</button>
+        <button type="button" class="botao-texto" id="abrir-app" title="Ver a conversa inteira no app">Abrir no app</button>
+        <button type="submit" class="botao primario" id="enviar">Enviar</button>
+      </div>
+    </form>
+  </section>
+  <div class="aj-bolha" id="bolha" hidden><span id="bolha-texto"></span><span class="aj-bolha-acoes" id="bolha-acoes"></span></div>
+  <ul class="aj-menu" id="menu" hidden role="menu">
+    <li role="menuitem" data-m="conversar">Conversar</li>
+    <li role="menuitem" data-m="capturar">📷 Mostrar um pedaço da tela</li>
+    <li role="menuitem" data-m="passear">Passear pela tela</li>
+    <li role="menuitem" data-m="voltar">Voltar para o app</li>
+    <li role="menuitem" data-m="embora">Ir embora</li>
+  </ul>
+  <div class="pet aj-pet" id="pet" title="Dois cliques para conversar; botão direito para mais"><div class="pet-coracao" hidden>♥</div><div class="pet-nuvem" hidden><i></i><i></i><i></i></div><div class="pet-vira"></div></div>
+  <script src="../tela/pet-visual.js"></script>
+  <script src="janela.js"></script>
+</body>
+</html>

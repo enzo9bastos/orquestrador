@@ -455,12 +455,13 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* Acima do conteúdo, abaixo de qualquer menu, lista ou janelinha (z 20+). */
 .pet-palco { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 15; }
 .pet-palco[hidden] { display: none; }
-.pet { position: absolute; left: 0; top: 0; width: 64px; height: 48px; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; will-change: transform; }
+.pet { position: absolute; left: 0; top: 0; width: 96px; height: 75px; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; will-change: transform; }
 .pet.arrastado { cursor: grabbing; }
 .pet-vira { transition: transform .15s; transform-origin: center bottom; }
 .pet-vira.virado { transform: scaleX(-1); }
-.pet-svg { width: 64px; height: 48px; display: block; overflow: visible; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .35)); }
-.pet-svg rect { fill: var(--claude); }
+.pet-svg { width: 96px; height: 75px; display: block; overflow: visible; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .35)); }
+/* Só corpo e pernas levam a cor; as roupas têm a cor delas. */
+.pet-svg .pele, .pet-svg .perna { fill: var(--pet-cor, var(--claude)); }
 .pet-svg .olho { fill: var(--bg); transition: transform .25s ease; transform-box: fill-box; transform-origin: center; }
 .pet[data-olhar="esq"] .olho { transform: translateX(-0.6px); }
 .pet[data-olhar="dir"] .olho { transform: translateX(0.6px); }
@@ -479,7 +480,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .pet.pensando .braco-d { transform: translate(-2px, 1px); }
 .pet.pensando .pet-corpo { animation: oscilar 2.4s ease-in-out infinite; }
 @keyframes oscilar { 50% { transform: rotate(-3deg); } }
-.pet-nuvem { position: absolute; right: -6px; top: -16px; display: flex; gap: 3px; align-items: flex-end; }
+.pet-nuvem { position: absolute; right: 10px; top: 8px; display: flex; gap: 3px; align-items: flex-end; }
 .pet-nuvem[hidden] { display: none; }
 .pet-nuvem i { width: 5px; height: 5px; border-radius: 50%; background: var(--fg-3); animation: pulo 1.2s ease-in-out infinite; }
 .pet-nuvem i:nth-child(2) { width: 7px; height: 7px; animation-delay: .2s; }
@@ -513,6 +514,33 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 }
 .pet-balao[hidden] { display: none; }
 .pet-balao::after { content: ''; position: absolute; top: 100%; left: 50%; translate: -50% 0; border: 5px solid transparent; border-top-color: var(--borda-forte); }
+/* Animações novas: cochilo, dança, sentar, espreguiçar, carinho. */
+.pet.dormindo .olho { transform: scaleY(0.15); }
+.pet.dormindo .pet-corpo { animation: respira-sono 2.6s ease-in-out infinite; }
+@keyframes respira-sono { 50% { transform: translateY(0.35px) scaleY(.96); } }
+.pet-zzz { position: absolute; right: 18px; top: 10px; display: flex; gap: 2px; font: 700 11px var(--mono); color: var(--fg-3); pointer-events: none; }
+.pet-zzz[hidden] { display: none; }
+.pet-zzz i { font-style: normal; animation: zzz 2.4s ease-in-out infinite; opacity: 0; }
+.pet-zzz i:nth-child(2) { animation-delay: .8s; font-size: 13px; }
+.pet-zzz i:nth-child(3) { animation-delay: 1.6s; font-size: 15px; }
+@keyframes zzz { 0% { opacity: 0; transform: translateY(6px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
+.pet.dancando .pet-vira { animation: danca .44s ease-in-out infinite alternate; }
+@keyframes danca { from { translate: -2px 0; rotate: -6deg; } to { translate: 2px -4px; rotate: 6deg; } }
+.pet.dancando .braco-e { animation: acenar-e .22s steps(1) infinite; }
+.pet.dancando .braco-d { animation: acenar .22s steps(1) infinite alternate; }
+@keyframes acenar-e { 0% { transform: translateY(-1px) rotate(20deg); } 50% { transform: translateY(-2px) rotate(60deg); } }
+.pet.sentado .perna { transform: scaleY(.5) translateY(1px); }
+.pet.sentado .pet-corpo { transform: translateY(1px); }
+.pet.espreguicando .braco-e { transform: translate(0.5px, -2px) rotate(60deg); }
+.pet.espreguicando .braco-d { transform: translate(-0.5px, -2px) rotate(-60deg); }
+.pet.espreguicando .pet-corpo { transform: scaleY(1.06); transform-origin: center bottom; }
+.pet.feliz .olho { transform: scaleY(.45) translateY(-0.4px); }
+.pet.feliz .pet-vira { animation: quicar .5s ease-in-out 2; }
+.pet-coracao { position: absolute; left: 50%; top: 12px; color: #e84393; font-size: 14px; pointer-events: none; opacity: 0; }
+.pet-coracao[hidden] { display: none; }
+.pet-coracao.sobe { animation: coracao 1s ease-out forwards; }
+@keyframes coracao { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -18px) scale(1.2); } }
+.pet[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .pet *, .pet { animation: none !important; } }
 
 /* --- modelo e esforço ---------------------------------------------------- */
@@ -1039,7 +1067,7 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .wf-busca { margin-left: auto; width: 220px; }
 .wf-inicio-topo > .botao { flex: none; }
 .wf-lista-corpo { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px 40px; display: flex; flex-direction: column; gap: 8px; }
-.wf-linha-lista { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 18px; padding: 12px 16px; border: 1px solid var(--borda); border-radius: 10px; background: var(--bg-elevado); cursor: pointer; }
+.wf-linha-lista { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; align-items: center; gap: 18px; padding: 12px 16px; border: 1px solid var(--borda); border-radius: 10px; background: var(--bg-elevado); cursor: pointer; }
 .wf-linha-lista:hover { border-color: var(--borda-forte); background: var(--painel-hover); }
 .wf-linha-lista:focus-visible { outline: 2px solid var(--claude); outline-offset: 1px; }
 .wf-linha-texto { display: grid; gap: 3px; min-width: 0; }
@@ -1140,7 +1168,7 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .wf-teste.ok { color: var(--ativo); }
 .wf-teste.erro { color: var(--perigo); }
 .wf-ultima { display: grid; gap: 2px; }
-@media (max-width: 1000px) { .wf-linha-lista { grid-template-columns: minmax(0, 1fr) auto; } .wf-linha-lista .wf-linha-meta { display: none; } }
+@media (max-width: 1000px) { .wf-linha-lista, .wf-linha-lista[data-cred] { grid-template-columns: minmax(0, 1fr) auto auto; } .wf-linha-lista .wf-linha-meta { display: none; } }
 
 /* Mensagem que um workflow mandou por trás ao orquestrador: não é do usuário. */
 .msg-bastidor { align-self: flex-start; margin: 2px 0; font-size: 11.5px; color: var(--fg-4); }
@@ -1148,3 +1176,37 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .msg-bastidor summary::-webkit-details-marker { display: none; }
 .msg-bastidor summary:hover { color: var(--fg-2); }
 .msg-bastidor-texto { margin-top: 6px; padding: 8px 10px; border-left: 2px solid var(--borda-forte); color: var(--fg-3); white-space: pre-wrap; line-height: 1.45; }
+
+/* --- bichinho: menu e guarda-roupa ---------------------------------------- */
+.pet-menu { position: fixed; z-index: 60; }
+.gr-fundo { position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, .5); }
+.gr-fundo[hidden] { display: none; }
+.gr { width: min(860px, 100%); max-height: 100%; display: flex; flex-direction: column; border-radius: 14px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); box-shadow: 0 20px 50px rgba(0, 0, 0, .5); overflow: hidden; }
+.gr-topo { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--borda); }
+.gr-topo h3 { margin: 0; font-size: 15px; color: var(--fg); }
+.gr-topo .nota { flex: 1; }
+.gr-topo .botao-texto { margin: 0; }
+.gr-corpo { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 0; overflow: hidden; }
+.gr-vitrine { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px 16px; border-right: 1px solid var(--borda); background: var(--bg-afundado); }
+.gr-pet { position: relative; width: 192px; height: 150px; pointer-events: none; }
+.gr-pet .pet-svg { width: 192px; height: 150px; }
+.gr-pet .pet-vira { animation: quicar 2.4s ease-in-out infinite; }
+.gr-cores { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.gr-cor { width: 24px; height: 24px; border-radius: 50%; background: var(--c); border: 2px solid transparent; box-shadow: 0 0 0 1px var(--borda-forte); }
+.gr-cor.ativa { border-color: var(--bg-elevado); box-shadow: 0 0 0 2px var(--fg); }
+.gr-partes { overflow-y: auto; padding: 8px 18px 20px; display: grid; gap: 6px; }
+.gr-itens { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.gr-item { display: grid; justify-items: center; gap: 2px; padding: 6px 4px; border-radius: 8px; border: 1px solid var(--borda); color: var(--fg-3); font-size: 11px; line-height: 1.2; text-align: center; }
+.gr-item:hover { border-color: var(--borda-forte); color: var(--fg); background: var(--painel-hover); }
+.gr-item.ativo { border-color: var(--claude); color: var(--fg); background: var(--claude-suave); }
+.pet-mini { width: 54px; height: 42px; }
+.pet-mini .fantasma { fill: var(--fg-4); opacity: .35; }
+.gr-nada { display: grid; place-items: center; width: 54px; height: 42px; font-size: 18px; color: var(--fg-4); }
+.gr-fora { display: grid; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--borda); }
+.gr-fora .marcar { display: flex; align-items: center; gap: 8px; color: var(--fg-2); font-size: 12.5px; }
+.gr-fora .botao-texto { margin: 0; justify-self: start; }
+.gr-fora .nota { margin: 0; }
+@media (max-width: 760px) { .gr-corpo { grid-template-columns: 1fr; } .gr-vitrine { border-right: 0; border-bottom: 1px solid var(--borda); } }
+.wf-apagar-linha { margin: 0; color: var(--fg-3); }
+.wf-apagar-linha:hover, .wf-apagar-linha[data-confirmando] { color: var(--perigo); border-color: var(--perigo); }
+.wf-linha-lista[data-cred] { grid-template-columns: minmax(0, 1fr) auto auto auto; }

@@ -386,6 +386,16 @@ function nova() {
   return c.id;
 }
 
+// Conversa de id fixo (a do ajudante, por exemplo): cria se não existir.
+function garantir(id, titulo) {
+  if (!conversas.has(id)) {
+    conversas.set(id, new Conversa({ id, titulo }));
+    gravarLista();
+    avisarLista();
+  }
+  return id;
+}
+
 // Tira uma conversa avulsa da lista. A conversa em si continua no histórico do
 // Claude (`claude --resume`); o orquestrador nunca sai da lista.
 function fechar(id) {
@@ -417,7 +427,7 @@ module.exports = {
   ligar: (fn) => { enviarTela = fn; },
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade
-  lista, abrir, nova, fechar, pararTodas, encerrarTodas, ambienteLimpo,
+  lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   interromper: (id) => pegar(id).interromper(),

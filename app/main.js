@@ -22,6 +22,7 @@ const permissoes = require('./permissoes');
 const repertorio = require('./repertorio');
 const navegador = require('./navegador');
 const workflows = require('./workflows');
+const ajudante = require('./ajudante');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
 // (conversa.js), sem tela de terminal.
@@ -189,6 +190,7 @@ conversa.ligar((canal, dado) => enviar(canal, dado));
 const config = require('./config');
 const avisosAbertos = new Map(); // conversa → notificação na tela (uma por vez)
 conversa.ligarAvisos((a) => {
+  if (ajudante.aviso(a)) return; // a conversa do ajudante responde no balão do bichinho
   const n = config.ler().notificacoes || {};
   const emFoco = janela && janela.isFocused() && !janela.isMinimized();
   if (a.tipo === 'pedido' && n.pedidos === false) return;
@@ -238,11 +240,36 @@ ipcMain.handle('config:gravar', (_e, mudancas) => {
 });
 
 // --- dados ---------------------------------------------------------------
+// O que espera o usuário: permissões e pedidos dos agentes (fila) e
+// perguntas das conversas do app. O ajudante vem avisar das novas.
+function verPendencias(r) {
+  const lista = [
+    ...r.fila.map((p) => ({ id: `fila:${p.emp}:${p.proj}:${p.id}`, texto: p.tipo === 'permissao' ? `Um agente (${p.proj}) quer usar ${p.ferramenta}` : `Pedido ao servidor de ${p.proj}` })),
+    ...conversa.lista().filter((c) => c.pedidos > 0).map((c) => ({ id: `conversa:${c.id}`, texto: c.orquestrador ? 'O orquestrador tem uma pergunta para você' : `"${c.titulo}" tem uma pergunta para você` })),
+  ];
+  ajudante.pendencias(lista);
+}
+let ultimoEstado = 0;
 ipcMain.handle('estado', () => {
   const r = coletor.estado();
+  ultimoEstado = Date.now();
   avisarNovidades(r);
+  verPendencias(r);
   return r;
 });
+// Com a janela minimizada a tela quase não pergunta o estado: aí o processo
+// principal confere sozinho, para o ajudante não perder pendência.
+setInterval(() => { if (Date.now() - ultimoEstado > 8000) { try { verPendencias(coletor.estado()); } catch { /* tenta de novo */ } } }, 5000);
+
+// Ajudante (bichinho fora do app).
+ipcMain.handle('pet:prefs', () => ({ ...ajudante.ler(), fora: ajudante.estaFora() }));
+ipcMain.handle('pet:gravarVisual', (_e, v) => ajudante.gravarVisual(v));
+ipcMain.handle('pet:gravarPrefs', (_e, p) => ajudante.gravar({ avisarFora: p.avisarFora !== false }));
+ipcMain.handle('pet:chamar', (_e, o) => { ajudante.chamar(o || {}); return true; });
+ipcMain.handle('pet:passear', () => { ajudante.passear(); return true; });
+ipcMain.handle('pet:recolher', () => { ajudante.recolher(); return true; });
+ipcMain.handle('pet:instalarAtalho', () => ajudante.instalarAtalho());
+ipcMain.handle('pet:atalhoInstalado', () => ajudante.atalhoInstalado());
 ipcMain.handle('espelho', (_e, pane) => coletor.espelho(pane));
 ipcMain.handle('anotacoes', () => coletor.anotacoes());
 ipcMain.handle('ler-nota', (_e, qual) => coletor.lerNota(qual));
@@ -304,6 +331,7 @@ app.whenReady().then(() => {
   });
   criarJanela();
   navegador.ligar(() => janela);
+  ajudante.ligar({ janela: () => janela, conversa, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
   workflows.ligar({
     conversa,
@@ -320,6 +348,7 @@ function encerrarTudo() {
   terminais.clear();
   navegador.desligarControle();
   workflows.desligar();
+  ajudante.desligar();
   if (reiniciando) conversa.pararTodas(); else conversa.encerrarTodas();
 }
 app.on('before-quit', encerrarTudo);
