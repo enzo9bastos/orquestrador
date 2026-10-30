@@ -301,6 +301,12 @@
         <label class="chave"><input type="checkbox" data-cfg="mostrarBichinho"><span></span></label>
       </div>
 
+      <h3 class="config-secao">Idioma · Language</h3>
+      <div class="config-linha">
+        <div><strong>Idioma do app</strong><span>A tela recarrega na hora; as conversas continuam.</span></div>
+        <select class="campo-config" data-cfg="idioma" data-sem-traducao><option value="pt-BR">Português (Brasil)</option><option value="en">English</option></select>
+      </div>
+
       <h3 class="config-secao">Notificações</h3>
       <div class="config-linha">
         <div><strong>Quando precisar de você</strong><span>Pergunta ou pedido de permissão em qualquer conversa do app.</span></div>
@@ -383,6 +389,7 @@
     </section>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
   <script src="../node_modules/marked/lib/marked.umd.js"></script>

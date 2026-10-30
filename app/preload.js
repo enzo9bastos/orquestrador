@@ -97,6 +97,7 @@ contextBridge.exposeInMainWorld('orq', {
   },
   app: {
     reiniciar: () => ipcRenderer.invoke('app:reiniciar'),
+    recarregarTela: () => ipcRenderer.invoke('app:recarregarTela'),
   },
   janela: {
     minimizar: () => ipcRenderer.send('janela:minimizar'),

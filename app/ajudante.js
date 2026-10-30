@@ -47,7 +47,7 @@ function gravarVisual(v) {
   ctx.enviarTela('pet:visual', p.visual);
   return p.visual;
 }
-const aparencia = () => { const c = config.ler(); return { visual: ler().visual, destaque: c.destaque || null, tema: c.tema || 'dark' }; };
+const aparencia = () => { const c = config.ler(); return { visual: ler().visual, destaque: c.destaque || null, tema: c.tema || 'dark', idioma: c.idioma || 'pt-BR' }; };
 
 // --- processo da janelinha ---------------------------------------------------
 function mandar(m) { if (proc && proc.stdin.writable) proc.stdin.write(JSON.stringify(m) + '\n'); }
@@ -243,4 +243,6 @@ function desligar() {
   if (servidor) { try { servidor.close(); fs.unlinkSync(SOQUETE); } catch { /* já fechado */ } }
 }
 
-module.exports = { ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+function atualizarAparencia() { mandar({ t: 'visual', ...aparencia() }); }
+
+module.exports = { atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };

@@ -1,0 +1,1456 @@
+{
+  "textos": {
+    "Orquestração": "Orchestration",
+    "Tema claro / escuro": "Light / dark theme",
+    "Alternar tema": "Toggle theme",
+    "Configurações": "Settings",
+    "Janela": "Window",
+    "Minimizar": "Minimize",
+    "Maximizar": "Maximize",
+    "Restaurar": "Restore",
+    "Fechar o app e encerrar tudo, como o /exit: a próxima abertura começa uma rodada nova": "Close the app and shut everything down, like /exit: the next launch starts a new round",
+    "Fechar": "Close",
+    "Agentes": "Agents",
+    "Buscar frente": "Search agents",
+    "Shell de reserva": "Spare shell",
+    "Conversa com o orquestrador": "Conversation with the Orchestrator",
+    "Pasta": "Folder",
+    "Trocar modelo e esforço": "Change model and effort",
+    "Contexto usado nesta conversa": "Context used in this conversation",
+    "Uso da janela de 5 horas": "5-hour window usage",
+    "Uso da janela de 7 dias": "7-day window usage",
+    "Manda o comando que abre a rodada ao orquestrador": "Sends the round-opening command to the Orchestrator",
+    "Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança": "Sends the shutdown command to the Orchestrator: it ends the round safely",
+    "Abre outra conversa com o Claude ao lado do orquestrador": "Opens another conversation with Claude alongside the Orchestrator",
+    "Escreva para o orquestrador… (Enter envia · Shift+Enter quebra linha)": "Write to the Orchestrator… (Enter sends · Shift+Enter new line)",
+    "Escreva para o Claude… (Enter envia · Shift+Enter quebra linha)": "Write to Claude… (Enter sends · Shift+Enter new line)",
+    "Enviar": "Send",
+    "Repertório": "Library",
+    "Buscar skill ou atalho": "Search skills or shortcuts",
+    "Buscar no repertório": "Search the library",
+    "Terminais de reserva": "Spare terminals",
+    "Navegador": "Browser",
+    "O orquestrador controla estas janelas pelo comando orq-nav": "The Orchestrator controls these windows with the orq-nav command",
+    "Buscar": "Search",
+    "Voltar à lista de workflows": "Back to the workflow list",
+    "Nome do workflow": "Workflow name",
+    "Ligado: o relógio dispara sozinho enquanto o app estiver aberto": "On: the clock fires on its own while the app is open",
+    "Mais": "More",
+    "Mais opções": "More options",
+    "Acrescentar passo": "Add step",
+    "Ajustar à tela": "Fit to screen",
+    "Diminuir": "Zoom out",
+    "Aumentar": "Zoom in",
+    "Terminais": "Terminals",
+    "Notas": "Notes",
+    "Explorador da pasta": "Folder explorer",
+    "Nova nota": "New note",
+    "Abrir uma pasta do computador": "Open a folder from your computer",
+    "Abrir pasta": "Open folder",
+    "Recolher tudo": "Collapse all",
+    "Atualizar": "Refresh",
+    "Buscar nota": "Search notes",
+    "Nome da nota (Enter)": "Note name (Enter)",
+    "Nome da nota": "Note name",
+    "Nome da nota em (Enter)": "Note name (Enter)",
+    "Nome da pasta em (Enter)": "Folder name (Enter)",
+    "Pastas abertas": "Open folders",
+    "Fonte da nota": "Note font",
+    "Tamanho do texto (px)": "Text size (px)",
+    "Negrito (Ctrl+B)": "Bold (Ctrl+B)",
+    "Itálico (Ctrl+I)": "Italic (Ctrl+I)",
+    "Riscado": "Strikethrough",
+    "Código": "Code",
+    "Destaque": "Highlight",
+    "Título (texto → T1 → T2 → T3)": "Heading (text → H1 → H2 → H3)",
+    "Lista de tarefas": "Task list",
+    "Lista": "List",
+    "Lista numerada": "Numbered list",
+    "Bloco de código (com cores)": "Code block (with syntax colors)",
+    "Inserir imagem (também dá para colar ou arrastar)": "Insert image (you can also paste or drag it in)",
+    "Transformar o texto selecionado em link (Ctrl+clique no link abre no navegador)": "Turn the selected text into a link (Ctrl+click on the link opens it in the browser)",
+    "Mais blocos": "More blocks",
+    "Modo Markdown (texto puro)": "Markdown mode (plain text)",
+    "Desfazer (Ctrl+Z)": "Undo (Ctrl+Z)",
+    "Refazer (Ctrl+Shift+Z)": "Redo (Ctrl+Shift+Z)",
+    "Cor da nota": "Note color",
+    "Sem cor": "No color",
+    "Padrão": "Default",
+    "Amarelo": "Yellow",
+    "Azul": "Blue",
+    "Verde": "Green",
+    "Rosa": "Pink",
+    "Roxo": "Purple",
+    "Laranja": "Orange",
+    "Verde-água": "Teal",
+    "Âmbar": "Amber",
+    "Cinza": "Gray",
+    "Marrom": "Brown",
+    "Vermelho": "Red",
+    "https://… (Enter aplica · vazio tira o link)": "https://… (Enter applies · empty removes the link)",
+    "Sem título": "Untitled",
+    "Precisa de você": "Needs you",
+    "Frente selecionada": "Selected agent",
+    "Conversas": "Conversations",
+    "Orquestrador": "Orchestrator",
+    "Modelo": "Model",
+    "Esforço": "Effort",
+    "A conversa reinicia por trás e continua igual. No meio de uma resposta, a troca vale quando ela terminar.": "The conversation restarts in the background and carries on as before. In the middle of a reply, the change applies once it finishes.",
+    "Iniciar": "Start",
+    "Desligar": "Shut down",
+    "Nova conversa": "New conversation",
+    "Pensando…": "Thinking…",
+    "Parar": "Stop",
+    "+ Novo atalho": "+ New shortcut",
+    "+ Novo terminal": "+ New terminal",
+    "orquestrador pode controlar · orq-nav": "the Orchestrator can control · orq-nav",
+    "+ Nova janela": "+ New window",
+    "Credenciais": "Credentials",
+    "Execuções": "Runs",
+    "Criar workflow": "Create workflow",
+    "Desligado": "Off",
+    "Ligado": "On",
+    "Descrição…": "Description…",
+    "Duplicar": "Duplicate",
+    "Apagar workflow": "Delete workflow",
+    "▶ Rodar workflow": "▶ Run workflow",
+    "Padrão (Inter)": "Default (Inter)",
+    "Serifada (Noto Serif)": "Serif (Noto Serif)",
+    "OpenDyslexic (leitura com dislexia)": "OpenDyslexic (dyslexia-friendly)",
+    "Michroma (títulos)": "Michroma (headings)",
+    "15 (padrão)": "15 (default)",
+    "Citação": "Quote",
+    "Tabela": "Table",
+    "Divisor": "Divider",
+    "Frente": "Agent",
+    "Tema": "Theme",
+    "Fundo escuro ou claro.": "Dark or light background.",
+    "Escuro": "Dark",
+    "Claro": "Light",
+    "Cor de destaque": "Accent color",
+    "Marca do Claude, seleção, perguntas e o aviso de \"espera você\". Verde (trabalhando) e vermelho (erro) não mudam.": "Claude's mark, selection, questions and the \"waiting for you\" notice. Green (working) and red (error) don't change.",
+    "Reiniciar o app": "Restart the app",
+    "Aplica as atualizações. As conversas continuam de onde pararam, com toda a memória; só uma resposta em andamento é interrompida.": "Applies updates. Conversations pick up where they left off, with all their memory; only a reply in progress is interrupted.",
+    "Reiniciar mantendo as conversas": "Restart and keep conversations",
+    "Bichinho do orquestrador": "Orchestrator pet",
+    "O orquestrador em pessoa, no canto da conversa.": "The Orchestrator in person, in the corner of the conversation.",
+    "Notificações": "Notifications",
+    "Quando precisar de você": "When it needs you",
+    "Pergunta ou pedido de permissão em qualquer conversa do app.": "A question or permission request in any conversation in the app.",
+    "Quando terminar de responder": "When it finishes replying",
+    "Só com a janela fora de foco.": "Only when the window is out of focus.",
+    "Comando que abre a rodada": "Command that starts the round",
+    "O botão Iniciar manda este comando. Vazio: sem botão.": "The Start button sends this command. Empty: no button.",
+    "Comando que encerra a rodada": "Command that ends the round",
+    "O botão Desligar manda este comando. Vazio: sem botão.": "The Shut down button sends this command. Empty: no button.",
+    "O orquestrador pode usar o navegador": "The Orchestrator can use the browser",
+    "Pelo comando orq-nav, só de dentro deste computador e com uma chave que muda a cada abertura. Vale na próxima vez que o app abrir.": "Through the orq-nav command, only from inside this computer and with a key that changes on every launch. Takes effect the next time the app opens.",
+    "Projetos e agentes": "Projects and agents",
+    "Pasta dos projetos": "Projects folder",
+    "Onde ficam os projetos dos agentes.": "Where the agents' projects live.",
+    "Níveis de pasta": "Folder levels",
+    "1: pasta/projeto · 2: pasta/grupo/projeto.": "1: folder/project · 2: folder/group/project.",
+    "Pastas abertas na aba Notas": "Folders open in the Notes tab",
+    "Tirar daqui só tira do app; nada é apagado do disco.": "Removing it here only removes it from the app; nothing is deleted from disk.",
+    "+ Abrir pasta do computador": "+ Open folder from your computer",
+    "Pasta de tópicos e diários": "Topics and journal folder",
+    "Onde o orquestrador guarda topicos.md e o diário.": "Where the Orchestrator keeps topicos.md and the journal.",
+    "Avançado": "Advanced",
+    "Achar o que criei nas ferramentas de IA": "Find what I created in AI tools",
+    "Repertório: skills, comandos, subagentes, prompts e workflows do Claude, Codex, Gemini, OpenCode, Windsurf, Cursor e do padrão dos agentes.": "Library: skills, commands, subagents, prompts and workflows from Claude, Codex, Gemini, OpenCode, Windsurf, Cursor and the agents standard.",
+    "Pastas ignoradas": "Ignored folders",
+    "Expressão regular dos nomes de pasta que não são projeto.": "Regular expression for folder names that aren't projects.",
+    "Linha da tarefa nos tópicos": "Task line in topics",
+    "Expressão com os grupos numero, alvo e tarefa.": "Expression with the groups numero, alvo and tarefa.",
+    "Ordem a um agente": "Command to an agent",
+    "Expressão com os grupos acao e alvo (o bichinho anuncia).": "Expression with the groups acao and alvo (the pet announces it).",
+    "Rótulo do devcontainer": "Devcontainer label",
+    "Rótulo do Docker com a pasta do projeto.": "Docker label holding the project folder.",
+    "Pasta de transcripts no container": "Transcripts folder in the container",
+    "{projeto} vira o nome do projeto.": "{projeto} becomes the project name.",
+    "Variáveis de ambiente extras": "Extra environment variables",
+    "Uma por linha, NOME=valor. Valem para conversas e terminais novos.": "One per line, NAME=value. Apply to new conversations and terminals.",
+    "Trabalhando": "Working",
+    "Travado": "Stuck",
+    "Em revisão": "In review",
+    "Pronto": "Done",
+    "Espera você": "Waiting for you",
+    "Pede permissão": "Asking permission",
+    "Encerrado": "Ended",
+    "Sem sinal": "No signal",
+    "trabalhando": "working",
+    "espera você": "waiting for you",
+    "pede permissão": "asking permission",
+    "encerrado": "ended",
+    "sem sinal": "no signal",
+    "esperando": "waiting",
+    "pendências": "pending",
+    "Trabalhando (lido pela tela)": "Working (read from screen)",
+    "Espera você (lido pela tela)": "Waiting for you (read from screen)",
+    "Pede permissão (lido pela tela)": "Asking permission (read from screen)",
+    "Encerrado (lido pela tela)": "Ended (read from screen)",
+    "Sem sinal (lido pela tela)": "No signal (read from screen)",
+    "Conversa aberta": "Conversation opened",
+    "Avisou que precisa de permissão": "Said it needs permission",
+    "Avisou que está esperando você": "Said it's waiting for you",
+    "Notificação": "Notification",
+    "Conversa encerrada": "Conversation ended",
+    "Copiar": "Copy",
+    "Colar": "Paste",
+    "Selecionar tudo": "Select all",
+    "Fechar este terminal": "Close this terminal",
+    "Fechar terminal": "Close terminal",
+    "Nenhuma frente aberta": "No agents open",
+    "Peça ao orquestrador para abrir uma frente.": "Ask the Orchestrator to open one.",
+    "Nada encontrado": "Nothing found",
+    "Nada encontrado.": "Nothing found.",
+    "Tarefa não registrada no topicos.md": "Task not recorded in topicos.md",
+    "Nada esperando por você": "Nothing waiting for you",
+    "Permissões e pedidos ao servidor aparecem aqui.": "Permissions and server requests show up here.",
+    "Permitir": "Allow",
+    "Negar": "Deny",
+    "Pedido ao servidor": "Server request",
+    "Nenhuma frente selecionada": "No agent selected",
+    "Clique numa frente à esquerda.": "Click an agent on the left.",
+    "lido pela tela": "read from screen",
+    "Esta frente ainda não tem o hook de sinais: o estado vem da tela e a resposta inteira não fica disponível.": "This agent doesn't have the signals hook yet: its state is read from the screen and the full reply isn't available.",
+    "Sem resposta registrada ainda.": "No reply recorded yet.",
+    "Atividade": "Activity",
+    "Abrir terminal": "Open terminal",
+    "Última resposta": "Last reply",
+    "Os terminais das frentes aparecem aqui.": "The agents' terminals show up here.",
+    "Não consegui ler as frentes": "Couldn't read the agents",
+    "Já tinha sido respondido no terminal.": "Already answered in the terminal.",
+    "Tirar do app (nada é apagado)": "Remove from the app (nothing is deleted)",
+    "Nenhuma pasta.": "No folders.",
+    "Tirar?": "Remove?",
+    "Outra cor": "Other color",
+    "Este app é anterior a este botão: feche no X": "This app predates this button: close it with the X",
+    "Caber": "Fit",
+    "imagem ampliada": "enlarged image",
+    "Diminuir (−)": "Zoom out (−)",
+    "Aumentar (+)": "Zoom in (+)",
+    "Caber na tela (0)": "Fit to screen (0)",
+    "Tamanho real (1)": "Actual size (1)",
+    "Fechar (Esc)": "Close (Esc)",
+    "Esperando você": "Waiting for you",
+    "↑↓ navega": "↑↓ navigate",
+    "Enter abre": "Enter opens",
+    "Esc fecha": "Esc closes",
+    "Paleta de comandos": "Command palette",
+    "Buscar conversa, agente, nota, ação…": "Search conversations, agents, notes, actions…",
+    "Só o que está esperando você": "Only what's waiting for you",
+    "Abas": "Tabs",
+    "Terminais (espelho dos agentes)": "Terminals (mirror of the agents)",
+    "Ações": "Actions",
+    "Novo terminal": "New terminal",
+    "Reiniciar o app mantendo as conversas": "Restart the app keeping conversations",
+    "Alternar tema claro/escuro": "Toggle light/dark theme",
+    "Seus atalhos": "Your shortcuts",
+    "Nenhuma ferramenta de IA achada nesta máquina.": "No AI tools found on this machine.",
+    "Ferramentas conectadas": "Connected tools",
+    "Nenhum ainda.": "None yet.",
+    "Vai com as instruções junto, para qualquer modelo seguir.": "Sent along with its instructions, so any model can follow it.",
+    "O Claude chama este subagente pelo nome.": "Claude calls this subagent by name.",
+    "Usar na conversa": "Use in conversation",
+    "Editar atalho": "Edit shortcut",
+    "Novo atalho": "New shortcut",
+    "Apagar atalho": "Delete shortcut",
+    "Nome (vira //nome)": "Name (becomes //name)",
+    "Descrição": "Description",
+    "Texto que vai para o Claude": "Text sent to Claude",
+    "Tecla": "Key",
+    "Nenhuma": "None",
+    "Enviar direto (sem passar pela caixa)": "Send directly (skip the input box)",
+    "Salvar": "Save",
+    "Dentro do texto dá para usar //outras-skills e @nota:. Cada mudança guarda a versão anterior.": "Inside the text you can use //other-skills and @nota:. Every change keeps the previous version.",
+    "ex.: antes-e-depois": "e.g. before-and-after",
+    "Para que serve": "What it's for",
+    "ex.: Siga //verificar-antes-e-depois: inventário antes, o mesmo depois…": "e.g. Follow //verificar-antes-e-depois: inventory before, the same after…",
+    "Confirmar: apagar este atalho": "Confirm: delete this shortcut",
+    "Padrão dos agentes": "Agents standard",
+    "comando": "command",
+    "subagente": "subagent",
+    "agente": "agent",
+    "Padrão (Chromium)": "Default (Chromium)",
+    "Nenhuma janela aberta.": "No windows open.",
+    "Abra uma para navegar. O orquestrador também abre e usa estas janelas, e você vê tudo o que ele faz.": "Open one to browse. The Orchestrator also opens and uses these windows, and you see everything it does.",
+    "Voltar": "Back",
+    "Avançar": "Forward",
+    "Recarregar": "Reload",
+    "Endereço ou busca": "Address or search",
+    "Endereço": "Address",
+    "Como o site enxerga esta janela": "How the site sees this window",
+    "Navegador e aparelho": "Browser and device",
+    "Abrir no navegador do sistema": "Open in the system browser",
+    "Abrir fora": "Open externally",
+    "Fechar esta janela": "Close this window",
+    "Fechar janela": "Close window",
+    "Nova janela do navegador": "New browser window",
+    "Janela em branco": "Blank window",
+    "Orquestrador: abrindo página": "Orchestrator: opening page",
+    "Orquestrador: clicando": "Orchestrator: clicking",
+    "Orquestrador: digitando": "Orchestrator: typing",
+    "Orquestrador: apertando tecla": "Orchestrator: pressing a key",
+    "Orquestrador: lendo a página": "Orchestrator: reading the page",
+    "Orquestrador: tirando print": "Orchestrator: taking a screenshot",
+    "Orquestrador: rodando script": "Orchestrator: running a script",
+    "Orquestrador: voltando": "Orchestrator: going back",
+    "Orquestrador: avançando": "Orchestrator: going forward",
+    "Orquestrador: recarregando": "Orchestrator: reloading",
+    "Orquestrador: abriu esta janela": "Orchestrator: opened this window",
+    "Orquestrador: trocando o aparelho": "Orchestrator: switching device",
+    "abrindo página": "opening page",
+    "clicando": "clicking",
+    "digitando": "typing",
+    "apertando tecla": "pressing a key",
+    "lendo a página": "reading the page",
+    "tirando print": "taking a screenshot",
+    "rodando script": "running a script",
+    "voltando": "going back",
+    "avançando": "going forward",
+    "recarregando": "reloading",
+    "abriu esta janela": "opened this window",
+    "trocando o aparelho": "switching device",
+    "a tela não respondeu": "the screen didn't respond",
+    "nenhuma janela aberta (use: orq-nav abrir <url>)": "no window open (use: orq-nav abrir <url>)",
+    "diga qual elemento: número (de \"elementos\") ou seletor CSS": "say which element: a number (from \"elementos\") or a CSS selector",
+    "só endereços http ou https": "only http or https addresses",
+    "não abriu": "didn't open",
+    "sem permissão": "no permission",
+    "JSON inválido": "invalid JSON",
+    "Imagem acima de 15 MB não entra na nota.": "Images over 15 MB can't go into a note.",
+    "Editando…": "Editing…",
+    "Nenhuma nota aberta": "No note open",
+    "Nenhuma pasta de notas": "No notes folder",
+    "Escolha uma nota à esquerda ou crie uma com o +.": "Pick a note on the left or create one with +.",
+    "Configure \"pastasNotas\" em ~/.config/orq-app/config.json.": "Set \"pastasNotas\" in ~/.config/orq-app/config.json.",
+    "Tirar esta pasta do app (nada é apagado do disco)": "Remove this folder from the app (nothing is deleted from disk)",
+    "Tirar pasta": "Remove folder",
+    "+ Pasta": "+ Folder",
+    "Abrir outra pasta": "Open another folder",
+    "Nenhuma pasta aberta. Use \"+ Pasta\" em cima para abrir uma.": "No folder open. Use \"+ Folder\" above to open one.",
+    "Nenhuma nota .md aqui.": "No .md notes here.",
+    "Selecione o texto que vai virar link e clique de novo.": "Select the text that should become a link and click again.",
+    "Caminho copiado": "Path copied",
+    "Abrir no gerenciador de arquivos": "Open in file manager",
+    "Copiar caminho": "Copy path",
+    "Copiar caminho relativo": "Copy relative path",
+    "Abrir": "Open",
+    "Renomear": "Rename",
+    "Nova pasta": "New folder",
+    "Abrir outra pasta do computador…": "Open another folder from your computer…",
+    "Só leitura": "Read-only",
+    "Salvo": "Saved",
+    "Editar mesmo assim": "Edit anyway",
+    "Salvando…": "Saving…",
+    "Alguém acrescentou texto no fim desta nota enquanto você editava; juntei as duas coisas.": "Someone appended text to the end of this note while you were editing; I merged both.",
+    "Conflito": "Conflict",
+    "Esta nota mudou por fora enquanto você editava (um agente, outra sessão ou o Obsidian).": "This note was changed outside while you were editing (an agent, another session or Obsidian).",
+    "Ficar com o meu": "Keep mine",
+    "Usar a de fora": "Use the outside version",
+    "As duas versões ficam guardadas.": "Both versions are kept.",
+    "Atualizado por fora": "Updated externally",
+    "Abrir pasta de notas": "Open notes folder",
+    "pasta desconhecida": "unknown folder",
+    "fora da pasta": "outside the folder",
+    "nome vazio": "empty name",
+    "Já existe um arquivo ou pasta com esse nome aqui.": "A file or folder with that name already exists here.",
+    "tipo de imagem não aceito": "image type not accepted",
+    "imagem acima de 15 MB": "image over 15 MB",
+    "imagem enviada": "sent image",
+    "Rodou": "Ran",
+    "Leu": "Read",
+    "Editou": "Edited",
+    "Escreveu": "Wrote",
+    "Buscou": "Searched",
+    "Procurou arquivos": "Looked for files",
+    "Usou a skill": "Used the skill",
+    "Chamou um agente": "Called an agent",
+    "Abriu": "Opened",
+    "Pesquisou": "Searched the web",
+    "Atualizou a lista de tarefas": "Updated the task list",
+    "Perguntou": "Asked",
+    "Carregou ferramentas": "Loaded tools",
+    "Rodou…": "Ran…",
+    "Leu…": "Read…",
+    "Editou…": "Edited…",
+    "Escreveu…": "Wrote…",
+    "Buscou…": "Searched…",
+    "Procurou arquivos…": "Looked for files…",
+    "Usou a skill…": "Used the skill…",
+    "Chamou um agente…": "Called an agent…",
+    "Abriu…": "Opened…",
+    "Pesquisou…": "Searched the web…",
+    "Atualizou a lista de tarefas…": "Updated the task list…",
+    "Perguntou…": "Asked…",
+    "Carregou ferramentas…": "Loaded tools…",
+    "(sem saída)": "(no output)",
+    "Copiado": "Copied",
+    "Escrever no terminal do app (sem executar)": "Write to the app's terminal (without running)",
+    "Abrir no explorador de arquivos": "Open in file explorer",
+    "O turno terminou com erro.": "The turn ended with an error.",
+    "Rodada encerrada": "Round ended",
+    "O orquestrador saiu. Na próxima vez que abrir o app, começa uma rodada nova.": "The Orchestrator has left. The next time you open the app, a new round starts.",
+    "Começar nova rodada agora": "Start a new round now",
+    "Pergunta": "Question",
+    "Outra resposta… (Enter responde · Shift+Enter quebra linha · Ctrl+V cola print)": "Other answer… (Enter answers · Shift+Enter new line · Ctrl+V pastes a screenshot)",
+    "Responder": "Answer",
+    "O orquestrador pede permissão:": "The Orchestrator asks for permission:",
+    "Este caminho não existe (ou não está acessível daqui)": "This path doesn't exist (or isn't reachable from here)",
+    "Permitido": "Allowed",
+    "Negado": "Denied",
+    "Este app foi aberto antes da versão que manda imagens: feche e abra o app. Nada foi enviado.": "This app was opened before the version that sends images: close and reopen the app. Nothing was sent.",
+    "Este app foi aberto antes da versão que manda imagens: feche e abra o app. Nada foi enviado; as imagens continuam na caixa.": "This app was opened before the version that sends images: close and reopen the app. Nothing was sent; the images are still in the box.",
+    "Respondido": "Answered",
+    "Contexto": "Context",
+    "7 dias": "7 days",
+    "Baixo": "Low",
+    "Médio": "Medium",
+    "Alto": "High",
+    "Extra alto": "Extra high",
+    "Máximo": "Max",
+    "padrão": "default",
+    "Modelo padrão": "Default model",
+    "Modo de permissão": "Permission mode",
+    "Estilo de resposta": "Response style",
+    "Pensamento estendido": "Extended thinking",
+    "Compactar sozinho": "Auto-compact",
+    "Pontos de restauração": "Checkpoints",
+    "Resumo ao voltar (recap)": "Recap when you return",
+    "Sugestão de prompt": "Prompt suggestions",
+    "Idioma das respostas": "Response language",
+    "Tema do terminal": "Terminal theme",
+    "Formato de hora": "Time format",
+    "Canal de notificação": "Notification channel",
+    "Avisar quando precisar de você": "Notify when it needs you",
+    "Notificação push dos agentes": "Agent push notifications",
+    "Controle remoto": "Remote control",
+    "Modo do editor": "Editor mode",
+    "Respeitar .gitignore": "Respect .gitignore",
+    "Conectar à IDE sozinho": "Auto-connect to the IDE",
+    "Contexto do editor externo": "External editor context",
+    "Status do PR": "PR status",
+    "Barra de progresso": "Progress bar",
+    "Rolar sozinho": "Auto-scroll",
+    "Copiar resposta inteira": "Copy the full reply",
+    "Copiar ao selecionar": "Copy on select",
+    "Reduzir animações": "Reduce motion",
+    "Dicas": "Tips",
+    "Abrir na visão de agentes": "Open in agents view",
+    "Seta ← abre agentes": "← arrow opens agents",
+    "Trocar modelo ao ser sinalizado": "Switch model when flagged",
+    "Configurações do Claude": "Claude settings",
+    "Cada mudança é mandada ao Claude desta conversa como": "Each change is sent to this conversation's Claude as",
+    "; ele confirma na conversa.": "; it confirms in the conversation.",
+    "ex.: português": "e.g. English",
+    "Permitir sempre": "Always allow",
+    "Perguntar": "Ask",
+    "Negar sempre": "Always deny",
+    "ex.: Bash(npm test:*)": "e.g. Bash(npm test:*)",
+    "ex.: Bash(git push:*)": "e.g. Bash(git push:*)",
+    "ex.: Read(./.env)": "e.g. Read(./.env)",
+    "Reabra o app para usar o /permissions.": "Reopen the app to use /permissions.",
+    "Tirar esta regra": "Remove this rule",
+    "Permissões do Claude": "Claude permissions",
+    "Regras de": "Rules from",
+    ". Valem para as conversas novas ou depois de": ". They apply to new conversations or after",
+    ". Cada gravação guarda a versão anterior.": ". Every save keeps the previous version.",
+    "Modo padrão": "Default mode",
+    "(não definido)": "(not set)",
+    "Nenhuma regra.": "No rules.",
+    "Adicionar": "Add",
+    "Permissões salvas. Use /restart para esta conversa passar a seguir as regras novas.": "Permissions saved. Use /restart so this conversation starts following the new rules.",
+    "Escreva abaixo para conversar com o Claude.": "Write below to chat with Claude.",
+    "Escreva abaixo. O orquestrador está ali no cantinho.": "Write below. The Orchestrator is right there in the corner.",
+    "Chamei um ajudante!": "I called a helper!",
+    "Tchau! Até a próxima rodada.": "Bye! See you next round.",
+    "Uma pergunta pra você!": "A question for you!",
+    "Preciso da sua permissão!": "I need your permission!",
+    "Tirar da lista (a conversa continua no histórico do Claude)": "Remove from the list (the conversation stays in Claude's history)",
+    "Fechar conversa": "Close conversation",
+    "pergunta esperando você": "question waiting for you",
+    "pergunta": "question",
+    "pronta": "ready",
+    "pausada": "paused",
+    "Comandos": "Commands",
+    "Fechar?": "Close?",
+    "imagem anexada": "attached image",
+    "Tirar imagem": "Remove image",
+    "Tirar": "Remove",
+    "Imagem acima de 5 MB não vai: diminua antes.": "Images over 5 MB can't be sent: shrink it first.",
+    "print anexada": "attached screenshot",
+    "Tirar print": "Remove screenshot",
+    "Fecha o app e encerra as conversas": "Closes the app and ends the conversations",
+    "Reinicia o Claude desta conversa e continua do mesmo ponto": "Restarts this conversation's Claude and continues from the same point",
+    "Mostra ou troca o modelo": "Shows or changes the model",
+    "Troca o esforço": "Changes the effort",
+    "Uso do plano: janelas de 5 h e 7 dias": "Plan usage: 5-hour and 7-day windows",
+    "Quanto do contexto está em uso": "How much of the context is in use",
+    "Custo e tokens da sessão": "Session cost and tokens",
+    "Resume a conversa para liberar contexto": "Summarizes the conversation to free up context",
+    "[instruções]": "[instructions]",
+    "Limpa o histórico da conversa": "Clears the conversation history",
+    "Versão, conta e configuração": "Version, account and settings",
+    "Arquivos de memória (CLAUDE.md)": "Memory files (CLAUDE.md)",
+    "Cria um CLAUDE.md para o projeto": "Creates a CLAUDE.md for the project",
+    "Revisa um pull request": "Reviews a pull request",
+    "Revisão de segurança das mudanças": "Security review of the changes",
+    "Lista de tarefas da sessão": "Session task list",
+    "Servidores MCP": "MCP servers",
+    "Subagentes configurados": "Configured subagents",
+    "Hooks configurados": "Configured hooks",
+    "Regras de permissão": "Permission rules",
+    "Diagnóstico da instalação": "Installation diagnostics",
+    "Novidades da versão": "What's new in this version",
+    "Ajuda": "Help",
+    "Mostra o uso do contexto": "Shows context usage",
+    "Troca o esforço: low, medium, high, xhigh, max": "Changes the effort: low, medium, high, xhigh, max",
+    "Troca o modelo": "Changes the model",
+    "Mostra custo e uso da sessão": "Shows session cost and usage",
+    "Limpa a conversa": "Clears the conversation",
+    "Mencionar uma nota (vai com o conteúdo)": "Mention a note (sent with its content)",
+    "menção": "mention",
+    "Mencionar um workflow": "Mention a workflow",
+    "Nenhum workflow ainda": "No workflows yet",
+    "Crie um na aba Workflows": "Create one in the Workflows tab",
+    "Claude reiniciado; a conversa continua do mesmo ponto.": "Claude restarted; the conversation continues from the same point.",
+    "Confirmar desligar": "Confirm shutdown",
+    "A conversa foi pausada.": "The conversation was paused.",
+    "Terminou com erro.": "Finished with an error.",
+    "Terminou.": "Finished.",
+    "Negado pelo usuário no app.": "Denied by the user in the app.",
+    "conversa desconhecida": "unknown conversation",
+    "agora há pouco": "just now",
+    "(seg a sex)": "(Mon–Fri)",
+    "quando você aperta Rodar": "when you press Run",
+    "sem texto": "no text",
+    "sem pedido": "no prompt",
+    "sem comando": "no command",
+    "entrada não vazia": "input not empty",
+    "qualquer arquivo": "any file",
+    "Criar credencial": "Create credential",
+    "Sem descrição": "No description",
+    "nunca rodou": "never run",
+    "Apagar este workflow (pede confirmação; a versão anterior fica guardada)": "Delete this workflow (asks for confirmation; the previous version is kept)",
+    "Apagar": "Delete",
+    "Nada com esse nome.": "Nothing with that name.",
+    "Nenhum workflow ainda.": "No workflows yet.",
+    "Um workflow junta um gatilho (relógio ou botão) e os passos que vêm depois.": "A workflow combines a trigger (clock or button) with the steps that follow it.",
+    "Criar o primeiro workflow": "Create the first workflow",
+    "sem referência": "no reference",
+    "Apagar a referência (o valor no cofre ou no arquivo não é tocado)": "Delete the reference (the value in the vault or file is not touched)",
+    "Apagar credencial": "Delete credential",
+    "Nenhuma credencial ainda.": "No credentials yet.",
+    "Aqui fica só ONDE a credencial mora (item do cofre, arquivo ou variável de ambiente), nunca o valor. Ela é lida na hora de rodar e chega ao comando como variável de ambiente.": "Only WHERE the credential lives is stored here (vault item, file or environment variable), never the value. It is read at run time and reaches the command as an environment variable.",
+    "Criar a primeira credencial": "Create the first credential",
+    "Nenhuma execução ainda.": "No runs yet.",
+    "Cada vez que um workflow roda (pelo relógio ou pelo botão), aparece aqui com o que cada passo respondeu.": "Every time a workflow runs (by the clock or the button), it shows up here with what each step returned.",
+    "rodando…": "running…",
+    "rodando": "running",
+    "erro": "error",
+    "parou": "stopped",
+    "parou no meio": "stopped midway",
+    "· erro": "· error",
+    "· parou": "· stopped",
+    "· rodando": "· running",
+    "workflow apagado": "deleted workflow",
+    "relógio": "clock",
+    "Novo workflow": "New workflow",
+    "Confirmar": "Confirm",
+    "Credencial": "Credential",
+    "Nova credencial": "New credential",
+    "Referência": "Reference",
+    "Testar": "Test",
+    "Aqui fica só onde a credencial mora — nunca o valor. Ela é lida na hora de rodar e chega ao comando como variável de ambiente; se aparecer na saída, vira ••••.": "Only where the credential lives is stored here — never the value. It is read at run time and reaches the command as an environment variable; if it shows up in the output, it becomes ••••.",
+    "Nome": "Name",
+    "Onde ela mora": "Where it lives",
+    "Campo do item": "Item field",
+    "Variável que o comando recebe": "Variable the command receives",
+    "ex.: Token da API": "e.g. API token",
+    "ex.: API_TOKEN": "e.g. API_TOKEN",
+    "Letras, números e _": "Letters, numbers and _",
+    "Confirmar: apagar a referência": "Confirm: delete the reference",
+    "Rodando…": "Running…",
+    "Ainda não rodou.": "Hasn't run yet.",
+    "Use “Rodar workflow” no quadro para testar; o relógio também registra aqui cada vez que dispara.": "Use “Run workflow” on the canvas to test it; the clock also logs here every time it fires.",
+    "Confirmar: apagar": "Confirm: delete",
+    "Aparece na lista e vai junto quando você menciona @workflow: na conversa.": "Shows in the list and is sent along when you mention @workflow: in the conversation.",
+    "Dois cliques para ajustar": "Double-click to edit",
+    "Puxe até outro passo para ligar": "Drag to another step to connect",
+    "Acrescentar um passo depois deste": "Add a step after this one",
+    "Acrescentar passo depois": "Add step after",
+    "Ajustes do passo": "Step settings",
+    "Acrescentar passo aqui": "Add step here",
+    "Duplicar o selecionado": "Duplicate selection",
+    "Apagar o selecionado": "Delete selection",
+    "Apagar tudo": "Delete all",
+    "Gatilhos": "Triggers",
+    "IA": "AI",
+    "Arquivos": "Files",
+    "Lógica": "Logic",
+    "O que acontece depois?": "What happens next?",
+    "Este passo não tem ajustes.": "This step has no settings.",
+    "é a saída do passo anterior ·": "is the previous step's output ·",
+    "e": "and",
+    ", o arquivo que disparou ·": ", the file that triggered it ·",
+    "data e hora ·": "date and time ·",
+    "data boa para nome de arquivo.": "date suitable for a file name.",
+    "(vazia)": "(empty)",
+    "Tirar este passo": "Remove this step",
+    "Nenhuma credencial criada.": "No credentials created.",
+    "+ Nova credencial": "+ New credential",
+    "Relógio": "Clock",
+    "Dispara de tempos em tempos ou num horário.": "Fires at regular intervals or at a set time.",
+    "Quando": "When",
+    "A cada N minutos": "Every N minutes",
+    "Todo dia num horário": "Every day at a set time",
+    "A cada quantos minutos": "Every how many minutes",
+    "Horário (HH:MM)": "Time (HH:MM)",
+    "Só de segunda a sexta": "Weekdays only (Mon–Fri)",
+    "Botão": "Button",
+    "Dispara só quando você aperta Rodar.": "Fires only when you press Run.",
+    "Arquivo novo na pasta": "New file in folder",
+    "Dispara quando aparece um arquivo novo na pasta (ligado). A saída é o caminho do arquivo.": "Fires when a new file appears in the folder (while on). The output is the file's path.",
+    "Que arquivos (ex.: *.pdf, *.png; vazio = todos)": "Which files (e.g. *.pdf, *.png; empty = all)",
+    "Mandar ao orquestrador": "Send to the Orchestrator",
+    "Escreve na conversa do orquestrador.": "Writes in the Orchestrator's conversation.",
+    "Texto": "Text",
+    "Só com a rodada iniciada (orquestrador aberto)": "Only when the round has started (Orchestrator open)",
+    "Pular se ele estiver respondendo": "Skip if it is replying",
+    "Perguntar ao Claude": "Ask Claude",
+    "Um Claude à parte responde; a resposta segue adiante.": "A separate Claude answers; the answer moves on to the next step.",
+    "Pedido": "Prompt",
+    "Rodar comando": "Run command",
+    "Roda no shell; a saída segue adiante. A entrada chega em $ORQ_ENTRADA.": "Runs in the shell; the output moves on to the next step. The input arrives in $ORQ_ENTRADA.",
+    "Comando": "Command",
+    "Credenciais (viram variáveis de ambiente do comando)": "Credentials (become the command's environment variables)",
+    "Condição": "Condition",
+    "Só segue se a entrada combinar.": "Continues only if the input matches.",
+    "Segue quando a entrada": "Continue when the input",
+    "contém o texto": "contains the text",
+    "não contém o texto": "doesn't contain the text",
+    "combina com a expressão": "matches the expression",
+    "não está vazia": "isn't empty",
+    "Texto ou expressão": "Text or expression",
+    "Ler arquivo": "Read file",
+    "Lê o texto de um arquivo; o texto segue adiante.": "Reads the text of a file; the text moves on to the next step.",
+    "Arquivo": "File",
+    "Mover ou copiar arquivo": "Move or copy file",
+    "Leva o arquivo para outra pasta. Nunca sobrescreve: se já existir um com o mesmo nome, o novo ganha um número.": "Moves the file to another folder. Never overwrites: if one with the same name already exists, the new one gets a number.",
+    "O que fazer": "What to do",
+    "Mover": "Move",
+    "Para a pasta": "To folder",
+    "Escrever arquivo": "Write file",
+    "Grava texto num arquivo. Nunca sobrescreve: arquivo novo ganha um número se o nome já existir; \"acrescentar\" escreve no fim.": "Writes text to a file. Never overwrites: a new file gets a number if the name already exists; \"append\" writes at the end.",
+    "Como": "How",
+    "Arquivo novo": "New file",
+    "Acrescentar no fim": "Append to the end",
+    "Nome do arquivo": "File name",
+    "Conteúdo": "Content",
+    "Avisar": "Notify",
+    "Notificação do sistema.": "System notification.",
+    "Título": "Title",
+    "Passada nas frentes (3 em 3 min)": "Agent sweep (every 3 min)",
+    "A cada 3 minutos, com a rodada iniciada, pede ao orquestrador a passada nas frentes. Cópia no app do lembrete que o Claude agenda.": "Every 3 minutes, while the round is running, asks the Orchestrator to sweep the agents. An in-app copy of the reminder Claude schedules.",
+    "Workflow sem nome": "Untitled workflow",
+    "Credencial sem nome": "Untitled credential",
+    "Item do cofre (Bitwarden)": "Vault item (Bitwarden)",
+    "Nome ou id do item": "Item name or id",
+    "Lido com o bw (Bitwarden CLI, vale para servidor próprio compatível) na hora de rodar; o cofre precisa estar destravado (BW_SESSION no ambiente do app).": "Read with bw (Bitwarden CLI; also works with a compatible self-hosted server) at run time; the vault must be unlocked (BW_SESSION in the app's environment).",
+    "Caminho do arquivo": "File path",
+    "O conteúdo do arquivo é a credencial. O certo é o arquivo estar com modo 600.": "The file's content is the credential. The file should have mode 600.",
+    "Variável de ambiente": "Environment variable",
+    "Nome da variável": "Variable name",
+    "Lida do ambiente em que o app foi aberto.": "Read from the environment the app was launched in.",
+    "Senha": "Password",
+    "Usuário": "Username",
+    "Código TOTP": "TOTP code",
+    "Item do cofre (Bitwarden) · sem referência": "Vault item (Bitwarden) · no reference",
+    "Arquivo · sem referência": "File · no reference",
+    "Variável de ambiente · sem referência": "Environment variable · no reference",
+    "credencial não encontrada": "credential not found",
+    "leu, mas veio vazia": "read it, but it was empty",
+    "a rodada não está iniciada": "the round hasn't started",
+    "o orquestrador estava respondendo": "the Orchestrator was replying",
+    "texto vazio": "empty text",
+    "pedido vazio": "empty prompt",
+    "comando vazio": "empty command",
+    "uma credencial escolhida neste passo não existe mais": "a credential chosen in this step no longer exists",
+    "expressão inválida": "invalid expression",
+    "a condição não bateu": "the condition didn't match",
+    "sem arquivo": "no file",
+    "…(cortado: arquivo maior que 200 KB)": "…(truncated: file larger than 200 KB)",
+    "workflow não encontrado": "workflow not found",
+    "já está rodando": "already running",
+    "Parágrafo comum": "Plain paragraph",
+    "Título 1": "Heading 1",
+    "Título grande": "Large heading",
+    "Título 2 (subtítulo)": "Heading 2 (subheading)",
+    "Título médio": "Medium heading",
+    "Título 3": "Heading 3",
+    "Título pequeno": "Small heading",
+    "Lista que abre e fecha": "Collapsible list",
+    "Título alternante": "Toggle heading",
+    "Título que abre e fecha": "Collapsible heading",
+    "Caixa de destaque com ícone 💡": "Highlight box with a 💡 icon",
+    "Callout de aviso": "Warning callout",
+    "Caixa amarela ⚠️": "Yellow box ⚠️",
+    "Callout de perigo": "Danger callout",
+    "Caixa vermelha ⛔": "Red box ⛔",
+    "Callout de ok": "Success callout",
+    "Caixa verde ✅": "Green box ✅",
+    "Lista com marcadores": "Bulleted list",
+    "Tarefas": "Tasks",
+    "Lista com caixinhas": "Checklist",
+    "Bloco de citação": "Quote block",
+    "Bloco de código": "Code block",
+    "Tabela 3 × 3": "3 × 3 table",
+    "Linha horizontal": "Horizontal line",
+    "Pinta o texto do bloco": "Colors the block's text",
+    "Escreva, ou digite / para inserir um bloco…": "Write, or type / to insert a block…",
+    "Conversa com o ajudante": "Conversation with the Helper",
+    "Pedaço da tela recortado": "Cropped piece of the screen",
+    "Tirar a imagem": "Remove the image",
+    "Pergunte… (Enter envia · Shift+Enter quebra linha)": "Ask… (Enter sends · Shift+Enter new line)",
+    "Ver a conversa inteira no app": "See the whole conversation in the app",
+    "Pergunta para você": "Question for you",
+    "Responder depois": "Answer later",
+    "Dois cliques para conversar; botão direito para mais": "Double-click to chat; right-click for more",
+    "Ajudante": "Helper",
+    "vai para a conversa “Ajudante” do app": "goes to the app's “Helper” conversation",
+    "Pergunte qualquer coisa. Com “📷 Pedaço da tela”, você recorta o que está vendo e eu olho junto.": "Ask anything. With “📷 Piece of the screen”, you crop what you're seeing and I look at it with you.",
+    "📷 Pedaço da tela": "📷 Piece of the screen",
+    "Abrir no app": "Open in the app",
+    "Conversar": "Chat",
+    "📷 Mostrar um pedaço da tela": "📷 Show a piece of the screen",
+    "Passear pela tela": "Wander around the screen",
+    "Voltar para o app": "Back to the app",
+    "Ir embora": "Go away",
+    "Recorte o pedaço da tela…": "Crop the piece of the screen…",
+    "(só a imagem)": "(image only)",
+    "Pensando": "Thinking",
+    "Uiii!": "Wheee!",
+    "Para onde vamos?": "Where are we going?",
+    "Ei!": "Hey!",
+    "Oi! Dois cliques para conversar.": "Hi! Double-click to chat.",
+    "Tô aqui!": "I'm here!",
+    "Precisa de mim?": "Need me?",
+    "pode marcar mais de uma": "you can pick more than one",
+    "Outra resposta… (Enter envia)": "Other answer… (Enter sends)",
+    "Quer usar uma ferramenta": "Wants to use a tool",
+    "Enviando": "Sending",
+    "Marque uma opção ou escreva a resposta.": "Pick an option or write the answer.",
+    "Respondido! 👍": "Answered! 👍",
+    "Ver no app": "See in the app",
+    "Depois": "Later",
+    "Tchau!": "Bye!",
+    "Preciso de você no app.": "I need you in the app.",
+    "Recebi! O que você quer saber disso?": "Got it! What do you want to know about it?",
+    "O orquestrador": "The Orchestrator",
+    "Já foi resolvido! 👍": "Already sorted! 👍",
+    "Vou dar uma volta!": "I'm going for a walk!",
+    "Cheguei!": "Here I am!",
+    "Te achei!": "Found you!",
+    "Esperei por você!": "I waited for you!",
+    "Opa, mudou de mesa?": "Oops, did you switch desks?",
+    "Oba, passeio!": "Yay, a walk!",
+    "Deixa eu ver…": "Let me see…",
+    "Mão na massa!": "Getting to work!",
+    "Trabalhando…": "Working…",
+    "Já vai!": "Coming right up!",
+    "Pronto!": "Done!",
+    "Feito!": "Finished!",
+    "Prontinho!": "All set!",
+    "Ei! Preciso de você": "Hey! I need you",
+    "Sua vez!": "Your turn!",
+    "Uma pergunta!": "A question!",
+    "Ops…": "Oops…",
+    "Deu ruim…": "That went wrong…",
+    "Oi!": "Hi!",
+    "Me chama com dois cliques!": "Double-click to call me!",
+    "Pronto para ajudar!": "Ready to help!",
+    "Opa!": "Whoa!",
+    "Que bom te ver!": "Good to see you!",
+    "Hehe, cócegas!": "Hehe, that tickles!",
+    "Hã? Tô acordado!": "Huh? I'm awake!",
+    "Ahh… cochilei.": "Ahh… I dozed off.",
+    "Bom dia!": "Good morning!",
+    "O orquestrador. Dois cliques para falar com ele; botão direito para o guarda-roupa. Arraste para mover.": "The Orchestrator. Double-click to talk to it; right-click for the wardrobe. Drag to move it.",
+    "Casa nova!": "New home!",
+    "Gostei daqui.": "I like it here.",
+    "Vou ficar aqui.": "I'll stay here.",
+    "Agentes, ao trabalho!": "Agents, to work!",
+    "Oi! Eu sou o orquestrador.": "Hi! I'm the Orchestrator.",
+    "E aí?": "What's up?",
+    "Tum tss tum tss": "Boom tss boom tss",
+    "Ai!": "Ouch!",
+    "Uou!": "Wow!",
+    "Me solta!": "Let me go!",
+    "Cor do app": "App color",
+    "Cabeça": "Head",
+    "Olhos": "Eyes",
+    "Rosto": "Face",
+    "Pescoço": "Neck",
+    "Roupa": "Outfit",
+    "Na mão": "In hand",
+    "Cartola": "Top hat",
+    "Boné": "Cap",
+    "Gorro de lã": "Beanie",
+    "Chapéu de cowboy": "Cowboy hat",
+    "Coroa": "Crown",
+    "Chapéu de festa": "Party hat",
+    "Capacete de obra": "Hard hat",
+    "Chapéu de mago": "Wizard hat",
+    "Fones de ouvido": "Headphones",
+    "Tiara de flores": "Flower crown",
+    "Antena": "Antenna",
+    "Óculos": "Glasses",
+    "Óculos escuros": "Sunglasses",
+    "Monóculo": "Monocle",
+    "Tapa-olho": "Eye patch",
+    "Bigode": "Mustache",
+    "Bigode enrolado": "Curly mustache",
+    "Bochechas coradas": "Rosy cheeks",
+    "Gravata": "Tie",
+    "Gravata-borboleta": "Bow tie",
+    "Cachecol": "Scarf",
+    "Capa de herói": "Hero cape",
+    "Colete": "Vest",
+    "Avental": "Apron",
+    "Jaleco": "Lab coat",
+    "Camisa de time": "Team jersey",
+    "Caneca de café": "Coffee mug",
+    "Varinha mágica": "Magic wand",
+    "Notebook": "Laptop",
+    "Balão": "Balloon",
+    "Recorta aí!": "Go ahead, crop it!",
+    "Já vou!": "On my way!",
+    "Conversar com ele": "Chat with it",
+    "2 cliques": "2 clicks",
+    "Guarda-roupa…": "Wardrobe…",
+    "Passear pela área de trabalho": "Wander around the desktop",
+    "Esconder o bichinho": "Hide the pet",
+    "Vou dar uma volta lá fora!": "I'm going for a walk outside!",
+    "Guarda-roupa do bichinho": "Pet wardrobe",
+    "Atalho do sistema criado: Ctrl+Alt+Espaço chama ele de qualquer lugar.": "System shortcut created: Ctrl+Alt+Space calls it from anywhere.",
+    "Ainda sem atalho do sistema.": "No system shortcut yet.",
+    "Atalho criado: Ctrl+Alt+Espaço chama ele de qualquer lugar.": "Shortcut created: Ctrl+Alt+Space calls it from anywhere.",
+    "sem roupa nenhuma": "wearing nothing",
+    "1 item vestido": "1 item worn",
+    "Nenhum": "None",
+    "Guarda-roupa": "Wardrobe",
+    "🎲 Surpresa": "🎲 Surprise me",
+    "Uma combinação ao acaso": "A random combination",
+    "Tirar tudo": "Remove all",
+    "Fora do app": "Outside the app",
+    "Vir à tela quando houver pendência e o app estiver fora de foco": "Come onto the screen when something is pending and the app is out of focus",
+    "Criar atalho Ctrl+Alt+Espaço no sistema": "Create the Ctrl+Alt+Space system shortcut",
+    "Ctrl+Alt+Espaço (ou dois cliques nele) abre a conversa com ele; “📷 Pedaço da tela” recorta o que você está vendo e manda junto. As conversas ficam na conversa “Ajudante” do app.": "Ctrl+Alt+Space (or double-clicking it) opens the chat with it; “📷 Piece of the screen” crops what you're seeing and sends it along. The chats are kept in the app's “Helper” conversation.",
+    "Bichinho": "Pet",
+    "Chamar o ajudante": "Call the Helper",
+    "Ctrl+Alt+Espaço": "Ctrl+Alt+Space",
+    "Mostrar um pedaço da tela ao ajudante": "Show the Helper a piece of the screen",
+    "Essa já tinha sido respondida (ou não deu para responder daqui).": "That one was already answered (or it couldn't be answered from here).",
+    "O que você vê aqui? Me ajude com isto.": "What do you see here? Help me with this.",
+    "Não consegui recortar a tela (cancelado, ou sem ferramenta de captura instalada).": "Couldn't crop the screen (cancelled, or no screenshot tool installed).",
+    "Não achei o gsettings (o atalho do sistema só funciona no GNOME).": "Couldn't find gsettings (the system shortcut only works on GNOME).",
+    "Ctrl+Alt+Espaço já está em uso por outro atalho do sistema.": "Ctrl+Alt+Space is already used by another system shortcut.",
+    "Chamar o ajudante (App de Orquestração)": "Call the Helper (Orchestration App)",
+    "O orquestrador tem uma pergunta para você": "The Orchestrator has a question for you",
+    "O orquestrador precisa de você": "The Orchestrator needs you",
+    "O orquestrador respondeu": "The Orchestrator replied",
+    "decisão inválida": "invalid decision",
+    "alvo inválido": "invalid target",
+    "Cor: Cinza": "Color: Gray",
+    "Cor: Marrom": "Color: Brown",
+    "Cor: Laranja": "Color: Orange",
+    "Cor: Amarelo": "Color: Yellow",
+    "Cor: Verde": "Color: Green",
+    "Cor: Azul": "Color: Blue",
+    "Cor: Roxo": "Color: Purple",
+    "Cor: Rosa": "Color: Pink",
+    "Cor: Vermelho": "Color: Red",
+    "Idioma do app": "App language",
+    "A tela recarrega na hora; as conversas continuam.": "The screen reloads right away; your conversations carry on.",
+    "Idioma · Language": "Language · Idioma"
+  },
+  "padroes": [
+    [
+      "^(\\d{1,2}) · domingo$",
+      "$1 · Sunday"
+    ],
+    [
+      "^(\\d{1,2}) · segunda$",
+      "$1 · Monday"
+    ],
+    [
+      "^(\\d{1,2}) · terça$",
+      "$1 · Tuesday"
+    ],
+    [
+      "^(\\d{1,2}) · quarta$",
+      "$1 · Wednesday"
+    ],
+    [
+      "^(\\d{1,2}) · quinta$",
+      "$1 · Thursday"
+    ],
+    [
+      "^(\\d{1,2}) · sexta$",
+      "$1 · Friday"
+    ],
+    [
+      "^(\\d{1,2}) · sábado$",
+      "$1 · Saturday"
+    ],
+    [
+      "^janeiro de (\\d{4})$",
+      "January $1"
+    ],
+    [
+      "^fevereiro de (\\d{4})$",
+      "February $1"
+    ],
+    [
+      "^março de (\\d{4})$",
+      "March $1"
+    ],
+    [
+      "^abril de (\\d{4})$",
+      "April $1"
+    ],
+    [
+      "^maio de (\\d{4})$",
+      "May $1"
+    ],
+    [
+      "^junho de (\\d{4})$",
+      "June $1"
+    ],
+    [
+      "^julho de (\\d{4})$",
+      "July $1"
+    ],
+    [
+      "^agosto de (\\d{4})$",
+      "August $1"
+    ],
+    [
+      "^setembro de (\\d{4})$",
+      "September $1"
+    ],
+    [
+      "^outubro de (\\d{4})$",
+      "October $1"
+    ],
+    [
+      "^novembro de (\\d{4})$",
+      "November $1"
+    ],
+    [
+      "^dezembro de (\\d{4})$",
+      "December $1"
+    ],
+    [
+      "^(\\d+) trabalhando$",
+      "$1 working"
+    ],
+    [
+      "^(\\d+) esperando$",
+      "$1 waiting"
+    ],
+    [
+      "^(\\d+) pendências$",
+      "$1 pending"
+    ],
+    [
+      "^Conversa aberta \\((.+)\\)$",
+      "Conversation opened ($1)"
+    ],
+    [
+      "^Recebeu: (.*)$",
+      "Received: $1"
+    ],
+    [
+      "^Pediu permissão para (.+)$",
+      "Asked permission for $1"
+    ],
+    [
+      "^Respondeu: (.*)$",
+      "Replied: $1"
+    ],
+    [
+      "^(\\d+) de (\\d+) — feche um para abrir o terminal do agente$",
+      "$1 of $2 — close one to open the agent's terminal"
+    ],
+    [
+      "^(\\d+) de (\\d+) janelas$",
+      "$1 of $2 windows"
+    ],
+    [
+      "^(\\d+) de (\\d+)$",
+      "$1 of $2"
+    ],
+    [
+      "^Agente (\\d+) — (.*)$",
+      "Agent $1 — $2"
+    ],
+    [
+      "^Agente (\\d+)$",
+      "Agent $1"
+    ],
+    [
+      "^Agente de (.+)$",
+      "Agent for $1"
+    ],
+    [
+      "^Nenhuma frente com \"(.*)\"\\.$",
+      "No agent matching \"$1\"."
+    ],
+    [
+      "^Publicado pelo agente há (.+)$",
+      "Posted by the agent $1 ago"
+    ],
+    [
+      "^há (\\d+ ?(?:s|min|h|d))$",
+      "$1 ago"
+    ],
+    [
+      "^(\\d+) projeto\\(s\\) sem agente aberto$",
+      "$1 project(s) without an open agent"
+    ],
+    [
+      "^Quer usar (.+)$",
+      "Wants to use $1"
+    ],
+    [
+      "^Quem avalia e roda é o orquestrador: diga a ele \"olha o pedido (.+)\"\\.$",
+      "The Orchestrator reviews and runs it: tell it \"check request $1\"."
+    ],
+    [
+      "^(.*)\\. Tento de novo em 2 s\\.$",
+      "$1. Retrying in 2 s."
+    ],
+    [
+      "^Não gravei: (.+) \\(valor inválido\\)\\.$",
+      "Not saved: $1 (invalid value)."
+    ],
+    [
+      "^Arquivo: (.+)$",
+      "File: $1"
+    ],
+    [
+      "^O Claude executa direto \\(/(.+)\\)\\.$",
+      "Claude runs it directly (/$1)."
+    ],
+    [
+      "^Ctrl\\+Alt\\+(\\d+) \\(em uso\\)$",
+      "Ctrl+Alt+$1 (in use)"
+    ],
+    [
+      "^(.+) · comando$",
+      "$1 · command"
+    ],
+    [
+      "^(.+) · subagente$",
+      "$1 · subagent"
+    ],
+    [
+      "^(.+) · agente$",
+      "$1 · agent"
+    ],
+    [
+      "^(\\d+) comando(s?)$",
+      "$1 command$2"
+    ],
+    [
+      "^(\\d+) subagente(s?)$",
+      "$1 subagent$2"
+    ],
+    [
+      "^(\\d+) agente(s?)$",
+      "$1 agent$2"
+    ],
+    [
+      "^(\\d+) skill(s?), (\\d+) comando(s?)$",
+      "$1 skill$2, $3 command$4"
+    ],
+    [
+      "^(\\d+) skill(s?), (\\d+) subagente(s?)$",
+      "$1 skill$2, $3 subagent$4"
+    ],
+    [
+      "^(\\d+) comando(s?), (\\d+) subagente(s?)$",
+      "$1 command$2, $3 subagent$4"
+    ],
+    [
+      "^(\\d+) skill(s?), (\\d+) comando(s?), (\\d+) subagente(s?)$",
+      "$1 skill$2, $3 command$4, $5 subagent$6"
+    ],
+    [
+      "^(\\d+) comando(s?), (\\d+) agente(s?)$",
+      "$1 command$2, $3 agent$4"
+    ],
+    [
+      "^(\\d+) prompt(s?), (\\d+) comando(s?)$",
+      "$1 prompt$2, $3 command$4"
+    ],
+    [
+      "^(\\d+) comando(s?), (\\d+) skill(s?)$",
+      "$1 command$2, $3 skill$4"
+    ],
+    [
+      "^já há (\\d+) janelas abertas; feche uma antes$",
+      "there are already $1 windows open; close one first"
+    ],
+    [
+      "^Nome da nota em ?(.*?) ?\\(Enter\\)$",
+      "Note name in $1 (Enter)"
+    ],
+    [
+      "^Nome da pasta em ?(.*?) ?\\(Enter\\)$",
+      "Folder name in $1 (Enter)"
+    ],
+    [
+      "^Arquivo grande \\(([\\d.]+) MB\\): aberto só para leitura, porque editar deixaria tudo lento\\.$",
+      "Large file ($1 MB): opened read-only, because editing would make everything slow."
+    ],
+    [
+      "^⏱ Por trás · workflow «(.*)»$",
+      "⏱ Behind the scenes · workflow «$1»"
+    ],
+    [
+      "^(.+), sua vez!$",
+      "$1, your turn!"
+    ],
+    [
+      "^Olhando o (.+)…$",
+      "Checking on $1…"
+    ],
+    [
+      "^Conversa (\\d+)$",
+      "Conversation $1"
+    ],
+    [
+      "^Não consegui abrir o Claude: (.*)$",
+      "Couldn't start Claude: $1"
+    ],
+    [
+      "^O Claude parou \\(código (.+?)\\)\\. ?(.*)$",
+      "Claude stopped (code $1). $2"
+    ],
+    [
+      "^todo dia às (.+) \\(seg a sex\\)$",
+      "every day at $1 (Mon–Fri)"
+    ],
+    [
+      "^todo dia às (.+)$",
+      "every day at $1"
+    ],
+    [
+      "^a cada (\\d+) min$",
+      "every $1 min"
+    ],
+    [
+      "^(.+) · sem pedido$",
+      "$1 · no prompt"
+    ],
+    [
+      "^sem comando · 🔑(\\d+)$",
+      "no command · 🔑$1"
+    ],
+    [
+      "^contém “(.*)”$",
+      "contains “$1”"
+    ],
+    [
+      "^não contém “(.*)”$",
+      "doesn't contain “$1”"
+    ],
+    [
+      "^combina com “(.*)”$",
+      "matches “$1”"
+    ],
+    [
+      "^qualquer arquivo em (.+)$",
+      "any file in $1"
+    ],
+    [
+      "^(\\S+) em ((?:~|/).*)$",
+      "$1 in $2"
+    ],
+    [
+      "^copia para (.+)$",
+      "copies to $1"
+    ],
+    [
+      "^move para (.+)$",
+      "moves to $1"
+    ],
+    [
+      "^acrescenta em (.+)$",
+      "appends to $1"
+    ],
+    [
+      "^cria (.+)$",
+      "creates $1"
+    ],
+    [
+      "^(\\d+) passo(s?) · atualizado agora há pouco$",
+      "$1 step$2 · updated just now"
+    ],
+    [
+      "^usada em (\\d+) workflow(s?) · atualizada agora há pouco$",
+      "used in $1 workflow$2 · updated just now"
+    ],
+    [
+      "^última execução agora há pouco · ok$",
+      "last run just now · ok"
+    ],
+    [
+      "^última execução agora há pouco · erro$",
+      "last run just now · error"
+    ],
+    [
+      "^última execução agora há pouco · rodando…$",
+      "last run just now · running…"
+    ],
+    [
+      "^última execução agora há pouco · parou no meio$",
+      "last run just now · stopped midway"
+    ],
+    [
+      "^(\\d+) passo(s?) · atualizado há (\\d+) (min|h)$",
+      "$1 step$2 · updated $3 $4 ago"
+    ],
+    [
+      "^usada em (\\d+) workflow(s?) · atualizada há (\\d+) (min|h)$",
+      "used in $1 workflow$2 · updated $3 $4 ago"
+    ],
+    [
+      "^última execução há (\\d+) (min|h) · ok$",
+      "last run $1 $2 ago · ok"
+    ],
+    [
+      "^última execução há (\\d+) (min|h) · erro$",
+      "last run $1 $2 ago · error"
+    ],
+    [
+      "^última execução há (\\d+) (min|h) · rodando…$",
+      "last run $1 $2 ago · running…"
+    ],
+    [
+      "^última execução há (\\d+) (min|h) · parou no meio$",
+      "last run $1 $2 ago · stopped midway"
+    ],
+    [
+      "^(\\d+) passo(s?) · atualizado (\\d{2}/\\d{2}/\\d{4})$",
+      "$1 step$2 · updated $3"
+    ],
+    [
+      "^usada em (\\d+) workflow(s?) · atualizada (\\d{2}/\\d{2}/\\d{4})$",
+      "used in $1 workflow$2 · updated $3"
+    ],
+    [
+      "^última execução (\\d{2}/\\d{2}/\\d{4}) · ok$",
+      "last run $1 · ok"
+    ],
+    [
+      "^última execução (\\d{2}/\\d{2}/\\d{4}) · erro$",
+      "last run $1 · error"
+    ],
+    [
+      "^última execução (\\d{2}/\\d{2}/\\d{4}) · rodando…$",
+      "last run $1 · running…"
+    ],
+    [
+      "^última execução (\\d{2}/\\d{2}/\\d{4}) · parou no meio$",
+      "last run $1 · stopped midway"
+    ],
+    [
+      "^há (\\d+) (min|h)$",
+      "$1 $2 ago"
+    ],
+    [
+      "^ok · ([\\d.]+) s$",
+      "ok · $1 s"
+    ],
+    [
+      "^erro · ([\\d.]+) s$",
+      "error · $1 s"
+    ],
+    [
+      "^rodando… · ([\\d.]+) s$",
+      "running… · $1 s"
+    ],
+    [
+      "^parou no meio · ([\\d.]+) s$",
+      "stopped midway · $1 s"
+    ],
+    [
+      "^arquivo novo: (.+)$",
+      "new file: $1"
+    ],
+    [
+      "^Leu: (\\d+) caracteres\\. Atenção: o arquivo está com modo (\\d+); o certo é 600\\.$",
+      "Read: $1 characters. Warning: the file has mode $2; it should be 600."
+    ],
+    [
+      "^Leu: (\\d+) caracteres\\. Atenção: (.+)\\.$",
+      "Read: $1 characters. Warning: $2."
+    ],
+    [
+      "^Leu: (\\d+) caracteres\\.$",
+      "Read: $1 characters."
+    ],
+    [
+      "^Atenção: (.+)\\.$",
+      "Warning: $1."
+    ],
+    [
+      "^Item do cofre \\(Bitwarden\\) · (.+)$",
+      "Vault item (Bitwarden) · $1"
+    ],
+    [
+      "^Variável de ambiente · (.+)$",
+      "Environment variable · $1"
+    ],
+    [
+      "^Arquivo · (.+)$",
+      "File · $1"
+    ],
+    [
+      "^(.+) \\(cópia\\)$",
+      "$1 (copy)"
+    ],
+    [
+      "^Duplicar (\\d+) passos$",
+      "Duplicate $1 steps"
+    ],
+    [
+      "^Apagar (\\d+) passos$",
+      "Delete $1 steps"
+    ],
+    [
+      "^Duplicar (\\d+) selecionados$",
+      "Duplicate $1 selected"
+    ],
+    [
+      "^Apagar (\\d+) selecionados$",
+      "Delete $1 selected"
+    ],
+    [
+      "^Confirmar: apagar os (\\d+) passos$",
+      "Confirm: delete the $1 steps"
+    ],
+    [
+      "^Última saída \\(erro\\)$",
+      "Last output (error)"
+    ],
+    [
+      "^Última saída \\(parou\\)$",
+      "Last output (stopped)"
+    ],
+    [
+      "^Última saída \\(rodando\\)$",
+      "Last output (running)"
+    ],
+    [
+      "^Última saída \\((.+)\\)$",
+      "Last output ($1)"
+    ],
+    [
+      "^a credencial «(.*)» está sem referência$",
+      "the credential «$1» has no reference"
+    ],
+    [
+      "^não consegui ler o arquivo da credencial «(.*)»$",
+      "couldn't read the file for the credential «$1»"
+    ],
+    [
+      "^a variável (.+) \\(credencial «(.*)»\\) não existe no ambiente do app$",
+      "the variable $1 (credential «$2») doesn't exist in the app's environment"
+    ],
+    [
+      "^não consegui ler «(.*)» do cofre \\(trancado ou item não achado\\)$",
+      "couldn't read «$1» from the vault (locked or item not found)"
+    ],
+    [
+      "^o arquivo está com modo (\\d+); o certo é 600$",
+      "the file has mode $1; it should be 600"
+    ],
+    [
+      "^passou de (\\d+) s e foi parado$",
+      "took longer than $1 s and was stopped"
+    ],
+    [
+      "^saiu com código (-?\\d+)(.*)$",
+      "exited with code $1$2"
+    ],
+    [
+      "^não achei o arquivo (.+)$",
+      "file not found: $1"
+    ],
+    [
+      "^(.+) não é um arquivo$",
+      "$1 is not a file"
+    ],
+    [
+      "^pergunta (\\d+) de (\\d+)$",
+      "question $1 of $2"
+    ],
+    [
+      "^(\\d+) itens vestidos$",
+      "$1 items worn"
+    ],
+    [
+      "^Preciso da sua permissão para continuar: ?(.*)$",
+      "I need your permission to continue: $1"
+    ],
+    [
+      "^(\\d+) coisas esperando por você$",
+      "$1 things waiting for you"
+    ],
+    [
+      "^\"(.+)\" precisa de você$",
+      "\"$1\" needs you"
+    ],
+    [
+      "^\"(.+)\" respondeu$",
+      "\"$1\" replied"
+    ],
+    [
+      "^\"(.+)\" tem uma pergunta para você$",
+      "\"$1\" has a question for you"
+    ],
+    [
+      "^Um agente \\((.+)\\) quer usar (.+)$",
+      "An agent ($1) wants to use $2"
+    ],
+    [
+      "^Pedido ao servidor de (.+)$",
+      "Server request from $1"
+    ],
+    [
+      "^(.+) deixou um pedido ao servidor$",
+      "$1 left a server request"
+    ],
+    [
+      "^(.+) quer usar (.+)$",
+      "$1 wants to use $2"
+    ],
+    [
+      "^janela (.+) não existe$",
+      "window $1 doesn't exist"
+    ],
+    [
+      "^elemento não encontrado: (.+)$",
+      "element not found: $1"
+    ],
+    [
+      "^ação desconhecida: (.+)$",
+      "unknown action: $1"
+    ]
+  ]
+}

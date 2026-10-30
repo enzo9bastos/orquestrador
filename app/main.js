@@ -23,6 +23,7 @@ const repertorio = require('./repertorio');
 const navegador = require('./navegador');
 const workflows = require('./workflows');
 const ajudante = require('./ajudante');
+const { t } = require('./i18n');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
 // (conversa.js), sem tela de terminal.
@@ -131,6 +132,9 @@ ipcMain.on('janela:maximizar', () => { if (janela) janela.isMaximized() ? janela
 // Reiniciar mantendo as conversas: só pausa (a próxima abertura retoma cada
 // conversa com --resume, com toda a memória) e abre o app de novo sozinho.
 let reiniciando = false;
+// Recarregar a tela pelo processo principal: a página não consegue (o
+// will-navigate barra toda navegação dela, inclusive o location.reload).
+ipcMain.handle('app:recarregarTela', () => { if (janela) janela.webContents.reload(); return true; });
 ipcMain.handle('app:reiniciar', () => { reiniciando = true; app.relaunch(); app.quit(); return true; });
 
 // Fechar = sair do app de vez, como o /exit do terminal: encerra as conversas
@@ -197,14 +201,16 @@ conversa.ligarAvisos((a) => {
   if (a.tipo === 'resposta' && (n.respostas === false || emFoco)) return;
   if (!Notification.isSupported()) return;
   const quem = a.orquestrador ? 'O orquestrador' : `"${a.titulo}"`;
-  const titulo = a.tipo === 'pedido' ? `${quem} precisa de você` : `${quem} respondeu`;
+  const titulo = t(a.tipo === 'pedido' ? `${quem} precisa de você` : `${quem} respondeu`);
   const corpo = String(a.texto || '').replace(/\s+/g, ' ').slice(0, 220);
   if (avisosAbertos.has(a.id)) avisosAbertos.get(a.id).close();
   const aviso = new Notification({ title: titulo, body: corpo, urgency: a.tipo === 'pedido' ? 'critical' : 'normal' });
   aviso.on('click', () => {
     if (!janela) return;
+    // Só pede foco: "mostrar" no Wayland pode puxar o app para a área de
+    // trabalho atual, fora do lugar.
     if (janela.isMinimized()) janela.restore();
-    janela.show(); janela.focus();
+    janela.focus();
     enviar('conversa:focar', a.id);
   });
   aviso.show();
@@ -236,6 +242,7 @@ ipcMain.handle('config:gravar', (_e, mudancas) => {
   const { ok, recusado } = config.validar(mudancas);
   if (Object.keys(ok).length) config.gravar(ok);
   if (ok.pastasNotas) enviar('notas:pastasMudaram');
+  if (ok.idioma || ok.tema || ok.destaque) ajudante.atualizarAparencia(); // o ajudante segue o idioma e o tema
   return { ...config.cru(), arquivo: config.ARQ, recusado };
 });
 
@@ -327,7 +334,7 @@ function avisarNovidades(r) {
     const corpo = p.tipo === 'permissao'
       ? `${p.proj} quer usar ${p.ferramenta}`
       : `${p.proj} deixou um pedido ao servidor`;
-    if (Notification.isSupported()) new Notification({ title: 'Precisa de você', body: corpo, urgency: 'critical' }).show();
+    if (Notification.isSupported()) new Notification({ title: t('Precisa de você'), body: corpo, urgency: 'critical' }).show();
   }
 }
 

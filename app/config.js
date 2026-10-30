@@ -10,6 +10,7 @@ const ARQ = path.join(os.homedir(), '.config', 'orq-app', 'config.json');
 const PADRAO = {
   // Aparência (o painel de Configurações grava estas duas).
   tema: 'dark',
+  idioma: 'pt-BR', // 'pt-BR' ou 'en'
   destaque: '#8b5cf6',
   mostrarBichinho: true,
 
@@ -94,6 +95,7 @@ function validar(m) {
   for (const [k, v] of Object.entries(m || {})) {
     switch (k) {
       case 'tema': aceitar(k, ['dark', 'light'].includes(v), v); break;
+      case 'idioma': aceitar(k, ['pt-BR', 'en'].includes(v), v); break;
       case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
       case 'notificacoes': aceitar(k, v && typeof v === 'object', { pedidos: v.pedidos !== false, respostas: v.respostas !== false }); break;

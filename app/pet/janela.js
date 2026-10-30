@@ -192,6 +192,7 @@
   // --- mensagens do processo -----------------------------------------------
   A.aoMsg((m) => {
     if (m.t === 'visual') {
+      if (m.idioma && window.orqI18n && window.orqI18n.idioma() !== m.idioma) window.orqI18n.definir(m.idioma, '../renderer/i18n/');
       vira.innerHTML = window.petVisual.svg(m.visual);
       document.documentElement.dataset.theme = m.tema || 'dark';
       if (m.destaque) document.documentElement.style.setProperty('--claude', m.destaque);
@@ -226,7 +227,8 @@
     } else if (m.t === 'pendencia') {
       alvoPendencia = m.conversa;
       classe('chamando');
-      falar(m.texto, 0, [['ver', 'Ver no app'], ['depois', 'Depois']]);
+      // Só avisar: OK dispensa; abrir o app é opcional.
+      falar(m.texto, 0, [['depois', 'OK'], ['ver', 'Abrir no app']]);
     } else if (m.t === 'falar') falar(m.texto, 1800);
     else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }
