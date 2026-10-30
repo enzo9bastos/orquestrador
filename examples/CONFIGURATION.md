@@ -10,6 +10,7 @@ inside the app. A starting point: [`config.example.json`](config.example.json).
 
 | Key | Default | Meaning |
 |---|---|---|
+| `idioma` | `"pt-BR"` | Interface language: `"en"` or `"pt-BR"` |
 | `tema` | `"dark"` | `"dark"` or `"light"` |
 | `destaque` | `#8b5cf6` | Accent color, as `#rrggbb` |
 | `mostrarBichinho` | `true` | Show the pixel helper inside the app |
