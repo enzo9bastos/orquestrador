@@ -108,6 +108,7 @@
     const a = ev.target.closest('[data-acao]')?.dataset.acao;
     if (!a) return;
     calar(); classe('chamando', false);
+    A.enviar({ t: 'avisoFechado' });
     if (a === 'ver') { A.enviar({ t: 'abrirApp' }); A.enviar({ t: 'irEmbora' }); }
     else if (a === 'depois') A.enviar({ t: 'irEmbora' });
     else if (a === 'abrir') A.enviar({ t: 'abrirApp', conversa: 'ajudante' });

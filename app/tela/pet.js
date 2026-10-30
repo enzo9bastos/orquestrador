@@ -134,8 +134,14 @@
 
     // --- partes do corpo ----------------------------------------------------
     classe(c, ligado = true) { this.el.classList.toggle(c, ligado); }
-    olhar(lado) { this.el.dataset.olhar = lado || ''; }
-    virar(lado) { this.vira.classList.toggle('virado', lado === 'esq'); }
+    // Virado, o desenho é espelhado: "esquerda" na tela é "direita" no desenho.
+    olhar(lado) {
+      this.ladoOlhar = lado || '';
+      const virado = this.vira.classList.contains('virado');
+      const l = virado && lado === 'esq' ? 'dir' : virado && lado === 'dir' ? 'esq' : (lado || '');
+      this.el.dataset.olhar = l;
+    }
+    virar(lado) { this.vira.classList.toggle('virado', lado === 'esq'); this.olhar(this.ladoOlhar); }
     falar(texto, ms = 1800) {
       clearTimeout(this.tBalao);
       this.balao.textContent = texto;
@@ -262,7 +268,7 @@
         const r = this.el.getBoundingClientRect();
         const dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2);
         const lado = Math.abs(dx) < 60 && dy < -40 ? 'cima' : Math.abs(dx) < 40 ? '' : dx < 0 ? 'esq' : 'dir';
-        if (this.el.dataset.olhar !== lado) this.olhar(lado);
+        if (this.ladoOlhar !== lado) this.olhar(lado);
       }, { passive: true });
       // Mouse em cima um tempinho: fica feliz.
       let tCarinho = null;

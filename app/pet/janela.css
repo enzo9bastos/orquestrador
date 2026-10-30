@@ -9,7 +9,7 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 .aj-bolha-acoes { display: flex; gap: 6px; }
 .aj-bolha-acoes:empty { display: none; }
 .aj-bolha-acoes .botao, .aj-bolha-acoes .botao-texto { margin: 0; height: 26px; }
-.aj-menu { position: absolute; right: 100px; bottom: 30px; margin: 0; padding: 4px; list-style: none; background: var(--bg-elevado); border: 1px solid var(--borda-forte); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); font-size: 12.5px; }
+.aj-menu { position: absolute; right: 8px; bottom: 82px; max-width: calc(100% - 16px); box-sizing: border-box; margin: 0; padding: 4px; list-style: none; background: var(--bg-elevado); border: 1px solid var(--borda-forte); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); font-size: 12.5px; }
 .aj-menu[hidden] { display: none; }
 .aj-menu li { padding: 6px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; color: var(--fg-2); }
 .aj-menu li:hover { background: var(--painel-hover); color: var(--fg); }

@@ -78,6 +78,7 @@ function aparecer(depois) {
 
 function sumir() {
   passeando = false;
+  aviso = false;
   if (modo === 'escondido') return;
   fecharConversa();
   modo = 'saindo';
@@ -115,12 +116,17 @@ function fecharConversa() {
   pos.y = chao(); mover();
 }
 
-// Passeio: anda de um lado para o outro do monitor até alguém chamar.
+// Passeio: na tela e livre (sem conversa aberta nem aviso esperando), ele
+// anda de um lado para o outro do monitor sozinho.
+let aviso = false;
 async function passear() {
+  if (passeando) return;
   passeando = true;
+  let primeiro = true;
   while (passeando && modo !== 'escondido') {
-    await new Promise((r) => setTimeout(r, 4000 + Math.random() * 6000));
-    if (!passeando || conversaAberta || timer || modo !== 'parado') continue;
+    await new Promise((r) => setTimeout(r, primeiro ? 1500 + Math.random() * 2500 : 3000 + Math.random() * 5000));
+    primeiro = false;
+    if (!passeando || conversaAberta || aviso || timer || modo !== 'parado') continue;
     const a = area();
     const x = a.x + Math.round(Math.random() * (a.width - tam.w));
     await new Promise((r) => andar(x, 70, r));
@@ -130,13 +136,15 @@ async function passear() {
 
 function receber(m) {
   if (m.t === 'visual') paraTela(m);
-  else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); });
-  else if (m.t === 'pendencia') aparecer(() => paraTela({ t: 'pendencia', texto: m.texto, total: m.total }));
+  // O atalho alterna: com a conversa aberta, apertar de novo manda ele embora.
+  else if (m.t === 'chamar' && conversaAberta && !m.capturar) sumir();
+  else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); passear(); });
+  else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total }); passear(); }); }
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
   else if (m.t === 'pensando' || m.t === 'resposta') paraTela(m);
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') win.showInactive(); win.focus(); paraTela(m); }
-  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando });
+  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
   else if (m.t === 'print-tela' && TESTE) win.webContents.capturePage().then((img) => paraApp({ t: 'print', png: img.toPNG().toString('base64') }));
 }
 
@@ -144,6 +152,7 @@ ipcMain.on('ajudante', (_e, m) => {
   if (m.t === 'pronto') { pronto = true; for (const x of fila.splice(0)) win.webContents.send('ajudante', x); }
   else if (m.t === 'abrirConversa') abrirConversa();
   else if (m.t === 'fecharConversa') fecharConversa();
+  else if (m.t === 'avisoFechado') aviso = false;
   else if (m.t === 'perguntar') paraApp(m);
   else if (m.t === 'capturar') { if (!TESTE) win.hide(); setTimeout(() => paraApp({ t: 'capturar' }), 250); }
   else if (m.t === 'abrirApp') paraApp(m);
@@ -161,8 +170,8 @@ ipcMain.on('ajudante', (_e, m) => {
 app.whenReady().then(() => {
   win = new BrowserWindow({
     width: tam.w, height: tam.h, show: false, frame: false, transparent: true, backgroundColor: '#00000000',
-    resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false,
-    skipTaskbar: true, hasShadow: false, alwaysOnTop: true, type: 'toolbar', focusable: true,
+    resizable: false, minimizable: false, maximizable: false, fullscreenable: false,
+    skipTaskbar: true, hasShadow: false, alwaysOnTop: true, focusable: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   win.setVisibleOnAllWorkspaces(true);

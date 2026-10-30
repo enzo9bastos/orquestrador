@@ -50,6 +50,17 @@ test('bichinho no app: menu e guarda-roupa', async (t) => {
     await app.esperar("!!document.querySelector('#palco-pet .item-gorro')", 8000);
   });
 
+  // Regressão 2026-10-30: virado (desenho espelhado), ele olhava para o lado oposto ao do mouse.
+  await t.test('regressão: virado, os olhos continuam indo para o lado certo', async () => {
+    const r = await app.avaliar(`(() => { const p = window.orqPetAtual; const out = [];
+      p.virar('dir'); p.olhar('esq'); out.push(p.el.dataset.olhar);
+      p.virar('esq'); out.push(p.el.dataset.olhar);
+      p.olhar('dir'); out.push(p.el.dataset.olhar);
+      p.virar('dir'); out.push(p.el.dataset.olhar);
+      return out; })()`);
+    assert.deepStrictEqual(r, ['esq', 'dir', 'esq', 'dir']);
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
 
