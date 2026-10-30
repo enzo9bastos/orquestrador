@@ -12,14 +12,21 @@
   let alvoPendencia = null; // conversa a abrir no "Ver no app"
 
   const classe = (c, sim = true) => pet.classList.toggle(c, sim);
-  function falar(texto, ms = 2200, acoes = []) {
-    clearTimeout(tBolha);
+  // Balão fixo (ms = 0: um aviso esperando você) e falas passageiras: a fala
+  // passageira aparece por cima e, quando some, o aviso fixo volta.
+  let fixo = null;
+  function mostrarBolha(texto, acoes) {
     $('bolha-texto').textContent = texto;
     $('bolha-acoes').innerHTML = acoes.map((a, i) => `<button type="button" class="${i ? 'botao-texto' : 'botao primario'}" data-acao="${a[0]}">${esc(a[1])}</button>`).join('');
     $('bolha').hidden = false;
-    if (ms) tBolha = setTimeout(() => { $('bolha').hidden = true; }, ms);
   }
-  const calar = () => { clearTimeout(tBolha); $('bolha').hidden = true; };
+  function falar(texto, ms = 2200, acoes = []) {
+    clearTimeout(tBolha);
+    if (!ms) fixo = { texto, acoes };
+    mostrarBolha(texto, acoes);
+    if (ms) tBolha = setTimeout(() => { if (fixo) mostrarBolha(fixo.texto, fixo.acoes); else $('bolha').hidden = true; }, ms);
+  }
+  const calar = () => { clearTimeout(tBolha); fixo = null; $('bolha').hidden = true; };
 
   // Texto da resposta: parágrafos, **negrito** e `código` (o resto, texto puro).
   function formatar(t) {

@@ -82,7 +82,10 @@ function aparecer(depois) {
   const a = screen.getPrimaryDisplay().workArea;
   if (!TESTE) win.showInactive();
   win.setAlwaysOnTop(true, 'screen-saver');
-  win.setVisibleOnAllWorkspaces(true); // depois de mostrar: antes disso o X11 ignora
+  // Depois de mostrar (antes disso o X11 ignora): todas as áreas de trabalho e
+  // fora da visão geral, do Alt+Tab e do dock — ele não é uma "janela aberta".
+  win.setVisibleOnAllWorkspaces(true);
+  win.setSkipTaskbar(true);
   paraApp({ t: 'visivel', visivel: true });
   entrarPelaBorda(a, 'dir', a.x + Math.round(a.width * 0.78) - tam.w, depois);
 }
@@ -159,7 +162,7 @@ function receber(m) {
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
   else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido') paraTela(m);
-  else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') win.showInactive(); win.focus(); paraTela(m); }
+  else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') { win.showInactive(); win.setSkipTaskbar(true); win.setVisibleOnAllWorkspaces(true); } win.focus(); paraTela(m); }
   else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
   else if (m.t === 'js' && TESTE) win.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) }));
   else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
@@ -196,7 +199,8 @@ function trocouArea(de, para) {
   if (soNoPrincipal && d.id !== screen.getPrimaryDisplay().id) return; // monitor que não trocou: fica
   const a = d.workArea;
   const volta = pos.x;
-  entrarPelaBorda(a, para < de ? 'dir' : 'esq', volta, () => { if (Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
+  // Com aviso ou pergunta esperando, chega quieto (não atropela o aviso).
+  entrarPelaBorda(a, para < de ? 'dir' : 'esq', volta, () => { if (!aviso && Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
 }
 
 ipcMain.on('ajudante', (_e, m) => {
@@ -222,7 +226,9 @@ app.whenReady().then(() => {
   win = new BrowserWindow({
     width: tam.w, height: tam.h, show: false, frame: false, transparent: true, backgroundColor: '#00000000',
     resizable: false, minimizable: false, maximizable: false, fullscreenable: false,
-    skipTaskbar: true, hasShadow: false, alwaysOnTop: true, focusable: true,
+    // Tipo "barra de ferramentas": o GNOME deixa fora da visão geral, do
+    // Alt+Tab e do dock (o skipTaskbar sozinho o Electron não aplica no X11).
+    skipTaskbar: true, hasShadow: false, alwaysOnTop: true, focusable: true, type: 'toolbar',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   win.setVisibleOnAllWorkspaces(true);
