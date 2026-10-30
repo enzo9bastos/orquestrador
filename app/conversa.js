@@ -430,6 +430,7 @@ module.exports = {
   lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
+  pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),
   configurar: (id, o) => pegar(id).configurar(o || {}),
   reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },

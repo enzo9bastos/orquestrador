@@ -118,6 +118,70 @@
   pet.addEventListener('pointerenter', () => { tCarinho = setTimeout(() => { classe('feliz'); const c = pet.querySelector('.pet-coracao'); c.hidden = false; c.classList.remove('sobe'); void c.offsetWidth; c.classList.add('sobe'); }, 600); });
   pet.addEventListener('pointerleave', () => { clearTimeout(tCarinho); classe('feliz', false); });
 
+  // --- pergunta trazida do app: responder aqui mesmo -------------------------
+  let pg = null; // { id, item, i, respostas, marcadas }
+  function abrirPergunta(id, item) {
+    calar(); $('menu').hidden = true; $('conversa').hidden = true;
+    pg = { id, item, i: 0, respostas: {}, marcadas: new Set() };
+    $('pergunta').hidden = false;
+    A.enviar({ t: 'abrirConversa' });
+    desenharPergunta();
+  }
+  function fecharPergunta() { pg = null; $('pergunta').hidden = true; A.enviar({ t: 'fecharConversa' }); }
+  function desenharPergunta(erro) {
+    if (!pg) return;
+    const it = pg.item;
+    $('pg-quem').textContent = it.quem || 'Pergunta';
+    if (it.tipo === 'pergunta') {
+      const q = it.perguntas[pg.i];
+      $('pg-passo').textContent = it.perguntas.length > 1 ? `pergunta ${pg.i + 1} de ${it.perguntas.length}` : (q.multiSelect ? 'pode marcar mais de uma' : '');
+      $('pg-corpo').innerHTML = `${q.header ? `<p class="aj-cabeca">${esc(q.header)}</p>` : ''}<p class="pergunta">${esc(q.question)}</p>
+        <div class="aj-opcoes">${(q.options || []).map((o) => `<button type="button" class="aj-opcao${pg.marcadas.has(o.label) ? ' marcada' : ''}" data-op="${esc(o.label)}"><strong>${esc(o.label)}</strong>${o.description ? `<small>${esc(o.description)}</small>` : ''}</button>`).join('')}</div>
+        <textarea id="pg-outra" rows="2" placeholder="Outra resposta… (Enter envia)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
+      $('pg-acoes').innerHTML = `<button type="button" class="botao-texto" data-pg="app">Abrir no app</button>${q.multiSelect ? '<button type="button" class="botao primario" data-pg="confirmar">Confirmar</button>' : ''}`;
+    } else {
+      $('pg-passo').textContent = 'pede permissão';
+      $('pg-corpo').innerHTML = `<p class="pergunta">Quer usar ${esc(it.ferramenta || 'uma ferramenta')}</p>${it.descricao ? `<p>${esc(it.descricao)}</p>` : ''}${it.comando ? `<pre class="aj-comando">${esc(it.comando)}</pre>` : ''}${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
+      $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao-texto" data-pg="negar">Negar</button><button type="button" class="botao primario" data-pg="permitir">Permitir</button>';
+    }
+  }
+  // Uma resposta por pergunta; na última, manda tudo.
+  function proxima(resposta) {
+    const q = pg.item.perguntas[pg.i];
+    pg.respostas[q.question] = resposta;
+    pg.marcadas = new Set();
+    if (pg.i + 1 < pg.item.perguntas.length) { pg.i++; desenharPergunta(); return; }
+    enviarResposta({ respostas: pg.respostas });
+  }
+  function enviarResposta(r) {
+    $('pg-acoes').innerHTML = '<span class="nota pensando-pontos">Enviando</span>';
+    A.enviar({ t: 'responder', id: pg.id, ...r });
+  }
+  $('pergunta').addEventListener('click', (ev) => {
+    if (!pg) return;
+    if (ev.target.closest('#pg-fechar')) { fecharPergunta(); A.enviar({ t: 'avisoFechado' }); A.enviar({ t: 'irEmbora' }); return; }
+    const op = ev.target.closest('[data-op]');
+    if (op) {
+      const q = pg.item.perguntas[pg.i];
+      if (!q.multiSelect) { proxima(op.dataset.op); return; }
+      if (pg.marcadas.has(op.dataset.op)) pg.marcadas.delete(op.dataset.op); else pg.marcadas.add(op.dataset.op);
+      op.classList.toggle('marcada');
+      return;
+    }
+    const a = ev.target.closest('[data-pg]')?.dataset.pg;
+    if (a === 'app') A.enviar({ t: 'abrirApp', conversa: alvoPendencia });
+    else if (a === 'permitir' || a === 'negar') enviarResposta({ permitir: a === 'permitir' });
+    else if (a === 'confirmar') {
+      const outra = $('pg-outra')?.value.trim();
+      const r = outra || [...pg.marcadas].join(', ');
+      if (!r) { desenharPergunta('Marque uma opção ou escreva a resposta.'); return; }
+      proxima(r);
+    }
+  });
+  $('pergunta').addEventListener('keydown', (ev) => {
+    if (ev.target.id === 'pg-outra' && ev.key === 'Enter' && !ev.shiftKey && ev.target.value.trim()) { ev.preventDefault(); proxima(ev.target.value.trim()); }
+  });
+
   // --- mensagens do processo -----------------------------------------------
   A.aoMsg((m) => {
     if (m.t === 'visual') {
@@ -142,12 +206,22 @@
       classe('acenando'); setTimeout(() => classe('acenando', false), 1200);
       abrirConversa();
       if (m.capturar) capturar();
+    } else if (m.t === 'pendencia' && m.item && (m.item.tipo !== 'pergunta' || (m.item.perguntas || []).length)) {
+      alvoPendencia = m.conversa;
+      classe('chamando'); setTimeout(() => classe('chamando', false), 1500);
+      abrirPergunta(m.id, m.item);
+    } else if (m.t === 'respondido') {
+      if (!pg) return;
+      if (!m.ok) { desenharPergunta(m.erro); return; }
+      fecharPergunta();
+      classe('feliz'); falar('Respondido! 👍', 1400);
+      setTimeout(() => { A.enviar({ t: 'avisoFechado' }); A.enviar({ t: 'irEmbora' }); }, 1500);
     } else if (m.t === 'pendencia') {
       alvoPendencia = m.conversa;
       classe('chamando');
       falar(m.texto, 0, [['ver', 'Ver no app'], ['depois', 'Depois']]);
     } else if (m.t === 'falar') falar(m.texto, 1800);
-    else if (m.t === 'tchau') { calar(); $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
+    else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }
     else if (m.t === 'pousou') classe('voando', false);
     else if (m.t === 'pensando') { classe('pensando'); pet.querySelector('.pet-nuvem').hidden = false; }

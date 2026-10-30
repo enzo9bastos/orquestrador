@@ -67,5 +67,30 @@ test('pet: só vai avisar se a pendência ainda existe e o app está fora de foc
   foco = true;
   assert.strictEqual(ajudante.confirmarAviso(['p2']), null, 'usuário no app: não vai');
   foco = false;
-  assert.deepStrictEqual(ajudante.confirmarAviso(['p2']), { t: 'pendencia', texto: 'Outra', total: 1, conversa: 'orquestrador' }, 'vai, e sabe qual conversa abrir');
+  assert.deepStrictEqual(ajudante.confirmarAviso(['p2']), { t: 'pendencia', texto: 'Outra', total: 1, conversa: 'orquestrador', id: 'p2', item: null }, 'vai, e sabe qual conversa abrir');
+});
+
+test('pet: resposta dada no ajudante vai para a conversa ou para o agente certo', () => {
+  const chamadas = [];
+  ajudante.ligar({
+    janela: () => ({ isFocused: () => false, isMinimized: () => false }),
+    conversa: { responder: (...a) => { chamadas.push(['conversa', ...a]); return true; } },
+    responderAgente: (...a) => { chamadas.push(['agente', ...a]); return true; },
+    enviarTela: () => {},
+  });
+  const perguntas = [{ question: 'Qual ordem vale?', options: [{ label: 'A' }, { label: 'B' }] }];
+  ajudante.pendencias([
+    { id: 'conversa:orquestrador:r1', conversa: 'orquestrador', texto: 'x', item: { tipo: 'pergunta', reqId: 'r1', perguntas } },
+    { id: 'conversa:orquestrador:r2', conversa: 'orquestrador', texto: 'y', item: { tipo: 'permissao', reqId: 'r2', ferramenta: 'Bash', comando: 'ls' } },
+    { id: 'fila:g:proj:p9', texto: 'z', item: { tipo: 'agente', emp: 'g', proj: 'proj', id: 'p9', ferramenta: 'Bash' } },
+  ]);
+  assert.ok(ajudante.responder({ id: 'conversa:orquestrador:r1', respostas: { 'Qual ordem vale?': 'B' } }));
+  assert.ok(ajudante.responder({ id: 'conversa:orquestrador:r2', permitir: false }));
+  assert.ok(ajudante.responder({ id: 'fila:g:proj:p9', permitir: true }));
+  assert.deepStrictEqual(chamadas, [
+    ['conversa', 'orquestrador', 'r1', { permitir: true, respostas: { 'Qual ordem vale?': 'B' } }],
+    ['conversa', 'orquestrador', 'r2', { permitir: false }],
+    ['agente', 'g', 'proj', 'p9', 'permitir'],
+  ]);
+  assert.strictEqual(ajudante.responder({ id: 'conversa:orquestrador:r1', respostas: {} }), false, 'a mesma não responde duas vezes');
 });

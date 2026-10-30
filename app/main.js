@@ -244,8 +244,20 @@ ipcMain.handle('config:gravar', (_e, mudancas) => {
 // perguntas das conversas do app. O ajudante vem avisar das novas.
 function verPendencias(r) {
   const lista = [
-    ...r.fila.map((p) => ({ id: `fila:${p.emp}:${p.proj}:${p.id}`, texto: p.tipo === 'permissao' ? `Um agente (${p.proj}) quer usar ${p.ferramenta}` : `Pedido ao servidor de ${p.proj}` })),
-    ...conversa.lista().filter((c) => c.pedidos > 0).map((c) => ({ id: `conversa:${c.id}`, conversa: c.id, texto: c.orquestrador ? 'O orquestrador tem uma pergunta para você' : `"${c.titulo}" tem uma pergunta para você` })),
+    ...r.fila.map((p) => ({
+      id: `fila:${p.emp}:${p.proj}:${p.id}`,
+      texto: p.tipo === 'permissao' ? `Um agente (${p.proj}) quer usar ${p.ferramenta}` : `Pedido ao servidor de ${p.proj}`,
+      // Permissão de agente: dá para responder direto no ajudante.
+      item: p.tipo === 'permissao' ? { tipo: 'agente', quem: `Agente de ${p.proj}`, emp: p.emp, proj: p.proj, id: p.id, ferramenta: p.ferramenta, comando: p.entrada?.command || p.entrada?.file_path || null, descricao: p.entrada?.description || null } : null,
+    })),
+    ...conversa.lista().filter((c) => c.pedidos > 0).flatMap((c) => conversa.pedidos(c.id).map((p) => ({
+      id: `conversa:${c.id}:${p.id}`,
+      conversa: c.id,
+      texto: c.orquestrador ? 'O orquestrador tem uma pergunta para você' : `"${c.titulo}" tem uma pergunta para você`,
+      // A pergunta inteira (com as opções) ou o pedido de permissão: o
+      // ajudante mostra e o usuário responde ali mesmo.
+      item: { tipo: p.entrada?.questions ? 'pergunta' : 'permissao', quem: c.orquestrador ? 'O orquestrador' : c.titulo, reqId: p.id, perguntas: p.entrada?.questions || null, ferramenta: p.ferramenta, comando: p.entrada?.command || p.entrada?.file_path || null, descricao: p.entrada?.description || null },
+    }))),
   ];
   ajudante.pendencias(lista);
 }
@@ -331,7 +343,7 @@ app.whenReady().then(() => {
   });
   criarJanela();
   navegador.ligar(() => janela);
-  ajudante.ligar({ janela: () => janela, conversa, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
+  ajudante.ligar({ janela: () => janela, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
   workflows.ligar({
     conversa,

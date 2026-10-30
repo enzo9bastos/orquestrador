@@ -99,6 +99,24 @@ test('ajudante fora do app: protocolo da janelinha', { skip: !process.env.DISPLA
   await espera((m) => m.t === 'visivel' && !m.visivel);
   assert.strictEqual((await estado()).modo, 'escondido');
 
+  // Pedido de 2026-10-30: a pergunta vem com as opções e é respondida no próprio ajudante.
+  manda({ t: 'sumir' });
+  await new Promise((x) => setTimeout(x, 1500));
+  const js = async (codigo) => { recebidas.length = 0; manda({ t: 'js', codigo }); return (await espera((m) => m.t === 'js')).r; };
+  manda({ t: 'pendencia', texto: 'O orquestrador tem uma pergunta', total: 1, conversa: 'orquestrador', id: 'conversa:orquestrador:r1',
+    item: { tipo: 'pergunta', quem: 'O orquestrador', reqId: 'r1', perguntas: [{ header: 'Ordem', question: 'Qual ordem vale?', options: [{ label: 'A primeira', description: 'como em 23/10' }, { label: 'A nova' }] }, { question: 'Grava agora?', multiSelect: true, options: [{ label: 'Sim' }, { label: 'Depois' }] }] } });
+  for (let i = 0; i < 80 && !(await js("!document.getElementById('pergunta').hidden")); i++) await new Promise((x) => setTimeout(x, 100));
+  assert.match(await js("document.getElementById('pg-corpo').innerText"), /Qual ordem vale\?[\s\S]*A primeira[\s\S]*como em 23\/10[\s\S]*A nova/);
+  assert.strictEqual((await estado()).conversaAberta, true, 'janela grande para caber a pergunta');
+  await js("document.querySelector('[data-op=\"A nova\"]').click()");
+  assert.match(await js("document.getElementById('pg-passo').textContent"), /pergunta 2 de 2/);
+  await js("document.querySelector('[data-op=\"Sim\"]').click(); document.querySelector('[data-pg=confirmar]').click()");
+  const r = await espera((m) => m.t === 'responder');
+  assert.deepStrictEqual({ id: r.id, respostas: r.respostas }, { id: 'conversa:orquestrador:r1', respostas: { 'Qual ordem vale?': 'A nova', 'Grava agora?': 'Sim' } });
+  manda({ t: 'respondido', ok: true });
+  for (let i = 0; i < 40 && !(await js("document.getElementById('pergunta').hidden")); i++) await new Promise((x) => setTimeout(x, 100));
+  assert.ok(await js("document.getElementById('pergunta').hidden"), 'fecha depois de responder');
+
   // Troca de área de trabalho (monitor principal): entra pela borda e volta ao mesmo lugar.
   manda({ t: 'pendencia', texto: 'teste', total: 1 });
   for (let i = 0; i < 60 && (await estado()).modo !== 'parado'; i++) await new Promise((x) => setTimeout(x, 100));

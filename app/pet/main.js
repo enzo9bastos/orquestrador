@@ -155,12 +155,13 @@ function receber(m) {
   else if (m.t === 'chamar' && conversaAberta && !m.capturar) sumir();
   else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); passear(); });
   else if (m.t === 'resolvida') { if (aviso) { aviso = false; paraTela({ t: 'falar', texto: 'Já foi resolvido! 👍' }); setTimeout(() => { if (!conversaAberta) sumir(); }, 1600); } }
-  else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total, conversa: m.conversa || null }); passear(); }); }
+  else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total, conversa: m.conversa || null, id: m.id || null, item: m.item || null }); passear(); }); }
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
-  else if (m.t === 'pensando' || m.t === 'resposta') paraTela(m);
+  else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido') paraTela(m);
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') win.showInactive(); win.focus(); paraTela(m); }
   else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
+  else if (m.t === 'js' && TESTE) win.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) }));
   else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
   else if (m.t === 'print-tela' && TESTE) win.webContents.capturePage().then((img) => paraApp({ t: 'print', png: img.toPNG().toString('base64') }));
 }
@@ -203,7 +204,7 @@ ipcMain.on('ajudante', (_e, m) => {
   else if (m.t === 'abrirConversa') abrirConversa();
   else if (m.t === 'fecharConversa') fecharConversa();
   else if (m.t === 'avisoFechado') aviso = false;
-  else if (m.t === 'perguntar') paraApp(m);
+  else if (m.t === 'perguntar' || m.t === 'responder') paraApp(m);
   else if (m.t === 'capturar') { if (!TESTE) win.hide(); setTimeout(() => paraApp({ t: 'capturar' }), 250); }
   else if (m.t === 'abrirApp') paraApp(m);
   else if (m.t === 'voltar') { sumir(); paraApp({ t: 'voltar' }); }

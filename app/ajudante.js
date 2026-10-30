@@ -75,17 +75,35 @@ async function receber(m) {
     trazerApp();
     if (m.conversa) ctx.enviarTela('conversa:focar', m.conversa);
   } else if (m.t === 'voltar') { mandar({ t: 'sumir' }); mudarLugar(false); }
+  else if (m.t === 'responder') responder(m);
 }
 
-// Traz o app para a frente. No Wayland um programa não pode roubar o foco;
-// se o primeiro pedido não pegar, esconde e mostra a janela de novo (janela
-// que reaparece vem por cima).
+// Pede para trazer o app. No Wayland um programa não pode roubar o foco: o
+// GNOME pode só avisar que o app quer atenção. Esconder e mostrar a janela
+// (tentado antes) puxava o app para a área de trabalho atual, fora do lugar —
+// não fazer. Por isso a pergunta vem respondível no próprio ajudante.
 function trazerApp() {
   const j = ctx.janela();
   if (!j) return;
   if (j.isMinimized()) j.restore();
-  j.show(); j.focus();
-  setTimeout(() => { if (!j.isDestroyed() && !j.isFocused()) { j.hide(); j.show(); j.focus(); } }, 350);
+  j.focus();
+}
+
+// Resposta dada no ajudante: vai para a conversa (ou para o agente) do mesmo
+// jeito que a resposta dada no app.
+function responder(m) {
+  const p = atuais.get(m.id);
+  let ok = false;
+  if (p && p.item) {
+    try {
+      if (p.item.tipo === 'agente') ok = ctx.responderAgente(p.item.emp, p.item.proj, p.item.id, m.permitir ? 'permitir' : 'negar');
+      else if (p.item.tipo === 'pergunta') ok = ctx.conversa.responder(p.conversa, p.item.reqId, { permitir: true, respostas: m.respostas || {} });
+      else ok = ctx.conversa.responder(p.conversa, p.item.reqId, { permitir: !!m.permitir });
+    } catch { ok = false; }
+  }
+  if (ok) { atuais.delete(m.id); mostrando = null; }
+  mandar({ t: 'respondido', ok, erro: ok ? null : 'Essa já tinha sido respondida (ou não deu para responder daqui).' });
+  return ok;
 }
 
 // --- perguntar ao ajudante ---------------------------------------------------
@@ -165,7 +183,7 @@ function confirmarAviso(ids) {
   iniciar();
   mostrando = new Set(ainda.map((p) => p.id));
   const texto = ainda.length === 1 ? ainda[0].texto : `${ainda.length} coisas esperando por você`;
-  const msg = { t: 'pendencia', texto, total: atuais.size, conversa: ainda[0].conversa || null };
+  const msg = { t: 'pendencia', texto, total: atuais.size, conversa: ainda[0].conversa || null, id: ainda[0].id, item: ainda[0].item || null };
   mandar(msg);
   return msg;
 }
@@ -225,4 +243,4 @@ function desligar() {
   if (servidor) { try { servidor.close(); fs.unlinkSync(SOQUETE); } catch { /* já fechado */ } }
 }
 
-module.exports = { ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+module.exports = { ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
