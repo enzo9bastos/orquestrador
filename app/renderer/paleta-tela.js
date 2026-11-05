@@ -20,7 +20,7 @@
   const campo = el.querySelector('input'), lista = el.querySelector('.paleta-lista'), filtro = el.querySelector('.paleta-filtro');
   let itens = [], vistos = [], escolhido = 0;
 
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   const normal = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
   function desenhar() {

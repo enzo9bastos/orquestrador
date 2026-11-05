@@ -4,7 +4,7 @@
   const $ = (id) => document.getElementById(id);
   const R = window.orq.repertorio;
   if (!R) return; // ponte antiga (app aberto antes desta versão)
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   const md = (t) => DOMPurify.sanitize(marked.parse(t || '', { gfm: true }));
   let dados = { skills: [], atalhos: [] };
   let aberto = null; // { tipo: 'skill'|'atalho', id }

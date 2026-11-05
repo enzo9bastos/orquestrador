@@ -57,7 +57,7 @@
       || '<li class="vazio-regra">Nenhuma pasta.</li>';
     $('config-arquivo').textContent = config.arquivo ? `Arquivo: ${config.arquivo}` : '';
   }
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   function valorDe(el) {
     const k = el.dataset.cfg;
     if (el.type === 'checkbox') {

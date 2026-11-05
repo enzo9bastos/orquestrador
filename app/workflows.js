@@ -274,7 +274,17 @@ async function testarCredencial(id) {
     return { ok: true, tamanho: v.length, aviso };
   } catch (e) { return { ok: false, erro: e.message }; }
 }
-const mascarar = (t, valores) => valores.filter((v) => v && v.length >= 4).reduce((s, v) => s.split(v).join('••••'), String(t ?? ''));
+// Troca por •••• o valor e as formas em que um comando costuma reimprimi-lo
+// (base64 com e sem "=", base64 de URL, hex, codificado para URL). Valor com
+// menos de 4 caracteres não é mascarado: trocaria pedaços comuns do texto.
+function formasDoSegredo(v) {
+  const b = Buffer.from(v);
+  const b64 = b.toString('base64');
+  return [...new Set([v, b64, b64.replace(/=+$/, ''), b.toString('base64url'), b.toString('hex'), b.toString('hex').toUpperCase(), encodeURIComponent(v)])]
+    .filter((f) => f.length >= 4).sort((x, y) => y.length - x.length);
+}
+const mascarar = (t, valores) => valores.filter((v) => v && v.length >= 4).flatMap(formasDoSegredo)
+  .reduce((s, f) => s.split(f).join('••••'), String(t ?? ''));
 
 // Mensagem de workflow ao orquestrador: vai embrulhada, para a tela (ao vivo
 // e no histórico) saber que não foi o usuário que escreveu.
@@ -290,13 +300,23 @@ const preencher = (t, entrada, ctx = {}) => String(t || '')
   .replace(/\{\{\s*arquivo\s*\}\}/g, ctx.arquivo || '')
   .replace(/\{\{\s*nome_arquivo\s*\}\}/g, ctx.arquivo ? path.basename(ctx.arquivo) : '');
 
-function processo(cmd, args, { cwd, entrada, env, limite = 120000 }) {
+// valores: segredos a mascarar ANTES de cortar a saída (cortar antes deixaria
+// o fim de um segredo no começo do que fica guardado).
+function processo(cmd, args, { cwd, entrada, env, limite = 120000, valores = [] }) {
   return new Promise((ok, falha) => {
     const p = spawn(cmd, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
     let saida = '', erro = '';
     const t = setTimeout(() => { p.kill(); falha(new Error(`passou de ${Math.round(limite / 1000)} s e foi parado`)); }, limite);
-    p.stdout.on('data', (d) => { saida = (saida + d).slice(-MAX_SAIDA); });
-    p.stderr.on('data', (d) => { erro = (erro + d).slice(-4000); });
+    // Guarda folga do tamanho do maior segredo antes de mascarar e cortar: um
+    // segredo que chega partido entre dois pedaços ainda é achado inteiro.
+    const folga = valores.reduce((m, v) => Math.max(m, ...formasDoSegredo(String(v || '')).map((f) => f.length), 0), 0);
+    const juntar = (atual, d, max) => {
+      const t = atual + d;
+      if (!valores.length) return t.slice(-max);
+      return mascarar(t.slice(-(max + folga)), valores).slice(-max);
+    };
+    p.stdout.on('data', (d) => { saida = juntar(saida, d, MAX_SAIDA); });
+    p.stderr.on('data', (d) => { erro = juntar(erro, d, 4000); });
     p.on('error', (e) => { clearTimeout(t); falha(e); });
     p.on('close', (c) => { clearTimeout(t); if (c === 0) ok(saida.trim()); else falha(new Error(`saiu com código ${c}${erro.trim() ? `: ${erro.trim().split('\n').slice(-3).join(' ')}` : ''}`)); });
     p.stdin.end(entrada || '');
@@ -341,7 +361,7 @@ const PASSOS = {
       valores.push(v);
     }
     try {
-      return { saida: mascarar(await processo('bash', ['-lc', c.comando], { cwd: fs.existsSync(pasta) ? pasta : os.homedir(), entrada, env }), valores) };
+      return { saida: mascarar(await processo('bash', ['-lc', c.comando], { cwd: fs.existsSync(pasta) ? pasta : os.homedir(), entrada, env, valores }), valores) };
     } catch (e) { throw new Error(mascarar(e.message, valores)); }
   },
   condicao: async (c, entrada) => {

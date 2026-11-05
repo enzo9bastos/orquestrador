@@ -7,7 +7,7 @@
   const V = window.petVisual;
   const pet = window.orqPetAtual;
   if (!P || !V || !pet) return; // ponte antiga ou sem bichinho
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   let visual = V.limpar(null);
 
   P.prefs().then((p) => { visual = V.limpar(p.visual); pet.vestir(visual); pet.esconder(!!p.fora); }).catch(() => {});

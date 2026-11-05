@@ -19,9 +19,7 @@ const espelhos = new Map();
 function lerPreferencia(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function gravarPreferencia(k, v) { try { localStorage.setItem(k, v); } catch { /* sem armazenamento */ } }
 
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+const { esc } = window.orqUtil;
 
 function haQuanto(ms) {
   if (!ms) return '';

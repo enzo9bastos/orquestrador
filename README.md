@@ -188,6 +188,9 @@ control, projects, notes and advanced options — applied immediately.
 
 **Requirements:** Linux, Node.js 20+, `tmux`, and Claude Code (`claude`) on your `PATH`.
 
+> **Before installing, read [SECURITY.md](SECURITY.md).** The orchestrator runs Claude Code in auto mode
+> from your home folder, workflows run shell commands, and the desktop helper can capture a screen area you select.
+
 ```bash
 git clone https://github.com/enzo9bastos/orquestrador.git
 cd orquestrador/app

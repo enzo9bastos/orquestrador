@@ -228,8 +228,12 @@ function ligarControle() {
   const chave = crypto.randomBytes(24).toString('hex');
   servidor = http.createServer((req, res) => {
     const responder = (cod, corpo) => { res.writeHead(cod, { 'content-type': 'application/json' }); res.end(JSON.stringify(corpo)); };
-    const dada = String(req.headers.authorization || '').replace(/^Bearer /, '');
-    if (req.method !== 'POST' || req.url !== '/acao' || dada.length !== chave.length || !crypto.timingSafeEqual(Buffer.from(dada), Buffer.from(chave))) return responder(403, { erro: 'sem permissão' });
+    // Compara em bytes: um cabeçalho com byte não-ASCII tem o mesmo tamanho em
+    // caracteres e outro em bytes, e o timingSafeEqual lançaria (derrubando o
+    // handler) em vez de negar.
+    const dada = Buffer.from(String(req.headers.authorization || '').replace(/^Bearer /, ''));
+    const certa = Buffer.from(chave);
+    if (req.method !== 'POST' || req.url !== '/acao' || dada.length !== certa.length || !crypto.timingSafeEqual(dada, certa)) return responder(403, { erro: 'sem permissão' });
     let corpo = '';
     req.on('data', (d) => { corpo += d; if (corpo.length > 1e6) req.destroy(); });
     req.on('end', async () => {

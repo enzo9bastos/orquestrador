@@ -9,7 +9,7 @@
   let cfg = { comandoInicial: null, comandoDesligar: null, comandoOrdem: null };
   let listaConversas = [];
 
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   const md = (t) => DOMPurify.sanitize(marked.parse(t || '', { gfm: true, breaks: true }));
 
   let grupo = null;          // bloco "Claude" em que as próximas respostas entram
@@ -85,7 +85,8 @@
     el.className = 'msg-voce';
     el.innerHTML = u.comando
       ? `<div class="balao comando"><svg class="ico"><use href="#i-terminal"/></svg>${esc(u.comando)}</div>`
-      : `<div class="balao">${esc(u.texto)}</div>`;
+      : `<button class="editar-msg" type="button" aria-label="Editar" title="Corrigir: põe o texto na caixa (e para a resposta, se ainda estiver vindo)"></button><div class="balao">${esc(u.texto)}</div>`;
+    if (!u.comando) el.dataset.texto = u.texto;
     caixa.append(el);
   }
 
@@ -994,6 +995,13 @@
     // /restart: o app reinicia o Claude por trás (--resume), como no terminal.
     if (t === '/restart') { if (C.reiniciar) { await C.reiniciar(ativa); aviso('Claude reiniciado; a conversa continua do mesmo ponto.'); } return; }
     entrada.value = ''; ajustarAltura();
+    if (t) { enviados.push(t); if (enviados.length > 50) enviados.shift(); }
+    posHistorico = -1;
+    // Versão corrigida de uma mensagem: o Claude já leu a errada, então vai
+    // avisado para considerar só esta. O balão mostra só o texto novo.
+    const corrigindo = editando;
+    editando = false;
+    $('corrigindo').hidden = true;
     colado = true;
     if (ativa === 'orquestrador') pet.definir('pensando');
     const imagens = anexos.splice(0);
@@ -1005,9 +1013,56 @@
       e.enviar = `${e.enviar}${e.enviar ? '\n\n' : ''}Arquivos anexados (leia do disco):\n${arquivos.map((a) => `- ${a.caminho}`).join('\n')}`;
       e.exibir = `${e.exibir || t}${t ? '\n' : ''}📎 ${arquivos.map((a) => a.nome).join(', ')}`;
     }
+    aplicarCorrecao(e, t, corrigindo);
     await C.mandar(ativa, e.enviar, imagens, e.exibir);
   });
   $('parar').addEventListener('click', () => C.interromper(ativa));
+
+  // --- corrigir mensagem enviada ---------------------------------------------
+  // Seta para cima com a caixa vazia traz de volta o que foi enviado (mais
+  // vezes, mais para trás); seta para baixo volta. "Editar" no balão põe o
+  // texto na caixa e, se o Claude ainda estiver respondendo, para a resposta.
+  const CORRECAO = '(Correção: desconsidere a minha mensagem anterior, ela saiu errada. Vale só esta versão:)';
+  function aplicarCorrecao(e, t, corrigindo) {
+    if (!corrigindo || !e.enviar || e.enviar.startsWith('/')) return e;
+    e.exibir = e.exibir || t;
+    e.enviar = `${CORRECAO}\n\n${e.enviar}`;
+    return e;
+  }
+  const enviados = [];
+  let posHistorico = -1, editando = false;
+  function porNaCaixa(texto, corrigir) {
+    entrada.value = texto;
+    ajustarAltura();
+    entrada.focus();
+    entrada.setSelectionRange(texto.length, texto.length);
+    editando = corrigir;
+    $('corrigindo').hidden = !corrigir;
+  }
+  entrada.addEventListener('keydown', (ev) => {
+    if (!$('sugestoes').hidden || ev.shiftKey || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    if (ev.key === 'ArrowUp' && (!entrada.value || posHistorico >= 0) && enviados.length) {
+      ev.preventDefault();
+      posHistorico = posHistorico < 0 ? enviados.length - 1 : Math.max(0, posHistorico - 1);
+      porNaCaixa(enviados[posHistorico], true);
+    } else if (ev.key === 'ArrowDown' && posHistorico >= 0) {
+      ev.preventDefault();
+      posHistorico++;
+      if (posHistorico >= enviados.length) { posHistorico = -1; porNaCaixa('', false); } else porNaCaixa(enviados[posHistorico], true);
+    } else if (ev.key === 'Escape' && editando) {
+      porNaCaixa('', false); posHistorico = -1;
+    }
+  });
+  entrada.addEventListener('input', () => { if (!entrada.value) { posHistorico = -1; editando = false; $('corrigindo').hidden = true; } });
+  caixa.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('.editar-msg');
+    if (!b) return;
+    const msg = b.closest('.msg-voce');
+    const ultimo = [...caixa.querySelectorAll('.msg-voce[data-texto]')].pop() === msg;
+    if (ultimo && infoAtual.ocupado) await C.interromper(ativa);
+    porNaCaixa(msg.dataset.texto || '', true);
+  });
+  $('corrigindo-cancelar').addEventListener('click', () => { porNaCaixa('', false); posHistorico = -1; });
   // A rodada não começa sozinha ao abrir o app: começa aqui.
   $('iniciar-rodada').addEventListener('click', () => {
     if (!cfg.comandoInicial) return;
@@ -1036,5 +1091,5 @@
   });
   // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
   // Fica no fim do script: tudo o que ele expõe já existe aqui.
-  if (window.orq.teste) window.__orqTeste = { anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
+  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), aplicarCorrecao, editando: () => editando, anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
 })();

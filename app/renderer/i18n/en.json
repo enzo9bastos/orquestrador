@@ -961,7 +961,11 @@
     "Anexar arquivo ou imagem": "Attach a file or image",
     "Tirar arquivo": "Remove file",
     "Mover para a lixeira…": "Move to trash…",
-    "Este app foi aberto antes da versão com anexos: reinicie o app.": "This app was opened before the version with attachments: restart the app."
+    "Este app foi aberto antes da versão com anexos: reinicie o app.": "This app was opened before the version with attachments: restart the app.",
+    "Corrigir: põe o texto na caixa (e para a resposta, se ainda estiver vindo)": "Fix it: puts the text back in the box (and stops the reply if it is still coming)",
+    "✎ Corrigindo uma mensagem enviada: o Claude vai receber esta versão avisando para desconsiderar a anterior.": "✎ Fixing a sent message: Claude gets this version with a note to disregard the previous one.",
+    "Cancelar (Esc)": "Cancel (Esc)",
+    "Editar": "Edit"
   },
   "padroes": [
     [

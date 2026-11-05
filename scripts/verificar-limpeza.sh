@@ -23,6 +23,19 @@ for modo in sem com; do
     [ -n "$PADRAO" ] || continue
     achados=$(git ls-files -z --cached --others --exclude-standard | xargs -0 grep -nIE $OPCAO "$PADRAO" -- 2>/dev/null)
     if [ -n "$achados" ]; then echo "TERMOS PROIBIDOS nos arquivos:"; echo "$achados" | cut -c1-300; falhou=1; fi
+    # Binários (imagem, GIF, PDF): o grep -I acima pula. Aqui o conteúdo cru,
+    # que pega metadados (tEXt do PNG, EXIF, XMP) e texto embutido. Texto
+    # DESENHADO nos pixels não é visto: isso pede OCR.
+    # Só trechos legíveis de 8+ caracteres (strings): nos bytes comprimidos de
+    # uma imagem uma sigla curta de 3 letras aparece por acaso, no meio do LZW.
+    bin=$(git ls-files -z --cached --others --exclude-standard | while IFS= read -r -d '' f; do
+        [ -f "$f" ] || continue
+        grep -qI . "$f" 2>/dev/null && continue
+        strings -a -n 8 "$f" | grep -qE $OPCAO "$PADRAO" && echo "$f"
+    done)
+    if [ -n "$bin" ]; then echo "TERMOS PROIBIDOS dentro de binários (metadados/texto embutido):"; echo "$bin"; falhou=1; fi
+    nomes=$(git ls-files --cached --others --exclude-standard | grep -E $OPCAO "$PADRAO")
+    if [ -n "$nomes" ]; then echo "TERMOS PROIBIDOS em nomes de arquivo:"; echo "$nomes"; falhou=1; fi
     if git rev-parse HEAD >/dev/null 2>&1; then
         hist=$(git log -p HEAD | grep -nIE $OPCAO "$PADRAO" | head -20 | cut -c1-300)
         if [ -n "$hist" ]; then echo "TERMOS PROIBIDOS no histórico:"; echo "$hist"; falhou=1; fi

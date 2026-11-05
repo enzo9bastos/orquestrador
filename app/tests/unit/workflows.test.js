@@ -200,3 +200,26 @@ test('workflows: escrever acrescentando vai para o fim do arquivo', async () => 
   await wf.rodar('w-log');
   assert.strictEqual(fs.readFileSync(path.join(casa, 'log.md'), 'utf8'), 'linha 1\nlinha 2\n');
 });
+
+test('workflows: credencial não vaza codificada nem cortada na saída guardada (S6)', async () => {
+  const V = 'Sup3r/Segr+edo=9xQ!kz';
+  const arq = path.join(casa, 'segredo-s6.txt');
+  fs.writeFileSync(arq, V, { mode: 0o600 });
+  const cr = wf.gravarCredencial({ id: 'c-s6', nome: 'S6', tipo: 'arquivo', ref: arq, variavel: 'S6' });
+  const rodarCmd = async (id, cmd) => {
+    wf.gravar({ id, nome: id, nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'comando', config: { comando: cmd, credenciais: [cr.id] } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    const r = await wf.rodar(id);
+    assert.ok(r.ok, JSON.stringify(r.execucao.passos));
+    return JSON.stringify(r) + fs.readFileSync(path.join(casa, '.cache/orq-app/workflows-execucoes.json'), 'utf8');
+  };
+  // Codificado: base64, hex e URL.
+  const cod = await rodarCmd('w-s6a', 'printf %s "$S6" | base64; printf %s "$S6" | od -An -tx1 | tr -d " \\n"; echo; '
+    + 'python3 -c "import os,urllib.parse;print(urllib.parse.quote(os.environ[\'S6\'],safe=\'\'))"');
+  for (const [nome, f] of Object.entries({ base64: Buffer.from(V).toString('base64'), hex: Buffer.from(V).toString('hex'), url: encodeURIComponent(V) })) {
+    assert.ok(!cod.includes(f), `vazou em ${nome}`);
+  }
+  // Cortado: a saída passa de 20 000 caracteres e o que fica guardado começa
+  // no meio do segredo (sobram os últimos 12 caracteres dele).
+  const cort = await rodarCmd('w-s6b', 'printf %s "$S6"; head -c 19988 /dev/zero | tr "\\0" a');
+  assert.ok(!cort.includes(V.slice(-12)), 'vazou o fim do segredo cortado');
+});

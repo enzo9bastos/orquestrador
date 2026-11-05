@@ -6,7 +6,7 @@
   const $ = (id) => document.getElementById(id);
   const N = window.orq.notas;
   if (!N || !window.EditorNotas) return; // app ainda não reaberto com a ponte nova
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   const lerPref = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   const gravarPref = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } };
 

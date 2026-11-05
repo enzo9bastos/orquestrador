@@ -16,7 +16,7 @@
   // redesenho e vai junto no Aprovar.
   const titulosEditados = new Map();
 
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   const VAZIO = `<div class="vazio"><span class="ico-caixa"><svg class="ico"><use href="#i-lista"/></svg></span>
     <strong>Nenhum tópico em andamento</strong>
     <span>Um tópico é uma demanda sendo feita: o que pediram, quem está nela e o checklist do que falta. O orquestrador abre e atualiza pelo comando <code data-sem-traducao>orq-topico</code>; você também pode criar um em "+ Novo tópico".</span></div>`;

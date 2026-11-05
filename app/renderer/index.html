@@ -99,6 +99,7 @@
             <button id="parar" class="botao-texto" type="button">Parar</button></div>
           <ul id="sugestoes" class="sugestoes" role="listbox" hidden></ul>
           <div id="anexos" class="anexos" hidden></div>
+          <div id="corrigindo" class="corrigindo" hidden>✎ Corrigindo uma mensagem enviada: o Claude vai receber esta versão avisando para desconsiderar a anterior. <button id="corrigindo-cancelar" class="botao-texto" type="button">Cancelar (Esc)</button></div>
           <div class="caixa-entrada">
             <button id="anexar" class="botao-anexar" type="button" title="Anexar arquivo ou imagem (também dá para arrastar ou colar)" aria-label="Anexar arquivo ou imagem"><svg class="ico" viewBox="0 0 16 16"><path d="M10.5 4.5 5.4 9.6a1.6 1.6 0 0 0 2.3 2.3l5.4-5.4a3 3 0 0 0-4.2-4.2L3.4 7.8a4.4 4.4 0 0 0 6.2 6.2l4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <textarea id="entrada" rows="1" placeholder="Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)"></textarea>
@@ -467,6 +468,7 @@
   </div>
 
   <script src="i18n.js"></script>
+  <script src="util.js"></script>
   <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
   <script src="../node_modules/marked/lib/marked.umd.js"></script>

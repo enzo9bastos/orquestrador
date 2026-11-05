@@ -14,7 +14,7 @@
     try { localStorage.setItem(CHAVE, JSON.stringify([...janelas].map(([id, j]) => ({ id, url: j.url, preset: j.preset })))); } catch { /* sem armazenamento */ }
   };
   const lidas = () => { try { return JSON.parse(localStorage.getItem(CHAVE)) || []; } catch { return []; } };
-  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const { esc } = window.orqUtil;
 
   // O que foi digitado na barra: endereço (com ou sem https://) ou busca.
   function endereco(t) {

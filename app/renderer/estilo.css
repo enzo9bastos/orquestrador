@@ -1391,3 +1391,15 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .anexo.anexo-arquivo { width: auto; max-width: 220px; height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 28px 0 10px; font-size: 12px; color: var(--fg-2); }
 .anexo-arquivo .anexo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .anexo-arquivo button { top: 50%; translate: 0 -50%; }
+
+/* Corrigir mensagem enviada: botão no balão (aparece ao passar o mouse) e a faixa acima da caixa. */
+.msg-voce { align-items: flex-start; gap: 6px; }
+.editar-msg { opacity: 0; align-self: center; border: 0; background: none; color: var(--fg-3); font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.msg-voce:hover .editar-msg, .editar-msg:focus-visible { opacity: 1; }
+.editar-msg:hover { color: var(--fg); background: var(--painel); }
+/* Ícone por CSS: o balão copiado ou lido como texto não leva o botão junto. */
+.editar-msg::before { content: '✎'; font-size: 14px; }
+.corrigindo { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-3); padding: 4px 4px 6px; }
+.corrigindo[hidden] { display: none; }
+/* Botão logo depois do texto, não no canto: o bichinho costuma ficar em pé ali. */
+.corrigindo .botao-texto { flex: none; margin-left: 4px; }

@@ -7,7 +7,7 @@
   const $ = (id) => document.getElementById(id);
   const W = window.orq.workflows;
   if (!W) return; // ponte antiga (app aberto antes desta versão)
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.orqUtil;
   const LARGURA = 190;
   const Y_PORTA = 21;
   let tipos = {};

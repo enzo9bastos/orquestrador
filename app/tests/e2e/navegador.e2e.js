@@ -153,5 +153,30 @@ test('navegador', async (t) => {
     await app.tecla('Escape');
   });
 
+  await t.test('chave com acento do mesmo tamanho dá 403 e não derruba o servidor (S11)', async () => {
+    const { porta, chave } = JSON.parse(require('fs').readFileSync(path.join(app.casa, '.config/orq-app/navegador.json'), 'utf8'));
+    const pedir = (k) => new Promise((ok) => {
+      const req = http.request({ host: '127.0.0.1', port: porta, path: '/acao', method: 'POST', timeout: 5000, headers: { authorization: `Bearer ${k}`, 'content-type': 'application/json' } },
+        (res) => { res.resume(); res.on('end', () => ok(res.statusCode)); });
+      req.on('timeout', () => { req.destroy(); ok('sem resposta'); });
+      req.on('error', (e) => ok(`erro: ${e.code}`));
+      req.end(JSON.stringify({ acao: 'listar' }));
+    });
+    // Byte cru 0xE9: o servidor lê o cabeçalho como latin1 ("é", 1 caractere),
+    // então o tamanho em caracteres bate e o em bytes (UTF-8) não.
+    const cru = () => new Promise((ok) => {
+      const s = require('net').connect(porta, '127.0.0.1');
+      let resp = '';
+      s.setTimeout(5000, () => { s.destroy(); ok('sem resposta'); });
+      s.on('data', (d) => { resp += d; });
+      s.on('close', () => ok(Number((/^HTTP\/1\.1 (\d+)/.exec(resp) || [])[1]) || 'sem resposta'));
+      s.on('error', () => ok('sem resposta'));
+      s.end(Buffer.concat([Buffer.from('POST /acao HTTP/1.1\r\nHost: x\r\nConnection: close\r\nContent-Length: 2\r\nAuthorization: Bearer '),
+        Buffer.alloc(chave.length, 0xe9), Buffer.from('\r\n\r\n{}')]));
+    });
+    assert.strictEqual(await cru(), 403);
+    assert.strictEqual(await pedir(chave), 200, 'o servidor tem que continuar de pé');
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
