@@ -200,4 +200,11 @@ function removerPasta(i) {
   return true;
 }
 
-module.exports = { salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+// Caminho absoluto de uma nota existente (para a lixeira); só .md dentro da pasta.
+function caminhoDaNota(i, rel) {
+  const abs = resolver(i, rel);
+  if (!/\.md$/i.test(abs) || !fs.statSync(abs).isFile()) throw new Error('não é uma nota');
+  return abs;
+}
+
+module.exports = { caminhoDaNota, salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };

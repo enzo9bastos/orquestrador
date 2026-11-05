@@ -8,7 +8,7 @@ const NOTION = '# Teste\n\nTexto com ==destaque== e <span style="color:#d44c47">
 test('notas', async (t) => {
   const app = await abrirApp({
     config: { pastasNotas: [{ nome: 'Teste', caminho: '~/notas' }] },
-    arquivos: { 'notas/notion.md': NOTION, 'notas/diario/2026-10-29.md': 'dia\n', 'notas/grande.md': '# G\n' + 'linha\n'.repeat(80000) },
+    arquivos: { 'notas/rascunho.md': '# Rascunho\n', 'notas/notion.md': NOTION, 'notas/diario/2026-10-29.md': 'dia\n', 'notas/grande.md': '# G\n' + 'linha\n'.repeat(80000) },
   });
   t.after(() => app.fechar());
   const abrir = async (rel) => {
@@ -124,5 +124,32 @@ test('notas', async (t) => {
     await abrir('grande.md');
     assert.strictEqual(await app.avaliar("document.getElementById('estado-nota').textContent"), 'Só leitura');
     assert.strictEqual(await app.avaliar("document.querySelector('.tiptap').contentEditable"), 'false');
+  });
+
+  // Pedido de 2026-11-05: não dava para desmarcar uma pasta selecionada.
+  await t.test('pasta selecionada desmarca com clique no vazio e com Esc', async () => {
+    await app.avaliar("document.querySelector('.linha-pasta').click()");
+    await app.esperar("!!document.querySelector('.linha-pasta.selecionada')");
+    await app.avaliar("document.getElementById('arvore-notas').click()");
+    await app.esperar("!document.querySelector('.linha-pasta.selecionada')");
+    await app.avaliar("document.querySelector('.linha-pasta').click()");
+    await app.esperar("!!document.querySelector('.linha-pasta.selecionada')");
+    await app.avaliar("document.querySelector('.linha-pasta.selecionada').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+    await app.esperar("!document.querySelector('.linha-pasta.selecionada')");
+  });
+
+  // Pedido de 2026-11-05: apagar uma nota (vai para a lixeira, dá para recuperar).
+  await t.test('nota vai para a lixeira só depois de confirmar', async () => {
+    await abrir('rascunho.md');
+    const menu = () => app.avaliar("(() => { const l = document.querySelector('.linha-nota[data-rel=\"rascunho.md\"]'); const r = l.getBoundingClientRect(); l.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 10, clientY: r.top + 5 })); })()");
+    await menu();
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Mover para a lixeira/.test(l.textContent))");
+    await app.avaliar("[...document.querySelectorAll('#menu-contexto li')].find((l) => /Mover para a lixeira/.test(l.textContent)).click()");
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Confirmar: mover «rascunho» para a lixeira/.test(l.textContent))");
+    assert.ok(require('fs').existsSync(require('path').join(app.casa, 'notas/rascunho.md')), 'o primeiro clique não apaga');
+    await app.avaliar("[...document.querySelectorAll('#menu-contexto li')].find((l) => /Confirmar/.test(l.textContent)).click()");
+    await app.esperar("!document.querySelector('.linha-nota[data-rel=\"rascunho.md\"]')", 8000);
+    assert.ok(!require('fs').existsSync(require('path').join(app.casa, 'notas/rascunho.md')), 'saiu da pasta');
+    assert.match(await app.avaliar("document.getElementById('estado-nota').textContent"), /lixeira/);
   });
 });

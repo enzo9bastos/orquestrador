@@ -151,6 +151,8 @@
     const nota = ev.target.closest('.linha-nota');
     if (nota) return abrir(ativa, nota.dataset.rel);
     const p = ev.target.closest('.linha-pasta');
+    // Clique no espaço vazio da lista: desmarca a pasta (a próxima nota nasce na raiz).
+    if (!p && selecionada !== null) { selecionada = null; desenharArvore(); return; }
     if (p) {
       const chave = `${ativa}:${p.dataset.pastaRel}`;
       if (abertasNaArvore.has(chave)) abertasNaArvore.delete(chave); else abertasNaArvore.add(chave);
@@ -310,13 +312,35 @@
   }
   const fecharMenu = () => { menuCtx.hidden = true; };
   document.addEventListener('mousedown', (ev) => { if (!ev.target.closest('#menu-contexto')) fecharMenu(); });
-  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') fecharMenu(); });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    if (!menuCtx.hidden) { fecharMenu(); return; }
+    // Esc na lista de notas: desmarca a pasta selecionada.
+    if (selecionada !== null && ev.target.closest && ev.target.closest('#arvore-notas, .explorador')) { selecionada = null; desenharArvore(); }
+  });
   menuCtx.addEventListener('click', (ev) => {
     const li = ev.target.closest('li[data-k]');
     if (!li) return;
     fecharMenu();
     menuCtx._itens[Number(li.dataset.k)].faz();
   });
+
+  // Apagar = lixeira do sistema (dá para recuperar de lá). Confirma num
+  // segundo menu, com o nome da nota, antes de mandar.
+  function confirmarLixeira(x, y, rel) {
+    const nome = rel.split('/').pop().replace(/\.md$/i, '');
+    abrirMenu(x, y, [
+      { nome: `Confirmar: mover «${nome}» para a lixeira`, faz: async () => {
+        try {
+          await N.lixeira(ativa, rel);
+          if (aberta && aberta.i === ativa && aberta.rel === rel) { clearTimeout(timer); sujo = false; aberta = null; N.vigiar(0, null); vazio(true); }
+          estado(`«${nome}» foi para a lixeira (dá para recuperar de lá).`);
+          await carregarArvore();
+        } catch (e) { estado(`Não consegui mover para a lixeira: ${e.message}`); }
+      } },
+      { nome: 'Cancelar', faz: () => {} },
+    ]);
+  }
 
   function pedirNome(tipo, pai) {
     selecionada = pai || null;
@@ -367,7 +391,8 @@
     if (nota) {
       abrirMenu(ev.clientX, ev.clientY, [
         { nome: 'Abrir', faz: () => abrir(ativa, rel) }, '-', ...comuns, '-',
-        { nome: 'Renomear', atalho: 'F2', faz: () => renomearItem(rel) },
+        { nome: 'Renomear', atalho: 'F2', faz: () => renomearItem(rel) }, '-',
+        { nome: 'Mover para a lixeira…', faz: () => confirmarLixeira(ev.clientX, ev.clientY, rel) },
       ]);
     } else {
       const pai = pasta ? rel : '';

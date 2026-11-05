@@ -51,7 +51,8 @@ protocol), so there is no terminal to babysit.
   **Allow / Deny** on permission requests, `/command` autocomplete.
 - Model and effort switcher, context and usage meters (5-hour and 7-day windows) in the top bar.
 - **Start** sends your round-opening command (e.g. a skill of yours); **Shut down** ends the round safely.
-- Paste screenshots straight into the chat; `//skill` uses anything from the Library; `@note:` and
+- Paste, drag or attach (📎) screenshots and files — images go as images, other files by their path; right-click a
+  misspelled word for suggestions (Portuguese and English); `//skill` uses anything from the Library; `@note:` and
   `@workflow:` attach a note or a workflow; code blocks have *Copy* and *▶ Terminal*.
 - **New conversation** opens side conversations next to the orchestrator.
 
@@ -82,7 +83,7 @@ shell in the **Terminal** tab on the right.
 <img src="docs/images/notes.png" alt="Notes: a Notion-style Markdown editor" width="900">
 
 A Notion-style Markdown editor over the folders you choose: blocks, `/` menu, checklists, tables,
-callouts, images. It autosaves and keeps every previous version.
+callouts, images. It autosaves and keeps every previous version; deleting a note sends it to the system trash.
 
 ### 📚 Library
 

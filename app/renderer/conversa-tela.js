@@ -696,10 +696,19 @@
   // --- imagens: colar (Ctrl+V) ou arrastar para a caixa -----------------------
   const anexos = []; // { tipo, dados (base64) }
   const MAX_IMAGEM = 5 * 1024 * 1024;
+  // Arquivos que não são imagem: vão pelo caminho (o Claude lê do disco).
+  const arquivosAnexos = []; // { nome, caminho }
   function desenharAnexos() {
-    $('anexos').hidden = !anexos.length;
+    $('anexos').hidden = !anexos.length && !arquivosAnexos.length;
     $('anexos').innerHTML = anexos.map((a, i) => `<div class="anexo"><img src="data:${a.tipo};base64,${a.dados}" alt="imagem anexada">
-      <button type="button" data-tirar-anexo="${i}" aria-label="Tirar imagem" title="Tirar">✕</button></div>`).join('');
+      <button type="button" data-tirar-anexo="${i}" aria-label="Tirar imagem" title="Tirar">✕</button></div>`).join('')
+      + arquivosAnexos.map((a, i) => `<div class="anexo anexo-arquivo" title="${esc(a.caminho)}"><span class="anexo-icone">📄</span><span class="anexo-nome">${esc(a.nome)}</span>
+      <button type="button" data-tirar-arquivo="${i}" aria-label="Tirar arquivo" title="Tirar">✕</button></div>`).join('');
+  }
+  function anexarCaminho(nome, caminho) {
+    if (!caminho || arquivosAnexos.some((a) => a.caminho === caminho)) return;
+    arquivosAnexos.push({ nome, caminho });
+    desenharAnexos();
   }
   // destino: a lista de anexos (caixa de texto ou cartão de pergunta) e quem redesenha.
   function anexar(arquivo, destino = anexos, redesenhar = desenharAnexos) {
@@ -750,18 +759,32 @@
     imgs.forEach((i) => anexar(i.getAsFile()));
   });
   const compositor = $('compositor');
-  compositor.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.items].some((i) => i.type.startsWith('image/'))) { ev.preventDefault(); compositor.classList.add('soltando'); } });
+  compositor.addEventListener('dragover', (ev) => { if ([...ev.dataTransfer.items].some((i) => i.kind === 'file')) { ev.preventDefault(); compositor.classList.add('soltando'); } });
   compositor.addEventListener('dragleave', () => compositor.classList.remove('soltando'));
   compositor.addEventListener('drop', (ev) => {
     compositor.classList.remove('soltando');
-    const arqs = [...ev.dataTransfer.files].filter((f) => f.type.startsWith('image/'));
-    if (!arqs.length) return;
+    const todos = [...ev.dataTransfer.files];
+    if (!todos.length) return;
     ev.preventDefault();
-    arqs.forEach(anexar);
+    // Imagem pequena vai como imagem; o resto (e imagem grande) vai pelo caminho.
+    for (const f of todos) {
+      if (/^image\/(png|jpeg|gif|webp)$/.test(f.type) && f.size <= MAX_IMAGEM) anexar(f);
+      else anexarCaminho(f.name, window.orq.arquivos && window.orq.arquivos.caminho(f));
+    }
+  });
+  // Botão 📎: escolher arquivos ou imagens no computador.
+  $('anexar').addEventListener('click', async () => {
+    if (!window.orq.arquivos) { aviso('Este app foi aberto antes da versão com anexos: reinicie o app.', 'erro'); return; }
+    for (const a of await window.orq.arquivos.escolher()) {
+      if (a.dados) { anexos.push({ tipo: a.tipo, dados: a.dados }); desenharAnexos(); } else anexarCaminho(a.nome, a.caminho);
+    }
+    entrada.focus();
   });
   $('anexos').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-tirar-anexo]');
     if (b) { anexos.splice(Number(b.dataset.tirarAnexo), 1); desenharAnexos(); entrada.focus(); }
+    const f = ev.target.closest('[data-tirar-arquivo]');
+    if (f) { arquivosAnexos.splice(Number(f.dataset.tirarArquivo), 1); desenharAnexos(); entrada.focus(); }
   });
 
   // --- autocompletar de comandos (/…) ---------------------------------------
@@ -952,7 +975,7 @@
   $('compositor').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const t = entrada.value.trim();
-    if (!t && !anexos.length) return;
+    if (!t && !anexos.length && !arquivosAnexos.length) return;
     // Ponte antiga (app aberto antes da versão com imagens): ela só leva o
     // texto. Nunca perder imagem em silêncio: avisa e deixa os anexos na caixa.
     if (anexos.length && !window.orq.permissoes) {
@@ -971,8 +994,14 @@
     colado = true;
     if (ativa === 'orquestrador') pet.definir('pensando');
     const imagens = anexos.splice(0);
+    const arquivos = arquivosAnexos.splice(0);
     desenharAnexos();
     const e = await expandir(t);
+    // Arquivos anexados vão pelo caminho; o balão mostra só os nomes.
+    if (arquivos.length) {
+      e.enviar = `${e.enviar}${e.enviar ? '\n\n' : ''}Arquivos anexados (leia do disco):\n${arquivos.map((a) => `- ${a.caminho}`).join('\n')}`;
+      e.exibir = `${e.exibir || t}${t ? '\n' : ''}📎 ${arquivos.map((a) => a.nome).join(', ')}`;
+    }
     await C.mandar(ativa, e.enviar, imagens, e.exibir);
   });
   $('parar').addEventListener('click', () => C.interromper(ativa));
@@ -1004,5 +1033,5 @@
   });
   // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
   // Fica no fim do script: tudo o que ele expõe já existe aqui.
-  if (window.orq.teste) window.__orqTeste = { desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
+  if (window.orq.teste) window.__orqTeste = { anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
 })();

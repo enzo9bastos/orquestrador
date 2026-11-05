@@ -1,6 +1,6 @@
 // Ponte entre a tela e o processo principal: só o que a tela precisa, nada de
 // acesso direto a arquivo ou processo.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('orq', {
   // Só nos testes de tela (ORQ_APP_E2E=1): a tela expõe ganchos para o runner.
@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld('orq', {
     aoFocar: (fn) => ipcRenderer.on('conversa:focar', (_e, id) => fn(id)),
     aoComandos: (fn) => ipcRenderer.on('conversa:comandos', (_e, m) => fn(m.id, m.dado)),
   },
+  arquivos: {
+    escolher: () => ipcRenderer.invoke('arquivos:escolher'),
+    caminho: (arquivo) => { try { return webUtils.getPathForFile(arquivo) || null; } catch { return null; } },
+  },
   notas: {
     pastas: () => ipcRenderer.invoke('notas:pastas'),
     adicionarPasta: () => ipcRenderer.invoke('notas:adicionarPasta'),
@@ -46,6 +50,7 @@ contextBridge.exposeInMainWorld('orq', {
     gravar: (i, rel, conteudo, mtime) => ipcRenderer.invoke('notas:gravar', i, rel, conteudo, mtime),
     criar: (i, pasta, nome) => ipcRenderer.invoke('notas:criar', i, pasta, nome),
     criarPasta: (i, pai, nome) => ipcRenderer.invoke('notas:criarPasta', i, pai, nome),
+    lixeira: (i, rel) => ipcRenderer.invoke('notas:lixeira', i, rel),
     salvarImagem: (i, relNota, base64, tipo) => ipcRenderer.invoke('notas:salvarImagem', i, relNota, base64, tipo),
     guardarCopia: (i, rel, texto) => ipcRenderer.invoke('notas:guardarCopia', i, rel, texto),
     vigiar: (i, rel) => ipcRenderer.invoke('notas:vigiar', i, rel),

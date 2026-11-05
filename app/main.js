@@ -3,7 +3,7 @@
 // Casca por cima do tmux e do orq: os agentes continuam vivendo no tmux, dentro
 // dos devcontainers. Fechar o app não derruba nada. O orquestrador também roda
 // numa sessão tmux própria ("orquestrador"), então sobrevive ao app.
-const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net, Menu } = require('electron');
 const { pathToFileURL } = require('url');
 
 // orqnota://p<pasta>/<caminho>: imagens das pastas de notas, só dentro delas e
@@ -67,6 +67,23 @@ function criarJanela() {
   if (emTeste) janela.webContents.once('did-finish-load', () => janela.webContents.focus());
   janela.setMenuBarVisibility(false);
   janela.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  // Corretor: português e inglês. O botão direito num campo de texto mostra as
+  // sugestões da palavra sublinhada (o Electron sublinha, mas não monta o menu).
+  try { janela.webContents.session.setSpellCheckerLanguages(['pt-BR', 'en-US']); } catch { /* idioma sem dicionário */ }
+  janela.webContents.on('context-menu', (_e, p) => {
+    if (!p.isEditable && !p.selectionText) return; // fora de campo e sem seleção: o app tem os menus dele
+    const itens = [];
+    if (p.misspelledWord) {
+      for (const s of (p.dictionarySuggestions || []).slice(0, 6)) itens.push({ label: s, click: () => janela.webContents.replaceMisspelling(s) });
+      if (!itens.length) itens.push({ label: t('Nenhuma sugestão'), enabled: false });
+      itens.push({ label: t('Adicionar ao dicionário'), click: () => janela.webContents.session.addWordToSpellCheckerDictionary(p.misspelledWord) });
+      itens.push({ type: 'separator' });
+    }
+    if (p.isEditable) itens.push({ label: t('Recortar'), role: 'cut', enabled: p.editFlags.canCut });
+    itens.push({ label: t('Copiar'), role: 'copy', enabled: p.editFlags.canCopy });
+    if (p.isEditable) itens.push({ label: t('Colar'), role: 'paste', enabled: p.editFlags.canPaste }, { type: 'separator' }, { label: t('Selecionar tudo'), role: 'selectAll' });
+    Menu.buildFromTemplate(itens).popup({ window: janela });
+  });
   janela.on('closed', () => { janela = null; });
   janela.on('maximize', () => janela.webContents.send('janela:maximizada', true));
   janela.on('unmaximize', () => janela.webContents.send('janela:maximizada', false));
@@ -186,6 +203,20 @@ ipcMain.handle('notas:guardarCopia', (_e, i, rel, texto) => notas.guardarCopia(i
 ipcMain.handle('notas:salvarImagem', (_e, i, relNota, base64, tipo) => notas.salvarImagem(i, relNota, base64, tipo));
 ipcMain.handle('notas:criarPasta', (_e, i, pai, nome) => notas.criarPasta(i, pai, nome));
 ipcMain.handle('notas:criar', (_e, i, pasta, nome) => notas.criar(i, pasta, nome));
+// Apagar nota = mandar para a lixeira do sistema (dá para recuperar de lá).
+ipcMain.handle('notas:lixeira', async (_e, i, rel) => { await shell.trashItem(notas.caminhoDaNota(i, rel)); return true; });
+// Anexar na conversa: imagens viram imagem para o Claude; o resto vai pelo
+// caminho (o Claude lê o arquivo do disco).
+const EXT_IMAGEM = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
+ipcMain.handle('arquivos:escolher', async () => {
+  const r = await dialog.showOpenDialog(janela, { title: t('Anexar à conversa'), properties: ['openFile', 'multiSelections'] });
+  if (r.canceled) return [];
+  return r.filePaths.slice(0, 10).map((c) => {
+    const tipo = EXT_IMAGEM[path.extname(c).toLowerCase()];
+    if (tipo && fs.statSync(c).size < 5_000_000) return { nome: path.basename(c), tipo, dados: fs.readFileSync(c).toString('base64') };
+    return { nome: path.basename(c), caminho: c };
+  });
+});
 ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janela && janela.webContents.send('notas:mudou', m)));
 
 // --- conversas (orquestrador e avulsas) -----------------------------------

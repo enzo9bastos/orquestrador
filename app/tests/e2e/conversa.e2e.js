@@ -170,6 +170,16 @@ test('conversa', async (t) => {
     assert.strictEqual(await app.avaliar("document.getElementById('iniciar-rodada').hidden"), false);
   });
 
+  // Pedido de 2026-11-05: anexar arquivos (não só colar imagem).
+  await t.test('anexar: botão 📎 na caixa; arquivo anexado aparece pelo nome e sai no ✕', async () => {
+    assert.strictEqual(await app.visivel('#anexar'), 'ok');
+    await app.avaliar("window.__orqTeste.anexarCaminho('relatorio.pdf', '/tmp/relatorio.pdf')");
+    await app.esperar("!!document.querySelector('#anexos .anexo-arquivo')");
+    assert.match(await app.avaliar("document.querySelector('#anexos .anexo-arquivo').textContent"), /relatorio\.pdf/);
+    await app.avaliar("document.querySelector('[data-tirar-arquivo]').click()");
+    await app.esperar("!document.querySelector('#anexos .anexo-arquivo')");
+  });
+
   await t.test('Desligar pede confirmação no segundo clique', async () => {
     await app.avaliar("document.getElementById('desligar').click()");
     assert.match(await app.avaliar("document.getElementById('desligar').textContent"), /Confirmar/);

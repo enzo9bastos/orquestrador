@@ -1384,3 +1384,10 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
   .config-com-secoes .config-linha:not(.config-coluna) { grid-template-columns: minmax(0, 1fr); }
   .config-com-secoes .config-linha .campo-config:not(.largo) { width: 100%; box-sizing: border-box; }
 }
+
+/* --- conversa: anexar arquivos ------------------------------------------- */
+.botao-anexar { flex: none; align-self: flex-end; width: 32px; height: 32px; margin: 0 0 2px 2px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--fg-3); }
+.botao-anexar:hover { background: var(--painel-hover); color: var(--fg); }
+.anexo.anexo-arquivo { width: auto; max-width: 220px; height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 28px 0 10px; font-size: 12px; color: var(--fg-2); }
+.anexo-arquivo .anexo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anexo-arquivo button { top: 50%; translate: 0 -50%; }

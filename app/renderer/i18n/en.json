@@ -952,9 +952,30 @@
     "pede uma ação sua": "needs you to do something",
     "Pediu para você rodar no seu computador:": "Asked you to run this on your computer:",
     "Feito": "Done",
-    "O orquestrador pediu para você rodar um comando": "The Orchestrator asked you to run a command"
+    "O orquestrador pediu para você rodar um comando": "The Orchestrator asked you to run a command",
+    "Nenhuma sugestão": "No suggestions",
+    "Adicionar ao dicionário": "Add to dictionary",
+    "Recortar": "Cut",
+    "Anexar à conversa": "Attach to the conversation",
+    "Anexar arquivo ou imagem (também dá para arrastar ou colar)": "Attach a file or image (you can also drag or paste)",
+    "Anexar arquivo ou imagem": "Attach a file or image",
+    "Tirar arquivo": "Remove file",
+    "Mover para a lixeira…": "Move to trash…",
+    "Este app foi aberto antes da versão com anexos: reinicie o app.": "This app was opened before the version with attachments: restart the app."
   },
   "padroes": [
+    [
+      "^Não consegui mover para a lixeira: (.+)$",
+      "Couldn't move to the trash: $1"
+    ],
+    [
+      "^«(.+)» foi para a lixeira \\(dá para recuperar de lá\\)\\.$",
+      "«$1» went to the trash (you can restore it from there)."
+    ],
+    [
+      "^Confirmar: mover «(.+)» para a lixeira$",
+      "Confirm: move «$1» to the trash"
+    ],
     [
       "^(.+) \\(achado no PATH\\)$",
       "$1 (found on PATH)"
