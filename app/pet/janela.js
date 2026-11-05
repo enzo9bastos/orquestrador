@@ -241,6 +241,7 @@
     else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }
     else if (m.t === 'pousou') classe('voando', false);
+    else if (m.t === 'floreio' && ['pirueta', 'quica'].includes(m.tipo)) { classe(m.tipo, false); void pet.offsetWidth; classe(m.tipo); setTimeout(() => classe(m.tipo, false), 900); }
     else if (m.t === 'pensando') { classe('pensando'); pet.querySelector('.pet-nuvem').hidden = false; }
     else if (m.t === 'resposta') {
       classe('pensando', false); pet.querySelector('.pet-nuvem').hidden = true;

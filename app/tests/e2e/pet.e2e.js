@@ -131,3 +131,50 @@ test('ajudante fora do app: protocolo da janelinha', { skip: !process.env.DISPLA
   for (let i = 0; i < 60 && (await estado()).modo !== 'parado'; i++) await new Promise((x) => setTimeout(x, 100));
   assert.strictEqual((await estado()).pos.x, antes, 'volta para onde estava');
 });
+
+// Pedido de 2026-11-05: cada espécie chega e vai embora do seu jeito.
+test('ajudante fora do app: chegada e saída de cada espécie', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
+  async function acompanhar(especie) {
+    const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+    const recebidas = [];
+    readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
+    const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
+    const espera = async (fn, ms = 10000) => { for (let i = 0; i < ms / 50; i++) { const r = recebidas.find(fn); if (r) return r; await new Promise((x) => setTimeout(x, 50)); } throw new Error(`não chegou: ${fn}`); };
+    const estado = async () => { recebidas.length = 0; manda({ t: 'estado' }); return espera((m) => m.t === 'estado'); };
+    try {
+      await espera((m) => m.t === 'iniciado', 20000);
+      manda({ t: 'visual', visual: { especie, cor: 'azul', itens: {} }, tema: 'dark' });
+      manda({ t: 'pendencia', texto: 'teste', total: 1 });
+      const chegada = [];
+      for (let i = 0; i < 120; i++) { const e = await estado(); chegada.push(e); if (e.modo === 'parado' && chegada.length > 2) break; await new Promise((x) => setTimeout(x, 60)); }
+      const parado = chegada.at(-1);
+      manda({ t: 'sumir' });
+      const saida = [];
+      for (let i = 0; i < 120; i++) { const e = await estado(); saida.push(e); if (e.modo === 'escondido') break; await new Promise((x) => setTimeout(x, 60)); }
+      return { chegada: chegada.filter((e) => e.modo === 'entrando').map((e) => e.pos.y), parado, saida: saida.filter((e) => e.modo === 'saindo').map((e) => e.pos.y) };
+    } finally { p.kill(); }
+  }
+  const varia = (ys) => Math.max(...ys) - Math.min(...ys);
+
+  await t.test('bicho: chega e sai andando no chão (como sempre)', async () => {
+    const r = await acompanhar('bicho');
+    assert.strictEqual(r.parado.modo, 'parado');
+    assert.strictEqual(varia(r.chegada), 0, `altura mudou ao chegar: ${r.chegada}`);
+    assert.strictEqual(varia(r.saida), 0, `altura mudou ao sair: ${r.saida}`);
+  });
+  for (const especie of ['fantasma', 'nuvem']) {
+    await t.test(`${especie}: chega voando ondulado, para no ar e vai embora subindo`, async () => {
+      const r = await acompanhar(especie);
+      assert.strictEqual(r.parado.modo, 'parado');
+      assert.ok(varia(r.chegada) > 25, `não voou na chegada: ${r.chegada}`);
+      assert.ok(Math.min(...r.saida) < r.parado.pos.y - 100, `não subiu ao sair: ${r.saida} (parado em ${r.parado.pos.y})`);
+    });
+  }
+  await t.test('gosma: chega e vai embora pulando', async () => {
+    const r = await acompanhar('gosma');
+    assert.strictEqual(r.parado.modo, 'parado');
+    assert.ok(varia(r.chegada) > 40, `não pulou na chegada: ${r.chegada}`);
+    assert.ok(varia(r.saida) > 40, `não pulou na saída: ${r.saida}`);
+    assert.ok(Math.max(...r.chegada) <= r.parado.pos.y, 'os pulos são para cima do chão');
+  });
+});

@@ -99,12 +99,24 @@ function criarJanela() {
   // Link clicado na conversa nunca troca a página do app.
   janela.webContents.on('will-navigate', (e) => e.preventDefault());
   janela.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  // Ajuste em tempo real: salvar qualquer arquivo da tela recarrega a janela.
-  // O terminal do orquestrador vive aqui no processo principal e não cai.
+  // Ajuste em tempo real: código novo da tela publicado (igual ao commit)
+  // recarrega a janela sozinho — veja recarga.js. O terminal do orquestrador
+  // vive aqui no processo principal e não cai.
   let espera;
   fs.watch(path.join(__dirname, 'renderer'), () => {
-    clearTimeout(espera);
-    espera = setTimeout(() => janela && janela.webContents.reload(), 150);
+    // Tenta por até 30 s: no publicar.sh o git grava os arquivos antes de
+    // fechar o commit do merge, e o commit não gera evento novo aqui.
+    const rodada = Symbol('recarga');
+    espera = rodada;
+    setTimeout(async () => {
+      for (let i = 0; i < 30 && espera === rodada; i++) {
+        if (await require('./recarga').publicado(path.join(__dirname, 'renderer'))) {
+          if (janela && !janela.isDestroyed()) janela.webContents.reload();
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }, 400);
   });
   // Teste: ORQ_APP_PRINT=/caminho/base grava um PNG da janela a cada 8 s.
   if (process.env.ORQ_APP_PRINT) {
@@ -271,6 +283,14 @@ ipcMain.handle('conversa:mandar', (_e, id, texto, imagens = [], exibir = null) =
 });
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));
+// Voltar a conversa para antes de uma mensagem: devolve { ok, texto } ou
+// { ok: false, erro } (a tela mostra e nada muda).
+ipcMain.handle('conversa:voltar', (_e, id, ordemDoFim, texto) => {
+  try {
+    ajudante.limparAcoes(id);
+    return { ok: true, texto: conversa.voltar(id, Number(ordemDoFim) || 0, String(texto || '').slice(0, 20000)) };
+  } catch (e) { return { ok: false, erro: e.message }; }
+});
 ipcMain.handle('conversa:configurar', (_e, id, o) => conversa.configurar(id, o));
 ipcMain.handle('conversa:reiniciar', (_e, id) => conversa.reiniciar(id));
 ipcMain.handle('conversa:nova', () => conversa.nova());

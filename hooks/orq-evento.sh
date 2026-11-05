@@ -7,9 +7,10 @@
 # container sem rede e sem mexer no firewall.
 #
 # Na permissão (PermissionRequest) o hook só espera resposta se o app estiver
-# aberto (.orq/app-vivo atualizado há menos de 15 s). App fechado, travado ou
-# sem resposta: sai sem decidir, e a pergunta aparece no terminal como sempre.
-# O hook nunca permite nem nega nada sozinho.
+# aberto (.orq/app-vivo atualizado há menos de 15 s) e se o canal de resposta
+# for à prova do agente (veja abaixo). App fechado, travado, sem resposta ou
+# canal gravável pelo agente: sai sem decidir, e a pergunta aparece no
+# terminal como sempre. O hook nunca permite nem nega nada sozinho.
 set -u
 
 entrada=$(cat)
@@ -39,12 +40,20 @@ app_vivo() {
 }
 app_vivo || exit 0
 
+# A resposta do app só é confiável se o agente NÃO consegue forjá-la: a
+# pasta de respostas e este próprio script têm de ser só-leitura para quem
+# roda o hook (no devcontainer, montados com :ro; o app grava do host). Se o
+# agente consegue gravar em um dos dois, o app não decide nada: a pergunta
+# fica no terminal, como sem o app.
+respostas="${ORQ_RESPOSTAS_DIR:-$dir/respostas-perm}"
+if [ -w "$0" ] || [ ! -d "$respostas" ] || [ -w "$respostas" ]; then exit 0; fi
+
 id="$sessao-$ts"
 mkdir -p "$dir/permissoes"
 jq -c --arg id "$id" --argjson ts "$ts" \
    '{id: $id, ts: $ts, sessao: .session_id, tool_name, tool_input}' \
    <<<"$entrada" > "$dir/permissoes/$id.json"
-resp="$dir/permissoes/$id.resposta"
+resp="$respostas/$id.resposta"
 
 limite=$(( $(date +%s) + ${ORQ_ESPERA_SEGUNDOS:-300} ))
 while [ "$(date +%s)" -lt "$limite" ]; do

@@ -203,30 +203,19 @@ test('conversa', async (t) => {
   });
 
   // Pedido de 2026-11-05: corrigir uma mensagem enviada com erro.
-  await t.test('editar mensagem enviada: botão no balão e seta para cima', async () => {
+  await t.test('seta para cima traz de volta o que foi enviado', async () => {
     await app.avaliar("document.getElementById('popup').hidden = true");
     await injetar({ tipo: 'user', local: true, message: { role: 'user', content: 'me diz onde t' } });
-    assert.ok((await baloes()).includes('me diz onde t'), 'o texto do balão não leva o botão junto');
-    await app.avaliar("[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].pop().querySelector('.editar-msg').click()");
-    await app.esperar("document.getElementById('entrada').value === 'me diz onde t' && !document.getElementById('corrigindo').hidden");
-    assert.strictEqual(await app.avaliar('window.__orqTeste.editando()'), true);
-    await app.tecla('Escape');
-    await app.esperar("document.getElementById('entrada').value === '' && document.getElementById('corrigindo').hidden");
-
-    await app.avaliar("window.__orqTeste.lembrarEnviado('primeira'); window.__orqTeste.lembrarEnviado('segunda')");
-    await app.avaliar("document.getElementById('entrada').focus()");
+    assert.ok((await baloes()).includes('me diz onde t'), 'o texto do balão não leva o botão ✎ junto');
+    assert.strictEqual(await app.avaliar("!![...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].pop().querySelector('.editar-msg')"), true);
+    await app.avaliar("window.__orqTeste.lembrarEnviado('primeira'); window.__orqTeste.lembrarEnviado('segunda'); document.getElementById('entrada').value = ''; document.getElementById('entrada').focus()");
     await app.tecla('ArrowUp', 'ArrowUp', 38);
     await app.esperar("document.getElementById('entrada').value === 'segunda'");
     await app.tecla('ArrowUp', 'ArrowUp', 38);
     await app.esperar("document.getElementById('entrada').value === 'primeira'");
     await app.tecla('ArrowDown', 'ArrowDown', 40);
     await app.esperar("document.getElementById('entrada').value === 'segunda'");
-
-    const e = await app.avaliar("window.__orqTeste.aplicarCorrecao({ enviar: 'me diz onde tá a skill' }, 'me diz onde tá a skill', true)");
-    assert.match(e.enviar, /^\(Correção: desconsidere a minha mensagem anterior[^\n]*\n\nme diz onde tá a skill$/);
-    assert.strictEqual(e.exibir, 'me diz onde tá a skill', 'o balão mostra só o texto novo');
-    const cmd = await app.avaliar("window.__orqTeste.aplicarCorrecao({ enviar: '/model' }, '/model', true)");
-    assert.strictEqual(cmd.enviar, '/model', 'comando não ganha o aviso');
+    await app.avaliar("document.getElementById('entrada').value = ''");
     assert.deepStrictEqual(app.erros, []);
   });
 });

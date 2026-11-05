@@ -37,15 +37,15 @@ of opening a public issue.
 - **Agent request bridge.** An agent can leave a script in `<project>/.orq/pedidos/` asking you to run it on
   the host. The app shows it to you and to the orchestrator; it never runs it on its own. Read it before
   running it: it comes from inside the container.
-- **Permission hook (`hooks/orq-evento.sh`).** It runs from `<project>/.orq/bin/` and reads answers from
-  `<project>/.orq/permissoes/`, both inside the project folder. An agent that can write to the project can
-  write an answer or edit the hook, and so approve its own request. Do not rely on it as a security
-  boundary unless the dev container mounts `.orq/bin/`, the answers folder and `.claude/settings.json`
-  **read-only**.
-- **Live reload.** The app reloads its window when a file in `app/renderer/` changes (that is how a
-  published update shows up without a restart). Anyone who can write to that folder can run code in the
-  window, the same as anyone who can write to `app/main.js` can on the next start. Keep the install folder
-  writable only by you.
+- **Permission hook (`hooks/orq-evento.sh`).** The app writes its answer to `<project>/.orq/respostas-perm/`.
+  The hook only accepts it when that folder **and the hook file itself** are read-only for the agent (mount
+  both read-only in the dev container, see the README); otherwise it ignores the app and the prompt stays in
+  the terminal. This does not protect against an agent that can edit the project's `.claude/settings.json`:
+  it could register a hook of its own that approves everything, app or no app. Mount that file read-only too.
+- **Live reload.** When a file in `app/renderer/` changes, the window reloads by itself **only if that folder
+  matches the last git commit** (which is how a published update arrives). A file changed or dropped there
+  without a commit does not run on its own; without git there is no automatic reload. Anyone who can commit
+  to the install folder, or edit `app/main.js`, still controls the app: keep it writable only by you.
 - **Version history.** Every save of settings, topics, workflows and credentials references keeps the
   previous version under `~/.local/share/orq-app/versoes/`. Nothing prunes it; delete old files there
   when you want them gone.

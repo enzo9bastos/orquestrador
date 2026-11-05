@@ -303,7 +303,11 @@ function responder(emp, proj, id, decisao) {
   if (!/^[\w.-]+$/.test(id) || !alvo) throw new Error('alvo inválido');
   const pasta = path.join(alvo.dir, '.orq', 'permissoes');
   if (!fs.existsSync(path.join(pasta, id + '.json'))) return false; // já respondido no terminal
-  fs.writeFileSync(path.join(pasta, id + '.resposta'), decisao + '\n');
+  // A resposta vai para .orq/respostas-perm, que o container monta só-leitura
+  // (o agente lá dentro não consegue forjar um "permitir"); o app grava do host.
+  const respostas = path.join(alvo.dir, '.orq', 'respostas-perm');
+  fs.mkdirSync(respostas, { recursive: true });
+  fs.writeFileSync(path.join(respostas, id + '.resposta'), decisao + '\n');
   return true;
 }
 

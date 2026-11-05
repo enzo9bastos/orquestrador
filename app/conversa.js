@@ -74,20 +74,62 @@ function esforcoPadrao() {
 }
 const conversas = new Map(); // id → Conversa
 
+const arqTranscript = (sessao) => path.join(os.homedir(), '.claude', 'projects', PASTA.replace(/[^A-Za-z0-9]/g, '-'), sessao + '.jsonl');
+function linhasDoTranscript(sessao) {
+  try { return fs.readFileSync(arqTranscript(sessao), 'utf8').split('\n'); } catch { return []; }
+}
+
 // Histórico de uma sessão anterior, lido do transcript que o Claude grava.
-function historicoDoTranscript(sessao) {
-  const arq = path.join(os.homedir(), '.claude', 'projects', PASTA.replace(/[^A-Za-z0-9]/g, '-'), sessao + '.jsonl');
-  let linhas;
-  try { linhas = fs.readFileSync(arq, 'utf8').split('\n'); } catch { return []; }
+// ate: uuid de uma linha; o histórico para nela (conversa que voltou).
+function historicoDoTranscript(sessao, ate = null) {
   const lista = [];
-  for (const l of linhas) {
+  for (const l of linhasDoTranscript(sessao)) {
     if (!l) continue;
-    try {
-      const d = JSON.parse(l);
-      if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) lista.push({ tipo: d.type, message: d.message, antigo: true });
-    } catch { /* linha cortada */ }
+    let d;
+    try { d = JSON.parse(l); } catch { continue; /* linha cortada */ }
+    if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) lista.push({ tipo: d.type, message: d.message, antigo: true });
+    if (ate && d.uuid === ate) break;
   }
   return lista.slice(-600);
+}
+
+// --- voltar a conversa ------------------------------------------------------
+// Mensagens do usuário que viram balão na tela (o mesmo filtro da tela: sem
+// mensagem de bastidor, comando, aviso do sistema ou resultado de ferramenta),
+// cada uma com o uuid da última linha do Claude antes dela.
+const textoDoPrompt = (c) => (typeof c === 'string' ? c : Array.isArray(c) && !c.some((b) => b && b.type === 'tool_result')
+  ? c.filter((b) => b && b.type === 'text').map((b) => b.text).join('\n') : null);
+const normal = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+function promptsDoTranscript(linhas) {
+  const lista = [];
+  let antes = null;
+  for (const l of linhas) {
+    if (!l) continue;
+    let d;
+    try { d = JSON.parse(l); } catch { continue; }
+    if (d.isSidechain || !d.uuid) continue;
+    if (d.type === 'assistant') { antes = d.uuid; continue; }
+    if (d.type !== 'user' || d.isMeta || !d.message) continue;
+    const t = textoDoPrompt(d.message.content);
+    if (t == null) continue;
+    const tt = t.trim();
+    if (!tt || /^<(orq-|command-|local-command|system-reminder|task-notification)/.test(tt) || tt.startsWith('/')) continue;
+    lista.push({ uuid: d.uuid, texto: tt, antes });
+  }
+  return lista;
+}
+// Onde cortar para tirar a mensagem escolhida (e tudo depois dela). ordemDoFim:
+// 0 = a última mensagem do usuário, 1 = a penúltima… Confere o texto do balão
+// com o do histórico; não batendo, procura a mais recente que bate, e se nenhuma
+// bate recusa (cortar no lugar errado apagaria a parte certa da conversa).
+function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
+  const prompts = promptsDoTranscript(linhas);
+  const alvo = normal(String(textoBalao || '').split('\n📎')[0]).slice(0, 80);
+  const bate = (p) => !!p && (!alvo || normal(p.texto).includes(alvo));
+  let p = prompts[prompts.length - 1 - Number(ordemDoFim || 0)];
+  if (!bate(p)) p = [...prompts].reverse().find(bate);
+  if (!p) throw new Error('não achei essa mensagem no histórico do Claude');
+  return { ate: p.antes, texto: p.texto };
 }
 
 // Antes do Claude subir (ele só manda a lista quando recebe a primeira
@@ -112,8 +154,11 @@ function comandosLocais() {
 }
 
 class Conversa {
-  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [] }) {
+  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null }) {
     this.anteriores = anteriores; // sessões de rodadas já desligadas
+    // Volta pendente: { de: sessão original, ate: uuid }. Vale até a 1ª
+    // resposta da sessão nova; fechar o app antes disso refaz a volta.
+    this.volta = volta && volta.de ? volta : null;
     this.modeloEscolhido = modelo; // null = o padrão do Claude
     this.esforco = esforco;
     this.id = id;
@@ -134,15 +179,47 @@ class Conversa {
   }
   avisarInfo() { this.enviar('conversa:info', this.info); avisarLista(); }
 
-  iniciar({ primeiraMensagem } = {}) {
-    if (this.proc) return;
+  argumentos() {
     const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
       '--include-partial-messages', '--permission-prompt-tool', 'stdio', '--permission-mode', 'auto'];
-    const retomando = !!this.sessao;
-    if (retomando) args.push('--resume', this.sessao);
     if (this.modeloEscolhido) args.push('--model', MODELOS[this.modeloEscolhido]);
     if (this.esforco) args.push('--effort', this.esforco);
-    this.eventos = retomando ? historicoDoTranscript(this.sessao) : [];
+    // Voltar: abre a sessão original cortada naquele ponto, numa sessão nova
+    // (--fork-session); a original fica como estava.
+    if (this.volta) args.push('--resume', this.volta.de, '--resume-session-at', this.volta.ate, '--fork-session');
+    else if (this.sessao) args.push('--resume', this.sessao);
+    return args;
+  }
+
+  // Tira a mensagem escolhida e tudo o que veio depois dela do contexto do
+  // Claude. Devolve o texto dela, para a tela pôr na caixa e corrigir.
+  voltar(ordemDoFim, textoBalao) {
+    const de = this.volta ? this.volta.de : this.sessao;
+    if (!de) throw new Error('esta conversa ainda não tem histórico para voltar');
+    const linhas = this.volta
+      ? (() => { const l = linhasDoTranscript(de); const i = l.findIndex((x) => x.includes(`"uuid":"${this.volta.ate}"`)); return i >= 0 ? l.slice(0, i + 1) : l; })()
+      : linhasDoTranscript(de);
+    const p = pontoDeVolta(linhas, ordemDoFim, textoBalao);
+    if (this.proc) { this.proc.reiniciando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
+    this.pendentes.clear();
+    this.info.ocupado = false;
+    if (p.ate) this.volta = { de, ate: p.ate };
+    else {
+      // Era a primeira mensagem: a conversa recomeça do zero.
+      this.volta = null;
+      this.anteriores = [...(this.anteriores || []), de].slice(-20);
+      this.sessao = null;
+    }
+    gravarLista();
+    this.iniciar();
+    return p.texto;
+  }
+
+  iniciar({ primeiraMensagem } = {}) {
+    if (this.proc) return;
+    const args = this.argumentos();
+    const retomando = !!(this.volta || this.sessao);
+    this.eventos = this.volta ? historicoDoTranscript(this.volta.de, this.volta.ate) : retomando ? historicoDoTranscript(this.sessao) : [];
     this.enviar('conversa:tudo', this.estado());
 
     // O caminho escolhido na engrenagem (IAs conectadas), se houver e for
@@ -158,7 +235,11 @@ class Conversa {
       if (proc.reiniciando) return; // troca de modelo/esforço: já subiu outro
       if (proc.encerrando) return;  // rodada desligada: encerrar() já avisou
       // Sessão guardada que o Claude não acha mais: a próxima começa do zero.
-      if (codigo && retomando && !iniciou) { this.sessao = null; gravarLista(); }
+      if (codigo && this.volta && !iniciou) {
+        // A volta não abriu: desiste dela e continua na sessão original.
+        this.volta = null; gravarLista();
+        this.registrar({ tipo: 'erro', texto: 'Não consegui voltar a conversa; ela continua como estava.' });
+      } else if (codigo && retomando && !iniciou) { this.sessao = null; gravarLista(); }
       this.info.ocupado = false;
       this.pendentes.clear();
       this.avisarInfo();
@@ -190,7 +271,8 @@ class Conversa {
         }
         if (d.subtype === 'init') {
           info.modelo = d.model; info.pasta = d.cwd;
-          if (this.sessao !== d.session_id) { this.sessao = d.session_id; gravarLista(); }
+          if (this.volta) this.sessaoDaVolta = d.session_id;
+          else if (this.sessao !== d.session_id) { this.sessao = d.session_id; gravarLista(); }
           this.avisarInfo();
         }
         return;
@@ -226,6 +308,13 @@ class Conversa {
       }
       case 'result': {
         info.ocupado = false;
+        // 1ª resposta depois de voltar: a sessão nova já está gravada.
+        if (this.volta && this.sessaoDaVolta) {
+          this.anteriores = [...(this.anteriores || []), this.volta.de].slice(-20);
+          this.sessao = this.sessaoDaVolta;
+          this.volta = null; this.sessaoDaVolta = null;
+          gravarLista();
+        }
         const mu = Object.values(d.modelUsage || {})[0];
         if (mu && mu.contextWindow) info.janela = mu.contextWindow;
         this.avisarInfo();
@@ -360,7 +449,7 @@ class Conversa {
 // --- lista guardada -----------------------------------------------------
 function gravarLista() {
   fs.mkdirSync(CACHE, { recursive: true });
-  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores }));
+  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined }));
   fs.writeFileSync(ARQ_LISTA, JSON.stringify(lista, null, 2) + '\n');
 }
 
@@ -446,11 +535,12 @@ module.exports = {
   ligar: (fn) => { enviarTela = fn; },
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade
-  lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo,
+  lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),
+  voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),
   configurar: (id, o) => pegar(id).configurar(o || {}),
   reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },
 };

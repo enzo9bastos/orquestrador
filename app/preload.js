@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('orq', {
     mandar: (id, t, imagens, exibir) => ipcRenderer.invoke('conversa:mandar', id, t, imagens, exibir),
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
+    voltar: (id, ordemDoFim, texto) => ipcRenderer.invoke('conversa:voltar', id, ordemDoFim, texto),
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
     reiniciar: (id) => ipcRenderer.invoke('conversa:reiniciar', id),
     nova: () => ipcRenderer.invoke('conversa:nova'),

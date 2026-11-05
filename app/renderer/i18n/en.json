@@ -962,10 +962,10 @@
     "Tirar arquivo": "Remove file",
     "Mover para a lixeira…": "Move to trash…",
     "Este app foi aberto antes da versão com anexos: reinicie o app.": "This app was opened before the version with attachments: restart the app.",
-    "Corrigir: põe o texto na caixa (e para a resposta, se ainda estiver vindo)": "Fix it: puts the text back in the box (and stops the reply if it is still coming)",
-    "✎ Corrigindo uma mensagem enviada: o Claude vai receber esta versão avisando para desconsiderar a anterior.": "✎ Fixing a sent message: Claude gets this version with a note to disregard the previous one.",
     "Cancelar (Esc)": "Cancel (Esc)",
-    "Editar": "Edit"
+    "Editar": "Edit",
+    "Voltar a conversa para antes desta mensagem e corrigir": "Rewind the conversation to before this message and fix it",
+    "Voltei a conversa para antes desta mensagem. Corrija e envie.": "Rewound the conversation to before this message. Fix it and send."
   },
   "padroes": [
     [
@@ -1611,6 +1611,18 @@
     [
       "^Não salvei: (.+)$",
       "Not saved: $1"
+    ],
+    [
+      "^Voltar até esta mensagem\\? Ela e a 1 mensagem sua depois dela saem da conversa do Claude, com as respostas\\. A conversa antiga fica guardada\\.$",
+      "Rewind to this message? It and the 1 message of yours after it leave Claude's conversation, with the replies. The old conversation is kept."
+    ],
+    [
+      "^Voltar até esta mensagem\\? Ela e as (\\d+) mensagens suas depois dela saem da conversa do Claude, com as respostas\\. A conversa antiga fica guardada\\.$",
+      "Rewind to this message? It and the $1 messages of yours after it leave Claude's conversation, with the replies. The old conversation is kept."
+    ],
+    [
+      "^Não deu para voltar: (.+)\\. A conversa continua como estava\\.$",
+      "Couldn't rewind: $1. The conversation stays as it was."
     ]
   ]
 }

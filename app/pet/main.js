@@ -80,11 +80,45 @@ function entrarPelaBorda(a, lado, destinoX, depois) {
   andar(Math.min(Math.max(destinoX, a.x), a.x + a.width - tam.w), 320, () => { modo = 'parado'; if (depois) depois(); });
 }
 
+// Chegada de cada espécie. Quem anda sai de trás da borda andando; quem voa
+// (fantasma, nuvem) entra pelo alto da borda e desce ondulando até parar no
+// ar, com uma pirueta; quem pula (gosma) chega em pulos altos e quica.
+const ALTURA_NO_AR = 60;
+function entrada(a, lado, destinoX, depois) {
+  if (jeito === 'anda') { entrarPelaBorda(a, lado, destinoX, depois); return; }
+  clearInterval(timer); timer = null;
+  const borda = lado === 'dir' ? a.x + a.width - tam.w : a.x;
+  const alvo = Math.min(Math.max(destinoX, a.x), a.x + a.width - tam.w);
+  modo = 'entrando';
+  const chegou = (floreio) => () => { modo = 'parado'; paraTela({ t: 'floreio', tipo: floreio }); if (depois) depois(); };
+  if (jeito === 'voa') {
+    pos = { x: borda, y: a.y + Math.round((chao(a) - a.y) * 0.2) };
+    mover();
+    paraTela({ t: 'entrar', lado });
+    irPara(alvo, Math.max(a.y, chao(a) - ALTURA_NO_AR), 300, chegou('pirueta'), { onda: 55 });
+  } else {
+    pos = { x: borda, y: chao(a) };
+    mover();
+    paraTela({ t: 'entrar', lado });
+    irPara(alvo, chao(a), 260, chegou('quica'), { pulos: true, altura: 120 });
+  }
+}
+// Saída de cada espécie até a borda direita: andando, subindo ondulado até o
+// alto (quem voa) ou pulando (gosma). Depois some atrás da borda.
+function partida(a, depois) {
+  const borda = a.x + a.width - tam.w;
+  if (jeito === 'voa') irPara(borda, a.y + 10, 300, depois, { onda: 45 });
+  else if (jeito === 'pula') irPara(borda, chao(a), 260, depois, { pulos: true, altura: 120 });
+  else andar(borda, 360, depois);
+}
+
 // Cada saída tem um número: chegar de novo cancela a saída em andamento (os
 // passos dela, que vêm depois, veem que perderam a vez).
 let saida = 0;
-// Voa em linha reta até (x, y). Pulando: vai em arcos de ~110 px.
-function irPara(x, y, vel, depois, pulos = false) {
+// Voa até (x, y). opc: true ou { pulos } vai em arcos de ~110 px (altura:
+// quanto sobe cada pulo); { onda } voa ondulando (a onda morre na chegada).
+function irPara(x, y, vel, depois, opc = false) {
+  const { pulos = false, altura = 70, onda = 0 } = opc === true ? { pulos: true } : (opc || {});
   clearInterval(timer);
   paraTela({ t: 'andando', ligado: true, lado: x < pos.x ? 'esq' : 'dir' });
   const ini = { x: pos.x, y: pos.y };
@@ -95,7 +129,8 @@ function irPara(x, y, vel, depois, pulos = false) {
   timer = setInterval(() => {
     const t = Math.min(1, (Date.now() - comeco) / dur);
     pos.x = ini.x + (x - ini.x) * t;
-    pos.y = ini.y + (y - ini.y) * t - (pulos ? Math.abs(Math.sin(Math.PI * t * nPulos)) * 70 : 0);
+    pos.y = ini.y + (y - ini.y) * t - (pulos ? Math.abs(Math.sin(Math.PI * t * nPulos)) * altura : 0)
+      + (onda ? Math.sin(Math.PI * 3 * t) * onda * (1 - t) : 0);
     mover();
     if (t >= 1) {
       clearInterval(timer); timer = null;
@@ -113,7 +148,11 @@ function aparecer(depois) {
     const a = area();
     modo = 'entrando';
     paraTela({ t: 'entrar', lado: 'dir' });
-    andar(a.x + Math.round(a.width * 0.78) - tam.w, 320, () => { modo = 'parado'; if (depois) depois(); });
+    const volta = a.x + Math.round(a.width * 0.78) - tam.w;
+    const fim = () => { modo = 'parado'; if (depois) depois(); };
+    if (jeito === 'voa') irPara(volta, Math.max(a.y, chao(a) - ALTURA_NO_AR), 300, fim, { onda: 40 });
+    else if (jeito === 'pula') irPara(volta, chao(a), 260, fim, { pulos: true, altura: 120 });
+    else andar(volta, 320, fim);
     return;
   }
   saida++;
@@ -125,7 +164,7 @@ function aparecer(depois) {
   win.setVisibleOnAllWorkspaces(true);
   win.setSkipTaskbar(true);
   paraApp({ t: 'visivel', visivel: true });
-  entrarPelaBorda(a, 'dir', a.x + Math.round(a.width * 0.78) - tam.w, depois);
+  entrada(a, 'dir', a.x + Math.round(a.width * 0.78) - tam.w, depois);
 }
 
 function sumir() {
@@ -137,8 +176,9 @@ function sumir() {
   const minha = ++saida;
   paraTela({ t: 'tchau' });
   const a = area();
-  // Anda até encostar na borda (por dentro do monitor) e some atrás dela.
-  setTimeout(() => minha === saida && andar(a.x + a.width - tam.w, 360, () => {
+  // Vai até encostar na borda (por dentro do monitor), do jeito da espécie, e
+  // some atrás dela.
+  setTimeout(() => minha === saida && partida(a, () => {
     if (minha !== saida) return;
     paraTela({ t: 'sair', lado: 'dir' });
     setTimeout(() => {
@@ -246,7 +286,7 @@ function trocouArea(de, para) {
   const a = d.workArea;
   const volta = pos.x;
   // Com aviso ou pergunta esperando, chega quieto (não atropela o aviso).
-  entrarPelaBorda(a, para < de ? 'dir' : 'esq', volta, () => { if (!aviso && Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
+  entrada(a, para < de ? 'dir' : 'esq', volta, () => { if (!aviso && Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
 }
 
 ipcMain.on('ajudante', (_e, m) => {

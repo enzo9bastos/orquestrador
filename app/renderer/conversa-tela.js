@@ -85,7 +85,7 @@
     el.className = 'msg-voce';
     el.innerHTML = u.comando
       ? `<div class="balao comando"><svg class="ico"><use href="#i-terminal"/></svg>${esc(u.comando)}</div>`
-      : `<button class="editar-msg" type="button" aria-label="Editar" title="Corrigir: põe o texto na caixa (e para a resposta, se ainda estiver vindo)"></button><div class="balao">${esc(u.texto)}</div>`;
+      : `<button class="editar-msg" type="button" aria-label="Editar" title="Voltar a conversa para antes desta mensagem e corrigir"></button><div class="balao">${esc(u.texto)}</div>`;
     if (!u.comando) el.dataset.texto = u.texto;
     caixa.append(el);
   }
@@ -997,11 +997,7 @@
     entrada.value = ''; ajustarAltura();
     if (t) { enviados.push(t); if (enviados.length > 50) enviados.shift(); }
     posHistorico = -1;
-    // Versão corrigida de uma mensagem: o Claude já leu a errada, então vai
-    // avisado para considerar só esta. O balão mostra só o texto novo.
-    const corrigindo = editando;
-    editando = false;
-    $('corrigindo').hidden = true;
+    fecharVolta();
     colado = true;
     if (ativa === 'orquestrador') pet.definir('pensando');
     const imagens = anexos.splice(0);
@@ -1013,56 +1009,60 @@
       e.enviar = `${e.enviar}${e.enviar ? '\n\n' : ''}Arquivos anexados (leia do disco):\n${arquivos.map((a) => `- ${a.caminho}`).join('\n')}`;
       e.exibir = `${e.exibir || t}${t ? '\n' : ''}📎 ${arquivos.map((a) => a.nome).join(', ')}`;
     }
-    aplicarCorrecao(e, t, corrigindo);
     await C.mandar(ativa, e.enviar, imagens, e.exibir);
   });
   $('parar').addEventListener('click', () => C.interromper(ativa));
 
   // --- corrigir mensagem enviada ---------------------------------------------
-  // Seta para cima com a caixa vazia traz de volta o que foi enviado (mais
-  // vezes, mais para trás); seta para baixo volta. "Editar" no balão põe o
-  // texto na caixa e, se o Claude ainda estiver respondendo, para a resposta.
-  const CORRECAO = '(Correção: desconsidere a minha mensagem anterior, ela saiu errada. Vale só esta versão:)';
-  function aplicarCorrecao(e, t, corrigindo) {
-    if (!corrigindo || !e.enviar || e.enviar.startsWith('/')) return e;
-    e.exibir = e.exibir || t;
-    e.enviar = `${CORRECAO}\n\n${e.enviar}`;
-    return e;
-  }
+  // ✎ no balão: VOLTA a conversa para antes daquela mensagem — ela e tudo o
+  // que veio depois saem do contexto do Claude (a conversa antiga fica
+  // guardada no histórico dele) — e o texto dela volta para a caixa. Na
+  // última mensagem é direto; numa mais antiga pede confirmação.
+  // Seta para cima com a caixa vazia só traz de volta um texto já enviado.
   const enviados = [];
-  let posHistorico = -1, editando = false;
-  function porNaCaixa(texto, corrigir) {
+  let posHistorico = -1, voltaPedida = null;
+  function porNaCaixa(texto) {
     entrada.value = texto;
     ajustarAltura();
     entrada.focus();
     entrada.setSelectionRange(texto.length, texto.length);
-    editando = corrigir;
-    $('corrigindo').hidden = !corrigir;
+  }
+  function fecharVolta() { voltaPedida = null; $('corrigindo').hidden = true; }
+  async function voltarPara(msg) {
+    const baloes = [...caixa.querySelectorAll('.msg-voce[data-texto]')];
+    const ordemDoFim = baloes.length - 1 - baloes.indexOf(msg);
+    fecharVolta();
+    const r = await C.voltar(ativa, ordemDoFim, msg.dataset.texto || '');
+    if (!r || !r.ok) { aviso(`Não deu para voltar: ${(r && r.erro) || 'erro desconhecido'}. A conversa continua como estava.`, 'erro'); return; }
+    porNaCaixa(r.texto || msg.dataset.texto || '');
+    aviso('Voltei a conversa para antes desta mensagem. Corrija e envie.');
   }
   entrada.addEventListener('keydown', (ev) => {
     if (!$('sugestoes').hidden || ev.shiftKey || ev.altKey || ev.ctrlKey || ev.metaKey) return;
     if (ev.key === 'ArrowUp' && (!entrada.value || posHistorico >= 0) && enviados.length) {
       ev.preventDefault();
       posHistorico = posHistorico < 0 ? enviados.length - 1 : Math.max(0, posHistorico - 1);
-      porNaCaixa(enviados[posHistorico], true);
+      porNaCaixa(enviados[posHistorico]);
     } else if (ev.key === 'ArrowDown' && posHistorico >= 0) {
       ev.preventDefault();
       posHistorico++;
-      if (posHistorico >= enviados.length) { posHistorico = -1; porNaCaixa('', false); } else porNaCaixa(enviados[posHistorico], true);
-    } else if (ev.key === 'Escape' && editando) {
-      porNaCaixa('', false); posHistorico = -1;
-    }
+      if (posHistorico >= enviados.length) { posHistorico = -1; porNaCaixa(''); } else porNaCaixa(enviados[posHistorico]);
+    } else if (ev.key === 'Escape' && voltaPedida) fecharVolta();
   });
-  entrada.addEventListener('input', () => { if (!entrada.value) { posHistorico = -1; editando = false; $('corrigindo').hidden = true; } });
+  entrada.addEventListener('input', () => { if (!entrada.value) posHistorico = -1; });
   caixa.addEventListener('click', async (ev) => {
     const b = ev.target.closest('.editar-msg');
     if (!b) return;
     const msg = b.closest('.msg-voce');
-    const ultimo = [...caixa.querySelectorAll('.msg-voce[data-texto]')].pop() === msg;
-    if (ultimo && infoAtual.ocupado) await C.interromper(ativa);
-    porNaCaixa(msg.dataset.texto || '', true);
+    const baloes = [...caixa.querySelectorAll('.msg-voce[data-texto]')];
+    const depois = baloes.length - 1 - baloes.indexOf(msg);
+    if (!depois) { await voltarPara(msg); return; }
+    voltaPedida = msg;
+    $('corrigindo-texto').textContent = `Voltar até esta mensagem? Ela e ${depois === 1 ? 'a 1 mensagem sua depois dela saem' : `as ${depois} mensagens suas depois dela saem`} da conversa do Claude, com as respostas. A conversa antiga fica guardada.`;
+    $('corrigindo').hidden = false;
   });
-  $('corrigindo-cancelar').addEventListener('click', () => { porNaCaixa('', false); posHistorico = -1; });
+  $('corrigindo-voltar').addEventListener('click', () => voltaPedida && voltarPara(voltaPedida));
+  $('corrigindo-cancelar').addEventListener('click', fecharVolta);
   // A rodada não começa sozinha ao abrir o app: começa aqui.
   $('iniciar-rodada').addEventListener('click', () => {
     if (!cfg.comandoInicial) return;
@@ -1091,5 +1091,5 @@
   });
   // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
   // Fica no fim do script: tudo o que ele expõe já existe aqui.
-  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), aplicarCorrecao, editando: () => editando, anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
+  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
 })();

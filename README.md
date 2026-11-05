@@ -54,6 +54,9 @@ protocol), so there is no terminal to babysit.
 - Paste, drag or attach (📎) screenshots and files — images go as images, other files by their path; right-click a
   misspelled word for suggestions (Portuguese and English); `//skill` uses anything from the Library; `@note:` and
   `@workflow:` attach a note or a workflow; code blocks have *Copy* and *▶ Terminal*.
+- **Sent something wrong?** Hover your message and click ✎ to **rewind**: that message and everything after it
+  leave Claude's context (the old conversation is kept) and the text comes back to the box to fix. With the box
+  empty, ↑ / ↓ bring back what you sent.
 - **New conversation** opens side conversations next to the orchestrator.
 
 ### 🧭 Agents and *Needs you*
@@ -162,6 +165,8 @@ screen (the input box, attachments, agent cards).
   - the translucent **ghost** really flies around — inside the app and across your desktop;
   - the **cloud** flies too, and changes from white to gray with its mood (it rains when something goes wrong);
   - the see-through **slime** gets around by hopping, and jumps higher than anyone.
+  - out on the desktop each one arrives and leaves its own way: the critter walks in from the edge, the ghost and
+    the cloud swoop in on a wavy flight and twirl before hovering (and fly off upward), the slime bounces in and out.
 
   They all wear the same 30 items across 6 slots (hats, glasses, moustaches, ties, capes, a coffee mug…) in
   9 colors. Right-click the pet to open the wardrobe.
@@ -230,6 +235,21 @@ in [`examples/CONFIGURATION.md`](examples/CONFIGURATION.md).
 `Stop`, `SessionEnd` (timeout 10) and `PermissionRequest` (timeout 330) in the project's
 `.claude/settings.json` with the command `"$CLAUDE_PROJECT_DIR"/.orq/bin/orq-evento.sh`. Add `.orq/` to
 `.gitignore`.
+
+The app answers a permission prompt by writing to `<project>/.orq/respostas-perm/`. The hook only trusts
+that answer when **the agent cannot forge it**: the answers folder and the hook itself must be read-only
+inside the container. If either is writable, the hook ignores the app and the prompt stays in the terminal.
+In `devcontainer.json`:
+
+```jsonc
+"mounts": [
+  "source=${localWorkspaceFolder}/.orq/bin,target=${containerWorkspaceFolder}/.orq/bin,type=bind,readonly",
+  "source=${localWorkspaceFolder}/.orq/respostas-perm,target=${containerWorkspaceFolder}/.orq/respostas-perm,type=bind,readonly",
+  "source=${localWorkspaceFolder}/.claude/settings.json,target=${containerWorkspaceFolder}/.claude/settings.json,type=bind,readonly"
+]
+```
+
+Create both folders on the host before starting the container.
 
 ## Project structure
 

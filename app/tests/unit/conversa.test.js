@@ -41,3 +41,43 @@ test('conversa: sessão do cofre e credenciais de ambiente não chegam às conve
     for (const k of ['BW_SESSION', 'BW_CLIENTSECRET', 'BW_PASSWORD', 'MINHA_API_KEY', 'OUTRA_COISA']) if (!(k in antes)) delete process.env[k];
   }
 });
+
+// Pedido de 2026-11-05: voltar a conversa para antes de uma mensagem errada.
+const linha = (o) => JSON.stringify(o);
+const TRANSCRIPT = [
+  linha({ type: 'user', uuid: 'u1', message: { role: 'user', content: 'primeira pergunta' } }),
+  linha({ type: 'assistant', uuid: 'a1', message: { role: 'assistant', content: [{ type: 'text', text: 'resposta 1' }] } }),
+  linha({ type: 'user', uuid: 'r1', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', content: 'x' }] } }),
+  linha({ type: 'assistant', uuid: 'a1b', message: { role: 'assistant', content: [{ type: 'text', text: 'resposta 1, fim' }] } }),
+  linha({ type: 'user', uuid: 'w1', message: { role: 'user', content: '<orq-workflow nome="P">\npassada\n</orq-workflow>' } }),
+  linha({ type: 'assistant', uuid: 'a2', message: { role: 'assistant', content: [{ type: 'text', text: 'ok passada' }] } }),
+  linha({ type: 'user', uuid: 'u2', message: { role: 'user', content: 'me diz onde t' } }),
+  linha({ type: 'assistant', uuid: 'a3', message: { role: 'assistant', content: [{ type: 'text', text: 'chegou cortada' }] } }),
+  linha({ type: 'user', uuid: 'u3', message: { role: 'user', content: 'outra coisa' } }),
+  linha({ type: 'assistant', uuid: 'sc', isSidechain: true, message: { role: 'assistant', content: [{ type: 'text', text: 'subagente' }] } }),
+];
+
+test('conversa: voltar acha o ponto logo antes da mensagem escolhida', () => {
+  // ordemDoFim 1 = a penúltima mensagem do usuário que vira balão ("me diz onde t").
+  assert.deepStrictEqual(conversa._pontoDeVolta(TRANSCRIPT, 1, 'me diz onde t'), { ate: 'a2', texto: 'me diz onde t' });
+  assert.deepStrictEqual(conversa._pontoDeVolta(TRANSCRIPT, 0, 'outra coisa'), { ate: 'a3', texto: 'outra coisa' });
+  // A primeira mensagem da sessão: não há para onde voltar, começa do zero.
+  assert.deepStrictEqual(conversa._pontoDeVolta(TRANSCRIPT, 2, 'primeira pergunta'), { ate: null, texto: 'primeira pergunta' });
+  // Balão que não bate com o histórico: recusa em vez de cortar no lugar errado.
+  assert.throws(() => conversa._pontoDeVolta(TRANSCRIPT, 0, 'texto que não existe'), /não achei/);
+});
+
+test('conversa: voltar reabre cortado numa sessão nova e só troca a sessão depois da 1ª resposta', () => {
+  conversa.ligar(() => {});
+  const c = new conversa._Conversa({ id: 'v', titulo: 'Volta', sessao: 'S-original' });
+  c.volta = { de: 'S-original', ate: 'a2' };
+  assert.deepStrictEqual(c.argumentos().slice(-5), ['--resume', 'S-original', '--resume-session-at', 'a2', '--fork-session']);
+  c.tratar({ type: 'system', subtype: 'init', session_id: 'S-nova', model: 'm', cwd: '/' });
+  assert.strictEqual(c.sessao, 'S-original', 'antes da 1ª resposta, fechar o app ainda refaz a volta');
+  c.tratar({ type: 'result', is_error: false, modelUsage: {} });
+  assert.strictEqual(c.sessao, 'S-nova');
+  assert.strictEqual(c.volta, null);
+  assert.ok(c.anteriores.includes('S-original'), 'a sessão original fica guardada, nada é apagado');
+  const sem = new conversa._Conversa({ id: 'v2', titulo: 'x', sessao: 'S' });
+  assert.ok(!sem.argumentos().includes('--resume-session-at'));
+});
