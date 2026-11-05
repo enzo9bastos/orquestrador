@@ -420,7 +420,22 @@ async function atualizarEspelhos(r) {
 // --- notas -------------------------------------------------------------------
 // O editor de notas mora em notas-tela.js.
 
-async function atualizar() {
+// Uma atualização por vez: o intervalo de 2 s não espera a anterior, e com o
+// processo principal lento (docker, git) elas se empilhavam. Quem pede no meio
+// de uma (clique, troca de aba) ganha mais uma rodada logo depois dela.
+let atualizando = null, deNovo = false;
+const medida = { emCurso: 0, max: 0 };
+function atualizar() {
+  if (atualizando) { deNovo = true; return atualizando; }
+  atualizando = (async () => {
+    do { deNovo = false; await atualizarUmaVez(); } while (deNovo);
+  })().finally(() => { atualizando = null; });
+  return atualizando;
+}
+if (window.orq.teste) window.__orqLateral = { atualizar, medida, cru: () => atualizarUmaVez() };
+
+async function atualizarUmaVez() {
+  medida.max = Math.max(medida.max, ++medida.emCurso);
   try {
     // Testes de tela podem pôr um estado falso (agentes, fila) no lugar do real.
     const r = (window.orq.teste && window.__estadoFalso) || await window.orq.estado();
@@ -434,7 +449,7 @@ async function atualizar() {
     await atualizarEspelhos(r);
   } catch (err) {
     trocarHtml($('projetos'), VAZIO('i-terminal', 'Não consegui ler as frentes', `${esc(err.message)}. Tento de novo em 2 s.`));
-  }
+  } finally { medida.emCurso--; }
 }
 
 // --- interação --------------------------------------------------------------

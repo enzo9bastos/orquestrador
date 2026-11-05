@@ -113,6 +113,45 @@ test('workflows: relógio — intervalo não dispara na abertura; dispara depois
   assert.strictEqual(wf.execucoes('w-relogio')[0].motivo, 'relógio');
 });
 
+// Reiniciar o app = carregar o módulo de novo (a memória do relógio zera).
+function reiniciar() {
+  delete require.cache[require.resolve('../../workflows')];
+  const w2 = require('../../workflows');
+  w2.ligar({ conversa: { lista: () => [orq], mandar: (id, t) => mandados.push([id, t]), ambienteLimpo: () => ({ ...process.env }) }, avisar: (t, c) => avisos.push([t, c]), enviarTela: () => {} });
+  w2.desligar();
+  return w2;
+}
+
+test('workflows: relógio lembra o último disparo depois de reiniciar o app (M2)', async () => {
+  // Diário 08:30: disparou às 08:31; o app reinicia e às 08:33 não dispara de novo.
+  const d = reiniciar();
+  d.gravar({ id: 'w-diario', nome: 'diário', ativo: true, nos: [{ id: 'n1', tipo: 'agenda', config: { modo: 'diario', horario: '08:30', diasUteis: false } }, { id: 'n2', tipo: 'notificar', config: { titulo: 'bom dia' } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+  const hoje = new Date(); hoje.setHours(8, 31, 0, 0);
+  d.tique(hoje.getTime());
+  await new Promise((r) => setTimeout(r, 300));
+  assert.strictEqual(avisos.filter((a) => a[0] === 'bom dia').length, 1);
+  reiniciar().tique(hoje.getTime() + 2 * 60000);
+  await new Promise((r) => setTimeout(r, 300));
+  assert.strictEqual(avisos.filter((a) => a[0] === 'bom dia').length, 1, 'disparou de novo depois de reiniciar');
+
+  // Intervalo de 2 min: disparou em t0; reinicia em t0+1 min; em t0+2 min já vence
+  // (antes o intervalo zerava e só voltava em t0+3 min).
+  const i = reiniciar();
+  i.gravar({ id: 'w-interv', nome: 'intervalo', ativo: true, nos: [{ id: 'n1', tipo: 'agenda', config: { modo: 'intervalo', minutos: 2 } }, { id: 'n2', tipo: 'notificar', config: { titulo: 'passada' } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+  const t0 = Date.now();
+  i.tique(t0 - 130000); // começa a contar
+  i.tique(t0);          // vence
+  await new Promise((r) => setTimeout(r, 300));
+  assert.strictEqual(avisos.filter((a) => a[0] === 'passada').length, 1);
+  const depois = reiniciar();
+  depois.tique(t0 + 60000);
+  await new Promise((r) => setTimeout(r, 300));
+  assert.strictEqual(avisos.filter((a) => a[0] === 'passada').length, 1, 'não pode disparar antes do prazo');
+  depois.tique(t0 + 121000);
+  await new Promise((r) => setTimeout(r, 300));
+  assert.strictEqual(avisos.filter((a) => a[0] === 'passada').length, 2, 'o prazo conta do último disparo, não do reinício');
+});
+
 test('workflows: relógio diário — uma vez no horário, nunca fora dele, sem fim de semana', () => {
   const c = { modo: 'diario', horario: '08:30', diasUteis: true };
   const seg = new Date(2026, 9, 26, 8, 31).getTime(); // segunda

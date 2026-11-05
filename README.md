@@ -137,6 +137,8 @@ n8n-style automations for your machine. The home screen lists **Workflows**, **C
 an environment variable — never its value. It is read at run time, handed to the command as an
 environment variable and masked as `••••` in any saved output. *Test* only tells you how many
 characters it read.
+The vault session (`BW_SESSION`) and the variables registered as credentials are stripped from every
+conversation, terminal and workflow step: only the step that picked a credential receives it.
 
 <img src="docs/images/credentials.png" alt="A credential: only the reference is stored" width="900">
 

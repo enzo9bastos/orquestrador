@@ -1599,6 +1599,14 @@
     [
       "^Os agentes novos: (.+) ainda não roda aqui; o app usa o (.+)\\.$",
       "New agents: $1 doesn't run here yet; the app uses $2."
+    ],
+    [
+      "^Não salvei: (.+?) está estragado \\(JSON inválido\\); corrija o arquivo antes de mudar as permissões por aqui$",
+      "Not saved: $1 is broken (invalid JSON); fix the file before changing permissions here"
+    ],
+    [
+      "^Não salvei: (.+)$",
+      "Not saved: $1"
     ]
   ]
 }

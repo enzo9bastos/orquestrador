@@ -87,7 +87,27 @@ let conversa = null; // ligar(): { lista, mandar }
 let avisar = () => {};
 let enviarTela = () => {};
 const rodando = new Set();
+// Último disparo de cada relógio, guardado em disco: reiniciar o app não pode
+// disparar de novo o diário que já rodou hoje, nem zerar a contagem do intervalo.
+const ARQ_RELOGIO = path.join(os.homedir(), '.local', 'share', 'orq-app', 'workflows-relogio.json');
 const ultimoDisparo = new Map(); // "wf:no" → ms
+let relogioGuardado = null;
+function disparoGuardado(chave) {
+  if (!relogioGuardado) { try { relogioGuardado = JSON.parse(fs.readFileSync(ARQ_RELOGIO, 'utf8')) || {}; } catch { relogioGuardado = {}; } }
+  const v = Number(relogioGuardado[chave]);
+  return v > 0 ? v : null;
+}
+function guardarDisparo(chave, ms) {
+  ultimoDisparo.set(chave, ms);
+  if (!relogioGuardado) disparoGuardado(chave);
+  relogioGuardado[chave] = ms;
+  try {
+    fs.mkdirSync(path.dirname(ARQ_RELOGIO), { recursive: true });
+    const tmp = `${ARQ_RELOGIO}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(relogioGuardado) + '\n');
+    fs.renameSync(tmp, ARQ_RELOGIO);
+  } catch (e) { console.error('[workflows] não guardei o último disparo do relógio:', e.message); }
+}
 let relogio = null;
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
@@ -443,8 +463,12 @@ function tique(agora = Date.now()) {
     const devidos = [];
     for (const n of w.nos.filter((x) => x.tipo === 'agenda')) {
       const chave = `${w.id}:${n.id}`;
-      if (!ultimoDisparo.has(chave)) { ultimoDisparo.set(chave, n.config.modo === 'diario' ? 0 : agora); if (n.config.modo !== 'diario') continue; }
-      if (vence(n.config, agora, ultimoDisparo.get(chave))) { ultimoDisparo.set(chave, agora); devidos.push(n.id); }
+      if (!ultimoDisparo.has(chave)) {
+        const guardado = disparoGuardado(chave);
+        if (guardado) ultimoDisparo.set(chave, guardado);
+        else { ultimoDisparo.set(chave, n.config.modo === 'diario' ? 0 : agora); if (n.config.modo !== 'diario') continue; }
+      }
+      if (vence(n.config, agora, ultimoDisparo.get(chave))) { guardarDisparo(chave, agora); devidos.push(n.id); }
     }
     if (devidos.length) rodar(w.id, { motivo: 'relógio', gatilhos: devidos }).catch(() => {});
   }

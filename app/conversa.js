@@ -28,10 +28,25 @@ const HERDADAS = ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION', 'CLAUDE_CODE_SESSIO
   'CLAUDE_CODE_MESSAGING_SOCKET', 'CLAUDE_CODE_MESSAGING_TOKEN', 'CLAUDE_CODE_SESSION_ATTENDED',
   'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_CODE_EXECPATH', 'CLAUDE_EFFORT', 'AI_AGENT'];
 
+// Segredos que o app pode ter no próprio ambiente e que NÃO descem para as
+// conversas, terminais e passos de workflow: a sessão do cofre (com ela
+// qualquer conversa leria qualquer item) e as variáveis cadastradas como
+// credencial "Variável de ambiente". Quem precisa delas é só o passo de
+// workflow que as escolheu, e ele as recebe pelo nome que a credencial define.
+const SEGREDOS_BW = /^BW_(SESSION|CLIENTID|CLIENTSECRET|PASSWORD)$/;
+function variaveisDeCredencial() {
+  try {
+    const lista = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.config', 'orq-app', 'credenciais.json'), 'utf8')).credenciais || [];
+    return lista.filter((c) => c && c.tipo === 'ambiente' && c.ref).map((c) => String(c.ref).trim());
+  } catch { return []; }
+}
+
 function ambienteLimpo() {
   const env = { ...process.env };
   for (const k of HERDADAS) delete env[k];
   delete env.TMUX;
+  for (const k of Object.keys(env)) if (SEGREDOS_BW.test(k)) delete env[k];
+  for (const k of variaveisDeCredencial()) delete env[k];
   // Variáveis extras da configuração (ex.: avisar os scripts de projeto de
   // que estão dentro do app e não devem abrir janela de terminal solta).
   Object.assign(env, config.ler().ambiente || {});

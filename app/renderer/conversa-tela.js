@@ -528,7 +528,10 @@
     if (ev.target.closest('#perm-salvar')) {
       const novo = { defaultMode: $('perm-modo').value || null };
       for (const [k] of LISTAS) novo[k] = [...document.querySelectorAll(`.perm-lista[data-lista="${k}"] li code`)].map((c) => c.textContent);
-      await window.orq.permissoes.gravar(novo);
+      try { await window.orq.permissoes.gravar(novo); } catch (e) {
+        aviso(`Não salvei: ${String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')}`, 'erro');
+        return;
+      }
       fecharPopup();
       aviso('Permissões salvas. Use /restart para esta conversa passar a seguir as regras novas.');
     }

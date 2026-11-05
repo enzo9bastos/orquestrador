@@ -11,8 +11,16 @@ const COPIAS = path.join(os.homedir(), '.local', 'share', 'orq-app', 'versoes', 
 const LISTAS = ['allow', 'ask', 'deny'];
 const MODOS = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions'];
 
-function lerArquivo() {
-  try { return JSON.parse(fs.readFileSync(ARQ, 'utf8')); } catch { return {}; }
+// Sem arquivo: vazio. Arquivo estragado: ler devolve vazio (a tela mostra
+// sem regras), mas gravar recusa — regravar só com "permissions" apagaria o
+// resto do settings.json do Claude.
+function lerArquivo({ estrito = false } = {}) {
+  let bruto;
+  try { bruto = fs.readFileSync(ARQ, 'utf8'); } catch { return {}; }
+  try { return JSON.parse(bruto); } catch {
+    if (estrito) throw new Error(`${ARQ} está estragado (JSON inválido); corrija o arquivo antes de mudar as permissões por aqui`);
+    return {};
+  }
 }
 
 function ler() {
@@ -28,7 +36,7 @@ function ler() {
 }
 
 function gravar(novo) {
-  const atual = lerArquivo();
+  const atual = lerArquivo({ estrito: true });
   const p = { ...(atual.permissions || {}) };
   for (const k of LISTAS) {
     const l = (novo[k] || []).map((r) => String(r).trim()).filter(Boolean);

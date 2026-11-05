@@ -5,6 +5,15 @@
 // numa sessão tmux própria ("orquestrador"), então sobrevive ao app.
 const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net, Menu } = require('electron');
 const { pathToFileURL } = require('url');
+// Uma cópia só por usuário: duas rodariam cada workflow em dobro e
+// brigariam pelo servidor de controle e pelo ajudante. Abrir de novo só traz
+// a janela que já está aberta para a frente (sem mudar de área de trabalho).
+if (!app.requestSingleInstanceLock()) app.exit(0);
+app.on('second-instance', () => {
+  if (!janela || janela.isDestroyed()) return;
+  if (janela.isMinimized()) janela.restore();
+  janela.focus();
+});
 
 // orqnota://p<pasta>/<caminho>: imagens das pastas de notas, só dentro delas e
 // só arquivos de imagem. Assim o editor mostra os anexos sem abrir o disco

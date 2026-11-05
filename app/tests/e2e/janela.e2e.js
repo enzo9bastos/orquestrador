@@ -39,3 +39,31 @@ test('janela', async (t) => {
     assert.ok(alturas.every((h) => h < 40), `alturas: ${alturas}`);
   });
 });
+
+test('janela: abrir o app de novo não sobe uma segunda cópia (M1)', async () => {
+  const { spawn } = require('child_process');
+  const app = await abrirApp();
+  try {
+    const p2 = spawn(process.env.ORQ_ELECTRON, [require('path').join(__dirname, '..', '..')], {
+      env: { ...process.env, HOME: app.casa, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1' }, stdio: 'ignore',
+    });
+    const saiu = await new Promise((ok) => { const t = setTimeout(() => ok(false), 8000); p2.on('exit', () => { clearTimeout(t); ok(true); }); });
+    if (!saiu) p2.kill();
+    assert.ok(saiu, 'a segunda cópia continuou aberta (workflows e servidor de controle em dobro)');
+    assert.strictEqual(await app.avaliar('1 + 1'), 2, 'a primeira continua de pé');
+  } finally { await app.fechar(); }
+});
+
+test('janela: a atualização da lateral não roda sobreposta (M3)', async () => {
+  const app = await abrirApp();
+  try {
+    await app.esperar('!!window.__orqLateral');
+    const r = await app.avaliar(`(async () => {
+      window.__orqLateral.medida.max = 0;
+      await Promise.all([1, 2, 3, 4, 5, 6].map(() => window.__orqLateral.atualizar()));
+      return window.__orqLateral.medida.max;
+    })()`);
+    assert.strictEqual(r, 1, `${r} atualizações ao mesmo tempo`);
+    assert.deepStrictEqual(app.erros, []);
+  } finally { await app.fechar(); }
+});

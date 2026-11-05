@@ -184,3 +184,17 @@ test('topicos: aviso ao orquestrador vai por trás, marcado, e só com ele vivo'
   assert.strictEqual(mandados[0][1], '<orq-topico id="7" acao="aprovado" titulo="Arrumar aspas e sinais">\nTópico #7 «Arrumar aspas e sinais» aprovado pelo usuário: crie as etapas (orq-topico item) e mande um resumo (orq-topico resumo).\n</orq-topico>');
   assert.match(mandados[1][1], /^<orq-topico id="7" acao="recusado" [^]*recusado pelo usuário/);
 });
+
+test('topicos: app e orq-topico gravando juntos não perdem tópico nem repetem id (S7)', async () => {
+  const { execFile } = require('child_process');
+  const antes = topicos.ler().length;
+  const N = 16;
+  const rodar = (n) => new Promise((ok, falha) => execFile(process.execPath, [cli, 'abrir', `concorrente ${n}`],
+    { env: { ...process.env, HOME: casa } }, (e) => (e ? falha(e) : ok())));
+  await Promise.all(Array.from({ length: N }, (_, n) => rodar(n)));
+  const lista = topicos.ler();
+  const novos = lista.filter((t) => t.titulo.startsWith('concorrente '));
+  assert.strictEqual(novos.length, N, `${N - novos.length} tópico(s) perdido(s)`);
+  assert.strictEqual(new Set(lista.map((t) => t.id)).size, lista.length, 'id repetido');
+  assert.strictEqual(lista.length, antes + N);
+});

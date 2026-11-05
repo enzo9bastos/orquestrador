@@ -66,8 +66,36 @@ function gravarArquivo(lista) {
   fs.renameSync(tmp, a);
 }
 
+// Trava entre processos (o app e o orq-topico gravam o mesmo arquivo): um
+// arquivo .lock criado com 'wx' (só um consegue). Quem não consegue espera e
+// tenta de novo; uma trava esquecida por um processo que morreu (mais velha
+// que TRAVA_VELHA) é retomada. Sem isso, dois lendo ao mesmo tempo gravam por
+// cima um do outro e o tópico de um some.
+const TRAVA_ESPERA = 5000;
+const TRAVA_VELHA = 15000;
+const dormir = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+function comTrava(fn) {
+  const trava = `${arq()}.lock`;
+  fs.mkdirSync(path.dirname(trava), { recursive: true });
+  const limite = Date.now() + TRAVA_ESPERA;
+  let fd;
+  for (;;) {
+    try { fd = fs.openSync(trava, 'wx'); break; } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      try { if (Date.now() - fs.statSync(trava).mtimeMs > TRAVA_VELHA) { fs.rmSync(trava, { force: true }); continue; } } catch { continue; }
+      if (Date.now() > limite) throw new Error(`os tópicos estão travados por outro processo (${trava}); tente de novo`);
+      dormir(10 + Math.random() * 20);
+    }
+  }
+  try { fs.writeSync(fd, String(process.pid)); return fn(); } finally {
+    fs.closeSync(fd);
+    fs.rmSync(trava, { force: true });
+  }
+}
+
 // Lê, muda um tópico e grava. Devolve o tópico como ficou.
-function mudar(id, fn) {
+function mudar(id, fn) { return comTrava(() => mudarSemTrava(id, fn)); }
+function mudarSemTrava(id, fn) {
   const lista = ler();
   const chave = String(id ?? '').replace(/^#/, '');
   const t = lista.find((x) => x.id === chave);
@@ -83,6 +111,7 @@ function mudar(id, fn) {
 // Ids curtos e em sequência ("1", "2"…): o orquestrador digita no terminal.
 function abrir({ titulo, codigo, agente } = {}) {
   if (!texto(titulo, MAX_TITULO)) throw new Error('o tópico precisa de um título');
+  return comTrava(() => {
   const lista = ler();
   const id = String(lista.reduce((m, t) => Math.max(m, Number(t.id) || 0), 0) + 1);
   const agora = Date.now();
@@ -90,12 +119,14 @@ function abrir({ titulo, codigo, agente } = {}) {
   lista.push(t);
   gravarArquivo(lista);
   return t;
+  });
 }
 
 // Sugestão do orquestrador: nasce "sugerido", com o resumo e as etapas
 // previstas, e só vira trabalho quando o usuário aprova.
 function sugerir({ titulo, resumo, codigo, agente, itens } = {}) {
   if (!texto(titulo, MAX_TITULO)) throw new Error('o tópico precisa de um título');
+  return comTrava(() => {
   const lista = ler();
   const id = String(lista.reduce((m, t) => Math.max(m, Number(t.id) || 0), 0) + 1);
   const agora = Date.now();
@@ -105,6 +136,7 @@ function sugerir({ titulo, resumo, codigo, agente, itens } = {}) {
   lista.push(t);
   gravarArquivo(lista);
   return t;
+  });
 }
 
 // Resumo troca o anterior (é um parágrafo só); vazio tira o resumo.

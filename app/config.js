@@ -83,8 +83,17 @@ const PADRAO = {
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
 
+// Arquivo que não existe vale como vazio. Arquivo que existe e não é JSON
+// válido é marcado: quem grava guarda o original ao lado antes de escrever,
+// para a configuração não sumir em silêncio.
+const ESTRAGADO = Symbol('estragado');
 function lerArquivo() {
-  try { return JSON.parse(fs.readFileSync(ARQ, 'utf8')); } catch { return {}; }
+  let bruto;
+  try { bruto = fs.readFileSync(ARQ, 'utf8'); } catch { return {}; }
+  try {
+    const c = JSON.parse(bruto);
+    return c && typeof c === 'object' && !Array.isArray(c) ? c : { [ESTRAGADO]: true };
+  } catch { return { [ESTRAGADO]: true }; }
 }
 
 function ler() {
@@ -151,11 +160,19 @@ function validar(m) {
 }
 
 // Grava só as chaves mudadas, sem copiar os padrões para o arquivo.
+// Escrita atômica (arquivo temporário + rename): cair no meio não deixa o
+// config.json cortado.
 function gravar(mudancas) {
   const atual = lerArquivo();
-  Object.assign(atual, mudancas);
   fs.mkdirSync(path.dirname(ARQ), { recursive: true });
-  fs.writeFileSync(ARQ, JSON.stringify(atual, null, 2) + '\n');
+  if (atual[ESTRAGADO]) {
+    fs.copyFileSync(ARQ, `${ARQ}.estragado-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+    console.error(`[config] ${ARQ} não era JSON válido; o original ficou guardado ao lado (.estragado-*)`);
+  }
+  Object.assign(atual, mudancas);
+  const tmp = `${ARQ}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(atual, null, 2) + '\n');
+  fs.renameSync(tmp, ARQ);
   return ler();
 }
 
