@@ -9,6 +9,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const md = require('./demandas-md');
+const config = require('./config');
 
 // Caminhos calculados na hora: os testes trocam o HOME depois de carregar.
 const arq = () => path.join(os.homedir(), '.config', 'orq-app', 'topicos.json');
@@ -37,7 +39,102 @@ function limpar(t) {
     concluido: t.estado === 'concluido' ? (Number(t.concluido) || Date.now()) : undefined,
     aprovado: Number(t.aprovado) || undefined,
     recusado: t.estado === 'recusado' ? (Number(t.recusado) || Date.now()) : undefined,
+    // Demanda com .md: o nome do arquivo na pasta Demandas e o título que deu
+    // nome a ele (mudar o título dentro da nota não renomeia o arquivo).
+    arquivo: typeof t.arquivo === 'string' && /^[^/\\]+\.md$/.test(t.arquivo) ? t.arquivo : undefined,
+    nomeBase: typeof t.nomeBase === 'string' && t.nomeBase.trim() ? t.nomeBase.slice(0, MAX_TITULO) : undefined,
   };
+}
+
+// --- demandas em .md ----------------------------------------------------------
+// Cada demanda aprovada (aberta, esperando ou concluída) é um .md em
+// <primeira pasta de notas>/Demandas, que o usuário abre e edita na aba Notas.
+// O .md manda no conteúdo (título, estado, etapas, resumo, anotações); o
+// topicos.json é o índice (número → arquivo) e guarda sugeridas e recusadas,
+// que só viram arquivo quando aprovadas. Sem pasta de notas: só o json.
+const COM_ARQUIVO = ['aberto', 'esperando', 'concluido'];
+function pastaDemandas() {
+  try {
+    const c = config.ler();
+    const lista = Array.isArray(c.pastasNotas) && c.pastasNotas.length ? c.pastasNotas : c.pastaNotas ? [{ caminho: c.pastaNotas }] : [];
+    const raiz = lista[0] && String(lista[0].caminho || '').replace(/^~(?=$|\/)/, os.homedir());
+    return raiz && fs.existsSync(raiz) ? path.join(raiz, 'Demandas') : null;
+  } catch { return null; }
+}
+const versoesMd = () => path.join(versoes(), 'demandas');
+function guardarVersaoMd(abs) {
+  if (!fs.existsSync(abs)) return;
+  fs.mkdirSync(versoesMd(), { recursive: true });
+  const base = `${new Date().toISOString().replace(/[:.]/g, '-')}-${path.basename(abs)}`;
+  let destino = path.join(versoesMd(), base);
+  for (let n = 2; fs.existsSync(destino); n++) destino = path.join(versoesMd(), `${n}-${base}`);
+  fs.copyFileSync(abs, destino);
+}
+// Nome livre na pasta: nunca escreve por cima de outro arquivo.
+function nomeLivre(pasta, nome, meu) {
+  if (nome === meu || !fs.existsSync(path.join(pasta, nome))) return nome;
+  const base = nome.replace(/\.md$/, '');
+  for (let n = 2; ; n++) { const c = `${base} (${n}).md`; if (c === meu || !fs.existsSync(path.join(pasta, c))) return c; }
+}
+// Puxa do .md o que o usuário (ou outra gravação) mudou lá.
+function juntarDoMd(t, pasta) {
+  if (!pasta || !t.arquivo || !COM_ARQUIVO.includes(t.estado)) return t;
+  let txt, st;
+  try { txt = fs.readFileSync(path.join(pasta, t.arquivo), 'utf8'); st = fs.statSync(path.join(pasta, t.arquivo)); } catch { return t; }
+  const l = md.ler(txt);
+  if (l.titulo) t.titulo = texto(l.titulo, MAX_TITULO) || t.titulo;
+  if (l.estado) {
+    if (l.estado === 'concluido' && t.estado !== 'concluido') t.concluido = t.concluido || Date.now();
+    if (l.estado !== 'concluido') delete t.concluido;
+    t.estado = l.estado;
+  }
+  if (l.codigo !== null || l.agentes !== null) { t.codigo = l.codigo || undefined; t.agentes = l.agentes || []; }
+  if (l.resumo !== null) t.resumo = l.resumo || undefined;
+  if (l.itens !== null) t.itens = l.itens;
+  t.anotacoes = l.anotacoes;
+  t.atualizado = Math.max(Number(t.atualizado) || 0, Math.round(st.mtimeMs));
+  return t;
+}
+// Grava o .md de cada demanda que tem (ou passa a ter) arquivo: cria, troca o
+// nome ao concluir/reabrir e reescreve só se o conteúdo mudou. Devolve os
+// nomes criados.
+function sincronizarMd(lista, pasta) {
+  const criados = [];
+  if (!pasta) return criados;
+  for (const t of lista) {
+    if (!COM_ARQUIVO.includes(t.estado)) continue;
+    fs.mkdirSync(pasta, { recursive: true });
+    if (!t.nomeBase) t.nomeBase = t.titulo;
+    let atual = t.arquivo && fs.existsSync(path.join(pasta, t.arquivo)) ? t.arquivo : null;
+    // Ligação perdida (um app antigo regravou o índice sem o nome do arquivo):
+    // adota a nota de demanda (tem a linha "Estado:") com o nome deste título
+    // em vez de criar outra.
+    if (!atual) {
+      for (const cand of [md.nomeArquivo(t.nomeBase, 'aberto'), md.nomeArquivo(t.nomeBase, 'concluido')]) {
+        try {
+          const l = md.ler(fs.readFileSync(path.join(pasta, cand), 'utf8'));
+          if (l.estado && (!l.titulo || l.titulo === t.titulo) && !lista.some((o) => o !== t && o.arquivo === cand)) { atual = cand; break; }
+        } catch { /* não existe */ }
+      }
+      if (atual && t.anotacoes == null) t.anotacoes = md.ler(fs.readFileSync(path.join(pasta, atual), 'utf8')).anotacoes;
+    }
+    let anotacoes = t.anotacoes;
+    if (anotacoes == null) anotacoes = atual ? md.ler(fs.readFileSync(path.join(pasta, atual), 'utf8')).anotacoes : (t.notas || '');
+    const desejado = nomeLivre(pasta, md.nomeArquivo(t.nomeBase, t.estado), atual);
+    if (atual && atual !== desejado) { fs.renameSync(path.join(pasta, atual), path.join(pasta, desejado)); }
+    if (!atual) criados.push(desejado);
+    t.arquivo = desejado;
+    const abs = path.join(pasta, desejado);
+    const novo = md.formatar(t, anotacoes);
+    let velho = null;
+    try { velho = fs.readFileSync(abs, 'utf8'); } catch { /* novo */ }
+    if (velho !== null && md.ler(velho) && JSON.stringify(md.ler(velho)) === JSON.stringify(md.ler(novo))) continue;
+    guardarVersaoMd(abs);
+    const tmp = `${abs}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, novo);
+    fs.renameSync(tmp, abs);
+  }
+  return criados;
 }
 
 // Arquivo estragado não é tratado como vazio: gravar por cima apagaria tudo.
@@ -46,10 +143,12 @@ function ler() {
   try { cru = fs.readFileSync(arq(), 'utf8'); } catch { return []; }
   let d;
   try { d = JSON.parse(cru); } catch { throw new Error(`${arq()} está estragado (JSON inválido); conserte ou restaure de ${versoes()}`); }
-  return (Array.isArray(d.topicos) ? d.topicos : []).filter((t) => t && t.id != null).map(limpar);
+  const pasta = pastaDemandas();
+  return (Array.isArray(d.topicos) ? d.topicos : []).filter((t) => t && t.id != null).map(limpar).map((t) => juntarDoMd(t, pasta));
 }
 
 function gravarArquivo(lista) {
+  sincronizarMd(lista, pastaDemandas());
   const a = arq();
   if (fs.existsSync(a)) {
     fs.mkdirSync(versoes(), { recursive: true });
@@ -62,7 +161,7 @@ function gravarArquivo(lista) {
   fs.mkdirSync(path.dirname(a), { recursive: true });
   // tmp com o pid: o app e o orq-topico podem gravar ao mesmo tempo.
   const tmp = `${a}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify({ topicos: lista }, null, 2) + '\n');
+  fs.writeFileSync(tmp, JSON.stringify({ topicos: lista.map(({ anotacoes, ...t }) => t) }, null, 2) + '\n');
   fs.renameSync(tmp, a);
 }
 
@@ -103,7 +202,9 @@ function mudarSemTrava(id, fn) {
   fn(t);
   t.atualizado = Date.now();
   const i = lista.indexOf(t);
+  const anotacoes = t.anotacoes;
   lista[i] = limpar(t);
+  if (anotacoes != null) lista[i].anotacoes = anotacoes;
   gravarArquivo(lista);
   return lista[i];
 }
@@ -146,7 +247,7 @@ function resumo(id, txt) {
 
 function renomear(id, novo) {
   if (!texto(novo, MAX_TITULO)) throw new Error('o tópico precisa de um título');
-  return mudar(id, (t) => { t.titulo = novo; });
+  return mudar(id, (t) => { t.titulo = novo; t.nomeBase = novo; });
 }
 
 // Aprovar: só o que está sugerido (ou recusado, se reconsiderou direto). O
@@ -155,6 +256,7 @@ function aprovar(id, { titulo } = {}) {
   return mudar(id, (t) => {
     if (t.estado !== 'sugerido' && t.estado !== 'recusado') throw new Error(`o tópico ${t.id} não está sugerido (está ${t.estado})`);
     if (texto(titulo, MAX_TITULO)) t.titulo = titulo;
+    t.nomeBase = t.titulo;
     t.estado = 'aberto';
     t.aprovado = Date.now();
     delete t.recusado;
@@ -248,23 +350,62 @@ function agente(id, nome) {
 function nota(id, txt) {
   const linha = String(txt ?? '').trim();
   if (!linha) throw new Error('a nota precisa de um texto');
-  return mudar(id, (t) => { t.notas = t.notas ? `${t.notas}\n${linha}` : linha; });
+  return mudar(id, (t) => {
+    // Com .md: a linha entra no fim das Anotações. Sem: no campo notas.
+    if (pastaDemandas() && COM_ARQUIVO.includes(t.estado)) t.anotacoes = t.anotacoes ? `${t.anotacoes}\n${linha}` : linha;
+    else t.notas = t.notas ? `${t.notas}\n${linha}` : linha;
+  });
 }
 
 // Vigia a pasta (o arquivo é trocado por rename, então vigiar só o arquivo
 // perderia a troca) e avisa com a lista nova, juntando rajadas de mudança.
+// Migração: grava o .md de toda demanda que ainda não tem. Rodar de novo
+// não cria nada. O topicos.json continua (é o índice e o backup).
+function migrarParaNotas() {
+  const pasta = pastaDemandas();
+  if (!pasta) return { criados: [], pasta: null };
+  return comTrava(() => {
+    const lista = ler();
+    const antes = JSON.stringify(lista.map((t) => [t.id, t.arquivo, t.nomeBase]));
+    const criados = sincronizarMd(lista, pasta);
+    // Grava o índice se ligou algum arquivo (criado ou adotado).
+    if (JSON.stringify(lista.map((t) => [t.id, t.arquivo, t.nomeBase])) !== antes) gravarArquivo(lista);
+    return { criados, pasta };
+  });
+}
+
+// Onde a nota de uma demanda está (para a tela abrir na aba Notas).
+function ondeNota(id) {
+  const t = ler().find((x) => x.id === String(id));
+  const pasta = pastaDemandas();
+  if (!t || !t.arquivo || !pasta) return null;
+  return { pasta, arquivo: t.arquivo, abs: path.join(pasta, t.arquivo) };
+}
+
 function vigiar(aoMudar) {
   const pasta = path.dirname(arq());
   fs.mkdirSync(pasta, { recursive: true });
   let espera;
-  const w = fs.watch(pasta, (_tipo, nome) => {
-    if (nome && nome !== 'topicos.json') return;
+  const avisar = () => {
     clearTimeout(espera);
     espera = setTimeout(() => {
       try { aoMudar({ topicos: ler() }); } catch (e) { aoMudar({ topicos: null, erro: e.message }); }
     }, 120);
-  });
-  return () => { clearTimeout(espera); w.close(); };
+  };
+  const w = fs.watch(pasta, (_tipo, nome) => { if (!nome || nome === 'topicos.json') avisar(); });
+  // A pasta Demandas também: editar a nota na aba Notas atualiza o painel.
+  // Ela só existe depois da primeira demanda com nota (nunca é criada vazia):
+  // enquanto não existe, vigia a pasta de notas até ela aparecer.
+  let wd = null, wr = null;
+  const pd = pastaDemandas();
+  const vigiarDemandas = () => {
+    if (wd || !pd || !fs.existsSync(pd)) return;
+    try { wd = fs.watch(pd, (_tipo, nome) => { if (!nome || /\.md$/.test(nome)) avisar(); }); } catch { wd = null; }
+    if (wd && wr) { wr.close(); wr = null; }
+  };
+  vigiarDemandas();
+  if (pd && !wd) { try { wr = fs.watch(path.dirname(pd), (_tipo, nome) => { if (nome === path.basename(pd)) { vigiarDemandas(); avisar(); } }); } catch { /* sem pasta de notas */ } }
+  return () => { clearTimeout(espera); w.close(); if (wd) wd.close(); if (wr) wr.close(); };
 }
 
-module.exports = { ESTADOS, arq, versoes, ler, abrir, sugerir, resumo, renomear, aprovar, recusar, reconsiderar, marcarBastidor, avisarOrquestrador, item, marcar, pendentes, concluir, estado, agente, nota, vigiar };
+module.exports = { ESTADOS, arq, versoes, pastaDemandas, migrarParaNotas, ondeNota, ler, abrir, sugerir, resumo, renomear, aprovar, recusar, reconsiderar, marcarBastidor, avisarOrquestrador, item, marcar, pendentes, concluir, estado, agente, nota, vigiar };

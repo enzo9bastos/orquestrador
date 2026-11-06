@@ -201,10 +201,21 @@ function removerPasta(i) {
 }
 
 // Caminho absoluto de uma nota existente (para a lixeira); só .md dentro da pasta.
+// Pasta de notas e caminho relativo de um arquivo absoluto (a demanda que o
+// painel manda abrir). null se não estiver em nenhuma pasta de notas.
+function localizar(abs) {
+  const lista = pastas();
+  for (let i = 0; i < lista.length; i++) {
+    const base = lista[i].caminho;
+    if (abs.startsWith(base + path.sep)) return { i, rel: path.relative(base, abs).split(path.sep).join('/') };
+  }
+  return null;
+}
+
 function caminhoDaNota(i, rel) {
   const abs = resolver(i, rel);
   if (!/\.md$/i.test(abs) || !fs.statSync(abs).isFile()) throw new Error('não é uma nota');
   return abs;
 }
 
-module.exports = { caminhoDaNota, salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+module.exports = { localizar, caminhoDaNota, salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };

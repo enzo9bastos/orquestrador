@@ -335,6 +335,16 @@ ipcMain.handle('ias:escolherCaminho', async (_e, id) => {
 // O orquestrador mexe pelo bin/orq-topico; a tela, por aqui. Erro volta como
 // { erro } para a tela mostrar, em vez de estourar no invoke.
 const pelaTela = (fn) => (_e, ...a) => { try { return { topicos: (fn(...a), topicos.ler()) }; } catch (e) { return { erro: e.message }; } };
+// Onde a nota de uma demanda está na aba Notas ({ i, rel }) para o painel abrir.
+ipcMain.handle('topicos:nota', (_e, id) => {
+  try {
+    const o = topicos.ondeNota(id);
+    if (!o) return { erro: 'esta demanda ainda não tem nota (só as aprovadas têm)' };
+    if (!fs.existsSync(o.abs)) return { erro: `a nota ${o.arquivo} não está na pasta Demandas` };
+    const l = notas.localizar(o.abs);
+    return l || { erro: 'a pasta Demandas não está dentro de uma pasta de notas' };
+  } catch (e) { return { erro: e.message }; }
+});
 ipcMain.handle('topicos:lista', () => { try { return { topicos: topicos.ler() }; } catch (e) { return { topicos: null, erro: e.message }; } });
 ipcMain.handle('topicos:abrir', pelaTela((o) => topicos.abrir(o || {})));
 ipcMain.handle('topicos:item', pelaTela((id, txt) => topicos.item(id, txt)));
@@ -470,6 +480,9 @@ app.whenReady().then(() => {
     avisar: (titulo, corpo) => { if (Notification.isSupported()) new Notification({ title: titulo, body: corpo }).show(); },
   });
   // Tópicos: o orq-topico grava o arquivo; a tela recebe a lista nova na hora.
+  // Demandas viram notas .md (pasta Demandas da 1ª pasta de notas): cria o
+  // arquivo das que ainda não têm. Só cria; rodar de novo não faz nada.
+  try { const m = topicos.migrarParaNotas(); if (m.criados.length) console.log(`[demandas] ${m.criados.length} nota(s) criada(s) em ${m.pasta}`); } catch (e) { console.error('[demandas] migração:', e.message); }
   try { pararTopicos = topicos.vigiar((m) => enviar('topicos:mudou', m)); } catch { /* sem pasta de config: a tela ainda lê ao abrir */ }
   // Sinal de vida a cada 3 s: o hook só espera resposta do app se este
   // arquivo foi tocado há menos de 15 s.

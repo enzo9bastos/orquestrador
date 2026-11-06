@@ -1403,3 +1403,8 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .corrigindo[hidden] { display: none; }
 /* Botão logo depois do texto, não no canto: o bichinho costuma ficar em pé ali. */
 .corrigindo .botao-texto { flex: none; margin-left: 4px; }
+
+/* Demanda com nota: cartão resumido; o clique abre a nota na aba Notas. */
+.topico-resumido { cursor: pointer; gap: 6px; }
+.topico-resumido:hover { border-color: var(--borda-forte); background: var(--painel-hover); }
+.topico-resumido:focus-visible { outline: 2px solid var(--claude); outline-offset: 2px; }

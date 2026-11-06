@@ -964,7 +964,8 @@
     "Cancelar (Esc)": "Cancel (Esc)",
     "Editar": "Edit",
     "Voltar a conversa para antes desta mensagem e corrigir": "Rewind the conversation to before this message and fix it",
-    "Voltei a conversa para antes desta mensagem. Corrija e envie.": "Rewound the conversation to before this message. Fix it and send."
+    "Voltei a conversa para antes desta mensagem. Corrija e envie.": "Rewound the conversation to before this message. Fix it and send.",
+    "Abrir a demanda na aba Notas": "Open the request in the Notes tab"
   },
   "padroes": [
     [
@@ -1622,6 +1623,10 @@
     [
       "^Não deu para voltar: (.+)\\. A conversa continua como estava\\.$",
       "Couldn't rewind: $1. The conversation stays as it was."
+    ],
+    [
+      "^Não consegui abrir a nota: (.+)$",
+      "Couldn't open the note: $1"
     ]
   ]
 }

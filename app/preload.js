@@ -117,6 +117,7 @@ contextBridge.exposeInMainWorld('orq', {
   },
   topicos: {
     lista: () => ipcRenderer.invoke('topicos:lista'),
+    nota: (id) => ipcRenderer.invoke('topicos:nota', id),
     abrir: (o) => ipcRenderer.invoke('topicos:abrir', o),
     item: (id, txt) => ipcRenderer.invoke('topicos:item', id, txt),
     marcar: (id, item, feito) => ipcRenderer.invoke('topicos:marcar', id, item, feito),

@@ -72,6 +72,21 @@
     const feitos = t.itens.filter((i) => i.feito).length;
     const total = t.itens.length;
     const concluido = t.estado === 'concluido';
+    // Demanda com nota (.md na pasta Demandas): cartão resumido; o clique abre
+    // a nota na aba Notas, onde estão o resumo, as etapas e as anotações.
+    if (t.arquivo) {
+      return `<article class="topico topico-resumido estado-${esc(t.estado)}" data-topico="${esc(t.id)}" data-abrir-nota="${esc(t.id)}" role="button" tabindex="0" title="Abrir a demanda na aba Notas">
+      <header class="topico-cab">
+        <span class="chip-topico chip-${esc(t.estado)}">${ROTULO[t.estado]}</span>
+        <strong class="topico-titulo" data-sem-traducao>${esc(t.titulo)}</strong>
+      </header>
+      <div class="topico-meta">
+        ${t.codigo ? `<span class="topico-codigo" data-sem-traducao title="Código">${esc(t.codigo)}</span>` : ''}
+        ${t.agentes.length ? `<span class="topico-agentes" data-sem-traducao>${esc(t.agentes.join(', '))}</span>` : ''}
+        ${total ? `<span class="topico-progresso" title="${feitos} de ${total} feitos"><span data-sem-traducao>${feitos}/${total}</span><span class="barra-topico"><i style="width:${Math.round((feitos / total) * 100)}%"></i></span></span>` : ''}
+      </div>
+    </article>`;
+    }
     return `<article class="topico estado-${esc(t.estado)}" data-topico="${esc(t.id)}">
       <header class="topico-cab">
         <span class="chip-topico chip-${esc(t.estado)}">${ROTULO[t.estado]}</span>
@@ -219,6 +234,21 @@
   coluna.addEventListener('input', (ev) => {
     const c = ev.target.closest('[data-titulo-sugerido]');
     if (c) titulosEditados.set(c.dataset.tituloSugerido, c.value);
+  });
+  // Cartão resumido: clique (ou Enter) abre a nota da demanda na aba Notas.
+  async function abrirNota(id) {
+    const r = await T.nota(id);
+    if (!r || r.erro) { mostrarErro(`Não consegui abrir a nota: ${(r && r.erro) || 'erro desconhecido'}`); return; }
+    document.querySelector('[data-aba="aba-notas"]')?.click();
+    if (window.orqNotas && window.orqNotas.abrir) await window.orqNotas.abrir(r.i, r.rel);
+  }
+  coluna.addEventListener('click', (ev) => {
+    const c = ev.target.closest('[data-abrir-nota]');
+    if (c && !ev.target.closest('button, a, input')) abrirNota(c.dataset.abrirNota);
+  });
+  coluna.addEventListener('keydown', (ev) => {
+    const c = ev.target.closest('[data-abrir-nota]');
+    if (c && ev.target === c && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); abrirNota(c.dataset.abrirNota); }
   });
   // Resumo em parágrafo: clique ou Enter abre a edição.
   coluna.addEventListener('click', (ev) => {
