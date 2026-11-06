@@ -25,6 +25,18 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
     assert.strictEqual(await app.avaliar("document.querySelectorAll('.topico-resumido input, .topico-resumido form').length"), 0, 'sem checklist nem campos no cartão');
   });
 
+  await t.test('setinha expande e mostra só o que falta; não abre a nota', async () => {
+    assert.strictEqual(await app.avaliar("!!document.querySelector('.topico-resumido .lista-falta')"), false, 'começa recolhido');
+    await app.avaliar("document.querySelector('.topico-resumido [data-expandir-topico]').click()");
+    await app.esperar("!!document.querySelector('.topico-resumido .lista-falta')");
+    const falta = await app.avaliar("[...document.querySelectorAll('.topico-resumido .lista-falta li')].map((l) => l.innerText.trim())");
+    assert.deepStrictEqual(falta, ['Testar restauração'], 'só a etapa que falta');
+    assert.ok(!(await app.avaliar("document.getElementById('aba-notas').classList.contains('ativa')")), 'a setinha não abre a nota');
+    assert.strictEqual(await app.avaliar("document.querySelector('[data-expandir-topico]').getAttribute('aria-expanded')"), 'true');
+    await app.avaliar("document.querySelector('.topico-resumido [data-expandir-topico]').click()");
+    await app.esperar("!document.querySelector('.topico-resumido .lista-falta')");
+  });
+
   await t.test('clicar abre a nota da demanda na aba Notas', async () => {
     await app.avaliar("document.querySelector('.topico-resumido .topico-titulo').click()");
     await app.esperar("document.getElementById('aba-notas').classList.contains('ativa')", 5000);

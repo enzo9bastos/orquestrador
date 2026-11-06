@@ -965,7 +965,9 @@
     "Editar": "Edit",
     "Voltar a conversa para antes desta mensagem e corrigir": "Rewind the conversation to before this message and fix it",
     "Voltei a conversa para antes desta mensagem. Corrija e envie.": "Rewound the conversation to before this message. Fix it and send.",
-    "Abrir a demanda na aba Notas": "Open the request in the Notes tab"
+    "Abrir a demanda na aba Notas": "Open the request in the Notes tab",
+    "Mostrar o que falta fazer": "Show what is left to do",
+    "O que falta fazer": "What is left to do"
   },
   "padroes": [
     [

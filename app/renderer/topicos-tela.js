@@ -11,6 +11,7 @@
   const ROTULO = { sugerido: 'Sugerido', aberto: 'Aberto', esperando: 'Esperando você', concluido: 'Concluído', recusado: 'Recusado' };
   let lista = [];
   let erro = null;
+  const expandidos = new Set(); // cartões resumidos com o "falta fazer" aberto
   let pendente = false; // chegou mudança enquanto alguém digitava num tópico
   // Título de sugestão corrigido na tela e ainda não aprovado: sobrevive a um
   // redesenho e vai junto no Aprovar.
@@ -75,16 +76,20 @@
     // Demanda com nota (.md na pasta Demandas): cartão resumido; o clique abre
     // a nota na aba Notas, onde estão o resumo, as etapas e as anotações.
     if (t.arquivo) {
+      const faltam = t.itens.filter((i) => !i.feito);
+      const aberto = expandidos.has(t.id) && faltam.length > 0;
       return `<article class="topico topico-resumido estado-${esc(t.estado)}" data-topico="${esc(t.id)}" data-abrir-nota="${esc(t.id)}" role="button" tabindex="0" title="Abrir a demanda na aba Notas">
       <header class="topico-cab">
         <span class="chip-topico chip-${esc(t.estado)}">${ROTULO[t.estado]}</span>
         <strong class="topico-titulo" data-sem-traducao>${esc(t.titulo)}</strong>
+        ${faltam.length ? `<button type="button" class="seta-topico${aberto ? ' aberta' : ''}" data-expandir-topico="${esc(t.id)}" aria-expanded="${aberto}" aria-label="Mostrar o que falta fazer" title="Mostrar o que falta fazer"><svg class="ico" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}
       </header>
       <div class="topico-meta">
         ${t.codigo ? `<span class="topico-codigo" data-sem-traducao title="Código">${esc(t.codigo)}</span>` : ''}
         ${t.agentes.length ? `<span class="topico-agentes" data-sem-traducao>${esc(t.agentes.join(', '))}</span>` : ''}
         ${total ? `<span class="topico-progresso" title="${feitos} de ${total} feitos"><span data-sem-traducao>${feitos}/${total}</span><span class="barra-topico"><i style="width:${Math.round((feitos / total) * 100)}%"></i></span></span>` : ''}
       </div>
+      ${aberto ? `<ul class="lista-falta" aria-label="O que falta fazer">${faltam.map((i) => `<li data-sem-traducao>${esc(i.texto)}</li>`).join('')}</ul>` : ''}
     </article>`;
     }
     return `<article class="topico estado-${esc(t.estado)}" data-topico="${esc(t.id)}">
@@ -234,6 +239,15 @@
   coluna.addEventListener('input', (ev) => {
     const c = ev.target.closest('[data-titulo-sugerido]');
     if (c) titulosEditados.set(c.dataset.tituloSugerido, c.value);
+  });
+  // Setinha do cartão resumido: mostra/esconde o que falta fazer (só na tela;
+  // o cartão volta recolhido ao reabrir o app).
+  coluna.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-expandir-topico]');
+    if (!b) return;
+    const id = b.dataset.expandirTopico;
+    if (expandidos.has(id)) expandidos.delete(id); else expandidos.add(id);
+    desenhar();
   });
   // Cartão resumido: clique (ou Enter) abre a nota da demanda na aba Notas.
   async function abrirNota(id) {

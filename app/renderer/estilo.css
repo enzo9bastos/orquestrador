@@ -1408,3 +1408,12 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .topico-resumido { cursor: pointer; gap: 6px; }
 .topico-resumido:hover { border-color: var(--borda-forte); background: var(--painel-hover); }
 .topico-resumido:focus-visible { outline: 2px solid var(--claude); outline-offset: 2px; }
+
+/* Setinha do cartão resumido e a lista do que falta fazer. */
+.topico-resumido .topico-cab { align-items: flex-start; }
+.seta-topico { margin-left: auto; flex: none; display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: var(--r-sm); background: none; color: var(--fg-3); cursor: pointer; }
+.seta-topico:hover { background: var(--painel-hover); color: var(--fg); }
+.seta-topico .ico { width: 14px; height: 14px; transition: rotate .15s; }
+.seta-topico.aberta .ico { rotate: 90deg; }
+.lista-falta { margin: 2px 0 0; padding: 6px 0 0 18px; border-top: 1px solid var(--borda); font-size: 12.5px; color: var(--fg-2); display: grid; gap: 3px; list-style: circle; }
+@media (prefers-reduced-motion: reduce) { .seta-topico .ico { transition: none; } }
