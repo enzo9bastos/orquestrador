@@ -38,9 +38,63 @@ function resolver(i, rel) {
   return abs;
 }
 
-// Árvore só com .md (e as pastas que levam a algum .md).
+// --- pastas escondidas --------------------------------------------------------
+// Esconder tira a pasta só da árvore (nada é apagado; ela continua no disco).
+// Guardado por pasta de notas (caminho absoluto da raiz), num arquivo próprio.
+const arqEscondidas = () => path.join(os.homedir(), '.config', 'orq-app', 'notas-escondidas.json');
+function lerEscondidas() { try { return JSON.parse(fs.readFileSync(arqEscondidas(), 'utf8')) || {}; } catch { return {}; } }
+function gravarEscondidas(m) {
+  fs.mkdirSync(path.dirname(arqEscondidas()), { recursive: true });
+  const tmp = `${arqEscondidas()}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(m, null, 2) + '\n');
+  fs.renameSync(tmp, arqEscondidas());
+}
+function relDePasta(i, rel) {
+  const raiz = resolver(i, '');
+  const abs = resolver(i, rel);
+  if (abs === raiz) throw new Error('a raiz da pasta de notas não pode ser escondida nem apagada por aqui');
+  return { raiz, abs, rel: path.relative(raiz, abs).split(path.sep).join('/') };
+}
+function escondidas(i) { return [...(lerEscondidas()[resolver(i, '')] || [])].sort(); }
+function esconder(i, rel) {
+  const r = relDePasta(i, rel);
+  const m = lerEscondidas();
+  m[r.raiz] = [...new Set([...(m[r.raiz] || []), r.rel])];
+  gravarEscondidas(m);
+  return escondidas(i);
+}
+function mostrar(i, rel) {
+  const r = relDePasta(i, rel);
+  const m = lerEscondidas();
+  m[r.raiz] = (m[r.raiz] || []).filter((x) => x !== r.rel);
+  if (!m[r.raiz].length) delete m[r.raiz];
+  gravarEscondidas(m);
+  return escondidas(i);
+}
+// O que vai junto se a pasta for para a lixeira (a confirmação mostra).
+function contarPasta(i, rel) {
+  const r = relDePasta(i, rel);
+  if (!fs.statSync(r.abs).isDirectory()) throw new Error('não é uma pasta');
+  const c = { notas: 0, arquivos: 0, pastas: 0 };
+  (function andar(dir) {
+    for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (d.isDirectory()) { c.pastas++; andar(path.join(dir, d.name)); } else { c.arquivos++; if (/\.md$/i.test(d.name)) c.notas++; }
+    }
+  })(r.abs);
+  return c;
+}
+// Caminho absoluto da pasta para a lixeira: nunca a raiz.
+function caminhoDaPasta(i, rel) {
+  const r = relDePasta(i, rel);
+  if (!fs.statSync(r.abs).isDirectory()) throw new Error('não é uma pasta');
+  return r.abs;
+}
+
+// Árvore só com .md (e as pastas que levam a algum .md). Pastas escondidas
+// pelo usuário ficam de fora.
 function arvore(i) {
   const raiz = resolver(i, '');
+  const ocultas = new Set(lerEscondidas()[raiz] || []);
   let conta = 0;
   function andar(dir, rel, nivel) {
     if (nivel > 8 || conta > MAX_ARQUIVOS) return [];
@@ -51,6 +105,7 @@ function arvore(i) {
       if (d.name.startsWith('.') || d.name === 'node_modules') continue;
       const r = rel ? `${rel}/${d.name}` : d.name;
       if (d.isDirectory()) {
+        if (ocultas.has(r)) continue;
         const filhos = andar(path.join(dir, d.name), r, nivel + 1);
         // Pasta entra se leva a algum .md ou se está vazia (acabou de ser criada).
         let vazia = false;
@@ -218,4 +273,4 @@ function caminhoDaNota(i, rel) {
   return abs;
 }
 
-module.exports = { localizar, caminhoDaNota, salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+module.exports = { escondidas, esconder, mostrar, contarPasta, caminhoDaPasta, localizar, caminhoDaNota, salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };

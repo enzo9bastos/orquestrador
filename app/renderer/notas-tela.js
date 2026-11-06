@@ -342,6 +342,40 @@
     ]);
   }
 
+  // Pasta: lixeira do sistema (recuperável), com a contagem do que vai junto
+  // na confirmação. Nota aberta lá dentro é fechada.
+  async function confirmarLixeiraPasta(x, y, rel) {
+    const nome = rel.split('/').pop();
+    let c;
+    try { c = await N.contarPasta(ativa, rel); } catch (e) { estado(`Não consegui ler a pasta: ${e.message}`); return; }
+    const partes = [`${c.notas} ${c.notas === 1 ? 'nota' : 'notas'}`, `${c.arquivos} ${c.arquivos === 1 ? 'arquivo' : 'arquivos'} no total`];
+    if (c.pastas) partes.push(`${c.pastas} ${c.pastas === 1 ? 'subpasta' : 'subpastas'}`);
+    abrirMenu(x, y, [
+      { nome: `Confirmar: mover a pasta «${nome}» para a lixeira (${partes.join(', ')})`, faz: async () => {
+        try {
+          await N.lixeiraPasta(ativa, rel);
+          if (aberta && aberta.i === ativa && aberta.rel.startsWith(`${rel}/`)) { clearTimeout(timer); sujo = false; aberta = null; N.vigiar(0, null); vazio(true); }
+          if (selecionada === rel || (selecionada || '').startsWith(`${rel}/`)) selecionada = null;
+          estado(`A pasta «${nome}» foi para a lixeira (dá para recuperar de lá).`);
+          await carregarArvore();
+        } catch (e) { estado(`Não consegui mover para a lixeira: ${e.message}`); }
+      } },
+      { nome: 'Cancelar', faz: () => {} },
+    ]);
+  }
+  async function esconderPasta(rel) {
+    try { await N.esconder(ativa, rel); } catch (e) { estado(`Não consegui esconder: ${e.message}`); return; }
+    if (selecionada === rel) selecionada = null;
+    estado(`A pasta «${rel.split('/').pop()}» foi escondida das notas (continua no computador). Para mostrar de novo: botão direito no espaço vazio › Pastas escondidas.`);
+    await carregarArvore();
+  }
+  async function menuEscondidas(x, y, lista) {
+    abrirMenu(x, y, [
+      ...lista.map((rel) => ({ nome: `Mostrar «${rel}» de novo`, faz: async () => { await N.mostrar(ativa, rel); estado(`«${rel}» voltou para as notas.`); await carregarArvore(); } })),
+      '-', { nome: 'Cancelar', faz: () => {} },
+    ]);
+  }
+
   function pedirNome(tipo, pai) {
     selecionada = pai || null;
     const f = $('nova-nota-form');
@@ -381,6 +415,7 @@
     const nota = ev.target.closest('.linha-nota');
     const pasta = ev.target.closest('.linha-pasta');
     const raiz = await N.caminho(ativa, '');
+    const escondidasAgora = !nota && !pasta ? await N.escondidas(ativa).catch(() => []) : [];
     const rel = nota ? nota.dataset.rel : pasta ? pasta.dataset.pastaRel : '';
     const abs = rel ? `${raiz}/${rel}` : raiz;
     const comuns = [
@@ -399,7 +434,10 @@
       abrirMenu(ev.clientX, ev.clientY, [
         { nome: 'Nova nota', faz: () => pedirNome('nota', pai) },
         { nome: 'Nova pasta', faz: () => pedirNome('pasta', pai) }, '-', ...comuns,
-        ...(pasta ? ['-', { nome: 'Renomear', atalho: 'F2', faz: () => renomearItem(rel) }] : []),
+        ...(pasta ? ['-', { nome: 'Renomear', atalho: 'F2', faz: () => renomearItem(rel) }, '-',
+          { nome: 'Esconder das notas (não apaga nada)', faz: () => esconderPasta(rel) },
+          { nome: 'Mover para a lixeira… (apaga do computador)', faz: () => confirmarLixeiraPasta(ev.clientX, ev.clientY, rel) }] : []),
+        ...(!pasta && escondidasAgora.length ? ['-', { nome: `Pastas escondidas (${escondidasAgora.length})…`, faz: () => menuEscondidas(ev.clientX, ev.clientY, escondidasAgora) }] : []),
         '-', { nome: 'Abrir outra pasta do computador…', faz: async () => {
           const i = await N.adicionarPasta(); if (i == null) return; await carregarArvore(); if (i >= 0) { ativa = i; gravarPref('notas-pasta-ativa', ativa); desenharArvore(); }
         } },

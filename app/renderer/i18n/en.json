@@ -967,7 +967,9 @@
     "Voltei a conversa para antes desta mensagem. Corrija e envie.": "Rewound the conversation to before this message. Fix it and send.",
     "Abrir a demanda na aba Notas": "Open the request in the Notes tab",
     "Mostrar o que falta fazer": "Show what is left to do",
-    "O que falta fazer": "What is left to do"
+    "O que falta fazer": "What is left to do",
+    "Esconder das notas (não apaga nada)": "Hide from Notes (deletes nothing)",
+    "Mover para a lixeira… (apaga do computador)": "Move to trash… (deletes from the computer)"
   },
   "padroes": [
     [
@@ -1629,6 +1631,38 @@
     [
       "^Não consegui abrir a nota: (.+)$",
       "Couldn't open the note: $1"
+    ],
+    [
+      "^Confirmar: mover a pasta «(.+)» para a lixeira \\((.+)\\)$",
+      "Confirm: move the folder «$1» to the trash ($2)"
+    ],
+    [
+      "^A pasta «(.+)» foi para a lixeira \\(dá para recuperar de lá\\)\\.$",
+      "The folder «$1» went to the trash (you can restore it from there)."
+    ],
+    [
+      "^A pasta «(.+)» foi escondida das notas \\(continua no computador\\)\\. Para mostrar de novo: botão direito no espaço vazio › Pastas escondidas\\.$",
+      "The folder «$1» is hidden from Notes (it is still on the computer). To show it again: right-click an empty spot › Hidden folders."
+    ],
+    [
+      "^Pastas escondidas \\((\\d+)\\)…$",
+      "Hidden folders ($1)…"
+    ],
+    [
+      "^Mostrar «(.+)» de novo$",
+      "Show «$1» again"
+    ],
+    [
+      "^«(.+)» voltou para as notas\\.$",
+      "«$1» is back in Notes."
+    ],
+    [
+      "^Não consegui esconder: (.+)$",
+      "Couldn't hide it: $1"
+    ],
+    [
+      "^Não consegui ler a pasta: (.+)$",
+      "Couldn't read the folder: $1"
     ]
   ]
 }

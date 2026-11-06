@@ -152,4 +152,44 @@ test('notas', async (t) => {
     assert.ok(!require('fs').existsSync(require('path').join(app.casa, 'notas/rascunho.md')), 'saiu da pasta');
     assert.match(await app.avaliar("document.getElementById('estado-nota').textContent"), /lixeira/);
   });
+
+  // Pedido de 2026-11-06: pasta some da árvore (esconder) ou vai para a lixeira.
+  await t.test('pasta: esconder tira das notas sem apagar; mostra de novo pelo espaço vazio', async () => {
+    const fs = require('fs'), path = require('path');
+    fs.mkdirSync(path.join(app.casa, 'notas/midias/sub'), { recursive: true });
+    fs.writeFileSync(path.join(app.casa, 'notas/midias/a.md'), '# a');
+    fs.writeFileSync(path.join(app.casa, 'notas/midias/sub/b.md'), '# b');
+    fs.writeFileSync(path.join(app.casa, 'notas/midias/video.mp4'), 'x');
+    await app.avaliar("document.querySelector('[data-acao=atualizar]').click()");
+    await app.esperar("!!document.querySelector('.linha-pasta[data-pasta-rel=\"midias\"]')");
+    const menuPasta = () => app.avaliar("(() => { const l = document.querySelector('.linha-pasta[data-pasta-rel=\"midias\"]'); const r = l.getBoundingClientRect(); l.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 10, clientY: r.top + 5 })); })()");
+    const clicarItem = (re) => app.avaliar(`[...document.querySelectorAll('#menu-contexto li')].find((l) => ${re}.test(l.textContent)).click()`);
+    await menuPasta();
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Esconder das notas \\(não apaga nada\\)/.test(l.textContent))");
+    await clicarItem('/Esconder das notas/');
+    await app.esperar("!document.querySelector('.linha-pasta[data-pasta-rel=\"midias\"]')", 5000);
+    assert.ok(fs.existsSync(path.join(app.casa, 'notas/midias/sub/b.md')), 'continua no computador');
+    // Espaço vazio da árvore: Pastas escondidas (1)… › Mostrar de novo.
+    await app.avaliar("(() => { const a = document.getElementById('arvore-notas'); const r = a.getBoundingClientRect(); a.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 20, clientY: r.bottom - 10 })); })()");
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Pastas escondidas \\(1\\)/.test(l.textContent))");
+    await clicarItem('/Pastas escondidas/');
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Mostrar «midias» de novo/.test(l.textContent))");
+    await clicarItem('/Mostrar «midias» de novo/');
+    await app.esperar("!!document.querySelector('.linha-pasta[data-pasta-rel=\"midias\"]')", 5000);
+  });
+
+  await t.test('pasta: lixeira só depois de confirmar, dizendo o que vai junto', async () => {
+    const fs = require('fs'), path = require('path');
+    const menuPasta = () => app.avaliar("(() => { const l = document.querySelector('.linha-pasta[data-pasta-rel=\"midias\"]'); const r = l.getBoundingClientRect(); l.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 10, clientY: r.top + 5 })); })()");
+    await menuPasta();
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Mover para a lixeira… \\(apaga do computador\\)/.test(l.textContent))");
+    await app.avaliar("[...document.querySelectorAll('#menu-contexto li')].find((l) => /apaga do computador/.test(l.textContent)).click()");
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Confirmar: mover a pasta «midias» para a lixeira \\(2 notas, 3 arquivos no total, 1 subpasta\\)/.test(l.textContent))");
+    assert.ok(fs.existsSync(path.join(app.casa, 'notas/midias')), 'o primeiro clique não apaga');
+    await app.avaliar("[...document.querySelectorAll('#menu-contexto li')].find((l) => /Confirmar/.test(l.textContent)).click()");
+    await app.esperar("!document.querySelector('.linha-pasta[data-pasta-rel=\"midias\"]')", 8000);
+    assert.ok(!fs.existsSync(path.join(app.casa, 'notas/midias')), 'saiu da pasta de notas');
+    assert.match(await app.avaliar("document.getElementById('estado-nota').textContent"), /foi para a lixeira/);
+    assert.deepStrictEqual(app.erros, []);
+  });
 });

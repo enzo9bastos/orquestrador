@@ -57,3 +57,28 @@ test('notas: tirar pasta do app não apaga nada do disco', () => {
   notas.removerPasta(0);
   assert.ok(fs.existsSync(path.join(casa, 'notas/b.md')));
 });
+
+// Pedido de 2026-11-06: esconder pasta da árvore (sem apagar) e contar o que
+// vai junto antes de mandar uma pasta para a lixeira.
+test('notas: esconder pasta tira da árvore sem apagar nada; mostrar traz de volta', () => {
+  require('../../config').gravar({ pastasNotas: [{ nome: 'N', caminho: '~/notas' }] }); // um teste acima tirou a pasta
+  fs.mkdirSync(path.join(casa, 'notas', 'midias', 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(casa, 'notas', 'midias', 'a.md'), '# a');
+  fs.writeFileSync(path.join(casa, 'notas', 'midias', 'sub', 'b.md'), '# b');
+  const nomes = () => notas.arvore(0).filter((x) => x.tipo === 'pasta').map((x) => x.nome);
+  assert.ok(nomes().includes('midias'));
+  notas.esconder(0, 'midias');
+  assert.ok(!nomes().includes('midias'), 'some da árvore');
+  assert.ok(fs.existsSync(path.join(casa, 'notas', 'midias', 'sub', 'b.md')), 'continua no disco');
+  assert.deepStrictEqual(notas.escondidas(0), ['midias']);
+  notas.mostrar(0, 'midias');
+  assert.ok(nomes().includes('midias'));
+  assert.deepStrictEqual(notas.escondidas(0), []);
+  assert.throws(() => notas.esconder(0, '../fora'), /fora da pasta/);
+});
+
+test('notas: contar o que tem numa pasta (para a confirmação da lixeira)', () => {
+  fs.writeFileSync(path.join(casa, 'notas', 'midias', 'video.mp4'), 'x');
+  assert.deepStrictEqual(notas.contarPasta(0, 'midias'), { notas: 2, arquivos: 3, pastas: 1 });
+  assert.throws(() => notas.contarPasta(0, ''), /raiz/);
+});

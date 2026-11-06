@@ -226,6 +226,13 @@ ipcMain.handle('notas:criarPasta', (_e, i, pai, nome) => notas.criarPasta(i, pai
 ipcMain.handle('notas:criar', (_e, i, pasta, nome) => notas.criar(i, pasta, nome));
 // Apagar nota = mandar para a lixeira do sistema (dá para recuperar de lá).
 ipcMain.handle('notas:lixeira', async (_e, i, rel) => { await shell.trashItem(notas.caminhoDaNota(i, rel)); return true; });
+// Pastas: esconder só da árvore (não apaga) ou mandar para a lixeira do sistema
+// (recuperável de lá; nunca a raiz da pasta de notas).
+ipcMain.handle('notas:escondidas', (_e, i) => notas.escondidas(i));
+ipcMain.handle('notas:esconder', (_e, i, rel) => notas.esconder(i, rel));
+ipcMain.handle('notas:mostrar', (_e, i, rel) => notas.mostrar(i, rel));
+ipcMain.handle('notas:contarPasta', (_e, i, rel) => notas.contarPasta(i, rel));
+ipcMain.handle('notas:lixeiraPasta', async (_e, i, rel) => { await shell.trashItem(notas.caminhoDaPasta(i, rel)); return true; });
 // Anexar na conversa: imagens viram imagem para o Claude; o resto vai pelo
 // caminho (o Claude lê o arquivo do disco).
 const EXT_IMAGEM = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
