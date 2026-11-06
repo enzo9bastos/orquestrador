@@ -66,13 +66,13 @@ its current task, a progress bar and its model. Click one to see its last reply 
 right, or open its terminal. **Needs you** gathers every permission request and pending question from
 all agents into one queue with buttons.
 
-### 📌 Topics
+### 📌 Requests
 
 The right column keeps one card per request being worked on: title, ticket code, the agents on it, its state,
-a short summary and a checklist with progress. As requests come in, the **orchestrator suggests a topic**
+a short summary and a checklist with progress. As work comes in, the **orchestrator suggests a request**
 (title, summary and planned steps) with `orq-topico sugerir`; you **approve or reject** it on the card —
 fixing the title first if you want. Once approved, the orchestrator creates the steps, ticks them as the
-work gets done and finishes the topic when everything is done. Finished and rejected topics stay in
+work gets done and finishes the request when everything is done. Finished and rejected requests stay in
 collapsed lists (*Reopen*, *Reconsider*); nothing is ever deleted. *Needs you* sits above as a strip that only
 shows up when something is waiting.
 

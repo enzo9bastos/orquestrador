@@ -23,7 +23,7 @@ test('topicos', async (t) => {
 
   await t.test('sem tópicos: explica o que é e cita o orq-topico', async () => {
     const txt = await app.avaliar("document.getElementById('topicos').innerText");
-    assert.match(txt, /Nenhum tópico em andamento/);
+    assert.match(txt, /Nenhuma demanda em andamento/);
     assert.match(txt, /orq-topico/);
     assert.strictEqual(await app.visivel('#novo-topico'), 'ok');
   });
@@ -159,7 +159,7 @@ test('topicos', async (t) => {
   await t.test('aprovar/recusar pela tela avisa o orquestrador por trás', async () => {
     await app.esperar("document.querySelectorAll('#mensagens .msg-bastidor-topico').length >= 2", 4000);
     const linhas = await app.avaliar("[...document.querySelectorAll('#mensagens .msg-bastidor-topico summary')].map((s) => s.textContent)");
-    assert.deepStrictEqual(linhas.slice(0, 2), ['📌 Tópico aprovado: Revisar os backups da semana', '📌 Tópico recusado: Trocar o tema do editor']);
+    assert.deepStrictEqual(linhas.slice(0, 2), ['📌 Demanda aprovada: Revisar os backups da semana', '📌 Demanda recusada: Trocar o tema do editor']);
     assert.match(await app.avaliar("document.querySelector('#mensagens .msg-bastidor-topico .msg-bastidor-texto').textContent"), /aprovado pelo usuário: crie as etapas \(orq-topico item\) e mande um resumo \(orq-topico resumo\)/);
     assert.ok(!(await app.avaliar("[...document.querySelectorAll('#mensagens .msg-voce')].some((b) => b.innerText.includes('orq-topico'))")), 'nenhum balão do usuário');
   });
@@ -174,7 +174,7 @@ test('topicos', async (t) => {
     await app.avaliar(`window.__orqTeste.desenharEvento(${JSON.stringify({ tipo: 'user', antigo: true, message: { role: 'user', content: msg.replace('aprovado"', 'recusado"') } })})`);
     assert.strictEqual(await app.avaliar(baloes), antes);
     const linhas = await app.avaliar("[...document.querySelectorAll('#mensagens .msg-bastidor-topico summary')].map((s) => s.textContent)");
-    assert.deepStrictEqual(linhas.slice(nAntes), ['📌 Tópico aprovado: Revisar os backups', '📌 Tópico recusado: Revisar os backups']);
+    assert.deepStrictEqual(linhas.slice(nAntes), ['📌 Demanda aprovada: Revisar os backups', '📌 Demanda recusada: Revisar os backups']);
   });
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));

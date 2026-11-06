@@ -71,7 +71,7 @@
       grupo = null;
       const el = document.createElement('details');
       el.className = 'msg-bastidor msg-bastidor-topico';
-      el.innerHTML = `<summary>📌 ${tp[2] === 'recusado' ? 'Tópico recusado' : 'Tópico aprovado'}: <span data-sem-traducao>${esc(tp[3])}</span></summary><div class="msg-bastidor-texto">${esc(tp[4])}</div>`;
+      el.innerHTML = `<summary>📌 ${tp[2] === 'recusado' ? 'Demanda recusada' : 'Demanda aprovada'}: <span data-sem-traducao>${esc(tp[3])}</span></summary><div class="msg-bastidor-texto">${esc(tp[4])}</div>`;
       caixa.append(el);
       return;
     }

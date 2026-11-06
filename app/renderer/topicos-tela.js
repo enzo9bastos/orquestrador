@@ -18,8 +18,8 @@
 
   const { esc } = window.orqUtil;
   const VAZIO = `<div class="vazio"><span class="ico-caixa"><svg class="ico"><use href="#i-lista"/></svg></span>
-    <strong>Nenhum tópico em andamento</strong>
-    <span>Um tópico é uma demanda sendo feita: o que pediram, quem está nela e o checklist do que falta. O orquestrador abre e atualiza pelo comando <code data-sem-traducao>orq-topico</code>; você também pode criar um em "+ Novo tópico".</span></div>`;
+    <strong>Nenhuma demanda em andamento</strong>
+    <span>Uma demanda é um pedido sendo feito: o que pediram, quem está nela e o checklist do que falta. O orquestrador abre e atualiza pelo comando <code data-sem-traducao>orq-topico</code>; você também pode criar uma em "+ Nova demanda".</span></div>`;
 
   // Conteúdo do usuário (título, código, itens) leva data-sem-traducao: o
   // tradutor da tela não mexe nele.
@@ -36,7 +36,7 @@
       <p class="topico-sugerido-por">Sugerido pelo orquestrador</p>
       <header class="topico-cab">
         <span class="chip-topico chip-sugerido">${ROTULO.sugerido}</span>
-        <input type="text" class="topico-titulo topico-titulo-editavel" data-titulo-sugerido="${esc(t.id)}" data-sem-traducao maxlength="200" value="${esc(titulosEditados.has(t.id) ? titulosEditados.get(t.id) : t.titulo)}" aria-label="Título do tópico sugerido" title="Dá para corrigir o título antes de aprovar">
+        <input type="text" class="topico-titulo topico-titulo-editavel" data-titulo-sugerido="${esc(t.id)}" data-sem-traducao maxlength="200" value="${esc(titulosEditados.has(t.id) ? titulosEditados.get(t.id) : t.titulo)}" aria-label="Título da demanda sugerida" title="Dá para corrigir o título antes de aprovar">
       </header>
       ${resumoHtml(t, true)}
       <div class="topico-meta">
@@ -113,7 +113,7 @@
     abertos.sort((a, b) => peso(a) - peso(b) || b.atualizado - a.atualizado);
     $('n-topicos').textContent = abertos.length ? String(abertos.length) : '';
     const html = erro
-      ? `<div class="vazio"><strong>Não consegui ler os tópicos</strong><span data-sem-traducao>${esc(erro)}</span></div>`
+      ? `<div class="vazio"><strong>Não consegui ler as demandas</strong><span data-sem-traducao>${esc(erro)}</span></div>`
       : abertos.length ? abertos.map(cartao).join('') : VAZIO;
     if ($('topicos')._html !== html) { $('topicos')._html = html; $('topicos').innerHTML = html; }
     $('topicos-concluidos').hidden = !concluidos.length;
@@ -137,8 +137,8 @@
     area.maxLength = 2000;
     area.rows = 3;
     area.value = t.resumo || '';
-    area.placeholder = 'Resumo do tópico (um parágrafo curto)';
-    area.setAttribute('aria-label', 'Resumo do tópico');
+    area.placeholder = 'Resumo da demanda (um parágrafo curto)';
+    area.setAttribute('aria-label', 'Resumo da demanda');
     area.setAttribute('data-sem-traducao', '');
     let feito = false;
     const fim = async (gravar) => {
