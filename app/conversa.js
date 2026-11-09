@@ -87,7 +87,7 @@ function historicoDoTranscript(sessao, ate = null) {
     if (!l) continue;
     let d;
     try { d = JSON.parse(l); } catch { continue; /* linha cortada */ }
-    if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) lista.push({ tipo: d.type, message: d.message, antigo: true });
+    if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) lista.push({ tipo: d.type, message: d.message, antigo: true, ts: Date.parse(d.timestamp) || undefined });
     if (ate && d.uuid === ate) break;
   }
   return lista.slice(-600);
@@ -173,6 +173,7 @@ class Conversa {
 
   enviar(canal, dado) { enviarTela(canal, { id: this.id, dado }); }
   registrar(ev) {
+    if (!ev.ts && !ev.antigo) ev.ts = Date.now(); // horário ao lado de "Claude"
     this.eventos.push(ev);
     if (this.eventos.length > 4000) this.eventos = this.eventos.slice(-3000);
     this.enviar('conversa:evento', ev);
@@ -535,7 +536,7 @@ module.exports = {
   ligar: (fn) => { enviarTela = fn; },
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade
-  lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta,
+  lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _historico: historicoDoTranscript,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   pedidos: (id) => [...pegar(id).pendentes.values()],

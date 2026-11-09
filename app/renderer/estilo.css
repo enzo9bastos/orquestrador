@@ -1417,3 +1417,6 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .seta-topico.aberta .ico { rotate: 90deg; }
 .lista-falta { margin: 2px 0 0; padding: 6px 0 0 18px; border-top: 1px solid var(--borda); font-size: 12.5px; color: var(--fg-2); display: grid; gap: 3px; list-style: circle; }
 @media (prefers-reduced-motion: reduce) { .seta-topico .ico { transition: none; } }
+
+/* Horário da mensagem, ao lado de "Claude". */
+.msg-claude .autor .hora-msg { font-weight: 400; font-size: 11.5px; color: var(--fg-3); font-variant-numeric: tabular-nums; }

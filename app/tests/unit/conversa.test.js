@@ -81,3 +81,17 @@ test('conversa: voltar reabre cortado numa sessão nova e só troca a sessão de
   const sem = new conversa._Conversa({ id: 'v2', titulo: 'x', sessao: 'S' });
   assert.ok(!sem.argumentos().includes('--resume-session-at'));
 });
+
+// Pedido de 2026-11-09: horário ao lado de "Claude".
+test('conversa: evento ao vivo ganha horário; o do histórico usa o horário do transcript', () => {
+  conversa.ligar(() => {});
+  const c = new conversa._Conversa({ id: 'h', titulo: 'H' });
+  const antes = Date.now();
+  c.registrar({ tipo: 'assistant', message: { content: [] } });
+  assert.ok(c.eventos[0].ts >= antes);
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const pasta = path.join(os.homedir(), '.claude', 'projects', os.homedir().replace(/[^A-Za-z0-9]/g, '-'));
+  fs.mkdirSync(pasta, { recursive: true });
+  fs.writeFileSync(path.join(pasta, 'S-hora.jsonl'), JSON.stringify({ type: 'assistant', uuid: 'a', timestamp: '2026-11-05T20:24:00.000Z', message: { role: 'assistant', content: [] } }) + '\n');
+  assert.strictEqual(conversa._historico('S-hora')[0].ts, Date.parse('2026-11-05T20:24:00.000Z'));
+});

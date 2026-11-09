@@ -218,4 +218,20 @@ test('conversa', async (t) => {
     await app.avaliar("document.getElementById('entrada').value = ''");
     assert.deepStrictEqual(app.erros, []);
   });
+
+  // Pedido de 2026-11-09: horário da mensagem ao lado de "Claude".
+  await t.test('horário ao lado de Claude: só a hora se for hoje; data e hora se for outro dia', async () => {
+    const autor = () => app.avaliar("[...document.querySelectorAll('#mensagens .msg-claude .autor')].pop().innerText.replace(/\\s+/g, ' ').trim()");
+    const hoje = new Date(); hoje.setHours(9, 5, 0, 0);
+    await injetar({ tipo: 'resultado' });
+    await injetar({ tipo: 'assistant', ts: hoje.getTime(), message: { content: [{ type: 'text', text: 'de hoje' }] } });
+    assert.match(await autor(), /Claude 09:05$/);
+    await injetar({ tipo: 'resultado' });
+    await injetar({ tipo: 'assistant', antigo: true, ts: new Date(2026, 0, 3, 17, 24).getTime(), message: { content: [{ type: 'text', text: 'antiga' }] } });
+    assert.match(await autor(), /Claude 03\/01 17:24$/);
+    await injetar({ tipo: 'resultado' });
+    await injetar({ tipo: 'assistant', antigo: true, message: { content: [{ type: 'text', text: 'sem hora' }] } });
+    assert.match(await autor(), /Claude$/, 'sem horário conhecido não inventa um');
+    assert.deepStrictEqual(app.erros, []);
+  });
 });

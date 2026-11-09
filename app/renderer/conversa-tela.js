@@ -24,10 +24,19 @@
   function rolar() { if (colado) caixa.scrollTop = caixa.scrollHeight; }
 
   // --- pedaços da conversa ------------------------------------------------
+  // Horário do evento sendo desenhado: undefined fora de um evento (texto
+  // chegando ao vivo: agora); null em evento sem horário conhecido (não mostra).
+  let horaEvento;
+  function horario(ms) {
+    const d = new Date(ms), h = new Date();
+    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === h.toDateString() ? hora : `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hora}`;
+  }
   function novoGrupo() {
     grupo = document.createElement('div');
     grupo.className = 'msg-claude';
-    grupo.innerHTML = '<div class="autor"><span class="marca-claude">✳</span>Claude</div>';
+    const ms = horaEvento === undefined ? Date.now() : horaEvento;
+    grupo.innerHTML = `<div class="autor"><span class="marca-claude">✳</span>Claude${ms ? `<time class="hora-msg" data-sem-traducao title="${esc(new Date(ms).toLocaleString('pt-BR'))}">${esc(horario(ms))}</time>` : ''}</div>`;
     caixa.append(grupo);
     return grupo;
   }
@@ -200,6 +209,10 @@
   }
 
   function desenharEvento(ev) {
+    horaEvento = ev.ts || null;
+    try { desenharEventoAgora(ev); } finally { horaEvento = undefined; }
+  }
+  function desenharEventoAgora(ev) {
     if (ev.sub) return; // por dentro de um subagente: só o resumo dele aparece
     if (ev.tipo === 'user') {
       const c = ev.message.content;
