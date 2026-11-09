@@ -544,7 +544,12 @@
     faz: () => { document.querySelector('[data-aba="aba-notas"]').click(); setTimeout(() => abrir(i, n.rel), 300); },
   })));
   // Menções @nota: na conversa: "Pasta/caminho/sem .md".
-  window.orqNotas = { abrir: async (i, rel) => { await carregarArvore(); await abrir(i, rel); }, listar: () => pastas.flatMap((p, i) => todasAsNotas(arvores[i], i)).map(({ i, n }) => ({ i, rel: n.rel, pasta: pastas[i].nome, caminho: `${pastas[i].nome}/${n.rel.replace(/\.md$/i, '')}` })) };
+  // Demanda apagada pelo painel: fecha a nota se estiver aberta e atualiza a árvore.
+  const fecharSe = async (i, rel) => {
+    if (aberta && aberta.i === i && aberta.rel === rel) { clearTimeout(timer); sujo = false; aberta = null; N.vigiar(0, null); vazio(true); }
+    await carregarArvore();
+  };
+  window.orqNotas = { fecharSe, abrir: async (i, rel) => { await carregarArvore(); await abrir(i, rel); }, listar: () => pastas.flatMap((p, i) => todasAsNotas(arvores[i], i)).map(({ i, n }) => ({ i, rel: n.rel, pasta: pastas[i].nome, caminho: `${pastas[i].nome}/${n.rel.replace(/\.md$/i, '')}` })) };
   // A paleta precisa da lista de notas mesmo sem a aba ter sido aberta.
   carregarArvore().catch(() => {});
 

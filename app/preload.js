@@ -131,6 +131,7 @@ contextBridge.exposeInMainWorld('orq', {
     resumo: (id, txt) => ipcRenderer.invoke('topicos:resumo', id, txt),
     aprovar: (id, titulo) => ipcRenderer.invoke('topicos:aprovar', id, titulo),
     recusar: (id) => ipcRenderer.invoke('topicos:recusar', id),
+    apagar: (id) => ipcRenderer.invoke('topicos:apagar', id),
     reconsiderar: (id) => ipcRenderer.invoke('topicos:reconsiderar', id),
     aoMudar: (fn) => ipcRenderer.on('topicos:mudou', (_e, m) => fn(m)),
   },

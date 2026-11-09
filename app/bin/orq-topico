@@ -17,6 +17,7 @@
 //   orq-topico agente <id> "<nome>"          põe mais um agente no tópico
 //   orq-topico nota <id> "<texto>"           acrescenta uma linha às notas
 //   orq-topico concluir <id> [--mesmo-assim] conclui (recusa se falta item)
+//   orq-topico apagar <id>                   tira do painel e manda a nota para a lixeira (só a pedido do usuário)
 //
 // Arquivo: ~/.config/orq-app/topicos.json (a versão anterior fica em
 // ~/.local/share/orq-app/versoes/topicos/ a cada mudança).
@@ -95,6 +96,7 @@ try {
     case 'estado': precisa(2, 'estado <id> aberto|esperando|concluido|sugerido|recusado'); ok(topicos.estado(resto[0], resto[1], { mesmoAssim: opc['mesmo-assim'] })); break;
     case 'agente': precisa(2, 'agente <id> "<nome>"'); ok(topicos.agente(resto[0], resto.slice(1).join(' '))); break;
     case 'nota': precisa(2, 'nota <id> "<texto>"'); ok(topicos.nota(resto[0], resto.slice(1).join(' '))); break;
+    case 'apagar': precisa(1, 'apagar <id>'); { const t = topicos.apagar(resto[0]); console.log(`#${t.id} apagada${t.arquivo ? ' (a nota foi para a lixeira)' : ''}`); } break;
     case 'concluir': precisa(1, 'concluir <id> [--mesmo-assim]'); ok(topicos.concluir(resto[0], { mesmoAssim: opc['mesmo-assim'] })); break;
     default: sair(`não conheço "${acao}". Veja: orq-topico ajuda`);
   }

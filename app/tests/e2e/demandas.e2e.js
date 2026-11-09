@@ -57,5 +57,22 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
     await app.esperar("document.querySelector('#lista-concluidos .topico-resumido') !== null", 8000);
   });
 
+  await t.test('apagar: lixeirinha pede confirmação no cartão, não abre a nota e tira a demanda', async () => {
+    const idN = orq('abrir', 'Demanda errada').match(/\d+/)[0];
+    const arq = path.join(app.casa, 'orq', 'Demandas', 'Demanda errada.md');
+    assert.ok(fs.existsSync(arq));
+    const sel = `[data-topico="${idN}"] [data-apagar-topico]`;
+    await app.esperar(`!!document.querySelector('${sel}')`, 8000);
+    await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
+    await app.avaliar(`document.querySelector('${sel}').click()`);
+    await app.esperar(`/Apagar\\?/.test(document.querySelector('${sel}').textContent)`);
+    assert.ok(fs.existsSync(arq), 'o primeiro clique não apaga');
+    assert.ok(!(await app.avaliar("document.getElementById('aba-notas').classList.contains('ativa')")), 'não abre a nota');
+    await app.avaliar(`document.querySelector('${sel}').click()`);
+    await app.esperar(`!document.querySelector('[data-topico="${idN}"]')`, 8000);
+    assert.ok(!fs.existsSync(arq), 'a nota saiu da pasta (foi para a lixeira)');
+    assert.ok(!orq('listar', '--todos').includes('Demanda errada'));
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });

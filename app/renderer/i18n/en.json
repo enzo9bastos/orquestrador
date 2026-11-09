@@ -969,7 +969,11 @@
     "Mostrar o que falta fazer": "Show what is left to do",
     "O que falta fazer": "What is left to do",
     "Esconder das notas (não apaga nada)": "Hide from Notes (deletes nothing)",
-    "Mover para a lixeira… (apaga do computador)": "Move to trash… (deletes from the computer)"
+    "Mover para a lixeira… (apaga do computador)": "Move to trash… (deletes from the computer)",
+    "Apagar demanda": "Delete request",
+    "Apagar?": "Delete?",
+    "Confirmar: a demanda sai do painel e a nota vai para a lixeira": "Confirm: the request leaves the panel and its note goes to the trash",
+    "Confirmar: a demanda sai do painel": "Confirm: the request leaves the panel"
   },
   "padroes": [
     [
@@ -1663,6 +1667,10 @@
     [
       "^Não consegui ler a pasta: (.+)$",
       "Couldn't read the folder: $1"
+    ],
+    [
+      "^Não consegui apagar: (.+)$",
+      "Couldn't delete: $1"
     ]
   ]
 }

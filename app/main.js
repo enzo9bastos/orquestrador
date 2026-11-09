@@ -360,6 +360,16 @@ ipcMain.handle('topicos:estado', pelaTela((id, e) => topicos.estado(id, e)));
 // Pela tela, o segundo clique já foi a confirmação: conclui mesmo com item aberto.
 ipcMain.handle('topicos:concluir', pelaTela((id) => topicos.concluir(id, { mesmoAssim: true })));
 ipcMain.handle('topicos:resumo', pelaTela((id, txt) => topicos.resumo(id, txt)));
+// Apagar pelo painel: devolve onde a nota estava, para a aba Notas fechá-la se
+// estiver aberta (senão salvar a recriaria).
+ipcMain.handle('topicos:apagar', (_e, id) => {
+  try {
+    const o = topicos.ondeNota(id);
+    const fechar = o ? notas.localizar(o.abs) : null;
+    topicos.apagar(id);
+    return { topicos: topicos.ler(), fechar };
+  } catch (e) { return { erro: e.message }; }
+});
 ipcMain.handle('topicos:reconsiderar', pelaTela((id) => topicos.reconsiderar(id)));
 // Aprovar/recusar a sugestão do orquestrador: grava e avisa a conversa dele
 // por trás (só se estiver viva; senão ele vê no próximo orq-topico listar).

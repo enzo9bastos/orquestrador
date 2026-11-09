@@ -96,3 +96,47 @@ test('demandas: se a ligação com o arquivo se perder, a demanda adota a nota d
   assert.strictEqual(topicos.ler().find((x) => x.id === t.id).arquivo, 'Ligação perdida.md');
   assert.match(lerMd('Ligação perdida.md'), /minha anotação/);
 });
+
+// Pedido de 2026-11-09: apagar demanda (a nota vai para a lixeira do sistema).
+test('demandas: apagar tira do painel e manda a nota para a lixeira; não renasce', () => {
+  const t = topicos.abrir({ titulo: 'Para apagar' });
+  const enviados = [];
+  const lixeira = (abs) => { enviados.push(abs); fs.renameSync(abs, `${abs}.nalixeira`); };
+  const r = topicos.apagar(t.id, { lixeira });
+  assert.strictEqual(r.titulo, 'Para apagar');
+  assert.deepStrictEqual(enviados, [path.join(PASTA, 'Para apagar.md')]);
+  assert.ok(!topicos.ler().some((x) => x.id === t.id));
+  topicos.migrarParaNotas();
+  assert.ok(!arquivos().includes('Para apagar.md'), 'não pode renascer');
+  assert.throws(() => topicos.apagar(t.id, { lixeira }), /não existe/);
+});
+
+test('demandas: se a lixeira falhar, nada muda', () => {
+  const t = topicos.abrir({ titulo: 'Lixeira falha' });
+  assert.throws(() => topicos.apagar(t.id, { lixeira: () => { throw new Error('sem lixeira'); } }), /sem lixeira/);
+  assert.ok(topicos.ler().some((x) => x.id === t.id));
+  assert.ok(arquivos().includes('Lixeira falha.md'));
+});
+
+test('demandas: recusada com nota leva a nota junto; sugerida sem nota só sai do painel', () => {
+  const a = topicos.abrir({ titulo: 'Virou recusada' });
+  topicos.estado(a.id, 'recusado');
+  const enviados = [];
+  topicos.apagar(a.id, { lixeira: (abs) => enviados.push(path.basename(abs)) });
+  assert.deepStrictEqual(enviados, ['Virou recusada.md']);
+  const s = topicos.sugerir({ titulo: 'Só sugestão' });
+  const nada = [];
+  topicos.apagar(s.id, { lixeira: (abs) => nada.push(abs) });
+  assert.deepStrictEqual(nada, []);
+  assert.ok(!topicos.ler().some((x) => x.id === s.id));
+});
+
+test('demandas: orq-topico apagar usa a lixeira do sistema (gio trash)', () => {
+  const t = topicos.abrir({ titulo: 'Pelo comando' });
+  const bin = fs.mkdtempSync(path.join(require('os').tmpdir(), 'orq-teste-gio-'));
+  const log = path.join(bin, 'log');
+  fs.writeFileSync(path.join(bin, 'gio'), `#!/bin/sh\necho "$@" >> "${log}"\n`, { mode: 0o755 });
+  execFileSync(process.execPath, [cli, 'apagar', t.id], { env: { ...process.env, HOME: casa, PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });
+  assert.strictEqual(fs.readFileSync(log, 'utf8').trim(), `trash ${path.join(PASTA, 'Pelo comando.md')}`);
+  assert.ok(!topicos.ler().some((x) => x.id === t.id));
+});

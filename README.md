@@ -73,11 +73,12 @@ it and a progress bar. **Each approved request is a Markdown note** in `Notes �
 Demandas/` — click the card and it opens in the Notes tab, where the summary, the checklist and your own
 *Anotações* (free notes the app never touches) live. Tick a step or change the `Estado:` line in the note and
 the card follows; finished requests stay in the folder as "Title - Concluída.md".
+Hover a card for the trash icon: after a second click the request leaves the panel and its note goes to the system trash.
 
 As work comes in, the **orchestrator suggests a request** (title, summary and planned steps) with
 `orq-topico sugerir`; you **approve or reject** it on the card — fixing the title first if you want. Only approved
 requests become notes. The orchestrator then creates the steps, ticks them as the work gets done and finishes the
-request when everything is done. Nothing is ever deleted: every save keeps the previous version. *Needs you*
+request when everything is done. Every save keeps the previous version. *Needs you*
 sits above as a strip that only shows up when something is waiting.
 
 ### 🖥️ Terminals

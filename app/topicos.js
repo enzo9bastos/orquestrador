@@ -359,6 +359,25 @@ function nota(id, txt) {
 
 // Vigia a pasta (o arquivo é trocado por rename, então vigiar só o arquivo
 // perderia a troca) e avisa com a lista nova, juntando rajadas de mudança.
+// Apagar: a nota vai para a lixeira do sistema (recuperável de lá) e a demanda
+// sai do índice (a versão anterior do índice fica guardada). Lixeira falhou:
+// nada muda. Só por pedido explícito do usuário.
+const lixeiraDoSistema = (abs) => {
+  try { require('child_process').execFileSync('gio', ['trash', abs], { stdio: 'pipe' }); } catch { throw new Error(`não consegui mandar ${path.basename(abs)} para a lixeira`); }
+};
+function apagar(id, { lixeira = lixeiraDoSistema } = {}) {
+  return comTrava(() => {
+    const lista = ler();
+    const chave = String(id ?? '').replace(/^#/, '');
+    const t = lista.find((x) => x.id === chave);
+    if (!t) throw new Error(`não existe tópico ${chave || '(sem id)'}`);
+    const pasta = pastaDemandas();
+    if (pasta && t.arquivo && fs.existsSync(path.join(pasta, t.arquivo))) lixeira(path.join(pasta, t.arquivo));
+    gravarArquivo(lista.filter((x) => x !== t));
+    return t;
+  });
+}
+
 // Migração: grava o .md de toda demanda que ainda não tem. Rodar de novo
 // não cria nada. O topicos.json continua (é o índice e o backup).
 function migrarParaNotas() {
@@ -408,4 +427,4 @@ function vigiar(aoMudar) {
   return () => { clearTimeout(espera); w.close(); if (wd) wd.close(); if (wr) wr.close(); };
 }
 
-module.exports = { ESTADOS, arq, versoes, pastaDemandas, migrarParaNotas, ondeNota, ler, abrir, sugerir, resumo, renomear, aprovar, recusar, reconsiderar, marcarBastidor, avisarOrquestrador, item, marcar, pendentes, concluir, estado, agente, nota, vigiar };
+module.exports = { ESTADOS, arq, versoes, pastaDemandas, migrarParaNotas, ondeNota, apagar, ler, abrir, sugerir, resumo, renomear, aprovar, recusar, reconsiderar, marcarBastidor, avisarOrquestrador, item, marcar, pendentes, concluir, estado, agente, nota, vigiar };
