@@ -16,7 +16,8 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
   orq('item', id, 'Conferir ontem'); orq('item', id, 'Testar restauração'); orq('marcar', id, '1');
 
   await t.test('o cartão mostra só título, estado, código, agentes e progresso', async () => {
-    await app.esperar("!!document.querySelector('.topico-resumido')", 8000);
+    // Espera o estado final: o painel atualiza logo depois de cada orq-topico.
+    await app.esperar("/1\\/2/.test(document.querySelector('.topico-resumido')?.innerText || '')", 8000);
     const txt = await app.avaliar("document.querySelector('.topico-resumido').innerText");
     assert.match(txt, /Revisar os backups/);
     assert.match(txt, /T-2001/);
