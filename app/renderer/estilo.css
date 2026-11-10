@@ -1428,3 +1428,12 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .topico:hover .apagar-topico, .apagar-topico:focus-visible, .apagar-topico.confirmando { opacity: 1; }
 .apagar-topico:hover { background: var(--painel-hover); color: var(--perigo); }
 .apagar-topico.confirmando { color: var(--perigo); font-weight: 600; padding: 0 6px; white-space: nowrap; }
+
+/* Espécies de cor fixa: detalhes com cor própria e olhos sempre escuros (no
+   tema claro o fundo é claro e o olho "furado" sumiria no corpo branco). */
+.pet-svg .claro { fill: #f4f1ea; }
+.pet-svg .acento { fill: #f5a623; }
+.pet-svg .rosado { fill: #f48fb1; opacity: .9; }
+.pet-svg .escuro { fill: #000; opacity: .3; }
+.pet-svg.cor-fixa .olho { fill: #17161d; }
+.gr-cor-fixa { margin: 6px 0 0; font-size: 12px; color: var(--fg-3); text-align: center; max-width: 180px; }

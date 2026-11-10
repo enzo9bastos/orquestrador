@@ -975,7 +975,19 @@
     "Confirmar: a demanda sai do painel e a nota vai para a lixeira": "Confirm: the request leaves the panel and its note goes to the trash",
     "Confirmar: a demanda sai do painel": "Confirm: the request leaves the panel",
     "Passada nos agentes (a cada 3 min)": "Agent sweep (every 3 min)",
-    "Robozinho": "Little robot"
+    "Clássico": "Classic",
+    "Gatinho": "Kitten",
+    "Pinguim": "Penguin",
+    "Passarinho": "Little bird",
+    "Sapinho": "Little frog",
+    "Cogumelo": "Mushroom",
+    "Coral": "Coral",
+    "Lima": "Lime",
+    "Ciano": "Cyan",
+    "Anil": "Indigo",
+    "Lilás": "Lilac",
+    "Grafite": "Graphite",
+    "Esta espécie tem a cor dela. Só o Clássico muda de cor.": "This species has its own color. Only the Classic changes color."
   },
   "padroes": [
     [

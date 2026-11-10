@@ -23,11 +23,11 @@ test('pet: guarda-roupa tem 30 itens nas 6 partes do corpo', () => {
 });
 
 test('pet: desenho veste o que foi escolhido; item na parte errada é ignorado', () => {
-  const s = V.svg({ cor: 'roxo', itens: { cabeca: 'cartola', mao: 'caneca', olhos: 'bigode' } });
+  const s = V.svg({ cor: 'lilas', itens: { cabeca: 'cartola', mao: 'caneca', olhos: 'bigode' } });
   assert.match(s, /item-cartola/);
   assert.match(s, /item-caneca/);
   assert.doesNotMatch(s, /item-bigode/, 'bigode não é de olhos');
-  assert.match(s, /--pet-cor:#8b5cf6/);
+  assert.match(s, /--pet-cor:#c084fc/);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(V.limpar({ cor: 'xyz', itens: { cabeca: 'nada' } }))), { especie: 'bicho', cor: 'padrao', itens: {} });
   assert.ok(s.indexOf('item-capa') < 0);
   const capa = V.svg({ itens: { corpo: 'capa' } });
@@ -35,8 +35,8 @@ test('pet: desenho veste o que foi escolhido; item na parte errada é ignorado',
 });
 
 // Pedido de 2026-10-30: outros bichinhos, compatíveis com o guarda-roupa.
-test('pet: 4 espécies, todas vestem os 30 itens e as cores', () => {
-  assert.deepStrictEqual(Object.keys(V.ESPECIES), ['bicho', 'fantasma', 'nuvem', 'gosma']);
+test('pet: 9 espécies, todas vestem os 30 itens', () => {
+  assert.deepStrictEqual(Object.keys(V.ESPECIES), ['bicho', 'gatinho', 'pinguim', 'passarinho', 'sapinho', 'cogumelo', 'fantasma', 'nuvem', 'gosma']);
   for (const especie of Object.keys(V.ESPECIES)) {
     for (const [id, i] of Object.entries(V.ITENS)) assert.match(V.svg({ especie, cor: 'branco', itens: { [i.parte]: id } }), new RegExp(`item-${id}`), `${especie} + ${id}`);
     const s = V.svg({ especie });
@@ -142,4 +142,21 @@ test('ajudante: recorte de tela usa o programa de "capturaTela" (com ~), senão 
   cfg.gravar({ capturaTela: ['~/nao-existe'] });
   assert.strictEqual(ajudante._comandoCaptura(), null, 'programa que não existe: volta ao padrão');
   cfg.gravar({ capturaTela: null });
+});
+
+// Pedido de 2026-11-10: só o Clássico muda de cor; as outras têm cor própria;
+// mais cores e sem duas iguais (antes "Cor do app" e "Roxo" eram o mesmo roxo).
+test('pet: só o Clássico usa a cor escolhida; paleta sem cor repetida', () => {
+  assert.match(V.svg({ especie: 'bicho', cor: 'azul' }), /--pet-cor:#3b82f6/);
+  assert.doesNotMatch(V.svg({ especie: 'bicho', cor: 'azul' }), /cor-fixa/);
+  for (const especie of Object.keys(V.ESPECIES).filter((k) => k !== 'bicho')) {
+    const s = V.svg({ especie, cor: 'azul' });
+    assert.doesNotMatch(s, /#3b82f6/, `${especie} não pode pegar a cor escolhida`);
+    assert.match(s, /cor-fixa/, `${especie}: olhos escuros de cor fixa`);
+  }
+  const hex = V.CORES.map((c) => c[2]).filter(Boolean);
+  assert.strictEqual(new Set(hex).size, hex.length, 'cor repetida na paleta');
+  assert.ok(!hex.includes('#8b5cf6'), 'o roxo é a "Cor do app" padrão; não repete');
+  assert.ok(V.CORES.length >= 15);
+  assert.strictEqual(V.limpar({ cor: 'roxo' }).cor, 'padrao', 'quem tinha "Roxo" volta para a cor do app (o mesmo roxo)');
 });

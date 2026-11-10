@@ -6,35 +6,67 @@
 // braços em x 0–1 e 10–11 (y 2–3); pernas em y 5–7. Itens de cabeça sobem até
 // y −7; o da mão fica à direita (x 11–15).
 (() => {
+  // Cores do Clássico (as outras espécies têm cor própria). "Cor do app" segue
+  // a cor de destaque das configurações.
   const CORES = [
     ['padrao', 'Cor do app', null],
-    ['laranja', 'Laranja', '#e8833a'],
-    ['roxo', 'Roxo', '#8b5cf6'],
-    ['azul', 'Azul', '#3b82f6'],
-    ['verde', 'Verde', '#22a06b'],
-    ['rosa', 'Rosa', '#e8559a'],
+    ['coral', 'Coral', '#d97757'],
+    ['vermelho', 'Vermelho', '#e5484d'],
+    ['laranja', 'Laranja', '#f08c2e'],
     ['amarelo', 'Amarelo', '#e5b31a'],
+    ['lima', 'Lima', '#84cc16'],
+    ['verde', 'Verde', '#22a06b'],
+    ['agua', 'Verde-água', '#14b8a6'],
+    ['ciano', 'Ciano', '#06b6d4'],
+    ['azul', 'Azul', '#3b82f6'],
+    ['anil', 'Anil', '#6366f1'],
+    ['lilas', 'Lilás', '#c084fc'],
+    ['rosa', 'Rosa', '#e8559a'],
+    ['marrom', 'Marrom', '#9a6b4f'],
     ['cinza', 'Cinza', '#8a8f98'],
+    ['grafite', 'Grafite', '#4b5060'],
     ['branco', 'Branco', '#e8eaf0'],
   ];
-  // Espécies: o mesmo "esqueleto" (olhos em x 3 e 8, braços nas laterais, mão
-  // direita em x 10–11), então todas vestem os mesmos 30 itens.
-  // corpo: retângulos da pele; pernas: 4 (animam ao andar); braços: [x, y, l, a].
-  // detalhe: [x, y, l, a, classe] — brilho (luz) e sombra, por cima da pele.
+  // Espécies: o mesmo "esqueleto" (olhos perto de x 3 e 8, braços nas
+  // laterais, mão direita em x 10–11), então todas vestem os mesmos 30 itens.
+  // corpo: retângulos da pele; pernas (animam ao andar: p1 com p3, p2 com p4);
+  // braços: [x, y, l, a] (ou lista deles); olhos: [[x, y, l, a]…] (padrão:
+  // risquinhos em x 3 e 8). detalhe: [x, y, l, a, classe] — brilho, sombra,
+  // bolha, claro, acento, rosado, escuro, por cima da pele.
+  // fixa: cor própria da espécie (a cor escolhida no guarda-roupa vale só para o
+  // Clássico). A nuvem usa a cor do humor (null = não pinta).
   const ESPECIES = {
-    // Robozinho (o padrão; o id continua "bicho" para quem já escolheu):
-    // antena, cantos arredondados, olhos quadrados, barriga clara, 2 pés.
-    bicho: { nome: 'Robozinho', jeito: 'anda', corpo: [[3, 0, 6, 1], [2, 1, 8, 3], [3, 4, 6, 1]], pernas: [[3, 5, 2, 2], [7, 5, 2, 2]], bracoE: [1, 2, 1, 2], bracoD: [10, 2, 1, 2],
-      olhos: [[3, 1.5, 2, 2], [7, 1.5, 2, 2]], detalhe: [[5.5, -1.5, 1, 1.5, 'pele'], [5, -2.5, 2, 1, 'pele'], [4, 3, 4, 1, 'brilho']] },
+    // O Clássico: homenagem de fã ao mascote do Claude Code. O único que muda de cor.
+    bicho: { nome: 'Clássico', jeito: 'anda', corpo: [[2, 0, 8, 5]], pernas: [[2, 5, 1, 2], [4, 5, 1, 2], [7, 5, 1, 2], [9, 5, 1, 2]], bracoE: [0, 2, 2, 2], bracoD: [10, 2, 2, 2] },
+    // Gatinho: orelhas com o interior rosado, rabinho, focinho; laranja rajado.
+    gatinho: { nome: 'Gatinho', jeito: 'anda', fixa: '#f0a35e', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[3, 5, 1, 2], [4.5, 5, 1, 2], [6.5, 5, 1, 2], [8, 5, 1, 2]], bracoE: [1, 2.5, 1, 1.5], bracoD: [10, 2.5, 1, 1.5],
+      olhos: [[3, 1.5, 1.5, 1.5], [7.5, 1.5, 1.5, 1.5]],
+      detalhe: [[2, -1, 2, 1, 'pele'], [2, -2, 1, 1, 'pele'], [8, -1, 2, 1, 'pele'], [9, -2, 1, 1, 'pele'], [2.5, -1, 0.6, 0.6, 'rosado'], [8.9, -1, 0.6, 0.6, 'rosado'], [0.5, 2, 1, 1, 'pele'], [0, 0, 1, 2, 'pele'], [5.5, 3, 1, 0.6, 'rosado'], [4, 0, 1, 0.6, 'escuro'], [6.5, 0, 1, 0.6, 'escuro'], [3.5, 3.6, 5, 1.4, 'claro']] },
+    // Pinguim: máscara e barriga brancas, bico e pés amarelos, asinhas.
+    pinguim: { nome: 'Pinguim', jeito: 'anda', fixa: '#2f3242', corpo: [[3, -1, 6, 1], [2, 0, 8, 6]], pernas: [[3, 6, 2, 1], [7, 6, 2, 1]], bracoE: [1, 2, 1, 3], bracoD: [10, 2, 1, 3],
+      olhos: [[3.8, 1, 1, 1.4], [7.2, 1, 1, 1.4]],
+      detalhe: [[3, 0.5, 2.6, 2.2, 'claro'], [6.4, 0.5, 2.6, 2.2, 'claro'], [4, 1.5, 4, 4.5, 'claro'], [3.5, 2.5, 5, 3.5, 'claro'], [5, 2.6, 2, 0.8, 'acento'], [3, 6, 2, 1, 'acento'], [7, 6, 2, 1, 'acento']] },
+    // Passarinho: amarelo, topete, bico laranja, peito claro; voa.
+    passarinho: { nome: 'Passarinho', jeito: 'voa', fixa: '#f2c230', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[4, 5, 0.6, 2], [7.4, 5, 0.6, 2]], bracoE: [1, 2.5, 1, 1.5], bracoD: [10, 2.5, 1, 1.5],
+      olhos: [[3.2, 1.3, 1, 1.3], [7.8, 1.3, 1, 1.3]],
+      detalhe: [[5, -1, 1, 1, 'pele'], [6, -2, 1, 1.5, 'pele'], [3, 3.5, 6, 1.5, 'claro'], [5.2, 2.5, 1.6, 0.9, 'acento'], [4, 5, 0.6, 2, 'acento'], [7.4, 5, 0.6, 2, 'acento'], [1, 2.5, 1, 1.5, 'sombra'], [10, 2.5, 1, 1.5, 'sombra']] },
+    // Sapinho: olhos no alto da cabeça, boca larga, barriga clara; anda pulando.
+    sapinho: { nome: 'Sapinho', jeito: 'pula', fixa: '#5cb85c', corpo: [[2, 1, 8, 4], [2, 0, 3, 1], [7, 0, 3, 1]], pernas: [[1, 5, 3, 2], [8, 5, 3, 2]], bracoE: [1, 3, 1, 1], bracoD: [10, 3, 1, 1],
+      olhos: [[3, 0, 1, 1.5], [8, 0, 1, 1.5]],
+      detalhe: [[4, 3.4, 4, 1.6, 'claro'], [4, 2.4, 4, 0.4, 'escuro'], [2.6, 2, 0.8, 0.5, 'rosado'], [8.6, 2, 0.8, 0.5, 'rosado']] },
+    // Cogumelo: chapéu vermelho de pintas brancas, corpo creme.
+    cogumelo: { nome: 'Cogumelo', jeito: 'anda', fixa: '#e5484d', corpo: [[3, -1, 6, 1], [1, 0, 10, 2], [3, 2, 6, 3]], pernas: [[4, 5, 1.5, 2], [6.5, 5, 1.5, 2]], bracoE: [2, 3, 1, 1], bracoD: [9, 3, 1, 1],
+      olhos: [[4, 2.6, 1, 1.4], [7, 2.6, 1, 1.4]],
+      detalhe: [[3, 2, 6, 3, 'claro'], [4, 5, 1.5, 2, 'claro'], [6.5, 5, 1.5, 2, 'claro'], [2, 3, 1, 1, 'claro'], [9, 3, 1, 1, 'claro'], [2.5, 0.3, 1.5, 1, 'claro'], [7, -0.6, 1.5, 1, 'claro'], [5.5, 0.8, 1, 0.8, 'claro']] },
     // Fantasminha: cabeça redonda, rabo em três pontas, meio transparente; voa.
-    fantasma: { nome: 'Fantasminha', jeito: 'voa', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[2, 5, 2, 1.5], [4, 5, 1, 0.6], [5, 5, 2, 1.5], [8, 5, 2, 1.5]], bracoE: [0.5, 3, 1.5, 1], bracoD: [10, 3, 1.5, 1],
+    fantasma: { nome: 'Fantasminha', jeito: 'voa', fixa: '#eef0f5', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[2, 5, 2, 1.5], [4, 5, 1, 0.6], [5, 5, 2, 1.5], [8, 5, 2, 1.5]], bracoE: [0.5, 3, 1.5, 1], bracoD: [10, 3, 1.5, 1],
       detalhe: [[3, 1, 1, 1, 'brilho'], [4, 0.4, 1, 0.6, 'brilho'], [2, 4, 8, 1, 'sombra']] },
     // Nuvem: fofa e meio transparente; voa e muda de branco para cinza
     // conforme o humor (pensando, trabalhando, triste — aí chove).
-    nuvem: { nome: 'Nuvem', jeito: 'voa', corpo: [[3, 0, 3, 1], [7, 0, 2, 1], [2, 1, 8, 1], [1, 2, 10, 2], [2, 4, 8, 1]], pernas: [[3, 6, 0.6, 1], [5, 6.6, 0.6, 1], [7, 6, 0.6, 1], [9, 6.6, 0.6, 1]], bracoE: [0, 2.5, 1, 1], bracoD: [11, 2.5, 1, 1],
+    nuvem: { nome: 'Nuvem', jeito: 'voa', fixa: null, corpo: [[3, 0, 3, 1], [7, 0, 2, 1], [2, 1, 8, 1], [1, 2, 10, 2], [2, 4, 8, 1]], pernas: [[3, 6, 0.6, 1], [5, 6.6, 0.6, 1], [7, 6, 0.6, 1], [9, 6.6, 0.6, 1]], bracoE: [0, 2.5, 1, 1], bracoD: [11, 2.5, 1, 1],
       detalhe: [[3, 1, 2, 0.6, 'brilho'], [7, 0.3, 1, 0.5, 'brilho'], [2, 4, 8, 1, 'sombra']] },
-    // Gosminha: gelatina transparente com brilho e bolhinha; anda pulando.
-    gosma: { nome: 'Gosminha', jeito: 'pula', corpo: [[4, 0, 4, 1], [3, 1, 6, 1], [2, 2, 8, 3]], pernas: [[1, 5, 3, 2], [4, 5, 2, 2], [6, 5, 2, 2], [8, 5, 3, 2]], bracoE: [1, 3, 1, 1], bracoD: [10, 3, 1, 1],
+    // Gosminha: gelatina verde transparente com brilho e bolhinha; anda pulando.
+    gosma: { nome: 'Gosminha', jeito: 'pula', fixa: '#3fbf7f', corpo: [[4, 0, 4, 1], [3, 1, 6, 1], [2, 2, 8, 3]], pernas: [[1, 5, 3, 2], [4, 5, 2, 2], [6, 5, 2, 2], [8, 5, 3, 2]], bracoE: [1, 3, 1, 1], bracoD: [10, 3, 1, 1],
       detalhe: [[3, 1, 1, 1, 'brilho'], [2, 2, 1, 1, 'brilho'], [7, 4, 1, 1, 'bolha'], [5.5, 5.5, 0.6, 0.6, 'bolha'], [1, 6, 10, 1, 'sombra']] },
   };
   const PARTES = [
@@ -93,22 +125,24 @@
 
   function svg(visual) {
     const v = limpar(visual);
-    const cor = CORES.find((c) => c[0] === v.cor)[2];
+    const e0 = ESPECIES[v.especie];
+    // Cor própria da espécie; só o Clássico usa a cor escolhida.
+    const cor = 'fixa' in e0 ? e0.fixa : CORES.find((c) => c[0] === v.cor)[2];
     const it = (p) => item(v.itens[p]);
     const atras = v.itens.corpo && ITENS[v.itens.corpo].atras;
     const e = ESPECIES[v.especie];
     const r = ([x, y, w, h], cls) => `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}"/>`;
-    return `<svg class="pet-svg especie-${v.especie}" viewBox="-3 -7 18 14" shape-rendering="crispEdges" aria-hidden="true"${cor ? ` style="--pet-cor:${cor}"` : ''}>
+    return `<svg class="pet-svg especie-${v.especie}${'fixa' in e ? ' cor-fixa' : ''}" viewBox="-3 -7 18 14" shape-rendering="crispEdges" aria-hidden="true"${cor ? ` style="--pet-cor:${cor}"` : ''}>
       ${atras ? it('corpo') : ''}
       ${e.pernas.map((p, i) => r(p, `perna p${i + 1}`)).join('')}
       <g class="pet-corpo">
-        ${r(e.bracoE, 'braco braco-e pele')}
+        ${(Array.isArray(e.bracoE[0]) ? e.bracoE : [e.bracoE]).map((p) => r(p, 'braco braco-e pele')).join('')}
         ${e.corpo.map((c) => r(c, 'pele')).join('')}
         ${(e.detalhe || []).map(([x, y, w, h, cls]) => r([x, y, w, h], cls)).join('')}
         ${atras ? '' : it('corpo')}
         <g class="olhos">${(e.olhos || [[3, 1, 1, 2], [8, 1, 1, 2]]).map(([x, y, w, h]) => `<rect class="olho" x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('')}</g>
         ${it('rosto')}${it('pescoco')}${it('olhos')}${it('cabeca')}
-        <g class="braco braco-d">${r(e.bracoD, 'pele')}${it('mao')}</g>
+        <g class="braco braco-d">${(Array.isArray(e.bracoD[0]) ? e.bracoD : [e.bracoD]).map((p) => r(p, 'pele')).join('')}${it('mao')}</g>
       </g>
     </svg>`;
   }

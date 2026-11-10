@@ -30,7 +30,7 @@ let modo = 'escondido'; // escondido | entrando | parado | saindo
 let passeando = false;
 // Jeito de se mexer da espécie (vem com a roupa): anda, voa (fantasma, nuvem) ou pula (gosma).
 let jeito = 'anda';
-const JEITOS = { fantasma: 'voa', nuvem: 'voa', gosma: 'pula' };
+const JEITOS = { fantasma: 'voa', nuvem: 'voa', passarinho: 'voa', gosma: 'pula', sapinho: 'pula' };
 let conversaAberta = false;
 let fila = []; // mensagens que chegaram antes da tela ficar pronta
 let pronto = false;

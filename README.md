@@ -170,16 +170,17 @@ screen (the input box, attachments, agent cards).
 - **Call it from anywhere** with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> (`orq-pet`): chat right
   there, or **📷 crop a piece of your screen** and ask about it (`gnome-screenshot` by default; set your own
   capture program with `capturaTela`, see [the configuration reference](examples/CONFIGURATION.md)).
-- **Pick a friend and dress it up.** Four species, each with its own way of moving:
-  - the **little robot** (the default) walks;
+- **Pick a friend and dress it up.** Nine species, each with its own way of moving:
+  - the **classic critter** (the default) walks, and is the only one you can paint — 16 colors plus your app accent;
+  - the **kitten**, the **penguin** and the **mushroom** walk; the **little bird** flies;
+  - the **little frog** and the see-through **slime** get around by hopping;
   - the translucent **ghost** really flies around — inside the app and across your desktop;
-  - the **cloud** flies too, and changes from white to gray with its mood (it rains when something goes wrong);
-  - the see-through **slime** gets around by hopping, and jumps higher than anyone.
-  - out on the desktop each one arrives and leaves its own way: the robot walks in from the edge, the ghost and
-    the cloud swoop in on a wavy flight and twirl before hovering (and fly off upward), the slime bounces in and out.
+  - the **cloud** flies too, and changes from white to gray with its mood (it rains when something goes wrong).
+  - out on the desktop each one arrives and leaves its own way: walkers come in from the edge, flyers swoop in on a
+    wavy flight and twirl before hovering (and fly off upward), hoppers bounce in and out.
 
-  They all wear the same 30 items across 6 slots (hats, glasses, moustaches, ties, capes, a coffee mug…) in
-  9 colors. Right-click the pet to open the wardrobe.
+  Every species but the classic has its own colors. They all wear the same 30 items across 6 slots (hats, glasses,
+  moustaches, ties, capes, a coffee mug…). Right-click the pet to open the wardrobe.
 
 <table>
   <tr>
@@ -307,8 +308,9 @@ listed in [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
   values only; no code).
 - Built with Electron, xterm.js, node-pty, marked, Tiptap and ProseMirror (MIT — the notes editor is
   bundled in `app/renderer/editor.bundle.js`; their licenses are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)), DOMPurify (Apache 2.0 / MPL 2.0) and the Inter font (OFL).
-- Claude and Claude Code are trademarks of Anthropic. This project is not affiliated with Anthropic; the
-  pixel helper is an original drawing.
+- Claude and Claude Code are trademarks of Anthropic. This project is not affiliated with or endorsed by
+  Anthropic. The classic pixel critter is a fan-made homage to the Claude Code mascot; the other species are
+  original drawings.
 
 ## License
 
