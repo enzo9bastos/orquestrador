@@ -301,7 +301,7 @@ listed in [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
 - Colors inspired by the public brand guide of [Alethe](https://github.com/Kc1t/alethe-agents) (color
   values only; no code).
 - Built with Electron, xterm.js, node-pty, marked, Tiptap and ProseMirror (MIT — the notes editor is
-  bundled in `app/renderer/editor.bundle.js`), DOMPurify (Apache 2.0 / MPL 2.0) and the Inter font (OFL).
+  bundled in `app/renderer/editor.bundle.js`; their licenses are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)), DOMPurify (Apache 2.0 / MPL 2.0) and the Inter font (OFL).
 - Claude and Claude Code are trademarks of Anthropic. This project is not affiliated with Anthropic; the
   pixel helper is an original drawing.
 

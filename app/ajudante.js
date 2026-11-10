@@ -157,14 +157,23 @@ function aviso(a) {
   return true;
 }
 
-// Recorte de um pedaço da tela: pelo print-nitido quando existe (resolução
-// real com monitores em escalas diferentes), senão pelo gnome-screenshot.
-const PRINT_NITIDO = path.join(os.homedir(), '.local', 'bin', 'print-nitido');
+// Recorte de um pedaço da tela: pelo comando da configuração "capturaTela"
+// (["/caminho/do/programa", "arg"…]; ele deixa o usuário escolher a área e
+// imprime o caminho da imagem salva na última linha), senão pelo
+// gnome-screenshot.
+function comandoCaptura() {
+  let c;
+  try { c = require('./config').ler().capturaTela; } catch { return null; }
+  if (!Array.isArray(c) || !c.length || typeof c[0] !== 'string') return null;
+  const bin = c[0].replace(/^~(?=$|\/)/, os.homedir());
+  return fs.existsSync(bin) ? { bin, args: c.slice(1).map(String) } : null;
+}
 function capturar() {
   return new Promise((ok) => {
     const falhou = 'Não consegui recortar a tela (cancelado, ou sem ferramenta de captura instalada).';
-    if (fs.existsSync(PRINT_NITIDO)) {
-      execFile(PRINT_NITIDO, ['--salvar'], { timeout: 120000 }, (erro, saida) => {
+    const cmd = comandoCaptura();
+    if (cmd) {
+      execFile(cmd.bin, cmd.args, { timeout: 120000 }, (erro, saida) => {
         const caminho = String(saida || '').trim().split('\n').pop();
         ok(erro || !caminho || !fs.existsSync(caminho) ? { erro: falhou } : { caminho });
       });
@@ -278,4 +287,4 @@ function atualizarAparencia() { mandar({ t: 'visual', ...aparencia() }); }
 // O usuário escreveu ao orquestrador: o pedido de ação já foi visto.
 function limparAcoes(conversa) { for (const [id, p] of acoes) if (p.conversa === conversa) acoes.delete(id); }
 
-module.exports = { acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };

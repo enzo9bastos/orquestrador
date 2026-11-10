@@ -79,6 +79,11 @@ const PADRAO = {
   // Caminho do executável de cada CLI, para quem instala fora do PATH:
   // { "claude": "/opt/claude/bin/claude" }. Sem entrada: acha no PATH.
   iasCaminhos: {},
+
+  // Programa que recorta um pedaço da tela para o ajudante (bichinho): lista
+  // com o caminho e os argumentos; ele imprime o caminho da imagem na última
+  // linha. Sem ele: gnome-screenshot. Ex.: ["~/bin/meu-print", "--salvar"].
+  capturaTela: null,
 };
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);

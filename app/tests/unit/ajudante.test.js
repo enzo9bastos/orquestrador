@@ -129,3 +129,16 @@ test('pet: resposta que pede para rodar um comando vira pendência "acao" até o
   ajudante.limparAcoes('orquestrador'); // o usuário escreveu ao orquestrador
   assert.deepStrictEqual(ajudante.acoesAbertas(), []);
 });
+
+test('ajudante: recorte de tela usa o programa de "capturaTela" (com ~), senão o padrão', () => {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const cfg = require('../../config');
+  assert.strictEqual(ajudante._comandoCaptura(), null, 'sem configuração: gnome-screenshot');
+  const bin = path.join(os.homedir(), 'meu-print');
+  fs.writeFileSync(bin, '#!/bin/sh\n', { mode: 0o755 });
+  cfg.gravar({ capturaTela: ['~/meu-print', '--salvar'] });
+  assert.deepStrictEqual(ajudante._comandoCaptura(), { bin, args: ['--salvar'] });
+  cfg.gravar({ capturaTela: ['~/nao-existe'] });
+  assert.strictEqual(ajudante._comandoCaptura(), null, 'programa que não existe: volta ao padrão');
+  cfg.gravar({ capturaTela: null });
+});

@@ -50,9 +50,9 @@ test('navegador', async (t) => {
     const el = (await nav('elementos'));
     assert.match(el.saida, /\[1\] input:text {2}Seu nome/);
     assert.match(el.saida, /\[2\] button {2}Enviar/);
-    assert.ok((await nav('digitar', '1', 'Enzo')).ok);
+    assert.ok((await nav('digitar', '1', 'Maria')).ok);
     assert.ok((await nav('clicar', '2')).ok);
-    assert.match((await nav('texto')).saida, /Recebi Enzo/);
+    assert.match((await nav('texto')).saida, /Recebi Maria/);
     assert.ok((await nav('clicar', 'a[href="/dois"]')).ok);
     assert.match((await nav('texto')).saida, /Página dois/);
     assert.ok((await nav('voltar')).ok);

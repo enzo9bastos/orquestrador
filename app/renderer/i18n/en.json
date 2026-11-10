@@ -973,7 +973,8 @@
     "Apagar demanda": "Delete request",
     "Apagar?": "Delete?",
     "Confirmar: a demanda sai do painel e a nota vai para a lixeira": "Confirm: the request leaves the panel and its note goes to the trash",
-    "Confirmar: a demanda sai do painel": "Confirm: the request leaves the panel"
+    "Confirmar: a demanda sai do painel": "Confirm: the request leaves the panel",
+    "Passada nos agentes (a cada 3 min)": "Agent sweep (every 3 min)"
   },
   "padroes": [
     [

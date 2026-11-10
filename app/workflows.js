@@ -74,11 +74,11 @@ const GATILHOS = new Set(Object.keys(TIPOS).filter((t) => TIPOS[t].grupo === 'ga
 // orquestrador faz pelo agendamento do Claude. O do Claude continua; este é
 // a cópia no app (ligar os dois manda a passada em dobro).
 const EXEMPLO = {
-  id: 'passada-frentes', nome: 'Passada nas frentes (3 em 3 min)', ativo: false,
-  descricao: 'A cada 3 minutos, com a rodada iniciada, pede ao orquestrador a passada nas frentes. Cópia no app do lembrete que o Claude agenda.',
+  id: 'passada-frentes', nome: 'Passada nos agentes (a cada 3 min)', ativo: false,
+  descricao: 'A cada 3 minutos, com a rodada iniciada, pede ao orquestrador para conferir os agentes. Nasce desligado.',
   nos: [
     { id: 'n1', tipo: 'agenda', x: 40, y: 60, config: { modo: 'intervalo', minutos: 3 } },
-    { id: 'n2', tipo: 'orquestrador', x: 290, y: 60, config: { soComRodada: true, pularSeOcupado: true, texto: 'Passada automática (workflow do app): passe nas frentes, confira o que cada agente diz ter feito contra o git, marque como revisado e atualize ~/dev/_orq/topicos.md. Só me escreva se houver decisão minha, pedido de permissão parado na tela, achado que muda o rumo ou frente concluída. Silêncio é a resposta padrão.' } },
+    { id: 'n2', tipo: 'orquestrador', x: 290, y: 60, config: { soComRodada: true, pularSeOcupado: true, texto: 'Passada automática: veja como está cada agente e confira o que diz ter feito. Só me escreva se precisar de uma decisão minha, se houver um pedido de permissão parado ou se algo terminou.' } },
   ],
   ligacoes: [{ de: 'n1', para: 'n2' }],
 };

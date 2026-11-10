@@ -4,11 +4,11 @@ const assert = require('node:assert');
 const { casaTemporaria, escrever } = require('../ajuda');
 
 const casa = casaTemporaria({
-  raizProjetos: '~/dev', niveis: 2, ignorar: '^[_-]', pastaNotas: '~/dev/_orq',
+  raizProjetos: '~/dev', niveis: 2, ignorar: '^[_-]', pastaNotas: '~/dev/_notas',
   linhaTarefa: '^\\s*Agente\\s+(?<numero>\\d+)\\s+(?<alvo>\\S+\\/\\S+)\\s+[0-9a-f-]{36}\\s+\\((?<tarefa>.+)\\)',
 });
-for (const p of ['empresa/proj-a', 'empresa/proj-b', '_orq/x', 'outra/proj-c']) escrever(casa, `dev/${p}/.keep`, '');
-escrever(casa, 'dev/_orq/topicos.md', 'texto\n  Agente 2  empresa/proj-a  11111111-2222-3333-4444-555555555555  (tarefa antiga)\n' +
+for (const p of ['empresa/proj-a', 'empresa/proj-b', '_notas/x', 'outra/proj-c']) escrever(casa, `dev/${p}/.keep`, '');
+escrever(casa, 'dev/_notas/topicos.md', 'texto\n  Agente 2  empresa/proj-a  11111111-2222-3333-4444-555555555555  (tarefa antiga)\n' +
   '  Agente 2  empresa/proj-a  11111111-2222-3333-4444-555555555555  (tarefa nova)\n');
 const coletor = require('../../coletor');
 const config = require('../../config');

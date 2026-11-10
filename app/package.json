@@ -1,7 +1,9 @@
 {
   "name": "orquestrador",
   "version": "0.1.0",
-  "description": "Orquestrador: uma janela para conduzir vários agentes Claude Code em tmux",
+  "description": "A desktop shell for agents and orchestrators on AI CLIs (Claude Code today): conversations, terminals, notes, workflows and a desktop helper",
+  "license": "MIT",
+  "repository": "github:enzo9bastos/orquestrador",
   "main": "main.js",
   "private": true,
   "scripts": {

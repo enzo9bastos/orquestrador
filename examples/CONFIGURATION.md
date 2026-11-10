@@ -53,6 +53,7 @@ inside the app. A starting point: [`config.example.json`](config.example.json).
 |---|---|---|
 | `notificacoes` | both on | `{ "pedidos": true, "respostas": true }` — desktop notifications for questions and for finished answers |
 | `ambiente` | `{}` | Extra environment variables for the app's conversations and terminals (e.g. telling your scripts they run inside the app) |
+| `capturaTela` | `null` | Program the desktop helper uses to capture a screen area: `["/path/to/program", "arg"]`. It lets you pick the area and prints the saved image path on its last line. Without it, `gnome-screenshot -a` is used |
 
 ## Files the app writes
 
