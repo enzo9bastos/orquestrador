@@ -234,4 +234,24 @@ test('conversa', async (t) => {
     assert.match(await autor(), /Claude$/, 'sem horário conhecido não inventa um');
     assert.deepStrictEqual(app.erros, []);
   });
+
+  // Pedido de 2026-11-10: múltipla escolha não era visível; marcar e escrever
+  // em "Outra resposta" apagava as marcas; prévia (preview) das opções sumia.
+  await t.test('múltipla escolha: avisa, mostra caixinhas e junta marcas com "Outra resposta"', async () => {
+    const multi = { id: 'pm', ferramenta: 'AskUserQuestion', entrada: { questions: [
+      { header: 'Extras', question: 'O que entra junto?', multiSelect: true, options: [{ label: 'Filtros' }, { label: 'Lista na ficha' }, { label: 'Aba extra' }] },
+      { header: 'Layout', question: 'Qual layout?', multiSelect: false, options: [{ label: 'A', description: 'em cima', preview: '+------+\n| topo |\n+------+' }, { label: 'B' }] },
+    ] } };
+    await app.avaliar(`window.__orqTeste.pedidos.set('pm', ${JSON.stringify(multi)}); window.__orqTeste.cartaoPedido(${JSON.stringify(multi)})`);
+    const q = (n) => `document.querySelectorAll('[data-pedido="pm"] .pergunta')[${n}]`;
+    assert.match(await app.avaliar(`${q(0)}.querySelector('legend').innerText`), /pode marcar mais de uma/i);
+    assert.doesNotMatch(await app.avaliar(`${q(1)}.querySelector('legend').innerText`), /mais de uma/i);
+    assert.strictEqual(await app.avaliar(`${q(0)}.querySelectorAll('.opcao.multi').length`), 3, 'opções com caixinha');
+    assert.match(await app.avaliar(`${q(1)}.querySelector('.previa')?.textContent || ''`), /\| topo \|/, 'a prévia da opção aparece');
+    await app.avaliar(`${q(0)}.querySelectorAll('.opcao')[0].click(); ${q(0)}.querySelectorAll('.opcao')[1].click()`);
+    await app.avaliar(`(() => { const o = ${q(0)}.querySelector('.outra'); o.value = 'e a aba só leitura'; o.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    assert.strictEqual(await app.avaliar(`${q(0)}.querySelectorAll('.opcao.marcada').length`), 2, 'escrever não apaga as marcas na múltipla escolha');
+    assert.strictEqual(await app.avaliar('document.querySelector(\'[data-pedido="pm"]\') !== null'), true, 'marcar na múltipla não envia sozinho');
+    assert.deepStrictEqual(app.erros, []);
+  });
 });

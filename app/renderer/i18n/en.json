@@ -987,7 +987,8 @@
     "Anil": "Indigo",
     "Lilás": "Lilac",
     "Grafite": "Graphite",
-    "Esta espécie tem a cor dela. Só o Clássico muda de cor.": "This species has its own color. Only the Classic changes color."
+    "Esta espécie tem a cor dela. Só o Clássico muda de cor.": "This species has its own color. Only the Classic changes color.",
+    "Pode marcar mais de uma": "You can pick more than one"
   },
   "padroes": [
     [
@@ -1685,6 +1686,10 @@
     [
       "^Não consegui apagar: (.+)$",
       "Couldn't delete: $1"
+    ],
+    [
+      "^pergunta (\\d+) de (\\d+) · pode marcar mais de uma$",
+      "question $1 of $2 · you can pick more than one"
     ]
   ]
 }

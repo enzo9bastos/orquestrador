@@ -141,7 +141,7 @@
     $('pg-quem').textContent = it.quem || 'Pergunta';
     if (it.tipo === 'pergunta') {
       const q = it.perguntas[pg.i];
-      $('pg-passo').textContent = it.perguntas.length > 1 ? `pergunta ${pg.i + 1} de ${it.perguntas.length}` : (q.multiSelect ? 'pode marcar mais de uma' : '');
+      $('pg-passo').textContent = [it.perguntas.length > 1 ? `pergunta ${pg.i + 1} de ${it.perguntas.length}` : '', q.multiSelect ? 'pode marcar mais de uma' : ''].filter(Boolean).join(' · ');
       $('pg-corpo').innerHTML = `${q.header ? `<p class="aj-cabeca">${esc(q.header)}</p>` : ''}<p class="pergunta">${esc(q.question)}</p>
         <div class="aj-opcoes">${(q.options || []).map((o) => `<button type="button" class="aj-opcao${pg.marcadas.has(o.label) ? ' marcada' : ''}" data-op="${esc(o.label)}"><strong>${esc(o.label)}</strong>${o.description ? `<small>${esc(o.description)}</small>` : ''}</button>`).join('')}</div>
         <textarea id="pg-outra" rows="2" placeholder="Outra resposta… (Enter envia)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;

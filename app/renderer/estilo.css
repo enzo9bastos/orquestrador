@@ -1437,3 +1437,14 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .pet-svg .escuro { fill: #000; opacity: .3; }
 .pet-svg.cor-fixa .olho { fill: #17161d; }
 .gr-cor-fixa { margin: 6px 0 0; font-size: 12px; color: var(--fg-3); text-align: center; max-width: 180px; }
+
+/* Pergunta: múltipla escolha avisada e com caixinha; escolha única com bolinha;
+   prévia (desenho/código) da opção quando o Claude manda. */
+.pergunta .dica-multi { font-size: 12px; font-weight: 500; color: var(--claude); }
+.opcao.multi, .opcao.unica { position: relative; padding-left: 38px; }
+.opcao.multi::before, .opcao.unica::before { content: ''; position: absolute; left: 13px; top: 13px; width: 13px; height: 13px; border: 1.5px solid var(--fg-3); background: var(--bg); }
+.opcao.multi::before { border-radius: 3px; }
+.opcao.unica::before { border-radius: 50%; }
+.opcao.multi.marcada::before { background: var(--claude); border-color: var(--claude); box-shadow: inset 0 0 0 2px var(--bg); }
+.opcao.unica.marcada::before { border-color: var(--claude); box-shadow: inset 0 0 0 3px var(--bg); background: var(--claude); }
+.opcao .previa { margin: 6px 0 0; padding: 8px 10px; border-radius: var(--r-sm); background: var(--bg); border: 1px solid var(--borda); font: 11.5px/1.35 var(--mono); color: var(--fg-2); white-space: pre; overflow-x: auto; max-height: 220px; text-align: left; }

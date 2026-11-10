@@ -263,10 +263,10 @@
     if (p.ferramenta === 'AskUserQuestion') {
       el.innerHTML = (p.entrada.questions || []).map((q, i) => `
         <fieldset class="pergunta" data-i="${i}" data-multi="${q.multiSelect ? 1 : 0}">
-          <legend><span class="etiqueta">${esc(q.header || 'Pergunta')}</span>${esc(q.question)}</legend>
+          <legend><span class="etiqueta">${esc(q.header || 'Pergunta')}</span>${esc(q.question)}${q.multiSelect ? '<span class="dica-multi">Pode marcar mais de uma</span>' : ''}</legend>
           <div class="opcoes">${(q.options || []).map((o) => `
-            <button type="button" class="opcao" data-rotulo="${esc(o.label)}">
-              <strong>${esc(o.label)}</strong>${o.description ? `<span>${esc(o.description)}</span>` : ''}</button>`).join('')}
+            <button type="button" class="opcao ${q.multiSelect ? 'multi' : 'unica'}" data-rotulo="${esc(o.label)}" role="${q.multiSelect ? 'checkbox' : 'radio'}" aria-checked="false">
+              <strong>${esc(o.label)}</strong>${o.description ? `<span>${esc(o.description)}</span>` : ''}${o.preview ? `<pre class="previa">${esc(o.preview)}</pre>` : ''}</button>`).join('')}
           </div>
           <textarea class="outra" rows="1" placeholder="Outra resposta…  (Enter responde · Shift+Enter quebra linha · Ctrl+V cola print)"></textarea>
           <div class="anexos anexos-pergunta" hidden></div>
@@ -312,8 +312,10 @@
       const fs = opcao.closest('.pergunta');
       if (fs.dataset.multi !== '1') fs.querySelectorAll('.opcao').forEach((o) => o.classList.remove('marcada'));
       opcao.classList.toggle('marcada');
-      // Escolheu uma opção: o texto de "Outra resposta" deixa de valer.
-      fs.querySelector('.outra').value = '';
+      fs.querySelectorAll('.opcao').forEach((o) => o.setAttribute('aria-checked', o.classList.contains('marcada') ? 'true' : 'false'));
+      // Escolha única: o texto de "Outra resposta" deixa de valer. Múltipla:
+      // as marcas e o texto valem juntos.
+      if (fs.dataset.multi !== '1') fs.querySelector('.outra').value = '';
       // Uma pergunta só, de escolha única: o clique já responde.
       if (fs.dataset.multi !== '1' && cartao.querySelectorAll('.pergunta').length === 1) enviarRespostas(cartao);
       return;
@@ -335,6 +337,7 @@
     outra.style.height = 'auto';
     outra.style.height = Math.min(outra.scrollHeight + 2, 240) + 'px';
     if (!outra.value.trim()) return;
+    if (outra.closest('.pergunta').dataset.multi === '1') return; // múltipla: marcas + texto valem juntos
     outra.closest('.pergunta').querySelectorAll('.opcao.marcada').forEach((o) => o.classList.remove('marcada'));
   });
   caixa.addEventListener('keydown', (ev) => {
@@ -356,7 +359,8 @@
       const q = p.entrada.questions[fs.dataset.i];
       const outra = fs.querySelector('.outra').value.trim();
       const marcadas = [...fs.querySelectorAll('.opcao.marcada')].map((o) => o.dataset.rotulo);
-      let r = outra || marcadas.join(', ');
+      // Múltipla escolha: as marcadas e o texto de "Outra resposta" vão juntos.
+      let r = fs.dataset.multi === '1' && marcadas.length && outra ? `${marcadas.join(', ')}; ${outra}` : (outra || marcadas.join(', '));
       if (!r && !prints.length) { fs.classList.add('falta'); return; }
       if (prints.length && fs === cartao.querySelector('.pergunta')) r = `${r ? `${r} ` : ''}(a print segue na próxima mensagem)`;
       respostas[q.question] = r;
