@@ -49,7 +49,8 @@ protocol), so there is no terminal to babysit.
 
 - Markdown answers, collapsible tool calls (*Ran …*, *Read …*), question cards with clickable options,
   **Allow / Deny** on permission requests, `/command` autocomplete.
-- Model and effort switcher, context and usage meters (5-hour and 7-day windows) in the top bar.
+- Model and effort switcher, context and usage meters (5-hour and 7-day windows) in the top bar; each reply shows
+  its time next to Claude's name (with the date when it is from another day).
 - **Start** sends your round-opening command (e.g. a skill of yours); **Shut down** ends the round safely.
 - Paste, drag or attach (📎) screenshots and files — images go as images, other files by their path; right-click a
   misspelled word for suggestions (Portuguese and English); `//skill` uses anything from the Library; `@note:` and
@@ -73,7 +74,8 @@ it and a progress bar. **Each approved request is a Markdown note** in `Notes �
 Demandas/` — click the card and it opens in the Notes tab, where the summary, the checklist and your own
 *Anotações* (free notes the app never touches) live. Tick a step or change the `Estado:` line in the note and
 the card follows; finished requests stay in the folder as "Title - Concluída.md".
-Hover a card for the trash icon: after a second click the request leaves the panel and its note goes to the system trash.
+The arrow on a card lists the steps still to do without leaving the panel. Hover a card for the trash icon: after a
+second click the request leaves the panel and its note goes to the system trash.
 
 As work comes in, the **orchestrator suggests a request** (title, summary and planned steps) with
 `orq-topico sugerir`; you **approve or reject** it on the card — fixing the title first if you want. Only approved
@@ -92,6 +94,8 @@ shell in the **Terminal** tab on the right.
 
 A Notion-style Markdown editor over the folders you choose: blocks, `/` menu, checklists, tables,
 callouts, images. It autosaves and keeps every previous version; deleting a note sends it to the system trash.
+Right-click a folder to **hide it from Notes** (nothing is deleted; bring it back from the empty-space menu ›
+*Hidden folders*) or to **move it to the trash** after a confirmation that says how many notes and files go with it.
 
 ### 📚 Library
 
@@ -164,7 +168,8 @@ screen (the input box, attachments, agent cards).
 - **Brings you what needs you.** When something new is pending and the app is not focused, it walks in
   with the question and its options (or the permission, with *Allow / Deny*) and you answer right there.
 - **Call it from anywhere** with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> (`orq-pet`): chat right
-  there, or **📷 crop a piece of your screen** and ask about it.
+  there, or **📷 crop a piece of your screen** and ask about it (`gnome-screenshot` by default; set your own
+  capture program with `capturaTela`, see [the configuration reference](examples/CONFIGURATION.md)).
 - **Pick a friend and dress it up.** Four species, each with its own way of moving:
   - the **little robot** (the default) walks;
   - the translucent **ghost** really flies around — inside the app and across your desktop;
