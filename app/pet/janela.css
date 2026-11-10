@@ -52,10 +52,162 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 .aj-erro { color: var(--perigo); margin: 6px 0 0; }
 .aj-pergunta .aj-acoes { justify-content: flex-end; }
 
-/* Chegada de cada espécie (fora do app): quem voa dá uma pirueta ao parar no
-   ar; a gosma quica ao pousar. */
-.aj-pet.pirueta .pet-vira { animation: aj-pirueta .8s cubic-bezier(.3, .7, .4, 1); }
-@keyframes aj-pirueta { from { rotate: -360deg; } to { rotate: 0deg; } }
-.aj-pet.quica .pet-vira { transform-origin: 50% 100%; animation: aj-quica .6s ease-out; }
-@keyframes aj-quica { 0% { scale: 1 1; } 25% { scale: 1.3 .7; } 55% { scale: .85 1.2; } 80% { scale: 1.08 .94; } 100% { scale: 1 1; } }
-@media (prefers-reduced-motion: reduce) { .aj-pet.pirueta .pet-vira, .aj-pet.quica .pet-vira { animation: none; } }
+/* ===== O jeito de cada espécie fora do app (pedido de 2026-11-10) =========
+   Três camadas, para não brigarem: .pet-vira faz os floreios (chegada e
+   saída), .pet-svg faz o "esperando" de cada um (respirar, pairar, gingar) e
+   braços, pernas, rabo, olhos e língua se mexem por conta própria. A janela
+   anda a ~60 quadros por segundo (pet/main.js); aqui tudo é contínuo, sem
+   pular de quadro em quadro. */
+.aj-pet { transition: translate .45s cubic-bezier(.2, .7, .3, 1), opacity .45s ease; }
+.aj-pet .pet-vira { transform-origin: 50% 100%; }
+
+/* --- todos: piscam de vez em quando e andam com passo macio --------------- */
+.aj-pet .olho { animation: aj-pisca 4.6s infinite; }
+.aj-pet[data-especie="gatinho"] .olho { animation-duration: 5.8s; }
+.aj-pet[data-especie="nuvem"] .olho { animation-duration: 6.4s; }
+@keyframes aj-pisca { 0%, 93%, 100% { scale: 1 1; } 95% { scale: 1 .1; } 97% { scale: 1 1; } }
+.aj-pet.andando .p1, .aj-pet.andando .p3 { animation: aj-passo .34s ease-in-out infinite; }
+.aj-pet.andando .p2, .aj-pet.andando .p4 { animation: aj-passo .34s ease-in-out infinite -.17s; }
+@keyframes aj-passo { 0%, 50%, 100% { transform: translateY(0); } 25% { transform: translateY(-1.3px); } }
+.aj-pet.andando .pet-corpo { animation: aj-trote .17s ease-in-out infinite alternate; }
+@keyframes aj-trote { from { transform: translateY(0); } to { transform: translateY(-0.55px); } }
+
+/* --- Clássico: respira; chega com um pulinho e acena ---------------------- */
+.aj-pet[data-especie="bicho"]:not(.andando) .pet-svg { animation: aj-respira 2.8s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes aj-respira { 0%, 100% { scale: 1 1; } 50% { scale: 1.015 1.04; } }
+.aj-pet.oi .pet-vira { animation: aj-oi 1s ease-out; }
+@keyframes aj-oi { 0% { translate: 0 0; scale: 1 1; } 12% { scale: 1.12 .88; } 30% { translate: 0 -16px; scale: .92 1.1; } 48% { translate: 0 0; scale: 1.1 .9; } 60% { scale: .97 1.03; } 72% { translate: 0 -5px; scale: 1 1; } 86% { translate: 0 0; scale: 1.04 .96; } 100% { translate: 0 0; scale: 1 1; } }
+
+/* --- Gatinho: trota, chega se espreguiçando e balança o rabo -------------- */
+.aj-pet[data-especie="gatinho"].andando .p1, .aj-pet[data-especie="gatinho"].andando .p3,
+.aj-pet[data-especie="gatinho"].andando .p2, .aj-pet[data-especie="gatinho"].andando .p4 { animation-duration: .24s; }
+.aj-pet[data-especie="gatinho"].andando .p2, .aj-pet[data-especie="gatinho"].andando .p4 { animation-delay: -.12s; }
+.aj-pet[data-especie="gatinho"]:not(.andando) .pet-svg { animation: aj-respira 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.aj-pet[data-especie="gatinho"] .rabo { transform-box: fill-box; transform-origin: 100% 100%; animation: aj-rabo-gato 1.8s ease-in-out infinite; }
+.aj-pet[data-especie="gatinho"].andando .rabo { animation-duration: .5s; }
+@keyframes aj-rabo-gato { 0%, 100% { rotate: 0deg; } 30% { rotate: -22deg; } 55% { rotate: 6deg; } 75% { rotate: -10deg; } }
+.aj-pet.espreguica .pet-vira { animation: aj-espreguica 1.5s ease-in-out; }
+@keyframes aj-espreguica { 0% { scale: 1 1; } 25% { scale: 1.2 .78; translate: -3px 0; } 50% { scale: 1.22 .76; translate: -3px 0; } 64% { scale: .94 1.08; translate: 0 0; } 76% { scale: 1.04 .97; } 88% { scale: .99 1.01; } 100% { scale: 1 1; } }
+.aj-pet.espreguica .olho { scale: 1 .15; animation: none; }
+
+/* --- Pinguim: ginga ao andar; chega e vai de barriga, levanta batendo as asas */
+.aj-pet[data-especie="pinguim"].andando:not(.deslizando) .pet-svg { animation: aj-gingado .3s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+@keyframes aj-gingado { from { rotate: -9deg; } to { rotate: 9deg; } }
+.aj-pet[data-especie="pinguim"] .pet-svg { transition: rotate .35s cubic-bezier(.3, 1.5, .5, 1), translate .35s ease-out; }
+.aj-pet.deslizando .pet-svg { rotate: 84deg; translate: 6px 20px; }
+.aj-pet.deslizando .braco-e { transform: rotate(70deg); }
+.aj-pet.deslizando .braco-d { transform: rotate(-70deg); }
+.aj-pet.deslizando .perna { animation: none !important; }
+.aj-pet.levanta .pet-vira { animation: aj-levanta .95s ease-out; }
+@keyframes aj-levanta { 0% { translate: 0 0; scale: 1 1; } 25% { translate: 0 -12px; scale: .94 1.08; } 50% { translate: 0 0; scale: 1.1 .9; } 66% { translate: 0 -3px; scale: .98 1.02; } 82% { translate: 0 0; scale: 1.03 .97; } 100% { scale: 1 1; } }
+.aj-pet.levanta .braco-e { animation: aj-asa-e .12s ease-in-out 6 alternate; }
+.aj-pet.levanta .braco-d { animation: aj-asa-d .12s ease-in-out 6 alternate; }
+.aj-pet[data-especie="pinguim"]:not(.andando):not(.levanta) .braco-e { animation: aj-abana-e 4s ease-in-out infinite; }
+.aj-pet[data-especie="pinguim"]:not(.andando):not(.levanta) .braco-d { animation: aj-abana-d 4s ease-in-out infinite; }
+@keyframes aj-abana-e { 0%, 80%, 100% { transform: none; } 84%, 92% { transform: rotate(38deg); } 88%, 96% { transform: rotate(6deg); } }
+@keyframes aj-abana-d { 0%, 80%, 100% { transform: none; } 84%, 92% { transform: rotate(-38deg); } 88%, 96% { transform: rotate(-6deg); } }
+
+/* --- Passarinho: bate as asas o tempo todo; chega com um looping e fica
+   pairando como beija-flor ---------------------------------------------- */
+.aj-pet[data-especie="passarinho"] .braco-e { animation: aj-asa-e .13s ease-in-out infinite alternate; }
+.aj-pet[data-especie="passarinho"] .braco-d { animation: aj-asa-d .13s ease-in-out infinite alternate; }
+@keyframes aj-asa-e { from { transform: rotate(-12deg); } to { transform: translateY(-0.8px) rotate(58deg); } }
+@keyframes aj-asa-d { from { transform: rotate(12deg); } to { transform: translateY(-0.8px) rotate(-58deg); } }
+.aj-pet[data-especie="passarinho"]:not(.andando) .pet-svg { animation: aj-beija-flor .9s ease-in-out infinite; }
+@keyframes aj-beija-flor { 0%, 100% { translate: 0 0; rotate: -2deg; } 50% { translate: 0 -4px; rotate: 2deg; } }
+.aj-pet[data-especie="passarinho"] .perna { transform-box: fill-box; transform-origin: 50% 0; scale: 1 .6; }
+.aj-pet.looping .pet-vira { transform-origin: 50% 55%; animation: aj-looping 1.05s cubic-bezier(.4, .1, .4, 1); }
+@keyframes aj-looping {
+  0% { translate: 0 0; rotate: 0deg; }
+  20% { translate: 14px -6px; rotate: -70deg; }
+  40% { translate: 10px -26px; rotate: -160deg; }
+  60% { translate: -8px -26px; rotate: -250deg; }
+  80% { translate: -10px -8px; rotate: -330deg; }
+  100% { translate: 0 0; rotate: -360deg; }
+}
+
+/* --- Sapinho: pulos longos com as pernas esticadas, papo que infla e língua
+   que sai de vez em quando ------------------------------------------------ */
+.aj-pet[data-especie="sapinho"] .papo { transform-box: fill-box; transform-origin: 50% 0; animation: aj-papo 3.4s ease-in-out infinite; }
+@keyframes aj-papo { 0%, 62%, 100% { scale: 1 1; } 70% { scale: 1.08 1.45; } 76% { scale: 1 1; } 82% { scale: 1.06 1.35; } 88% { scale: 1 1; } }
+.aj-pet[data-especie="sapinho"]:not(.andando) .lingua { animation: aj-lingua 6.5s ease-out infinite 1.2s; }
+@keyframes aj-lingua { 0%, 90%, 100% { transform: scaleX(0); } 92% { transform: scaleX(1); } 94% { transform: scaleX(.85); } 96% { transform: scaleX(0); } }
+.aj-pet.pulando[data-especie="sapinho"] .perna { transform-box: fill-box; transform-origin: 50% 0; animation: aj-perna-sapo var(--pulo-ms, 500ms) linear infinite; }
+@keyframes aj-perna-sapo { 0%, 100% { transform: scaleY(.5); } 14% { transform: scaleY(1.8) translateX(-0.3px); } 60% { transform: scaleY(1.4); } 90% { transform: scaleY(.85); } }
+
+/* --- Pulos (sapinho e gosminha): amassa ao tomar impulso, estica no ar e
+   amassa de novo ao pousar, no mesmo compasso do pulo da janela ----------- */
+.aj-pet.pulando .pet-vira { animation: aj-pulo var(--pulo-ms, 500ms) linear infinite; }
+.aj-pet.pulando[data-especie="gosma"] .perna { animation: none; }
+@keyframes aj-pulo { 0% { scale: 1.32 .68; } 9% { scale: .8 1.24; } 28% { scale: .93 1.08; } 50% { scale: 1 1; } 72% { scale: .95 1.06; } 92% { scale: .88 1.14; } 100% { scale: 1.32 .68; } }
+.aj-pet.quica .pet-vira { animation: aj-quica .75s ease-out; }
+@keyframes aj-quica { 0% { scale: 1.38 .62; } 16% { scale: .82 1.22; translate: 0 -7px; } 34% { scale: 1.14 .88; translate: 0 0; } 50% { scale: .93 1.07; } 66% { scale: 1.05 .96; } 82% { scale: .99 1.01; } 100% { scale: 1 1; } }
+
+/* --- Gosminha: treme como gelatina e solta bolhinhas ---------------------- */
+.aj-pet[data-especie="gosma"]:not(.andando) .pet-svg { animation: aj-gelatina 1.7s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes aj-gelatina { 0%, 100% { scale: 1 1; } 18% { scale: 1.06 .94; } 36% { scale: .96 1.05; } 54% { scale: 1.03 .97; } 72% { scale: .99 1.02; } 86% { scale: 1.01 .99; } }
+.aj-pet[data-especie="gosma"] .bolha { transform-box: fill-box; animation: aj-bolha 2.6s ease-in infinite; }
+.aj-pet[data-especie="gosma"] .bolha + .bolha { animation-delay: -1.3s; }
+@keyframes aj-bolha { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: .35; } 85% { opacity: .3; } 100% { transform: translateY(-3.2px); opacity: 0; } }
+
+/* --- Cogumelo: brota do chão (com terra voando), balança de leve e afunda
+   ao ir embora ------------------------------------------------------------ */
+.aj-pet[data-especie="cogumelo"]:not(.andando) .pet-svg { animation: aj-balanca-cogumelo 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes aj-balanca-cogumelo { 0%, 100% { rotate: -2.5deg; } 50% { rotate: 2.5deg; } }
+.aj-pet.brota .pet-vira { animation: aj-brota 1s cubic-bezier(.3, .8, .4, 1); }
+@keyframes aj-brota { 0% { scale: .6 0; } 30% { scale: .8 1.3; } 50% { scale: 1.2 .84; } 66% { scale: .95 1.07; } 80% { scale: 1.03 .97; } 92% { scale: .99 1.01; } 100% { scale: 1 1; } }
+.aj-pet.afunda .pet-vira { animation: aj-afunda .85s cubic-bezier(.6, 0, .8, .4) forwards; }
+@keyframes aj-afunda { 0% { scale: 1 1; } 18% { scale: 1.12 .88; } 34% { scale: .92 1.1; } 100% { scale: .5 0; } }
+.aj-pet.brota::after, .aj-pet.afunda::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; background: #8a6a4a; box-shadow: -18px -2px #6e5238, 16px -4px #8a6a4a, -9px -9px #a07c58, 10px -11px #6e5238, 22px 0 #a07c58, -26px -1px #8a6a4a, 2px -6px #6e5238; animation: aj-terra .8s ease-out forwards; pointer-events: none; }
+@keyframes aj-terra { 0% { translate: 0 0; opacity: 1; scale: .6; } 100% { translate: 0 -16px; opacity: 0; scale: 1.5; } }
+
+/* --- Quem voa: inclina para a frente quando acelera ----------------------- */
+.aj-pet[data-especie="fantasma"] .pet-svg, .aj-pet[data-especie="nuvem"] .pet-svg, .aj-pet[data-especie="passarinho"] .pet-svg { transition: rotate .3s ease-out; }
+.aj-pet.andando[data-especie="fantasma"] .pet-svg, .aj-pet.andando[data-especie="passarinho"] .pet-svg { rotate: 14deg; animation: none; }
+.aj-pet.andando[data-especie="nuvem"] .pet-svg { rotate: 7deg; scale: 1.08 .94; animation: none; }
+
+/* --- Fantasminha: aparece do nada, vem rapidinho, dá uma pirueta e fica
+   flutuando, balançando o rabinho e os bracinhos; vai embora sumindo ------ */
+.aj-pet[data-especie="fantasma"].fora-dir, .aj-pet[data-especie="fantasma"].fora-esq { opacity: 0; }
+.aj-pet[data-especie="fantasma"]:not(.andando) .pet-svg { animation: aj-paira-fantasma 2.4s ease-in-out infinite; }
+@keyframes aj-paira-fantasma { 0%, 100% { translate: 0 0; rotate: -3deg; } 25% { translate: 0 -5px; rotate: 0deg; } 50% { translate: 0 -9px; rotate: 3deg; } 75% { translate: 0 -4px; rotate: 0deg; } }
+.aj-pet[data-especie="fantasma"] .perna { animation: aj-rabinho .7s ease-in-out infinite alternate; }
+.aj-pet[data-especie="fantasma"] .p2, .aj-pet[data-especie="fantasma"] .p4 { animation-delay: -.35s; }
+.aj-pet.andando[data-especie="fantasma"] .perna { animation-duration: .25s; }
+@keyframes aj-rabinho { from { transform: translateX(-0.4px); } to { transform: translateX(0.4px); } }
+.aj-pet[data-especie="fantasma"]:not(.andando) .braco-d { animation: aj-bracinho 1.2s ease-in-out infinite alternate; }
+.aj-pet[data-especie="fantasma"]:not(.andando) .braco-e { animation: aj-bracinho-e 1.2s ease-in-out infinite alternate -.6s; }
+@keyframes aj-bracinho { from { transform: rotate(0deg); } to { transform: translateY(-0.5px) rotate(-28deg); } }
+@keyframes aj-bracinho-e { from { transform: rotate(0deg); } to { transform: translateY(-0.5px) rotate(28deg); } }
+.aj-pet.pirueta .pet-vira { transform-origin: 50% 60%; animation: aj-pirueta 1.05s cubic-bezier(.3, .6, .35, 1); }
+@keyframes aj-pirueta {
+  0% { rotate: 0deg; scale: 1 1; translate: 0 0; }
+  12% { rotate: -20deg; scale: 1.08 .92; translate: 0 2px; }
+  45% { rotate: 250deg; scale: .9 1.1; translate: 0 -16px; }
+  65% { rotate: 360deg; scale: 1.08 .94; translate: 0 -10px; }
+  80% { rotate: 372deg; scale: .98 1.02; translate: 0 -4px; }
+  100% { rotate: 360deg; scale: 1 1; translate: 0 0; }
+}
+.aj-pet.desvanece .pet-vira { transform-origin: 50% 60%; animation: aj-desvanece .9s ease-in forwards; }
+@keyframes aj-desvanece { 0% { opacity: 1; rotate: 0deg; scale: 1; } 40% { opacity: .85; rotate: 90deg; scale: 1.05; } 100% { opacity: 0; rotate: 300deg; scale: .4; } }
+
+/* --- Nuvem: vem deslizando fofa, dá um rolinho e fica boiando, respirando;
+   ao ir embora sobe e se desfaz ----------------------------------------- */
+.aj-pet[data-especie="nuvem"]:not(.andando) .pet-svg { animation: aj-boia 3.4s ease-in-out infinite; }
+@keyframes aj-boia { 0%, 100% { translate: 0 0; scale: 1 1; } 25% { translate: 2px -3px; scale: 1.03 .98; } 50% { translate: 0 -6px; scale: 1 1.03; } 75% { translate: -2px -3px; scale: 1.03 .98; } }
+.aj-pet.rolinho .pet-vira { transform-origin: 50% 60%; animation: aj-rolinho 1.3s cubic-bezier(.35, .5, .3, 1); }
+@keyframes aj-rolinho {
+  0% { rotate: 0deg; scale: 1 1; translate: 0 0; }
+  20% { rotate: 70deg; scale: 1.15 .85; translate: 0 -4px; }
+  45% { rotate: 200deg; scale: .9 1.12; translate: 0 -12px; }
+  70% { rotate: 360deg; scale: 1.14 .86; translate: 0 -4px; }
+  85% { rotate: 360deg; scale: .96 1.04; translate: 0 -1px; }
+  100% { rotate: 360deg; scale: 1 1; translate: 0 0; }
+}
+.aj-pet.dissolve .pet-vira { animation: aj-dissolve 1.3s ease-in forwards; }
+@keyframes aj-dissolve { 0% { opacity: 1; scale: 1 1; filter: blur(0); } 60% { opacity: .6; scale: 1.25 .8; filter: blur(1px); } 100% { opacity: 0; scale: 1.6 .5; filter: blur(4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .aj-pet *, .aj-pet::after { animation: none !important; }
+  .aj-pet .pet-svg { rotate: none !important; translate: none !important; }
+}

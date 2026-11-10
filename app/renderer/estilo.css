@@ -1436,6 +1436,10 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .pet-svg .rosado { fill: #f48fb1; opacity: .9; }
 .pet-svg .escuro { fill: #000; opacity: .3; }
 .pet-svg.cor-fixa .olho { fill: #17161d; }
+/* Língua do sapinho: guardada (só sai na janelinha, de vez em quando). Asas
+   do passarinho um tom mais escuras que o corpo, e a sombra bate as asas junto. */
+.pet-svg .lingua { fill: #e8559a; transform-box: fill-box; transform-origin: 0 50%; transform: scaleX(0); }
+.pet-svg.especie-passarinho .braco.pele, .pet-svg.especie-passarinho .braco .pele { fill: color-mix(in srgb, var(--pet-cor) 84%, #000); }
 .gr-cor-fixa { margin: 6px 0 0; font-size: 12px; color: var(--fg-3); text-align: center; max-width: 180px; }
 
 /* Pergunta: múltipla escolha avisada e com caixinha; escolha única com bolinha;

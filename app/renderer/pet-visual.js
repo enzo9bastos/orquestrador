@@ -41,7 +41,7 @@
     // Gatinho: orelhas com o interior rosado, rabinho, focinho; laranja rajado.
     gatinho: { nome: 'Gatinho', jeito: 'anda', fixa: '#f0a35e', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[3, 5, 1, 2], [4.5, 5, 1, 2], [6.5, 5, 1, 2], [8, 5, 1, 2]], bracoE: [1, 2.5, 1, 1.5], bracoD: [10, 2.5, 1, 1.5],
       olhos: [[3, 1.5, 1.5, 1.5], [7.5, 1.5, 1.5, 1.5]],
-      detalhe: [[2, -1, 2, 1, 'pele'], [2, -2, 1, 1, 'pele'], [8, -1, 2, 1, 'pele'], [9, -2, 1, 1, 'pele'], [2.5, -1, 0.6, 0.6, 'rosado'], [8.9, -1, 0.6, 0.6, 'rosado'], [0.5, 2, 1, 1, 'pele'], [0, 0, 1, 2, 'pele'], [5.5, 3, 1, 0.6, 'rosado'], [4, 0, 1, 0.6, 'escuro'], [6.5, 0, 1, 0.6, 'escuro'], [3.5, 3.6, 5, 1.4, 'claro']] },
+      detalhe: [[2, -1, 2, 1, 'pele'], [2, -2, 1, 1, 'pele'], [8, -1, 2, 1, 'pele'], [9, -2, 1, 1, 'pele'], [2.5, -1, 0.6, 0.6, 'rosado'], [8.9, -1, 0.6, 0.6, 'rosado'], [0.5, 2, 1, 1, 'pele rabo'], [0, 0, 1, 2, 'pele rabo'], [5.5, 3, 1, 0.6, 'rosado'], [4, 0, 1, 0.6, 'escuro'], [6.5, 0, 1, 0.6, 'escuro'], [3.5, 3.6, 5, 1.4, 'claro']] },
     // Pinguim: máscara e barriga brancas, bico e pés amarelos, asinhas.
     pinguim: { nome: 'Pinguim', jeito: 'anda', fixa: '#2f3242', corpo: [[3, -1, 6, 1], [2, 0, 8, 6]], pernas: [[3, 6, 2, 1], [7, 6, 2, 1]], bracoE: [1, 2, 1, 3], bracoD: [10, 2, 1, 3],
       olhos: [[3.8, 1, 1, 1.4], [7.2, 1, 1, 1.4]],
@@ -49,11 +49,11 @@
     // Passarinho: amarelo, topete, bico laranja, peito claro; voa.
     passarinho: { nome: 'Passarinho', jeito: 'voa', fixa: '#f2c230', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[4, 5, 0.6, 2], [7.4, 5, 0.6, 2]], bracoE: [1, 2.5, 1, 1.5], bracoD: [10, 2.5, 1, 1.5],
       olhos: [[3.2, 1.3, 1, 1.3], [7.8, 1.3, 1, 1.3]],
-      detalhe: [[5, -1, 1, 1, 'pele'], [6, -2, 1, 1.5, 'pele'], [3, 3.5, 6, 1.5, 'claro'], [5.2, 2.5, 1.6, 0.9, 'acento'], [4, 5, 0.6, 2, 'acento'], [7.4, 5, 0.6, 2, 'acento'], [1, 2.5, 1, 1.5, 'sombra'], [10, 2.5, 1, 1.5, 'sombra']] },
+      detalhe: [[5, -1, 1, 1, 'pele'], [6, -2, 1, 1.5, 'pele'], [3, 3.5, 6, 1.5, 'claro'], [5.2, 2.5, 1.6, 0.9, 'acento'], [4, 5, 0.6, 2, 'acento'], [7.4, 5, 0.6, 2, 'acento']] },
     // Sapinho: olhos no alto da cabeça, boca larga, barriga clara; anda pulando.
     sapinho: { nome: 'Sapinho', jeito: 'pula', fixa: '#5cb85c', corpo: [[2, 1, 8, 4], [2, 0, 3, 1], [7, 0, 3, 1]], pernas: [[1, 5, 3, 2], [8, 5, 3, 2]], bracoE: [1, 3, 1, 1], bracoD: [10, 3, 1, 1],
       olhos: [[3, 0, 1, 1.5], [8, 0, 1, 1.5]],
-      detalhe: [[4, 3.4, 4, 1.6, 'claro'], [4, 2.4, 4, 0.4, 'escuro'], [2.6, 2, 0.8, 0.5, 'rosado'], [8.6, 2, 0.8, 0.5, 'rosado']] },
+      detalhe: [[4, 3.4, 4, 1.6, 'claro papo'], [4, 2.4, 4, 0.4, 'escuro'], [6, 2.4, 6, 0.4, 'lingua'], [2.6, 2, 0.8, 0.5, 'rosado'], [8.6, 2, 0.8, 0.5, 'rosado']] },
     // Cogumelo: chapéu vermelho de pintas brancas, corpo creme.
     cogumelo: { nome: 'Cogumelo', jeito: 'anda', fixa: '#e5484d', corpo: [[3, -1, 6, 1], [1, 0, 10, 2], [3, 2, 6, 3]], pernas: [[4, 5, 1.5, 2], [6.5, 5, 1.5, 2]], bracoE: [2, 3, 1, 1], bracoD: [9, 3, 1, 1],
       olhos: [[4, 2.6, 1, 1.4], [7, 2.6, 1, 1.4]],
@@ -131,6 +131,8 @@
     const it = (p) => item(v.itens[p]);
     const atras = v.itens.corpo && ITENS[v.itens.corpo].atras;
     const e = ESPECIES[v.especie];
+    // O rabo (peças com a classe "rabo") vai num grupo só, para balançar inteiro.
+    const rabo = (e.detalhe || []).filter((d) => /\brabo\b/.test(d[4]));
     const r = ([x, y, w, h], cls) => `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}"/>`;
     return `<svg class="pet-svg especie-${v.especie}${'fixa' in e ? ' cor-fixa' : ''}" viewBox="-3 -7 18 14" shape-rendering="crispEdges" aria-hidden="true"${cor ? ` style="--pet-cor:${cor}"` : ''}>
       ${atras ? it('corpo') : ''}
@@ -138,7 +140,8 @@
       <g class="pet-corpo">
         ${(Array.isArray(e.bracoE[0]) ? e.bracoE : [e.bracoE]).map((p) => r(p, 'braco braco-e pele')).join('')}
         ${e.corpo.map((c) => r(c, 'pele')).join('')}
-        ${(e.detalhe || []).map(([x, y, w, h, cls]) => r([x, y, w, h], cls)).join('')}
+        ${(e.detalhe || []).filter((d) => !/\brabo\b/.test(d[4])).map(([x, y, w, h, cls]) => r([x, y, w, h], cls)).join('')}
+        ${rabo.length ? `<g class="rabo">${rabo.map(([x, y, w, h, cls]) => r([x, y, w, h], cls.replace(/\s*\brabo\b/, ''))).join('')}</g>` : ''}
         ${atras ? '' : it('corpo')}
         <g class="olhos">${(e.olhos || [[3, 1, 1, 2], [8, 1, 1, 2]]).map(([x, y, w, h]) => `<rect class="olho" x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('')}</g>
         ${it('rosto')}${it('pescoco')}${it('olhos')}${it('cabeca')}

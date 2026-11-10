@@ -12,6 +12,10 @@
   let alvoPendencia = null; // conversa a abrir no "Ver no app"
 
   const classe = (c, sim = true) => pet.classList.toggle(c, sim);
+  // Floreios de cada espécie (janela.css) e quanto duram, em ms. Os de saída
+  // ficam até a próxima chegada (o bichinho já sumiu quando acabam).
+  const FLOREIOS = { oi: 1000, espreguica: 1500, levanta: 950, looping: 1050, quica: 750, brota: 1000, pirueta: 1050, rolinho: 1300 };
+  const PERSISTENTES = ['desvanece', 'dissolve', 'afunda'];
   // Balão fixo (ms = 0: um aviso esperando você) e falas passageiras: a fala
   // passageira aparece por cima e, quando some, o aviso fixo volta.
   let fixo = null;
@@ -202,22 +206,32 @@
     if (m.t === 'visual') {
       if (m.idioma && window.orqI18n && window.orqI18n.idioma() !== m.idioma) window.orqI18n.definir(m.idioma, '../renderer/i18n/');
       vira.innerHTML = window.petVisual.svg(m.visual);
+      pet.dataset.especie = window.petVisual.limpar(m.visual).especie;
       document.documentElement.dataset.theme = m.tema || 'dark';
       if (m.destaque) document.documentElement.style.setProperty('--claude', m.destaque);
     } else if (m.t === 'entrar') {
-      // Começa escondido atrás da borda e sai de lá andando.
+      // Começa escondido atrás da borda e sai de lá andando (o cogumelo não:
+      // brota do chão onde está). Tira o que ficou da última saída.
       pet.style.transition = 'none';
-      pet.classList.remove('fora-dir', 'fora-esq');
-      pet.classList.add(m.lado === 'esq' ? 'fora-esq' : 'fora-dir');
+      pet.classList.remove('fora-dir', 'fora-esq', ...PERSISTENTES, 'deslizando', 'pulando');
+      if (m.estilo !== 'brota') pet.classList.add(m.lado === 'esq' ? 'fora-esq' : 'fora-dir');
       void pet.offsetWidth;
       pet.style.transition = '';
       pet.classList.remove('fora-dir', 'fora-esq');
     } else if (m.t === 'sair') {
+      // Fica atrás da borda até a próxima chegada (que o tira de lá): assim
+      // não aparece um quadro fora do lugar quando a janela volta a aparecer.
       pet.classList.add(m.lado === 'esq' ? 'fora-esq' : 'fora-dir');
-      setTimeout(() => pet.classList.remove('fora-dir', 'fora-esq'), 900);
     } else if (m.t === 'andando') {
       classe('andando', m.ligado);
+      if (!m.ligado) classe('pulando', false);
       if (m.lado) vira.classList.toggle('virado', m.lado === 'esq');
+    } else if (m.t === 'pulos') {
+      // Duração de cada pulo: amassa ao tomar impulso e ao pousar, estica no ar.
+      pet.style.setProperty('--pulo-ms', `${m.ms}ms`);
+      classe('pulando');
+    } else if (m.t === 'deslizar') {
+      classe('deslizando', m.ligado);
     } else if (m.t === 'conversar') {
       classe('acenando'); setTimeout(() => classe('acenando', false), 1200);
       abrirConversa();
@@ -241,7 +255,12 @@
     else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }
     else if (m.t === 'pousou') classe('voando', false);
-    else if (m.t === 'floreio' && ['pirueta', 'quica'].includes(m.tipo)) { classe(m.tipo, false); void pet.offsetWidth; classe(m.tipo); setTimeout(() => classe(m.tipo, false), 900); }
+    else if (m.t === 'floreio' && PERSISTENTES.includes(m.tipo)) classe(m.tipo); // fica até a próxima chegada
+    else if (m.t === 'floreio' && FLOREIOS[m.tipo]) {
+      classe(m.tipo, false); void pet.offsetWidth; classe(m.tipo);
+      setTimeout(() => classe(m.tipo, false), FLOREIOS[m.tipo]);
+      if (m.tipo === 'oi') { classe('acenando'); setTimeout(() => classe('acenando', false), 1300); }
+    }
     else if (m.t === 'pensando') { classe('pensando'); pet.querySelector('.pet-nuvem').hidden = false; }
     else if (m.t === 'resposta') {
       classe('pensando', false); pet.querySelector('.pet-nuvem').hidden = true;
