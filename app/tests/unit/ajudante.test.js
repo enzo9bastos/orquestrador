@@ -41,7 +41,8 @@ test('pet: 4 espécies, todas vestem os 30 itens e as cores', () => {
     for (const [id, i] of Object.entries(V.ITENS)) assert.match(V.svg({ especie, cor: 'branco', itens: { [i.parte]: id } }), new RegExp(`item-${id}`), `${especie} + ${id}`);
     const s = V.svg({ especie });
     assert.match(s, new RegExp(`especie-${especie}`));
-    assert.strictEqual((s.match(/class="perna p\d"/g) || []).length, 4, `${especie}: 4 pernas para a animação de andar`);
+    // Andar alterna p1 (com p3) e p2 (com p4): basta ter p1 e p2 (o Robozinho tem 2 pés).
+    assert.match(s, /class="perna p1"[\s\S]*class="perna p2"/, `${especie}: pernas p1 e p2 para a animação de andar`);
     assert.match(s, /class="braco braco-d"/, `${especie}: mão direita para os itens`);
   }
   assert.strictEqual(V.limpar({ especie: 'dragao' }).especie, 'bicho');

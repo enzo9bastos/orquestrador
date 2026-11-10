@@ -166,11 +166,11 @@ screen (the input box, attachments, agent cards).
 - **Call it from anywhere** with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> (`orq-pet`): chat right
   there, or **📷 crop a piece of your screen** and ask about it.
 - **Pick a friend and dress it up.** Four species, each with its own way of moving:
-  - the **classic critter** (Claude Code style) walks;
+  - the **little robot** (the default) walks;
   - the translucent **ghost** really flies around — inside the app and across your desktop;
   - the **cloud** flies too, and changes from white to gray with its mood (it rains when something goes wrong);
   - the see-through **slime** gets around by hopping, and jumps higher than anyone.
-  - out on the desktop each one arrives and leaves its own way: the critter walks in from the edge, the ghost and
+  - out on the desktop each one arrives and leaves its own way: the robot walks in from the edge, the ghost and
     the cloud swoop in on a wavy flight and twirl before hovering (and fly off upward), the slime bounces in and out.
 
   They all wear the same 30 items across 6 slots (hats, glasses, moustaches, ties, capes, a coffee mug…) in

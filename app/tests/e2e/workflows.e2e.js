@@ -22,7 +22,7 @@ test('workflows', async (t) => {
     await app.esperar("!document.getElementById('wf-inicio').hidden && document.querySelectorAll('.wf-linha-lista').length === 1");
     assert.ok(await app.avaliar('document.getElementById("wf-editor").hidden'));
     assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('[data-wf-aba]')].map((b) => b.textContent)"), ['Workflows', 'Credenciais', 'Execuções']);
-    assert.match(await app.avaliar("document.querySelector('.wf-linha-lista').innerText"), /Passada nas frentes[\s\S]*Desligado/);
+    assert.match(await app.avaliar("document.querySelector('.wf-linha-lista').innerText"), /Passada nos agentes[\s\S]*Desligado/);
     assert.ok(!(await app.avaliar('!!document.querySelector(".wf-inspetor")')), 'sem o painel “Este workflow”');
   });
 

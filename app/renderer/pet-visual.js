@@ -8,7 +8,7 @@
 (() => {
   const CORES = [
     ['padrao', 'Cor do app', null],
-    ['laranja', 'Laranja', '#d97757'],
+    ['laranja', 'Laranja', '#e8833a'],
     ['roxo', 'Roxo', '#8b5cf6'],
     ['azul', 'Azul', '#3b82f6'],
     ['verde', 'Verde', '#22a06b'],
@@ -22,8 +22,10 @@
   // corpo: retângulos da pele; pernas: 4 (animam ao andar); braços: [x, y, l, a].
   // detalhe: [x, y, l, a, classe] — brilho (luz) e sombra, por cima da pele.
   const ESPECIES = {
-    // O clássico: o bonequinho do Claude Code (laranja, olhos de risquinho).
-    bicho: { nome: 'Bichinho', jeito: 'anda', corpo: [[2, 0, 8, 5]], pernas: [[2, 5, 1, 2], [4, 5, 1, 2], [7, 5, 1, 2], [9, 5, 1, 2]], bracoE: [0, 2, 2, 2], bracoD: [10, 2, 2, 2] },
+    // Robozinho (o padrão; o id continua "bicho" para quem já escolheu):
+    // antena, cantos arredondados, olhos quadrados, barriga clara, 2 pés.
+    bicho: { nome: 'Robozinho', jeito: 'anda', corpo: [[3, 0, 6, 1], [2, 1, 8, 3], [3, 4, 6, 1]], pernas: [[3, 5, 2, 2], [7, 5, 2, 2]], bracoE: [1, 2, 1, 2], bracoD: [10, 2, 1, 2],
+      olhos: [[3, 1.5, 2, 2], [7, 1.5, 2, 2]], detalhe: [[5.5, -1.5, 1, 1.5, 'pele'], [5, -2.5, 2, 1, 'pele'], [4, 3, 4, 1, 'brilho']] },
     // Fantasminha: cabeça redonda, rabo em três pontas, meio transparente; voa.
     fantasma: { nome: 'Fantasminha', jeito: 'voa', corpo: [[3, 0, 6, 1], [2, 1, 8, 4]], pernas: [[2, 5, 2, 1.5], [4, 5, 1, 0.6], [5, 5, 2, 1.5], [8, 5, 2, 1.5]], bracoE: [0.5, 3, 1.5, 1], bracoD: [10, 3, 1.5, 1],
       detalhe: [[3, 1, 1, 1, 'brilho'], [4, 0.4, 1, 0.6, 'brilho'], [2, 4, 8, 1, 'sombra']] },
@@ -104,7 +106,7 @@
         ${e.corpo.map((c) => r(c, 'pele')).join('')}
         ${(e.detalhe || []).map(([x, y, w, h, cls]) => r([x, y, w, h], cls)).join('')}
         ${atras ? '' : it('corpo')}
-        <g class="olhos"><rect class="olho" x="3" y="1" width="1" height="2"/><rect class="olho" x="8" y="1" width="1" height="2"/></g>
+        <g class="olhos">${(e.olhos || [[3, 1, 1, 2], [8, 1, 1, 2]]).map(([x, y, w, h]) => `<rect class="olho" x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('')}</g>
         ${it('rosto')}${it('pescoco')}${it('olhos')}${it('cabeca')}
         <g class="braco braco-d">${r(e.bracoD, 'pele')}${it('mao')}</g>
       </g>

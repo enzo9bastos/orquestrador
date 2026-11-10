@@ -69,6 +69,9 @@ function criarJanela() {
       // Aba Navegador: as páginas da web rodam em <webview>, presas pelo
       // navegador.js (sem Node, sem preload, só http/https).
       webviewTag: true,
+      // Geração das imagens do README (ORQ_APP_PRINT + ORQ_APP_PRINT_MS):
+      // desenha fora da tela, o que deixa capturar quadro atrás de quadro.
+      offscreen: !!(process.env.ORQ_APP_PRINT && process.env.ORQ_APP_PRINT_MS),
     },
   });
   // Escondida, mas com foco no conteúdo (área de transferência e teclado
@@ -118,14 +121,18 @@ function criarJanela() {
       }
     }, 400);
   });
-  // Teste: ORQ_APP_PRINT=/caminho/base grava um PNG da janela a cada 8 s.
+  // Teste: ORQ_APP_PRINT=/caminho/base grava um PNG da janela a cada 8 s
+  // (ORQ_APP_PRINT_MS muda o intervalo: quadros para os GIFs do README).
   if (process.env.ORQ_APP_PRINT) {
-    let n = 0;
+    let n = 0, ocupado = false;
     setInterval(async () => {
-      if (!janela) return;
-      const img = await janela.webContents.capturePage();
-      require('fs').writeFileSync(`${process.env.ORQ_APP_PRINT}-${++n}.png`, img.toPNG());
-    }, 8000);
+      if (!janela || ocupado) return;
+      ocupado = true;
+      try {
+        const img = await janela.webContents.capturePage();
+        require('fs').writeFileSync(`${process.env.ORQ_APP_PRINT}-${String(++n).padStart(3, '0')}.png`, img.toPNG());
+      } finally { ocupado = false; }
+    }, Number(process.env.ORQ_APP_PRINT_MS) || 8000);
   }
 }
 
