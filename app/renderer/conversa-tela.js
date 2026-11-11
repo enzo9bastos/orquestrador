@@ -177,11 +177,21 @@
   // Caminhos absolutos ou com ~ escritos como código viram clicáveis: abrem
   // no explorador de arquivos (pasta abre; arquivo aparece selecionado).
   const PARECE_CAMINHO = /^(~|\/)[^\s`'"<>|]*[^\s`'"<>|.,:;)]$/;
+  // Nome de arquivo sem caminho completo ("video.mp4", "app/main.js"): também
+  // vira clicável; o app procura na pasta da conversa, nas pastas dos caminhos
+  // citados na mesma mensagem, em Downloads, na Área de Trabalho e na pasta pessoal.
+  const PARECE_ARQUIVO = /^(?!-)(?!.*\.\.)[\w@+-][\w@+.\/-]*\.[A-Za-z][A-Za-z0-9]{0,5}$/;
   function marcarCaminhos(raiz) {
-    for (const c of raiz.querySelectorAll('code')) {
-      if (c.closest('pre')) continue;
+    const codigos = [...raiz.querySelectorAll('code')].filter((c) => !c.closest('pre'));
+    const dicas = codigos.map((c) => c.textContent.trim()).filter((t) => PARECE_CAMINHO.test(t) && t.length > 2);
+    for (const c of codigos) {
       const t = c.textContent.trim();
       if (PARECE_CAMINHO.test(t) && t.length > 2) { c.classList.add('caminho-clicavel'); c.title = 'Abrir no explorador de arquivos'; }
+      else if (PARECE_ARQUIVO.test(t)) {
+        c.classList.add('caminho-clicavel');
+        c.title = 'Procurar e abrir no explorador de arquivos';
+        if (dicas.length) c.dataset.dicas = JSON.stringify(dicas);
+      }
     }
   }
 
@@ -298,7 +308,9 @@
     }
     const cam = ev.target.closest('code.caminho-clicavel');
     if (cam && window.orq.abrirCaminho) {
-      const ok = await window.orq.abrirCaminho(cam.textContent.trim());
+      let dicas = [];
+      try { dicas = JSON.parse(cam.dataset.dicas || '[]'); } catch { /* sem dicas */ }
+      const ok = await window.orq.abrirCaminho(cam.textContent.trim(), { pasta: infoAtual.pasta || '', dicas });
       if (!ok) { cam.classList.add('caminho-sumiu'); cam.title = 'Este caminho não existe (ou não está acessível daqui)'; }
       return;
     }

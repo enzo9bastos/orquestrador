@@ -4,7 +4,7 @@ const assert = require('node:assert');
 const { abrirApp } = require('./app');
 
 test('conversa', async (t) => {
-  const app = await abrirApp({ config: { comandoInicial: '/rodada', comandoDesligar: '/fim' } });
+  const app = await abrirApp({ config: { comandoInicial: '/rodada', comandoDesligar: '/fim' }, arquivos: { 'Downloads/video-teste.mp4': 'x', 'pasta-citada/nota.md': 'x' } });
   t.after(() => app.fechar());
   await app.esperar('!!window.__orqTeste');
   const injetar = (ev) => app.avaliar(`window.__orqTeste.desenharEvento(${JSON.stringify(ev)})`);
@@ -48,6 +48,18 @@ test('conversa', async (t) => {
     await injetar({ tipo: 'assistant', message: { content: [{ type: 'text', text: 'Está em `~/dev/x/.env` e em `/tmp`; `npm test` não é caminho.' }] } });
     const marcados = await app.avaliar("[...document.querySelectorAll('code.caminho-clicavel')].map((c) => c.textContent)");
     assert.deepStrictEqual(marcados.slice(-2), ['~/dev/x/.env', '/tmp']);
+  });
+
+  // Pedido de 2026-11-11: nome de arquivo sem o caminho inteiro ("o vídeo está
+  // nos seus Downloads: `video.mp4`") também vira clicável e é achado.
+  await t.test('nome de arquivo sem caminho vira clicável e é achado', async () => {
+    await injetar({ tipo: 'assistant', message: { content: [{ type: 'text', text: 'Pronto: `2026-11-11-aula-02-1080p.mp4`, `app/pet/main.js` e `relatorio.md`; `npm test`, `v1.2` e `--help` não são arquivos.' }] } });
+    const marcados = await app.avaliar("[...document.querySelectorAll('code.caminho-clicavel')].map((c) => c.textContent)");
+    assert.deepStrictEqual(marcados.slice(-3), ['2026-11-11-aula-02-1080p.mp4', 'app/pet/main.js', 'relatorio.md']);
+    // Em Downloads é achado sem dica; com a pasta citada na mensagem, também.
+    assert.match(String(await app.avaliar("window.orq.abrirCaminho('video-teste.mp4', {})")), /\/Downloads\/video-teste\.mp4$/);
+    assert.match(String(await app.avaliar("window.orq.abrirCaminho('nota.md', { dicas: ['~/pasta-citada/outra.md'] })")), /\/pasta-citada\/nota\.md$/);
+    assert.strictEqual(await app.avaliar("window.orq.abrirCaminho('nao-existe.mp4', {})"), false);
   });
 
   // Regressão 2026-10-29: não dava para mandar imagem na conversa.

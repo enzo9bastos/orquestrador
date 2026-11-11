@@ -455,13 +455,36 @@ ipcMain.handle('abrir-terminal', (_e, sessao) => {
 });
 // Caminho clicado na conversa: pasta abre no explorador; arquivo aparece
 // selecionado na pasta dele (nunca é aberto nem executado).
-ipcMain.handle('abrir-caminho', (_e, p) => {
-  if (typeof p !== 'string') return false;
-  const abs = path.resolve(p.replace(/^~(?=$|\/)/, os.homedir()));
-  let st;
-  try { st = fs.statSync(abs); } catch { return false; }
-  if (st.isDirectory()) shell.openPath(abs); else shell.showItemInFolder(abs);
-  return true;
+// Nome sem caminho completo é procurado, nesta ordem: pasta da conversa,
+// pastas dos caminhos citados na mesma mensagem, Downloads, Área de Trabalho
+// e pasta pessoal.
+ipcMain.handle('abrir-caminho', (_e, p, onde = {}) => {
+  if (typeof p !== 'string' || !p) return false;
+  const home = os.homedir();
+  const expandir = (x) => String(x).replace(/^~(?=$|\/)/, home);
+  const candidatos = [];
+  if (/^(~|\/)/.test(p)) candidatos.push(path.resolve(expandir(p)));
+  else {
+    const bases = [];
+    if (onde && typeof onde.pasta === 'string' && path.isAbsolute(expandir(onde.pasta))) bases.push(expandir(onde.pasta));
+    for (const d of (onde && Array.isArray(onde.dicas) ? onde.dicas.slice(0, 20) : [])) {
+      if (typeof d !== 'string') continue;
+      const abs = path.resolve(expandir(d));
+      try { bases.push(fs.statSync(abs).isDirectory() ? abs : path.dirname(abs)); } catch { bases.push(path.dirname(abs)); }
+    }
+    // getPath cai na pasta pessoal se a pasta não existia ao abrir; por isso o nome fixo também.
+    for (const nome of ['downloads', 'desktop']) { try { bases.push(app.getPath(nome)); } catch { /* sem a pasta */ } }
+    bases.push(path.join(home, 'Downloads'), path.join(home, 'Desktop'), home);
+    for (const b of [...new Set(bases)]) candidatos.push(path.resolve(b, p));
+  }
+  for (const abs of candidatos) {
+    let st;
+    try { st = fs.statSync(abs); } catch { continue; }
+    // Nos testes de tela não abre o explorador de verdade; devolve onde achou.
+    if (!process.env.ORQ_APP_E2E) { if (st.isDirectory()) shell.openPath(abs); else shell.showItemInFolder(abs); }
+    return abs;
+  }
+  return false;
 });
 // Link de nota (Ctrl+clique): só http/https, no navegador do sistema.
 ipcMain.handle('abrir-link', (_e, url) => {
