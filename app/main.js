@@ -398,19 +398,32 @@ let pararTopicos = null;
 // ao orquestrador, se ele estiver vivo. A tela recebe a lista quando o
 // registro muda (inclusive pelo bin/orq-recado).
 let marcaRecados = 0;
+let ultimoQuadro = 0;
+let ultimoRetrato = null;
 function cicloRecados() {
   try {
     const ps = coletor.projetos();
     const esperando = ps.some((p) => { try { return fs.readdirSync(path.join(p.dir, '.orq', 'recados', 'saida')).some((f) => f.endsWith('.json')); } catch { return false; } });
-    if (esperando) recados.recolher(ps, coletor.estado().frentes);
-    recados.entregar(conversa);
+    // Agentes abertos: do último retrato da tela se tiver menos de 10 s
+    // (o coletor é caro); senão, um retrato novo, só quando for preciso.
+    let frentes = null;
+    const obterFrentes = () => {
+      if (!frentes) frentes = (Date.now() - ultimoEstado < 10000 && ultimoRetrato) ? ultimoRetrato.frentes : coletor.estado().frentes;
+      return frentes;
+    };
+    if (esperando) recados.recolher(ps, obterFrentes());
+    recados.entregar(conversa, obterFrentes);
+    // Quadro de quem está aberto e das vezes abertas, a cada 15 s.
+    if (Date.now() - ultimoQuadro > 15000) { ultimoQuadro = Date.now(); recados.escreverQuadros(ps, obterFrentes()); }
     let m = 0;
     try { m = fs.statSync(recados.arquivoLog()).mtimeMs; } catch { /* ainda sem recado */ }
+    try { m += fs.statSync(recados.arquivoVezes()).mtimeMs; } catch { /* ainda sem vez passada */ }
     if (m !== marcaRecados) { marcaRecados = m; enviar('recados:mudou', recados.ler()); }
   } catch (e) { console.error('[recados]', e.message); }
 }
 setInterval(cicloRecados, 3000);
 ipcMain.handle('recados:lista', () => recados.ler());
+ipcMain.handle('recados:vezes', () => recados.lerVezes());
 ipcMain.handle('recados:liberar', (_e, id) => { try { recados.liberar(id); cicloRecados(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
 ipcMain.handle('recados:projetos', () => coletor.projetos().map((p) => ({ alvo: p.alvo, notas: recados.memoria(p.dir, { max: 1000 }).length })));
 ipcMain.handle('recados:memoria', (_e, alvo) => {
@@ -444,6 +457,7 @@ let ultimoEstado = 0;
 ipcMain.handle('estado', () => {
   const r = coletor.estado();
   ultimoEstado = Date.now();
+  ultimoRetrato = r;
   avisarNovidades(r);
   verPendencias(r);
   return r;

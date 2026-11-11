@@ -147,3 +147,110 @@ test('acharFrente: por grupo/projeto, por projeto ou pelo nome do agente', () =>
   assert.strictEqual(recados.acharFrente(fr, 'agente 2 (api)')[0].proj, 'api');
   assert.deepStrictEqual(recados.acharFrente(fr, 'outro'), []);
 });
+
+// --- etapa 2: agente ↔ agente, quem está aí, passar e pegar a vez ----------
+test('agente → agente: recado com --para vai ao painel do outro, com como responder', () => {
+  const a = projeto('h-site'), b = projeto('h-api');
+  const fr = [frente(a, 'Agente 1 (site)', null, '%21'), frente(b, 'Agente 2 (api)', null, '%22')];
+  assert.strictEqual(agente(a.dir, '', { args: ['enviar', 'a rota /login mudou', '--para', 'h-api'] }).status, 0);
+  agente(a.dir, '', { args: ['enviar', 'oi', '--para', 'ninguem'] });
+  const novos = recados.recolher([a, b], fr);
+  const ok = novos.find((r) => r.texto === 'a rota /login mudou');
+  assert.deepStrictEqual([ok.para.tipo, ok.para.nome, ok.estado], ['agente', 'Agente 2 (api)', 'novo']);
+  const ruim = novos.find((r) => r.texto === 'oi');
+  assert.strictEqual(ruim.estado, 'recusado');
+  assert.match(ruim.motivo, /nenhum agente do app em "ninguem"/);
+  const chamadas = [];
+  const semOrq = { lista: () => [], mandar: () => assert.fail('não é para o orquestrador') };
+  recados.entregar(semOrq, () => fr, { tmux: (x) => chamadas.push(x) });
+  const linha = chamadas.find((x) => x[3] === '-l');
+  assert.strictEqual(linha[2], '%22');
+  assert.match(linha[4], /^\[recado de Agente 1 \(site\) \(h-site\)\] a rota \/login mudou — Para responder: \.orq\/bin\/orq-recado enviar "texto" --para "Agente 1 \(site\)"\.$/);
+  assert.strictEqual(recados.ler().find((r) => r.id === ok.id).estado, 'entregue');
+  chamadas.length = 0;
+  recados.entregar(semOrq, () => fr, { tmux: (x) => chamadas.push(x) });
+  assert.strictEqual(chamadas.length, 0, 'não entrega duas vezes');
+});
+
+test('agente → agente sem o destino aberto: espera; entrega quando ele aparece', () => {
+  const a = projeto('i-a'), b = projeto('i-b');
+  agente(a.dir, '', { args: ['enviar', 'quando abrir, leia isto', '--para', 'Agente 9'] });
+  const [r] = recados.recolher([a, b], [frente(a, 'Agente 8', null, '%31'), frente(b, 'Agente 9', null, '%32')]);
+  assert.strictEqual(r.estado, 'novo');
+  const chamadas = [];
+  recados.entregar({ lista: () => [] }, () => [frente(a, 'Agente 8', null, '%31')], { tmux: (x) => chamadas.push(x) });
+  assert.strictEqual(chamadas.length, 0);
+  recados.entregar({ lista: () => [] }, () => [frente(b, 'Agente 9', null, '%32')], { tmux: (x) => chamadas.push(x) });
+  assert.strictEqual(chamadas.find((x) => x[3] === '-l')[2], '%32');
+});
+
+test('freio por dupla: a partir do 7º recado entre os mesmos dois agentes em 10 min, segura', () => {
+  const a = projeto('j-a'), b = projeto('j-b');
+  const fr = [frente(a, 'Agente A', null, '%41'), frente(b, 'Agente B', null, '%42')];
+  for (let i = 1; i <= 4; i++) agente(a.dir, '', { args: ['enviar', `ida ${i}`, '--para', 'Agente B'] });
+  for (let i = 1; i <= 3; i++) agente(b.dir, '', { args: ['enviar', `volta ${i}`, '--para', 'Agente A'] });
+  const novos = recados.recolher([a, b], fr);
+  assert.strictEqual(novos.filter((r) => r.estado === 'segurado').length, 1, 'ida e volta contam juntas');
+  assert.match(novos.find((r) => r.estado === 'segurado').motivo, /entre esses dois agentes/);
+});
+
+test('passar a vez: o orquestrador fica sabendo; quadro e lista mostram a quem serve', () => {
+  const a = projeto('k-a'), b = projeto('k-b'), c = projeto('k-c');
+  for (const p of [a, b, c]) recados.instalar(p.dir);
+  const fr = [frente(a, 'Agente A', null, '%51'), frente(b, 'Agente B', null, '%52'), frente(c, 'Agente C', null, '%53')];
+  assert.strictEqual(agente(a.dir, '', { args: ['passar', 'Formulário pronto até a validação.', '--falta', 'testes no celular', '--falhou', 'máscara antiga quebra o telefone', '--para', 'Agente B'] }).status, 0);
+  const [r] = recados.recolher([a, b, c], fr);
+  assert.deepStrictEqual([r.tipo, r.para.tipo, r.estado], ['vez', 'orquestrador', 'novo']);
+  assert.match(recados.embrulho(r), /tipo="vez"[\s\S]*Passou a vez[\s\S]*Falta: testes no celular[\s\S]*pegar <id>/);
+  const v = recados.lerVezes().find((x) => x.id === r.vez);
+  assert.deepStrictEqual([v.estado, v.para, v.falhou], ['aberta', 'Agente B', 'máscara antiga quebra o telefone']);
+  recados.escreverQuadros([a, b, c], fr);
+  assert.match(agente(b.dir, '', { args: ['vezes'] }).stdout, new RegExp(`${v.id}  de Agente A \\(k-a\\), para Agente B`));
+  assert.match(agente(c.dir, '', { args: ['vezes'] }).stdout, /Nenhuma vez aberta para você/, 'era para o B, não para o C');
+  assert.match(agente(a.dir, '', { args: ['vezes'] }).stdout, /Nenhuma vez aberta para você/, 'quem passou não pega a própria');
+  const ag = agente(b.dir, '', { args: ['agentes'] }).stdout;
+  assert.match(ag, /- Agente B \(k-b\) ← você/);
+  assert.match(ag, /- Agente A \(k-a\)\n/);
+  assert.strictEqual(recados.escreverQuadros([a, b, c], fr), 0, 'sem mudança, não regrava');
+});
+
+test('pegar a vez: só um agente pega, uma vez; o outro ouve que já foi pega', async () => {
+  const { spawn } = require('child_process');
+  const a = projeto('l-a'), b = projeto('l-b'), c = projeto('l-c');
+  const fr = [frente(a, 'Agente A', null, '%61'), frente(b, 'Agente B', null, '%62'), frente(c, 'Agente C', null, '%63')];
+  agente(a.dir, '', { args: ['passar', 'Parei no passo 3.'] }); // sem --para: qualquer um
+  const [r] = recados.recolher([a, b, c], fr);
+  const pegar = (p) => new Promise((ok) => {
+    const proc = spawn('bash', [SCRIPT, 'pegar', r.vez], { env: { ...process.env, CLAUDE_PROJECT_DIR: p.dir, ORQ_ESPERA_PEGAR: '20' } });
+    let saida = '';
+    proc.stdout.on('data', (d) => { saida += d; });
+    proc.on('close', (cod) => ok({ cod, saida }));
+  });
+  const vigia = setInterval(() => recados.recolher([a, b, c], fr), 100); // o app, recolhendo
+  const [rb, rc] = await Promise.all([pegar(b), pegar(c)]);
+  clearInterval(vigia);
+  const venceu = [rb, rc].filter((x) => x.cod === 0);
+  const perdeu = [rb, rc].filter((x) => x.cod !== 0);
+  assert.strictEqual(venceu.length, 1, JSON.stringify([rb, rc]));
+  assert.match(venceu[0].saida, /A vez é sua\. Agente A \(l-a\) parou assim:\n\nParei no passo 3\./);
+  assert.match(perdeu[0].saida, /já foi pega por Agente [BC]/);
+  const v = recados.lerVezes().find((x) => x.id === r.vez);
+  assert.strictEqual(v.estado, 'pega');
+  // De fora do app (projeto sem agente aberto) não pega.
+  agente(a.dir, '', { args: ['passar', 'outra'] });
+  const [r2] = recados.recolher([a, b, c], fr);
+  const vigia2 = setInterval(() => recados.recolher([a, b, c], [frente(a, 'Agente A', null, '%61')]), 100);
+  const fora = await pegar(b);
+  clearInterval(vigia2);
+  assert.notStrictEqual(fora.cod, 0);
+  assert.match(fora.saida, /nenhum agente do app/);
+  assert.strictEqual(recados.lerVezes().find((x) => x.id === r2.vez).estado, 'aberta');
+});
+
+test('pegar sem o app aberto: avisa e não trava', () => {
+  const p = projeto('m');
+  const r = spawnSync('bash', [SCRIPT, 'pegar', '123-abc'], { env: { ...process.env, CLAUDE_PROJECT_DIR: p.dir, ORQ_ESPERA_PEGAR: '2' }, encoding: 'utf8' });
+  assert.strictEqual(r.status, 2);
+  assert.match(r.stdout, /o app não respondeu/);
+  assert.notStrictEqual(spawnSync('bash', [SCRIPT, 'pegar', '../x'], { env: { ...process.env, CLAUDE_PROJECT_DIR: p.dir }, encoding: 'utf8' }).status, 0);
+});

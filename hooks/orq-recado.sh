@@ -2,9 +2,14 @@
 # orq-recado — recados e memória do projeto, do lado do agente.
 # (arquivo do App de Orquestração: o app instala e atualiza esta cópia)
 #
-#   .orq/bin/orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado]
-#        manda um recado ao orquestrador (padrão: aviso). Uma linha curta e
-#        direta; o app entrega na conversa do orquestrador.
+#   .orq/bin/orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>]
+#        manda um recado ao orquestrador (padrão: aviso) ou, com --para, a
+#        outro agente do app. Uma linha curta e direta; o app entrega.
+#   .orq/bin/orq-recado agentes              quem está aberto no app agora
+#   .orq/bin/orq-recado passar "onde parei" [--falta "…"] [--falhou "…"] [--para <agente|projeto>]
+#        passa a vez: outro agente (ou o que você indicar) continua daqui
+#   .orq/bin/orq-recado vezes                vezes passadas que você pode pegar
+#   .orq/bin/orq-recado pegar <id>           pega a vez (só um agente consegue)
 #   .orq/bin/orq-recado lembrar "título" "texto" [--tipo decisao|falhou|onde|aviso]
 #        grava uma nota na memória do projeto (padrão: decisao). Vale para todo
 #        agente que trabalhar aqui depois, de qualquer IA.
@@ -20,12 +25,36 @@ set -euo pipefail
 raiz="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 cmd="${1:-}"; shift || true
 
-opcao() { # opcao --tipo padrão "$@": devolve o valor e os posicionais em POS
+opcao() { # opcao --tipo padrão "$@": devolve o valor em VAL, --para em PARA,
+           # --falta/--falhou em FALTA/FALHOU e os posicionais em POS
     local nome="$1" padrao="$2"; shift 2
-    VAL="$padrao"; POS=()
+    VAL="$padrao"; PARA=""; FALTA=""; FALHOU=""; POS=()
     while [ $# -gt 0 ]; do
-        if [ "$1" = "$nome" ]; then VAL="${2:-}"; shift 2; else POS+=("$1"); shift; fi
+        case "$1" in
+            "$nome") VAL="${2:-}"; shift 2 ;;
+            --para) PARA="${2:-}"; shift 2 ;;
+            --falta) FALTA="${2:-}"; shift 2 ;;
+            --falhou) FALHOU="${2:-}"; shift 2 ;;
+            *) POS+=("$1"); shift ;;
+        esac
     done
+}
+
+# Deixa um pedido para o app em .orq/recados/saida/ (JSON dos pares chave valor).
+deixar() {
+    mkdir -p "$raiz/.orq/recados/saida"
+    python3 - "$raiz/.orq/recados/saida" "${CLAUDE_CODE_SESSION_ID:-}" "$@" <<'PY'
+import json, os, sys, time, secrets
+pasta, sessao, *kv = sys.argv[1:]
+ts = int(time.time() * 1000)
+rid = os.environ.get("ORQ_REQ") or f"{ts}-{secrets.token_hex(3)}"
+d = {"id": rid, "ts": ts, "sessao": sessao or None}
+for k, v in zip(kv[::2], kv[1::2]):
+    d[k] = v[:4000]
+tmp = os.path.join(pasta, f".{rid}.tmp")
+open(tmp, "w").write(json.dumps(d, ensure_ascii=False) + "\n")
+os.replace(tmp, os.path.join(pasta, f"{rid}.json"))
+PY
 }
 
 case "$cmd" in
@@ -33,19 +62,67 @@ case "$cmd" in
         opcao --tipo aviso "$@"
         case "$VAL" in pergunta|aviso|pronto|travado) ;; *) echo "tipo inválido: $VAL (pergunta|aviso|pronto|travado)"; exit 1 ;; esac
         texto="${POS[*]:-}"
-        [ -n "${texto// /}" ] || { echo 'uso: orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado]'; exit 1; }
-        mkdir -p "$raiz/.orq/recados/saida"
-        python3 - "$raiz/.orq/recados/saida" "$VAL" "$texto" "${CLAUDE_CODE_SESSION_ID:-}" <<'PY'
-import json, os, sys, time, secrets
-pasta, tipo, texto, sessao = sys.argv[1:5]
-ts = int(time.time() * 1000)
-rid = f"{ts}-{secrets.token_hex(3)}"
-d = {"id": rid, "ts": ts, "tipo": tipo, "texto": texto[:2000], "sessao": sessao or None}
-tmp = os.path.join(pasta, f".{rid}.tmp")
-open(tmp, "w").write(json.dumps(d, ensure_ascii=False) + "\n")
-os.replace(tmp, os.path.join(pasta, f"{rid}.json"))
+        [ -n "${texto// /}" ] || { echo 'uso: orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>]'; exit 1; }
+        if [ -n "$PARA" ]; then
+            deixar acao recado tipo "$VAL" texto "$texto" para "$PARA"
+            echo "recado deixado para $PARA ($VAL). O app entrega no terminal dele; se não achar o agente, o recado aparece recusado na aba Recados."
+        else
+            deixar acao recado tipo "$VAL" texto "$texto"
+            echo "recado deixado para o orquestrador ($VAL). O app entrega quando estiver aberto."
+        fi
+        ;;
+    agentes|vezes)
+        python3 - "$raiz/.orq/recados" "$cmd" <<'PY'
+import json, os, sys, time
+base, cmd = sys.argv[1:3]
+arq = os.path.join(base, "agentes.json" if cmd == "agentes" else "vezes.json")
+try:
+    idade = time.time() - os.stat(arq).st_mtime
+    dados = json.load(open(arq, encoding="utf-8"))
+except (FileNotFoundError, ValueError):
+    print("O app ainda não deixou a lista aqui (está aberto?)."); sys.exit(0)
+if cmd == "agentes":
+    print("Agentes abertos no app" + (" (lista de mais de 1 min atrás)" if idade > 60 else "") + ":")
+    for a in dados:
+        print(f"- {a['nome']} ({a['projeto']})" + (" ← você" if a.get("voce") else "") + (f" · {a['estado']}" if a.get("estado") else "") + (f" · {a['tarefa']}" if a.get("tarefa") else ""))
+    print('Para falar com um deles: .orq/bin/orq-recado enviar "texto" --para "<nome ou projeto>"')
+else:
+    if not dados:
+        print("Nenhuma vez aberta para você."); sys.exit(0)
+    for v in dados:
+        print(f"- {v['id']}  de {v['de']} ({v['projeto']})" + (f", para {v['para']}" if v.get("para") else "") + f"\n    {v['texto'][:300]}")
+    print("Para pegar: .orq/bin/orq-recado pegar <id> (só um agente consegue).")
 PY
-        echo "recado deixado para o orquestrador ($VAL). O app entrega quando estiver aberto."
+        ;;
+    passar)
+        opcao --tipo x "$@"
+        texto="${POS[*]:-}"
+        [ -n "${texto// /}" ] || { echo 'uso: orq-recado passar "onde parei" [--falta "…"] [--falhou "…"] [--para <agente|projeto>]'; exit 1; }
+        deixar acao vez texto "$texto" falta "$FALTA" falhou "$FALHOU" para "$PARA"
+        echo "vez passada${PARA:+ para $PARA}. O orquestrador fica sabendo; quem continuar pega com .orq/bin/orq-recado pegar <id>."
+        ;;
+    pegar)
+        id="${1:-}"
+        [[ "$id" =~ ^[0-9]+-[0-9a-f]+$ ]] || { echo 'uso: orq-recado pegar <id> (veja .orq/bin/orq-recado vezes)'; exit 1; }
+        req="$(date +%s%3N)-p$RANDOM"
+        ORQ_REQ="$req" deixar acao pegar vez "$id" req "$req"
+        resp="$raiz/.orq/recados/entrada/$req.json"
+        for _ in $(seq 1 "${ORQ_ESPERA_PEGAR:-40}"); do
+            [ -f "$resp" ] && break
+            sleep 0.5
+        done
+        [ -f "$resp" ] || { echo "o app não respondeu (está aberto?). O pedido fica e vale quando ele abrir; confira depois com .orq/bin/orq-recado vezes."; exit 2; }
+        python3 - "$resp" <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1], encoding="utf-8"))
+if not r.get("ok"):
+    print("não deu para pegar:", r.get("erro")); sys.exit(1)
+v = r["vez"]
+print(f"A vez é sua. {v['de']['nome']} ({v['de']['alvo']}) parou assim:\n\n{v['texto']}")
+if v.get("falta"): print(f"\nFalta: {v['falta']}")
+if v.get("falhou"): print(f"\nNão funcionou (não repita): {v['falhou']}")
+print("\nAvise o orquestrador quando terminar: .orq/bin/orq-recado enviar \"…\" --tipo pronto")
+PY
         ;;
     lembrar)
         opcao --tipo decisao "$@"
@@ -118,7 +195,7 @@ print(f"{achou} nota(s) com “{arg}”." if achou else f"Nenhuma nota cita “{
 PY
         ;;
     *)
-        sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
         [ -z "$cmd" ] || exit 1
         ;;
 esac

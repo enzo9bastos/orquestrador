@@ -1000,7 +1000,10 @@
     "Escolha um projeto à esquerda para ver a memória dele.": "Pick a project on the left to see its memory.",
     "Nenhum projeto com recado ou memória ainda.": "No project with messages or memory yet.",
     "Nenhuma nota com esse termo.": "No note with that term.",
-    "Recado de": "Message from"
+    "Recado de": "Message from",
+    "Vezes passadas": "Handoffs",
+    "Falta:": "Still to do:",
+    "Não funcionou:": "Didn't work:"
   },
   "padroes": [
     [

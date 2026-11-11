@@ -90,7 +90,7 @@
       grupo = null;
       const el = document.createElement('details');
       el.className = `msg-bastidor msg-bastidor-recado recado-${rc[3]}`;
-      const icone = { pergunta: '❓', travado: '⛔', pronto: '✅' }[rc[3]] || '✉';
+      const icone = { pergunta: '❓', travado: '⛔', pronto: '✅', vez: '🔁' }[rc[3]] || '✉';
       el.innerHTML = `<summary>${icone} Recado de <span data-sem-traducao>${esc(rc[1])} · ${esc(rc[2])}</span></summary><div class="msg-bastidor-texto">${esc(rc[4])}</div>`;
       caixa.append(el);
       return;

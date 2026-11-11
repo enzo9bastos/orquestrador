@@ -8,12 +8,14 @@
   if (!R) return; // ponte antiga
   const { esc } = window.orqUtil;
   let recados = [];
+  let vezes = [];
   let projetos = [];
   let filtro = '';       // '' = todos os projetos
-  let vista = 'recados'; // 'recados' | 'memoria'
+  let vista = 'recados'; // 'recados' | 'vezes' | 'memoria'
 
   const ESTADO = { novo: 'esperando o orquestrador', entregue: 'entregue', segurado: 'segurado', recusado: 'recusado' };
-  const TIPO = { pergunta: 'pergunta', aviso: 'aviso', pronto: 'terminou', travado: 'travado' };
+  const TIPO = { pergunta: 'pergunta', aviso: 'aviso', pronto: 'terminou', travado: 'travado', vez: 'passou a vez' };
+  const ESTADO_VEZ = { aberta: 'aberta', pega: 'pega', recusada: 'recusada' };
   const NOTA = { decisao: 'decisão', falhou: 'não funcionou', onde: 'onde está', aviso: 'aviso' };
   const hora = (ts) => {
     const d = new Date(ts);
@@ -56,6 +58,21 @@
     </li>`).join('');
   }
 
+  function desenharVezes() {
+    const lista = vezes.filter((v) => !filtro || v.de.alvo === filtro || (v.pegaPor && v.pegaPor.alvo === filtro)).slice().reverse();
+    $('vezes-linha').innerHTML = lista.length ? lista.map((v) => `<li class="recado vez vez-${esc(v.estado)}" data-id="${esc(v.id)}">
+      <div class="recado-topo"><span class="recado-de" data-sem-traducao>${esc(v.de.nome)}</span><span class="recado-seta">→</span><span class="recado-para" data-sem-traducao>${esc(v.pegaPor ? v.pegaPor.nome : (v.para || 'qualquer agente'))}</span>
+        <span class="recado-projeto" data-sem-traducao>${esc(v.de.alvo)}</span>
+        <span class="selo recado-selo-estado">${esc(ESTADO_VEZ[v.estado] || v.estado)}</span>
+        <span class="recado-hora">${esc(hora(v.ts))}</span></div>
+      <div class="recado-texto" data-sem-traducao>${esc(v.texto)}</div>
+      ${v.falta ? `<div class="recado-texto vez-falta"><strong>Falta:</strong> <span data-sem-traducao>${esc(v.falta)}</span></div>` : ''}
+      ${v.falhou ? `<div class="recado-texto vez-falhou"><strong>Não funcionou:</strong> <span data-sem-traducao>${esc(v.falhou)}</span></div>` : ''}
+      ${v.motivo ? `<div class="nota recado-motivo">${esc(v.motivo)}</div>` : ''}
+    </li>`).join('')
+      : '<p class="nota">Nenhuma vez passada ainda. Um agente passa a vez com .orq/bin/orq-recado passar; outro pega com pegar &lt;id&gt;.</p>';
+  }
+
   async function desenharMemoria() {
     if (!filtro) {
       $('memoria-notas').innerHTML = '<p class="nota">Escolha um projeto à esquerda para ver a memória dele.</p>';
@@ -75,12 +92,13 @@
     document.querySelectorAll('[data-rc-aba]').forEach((b) => b.classList.toggle('ativa', b.dataset.rcAba === vista));
     $('recados-linha').hidden = vista !== 'recados';
     $('recados-dica').hidden = vista !== 'recados';
+    $('vezes-linha').hidden = vista !== 'vezes';
     $('recados-memoria').hidden = vista !== 'memoria';
-    if (vista === 'recados') desenharLinha(); else desenharMemoria();
+    if (vista === 'recados') desenharLinha(); else if (vista === 'vezes') desenharVezes(); else desenharMemoria();
   }
 
   async function carregar() {
-    [recados, projetos] = await Promise.all([R.lista(), R.projetos()]);
+    [recados, projetos, vezes] = await Promise.all([R.lista(), R.projetos(), R.vezes ? R.vezes() : []]);
     desenhar();
   }
 
@@ -99,7 +117,7 @@
   });
   $('filtro-memoria').addEventListener('input', () => desenharMemoria());
   document.querySelector('[data-aba="aba-recados"]').addEventListener('click', () => carregar());
-  R.aoMudar((l) => { recados = l; R.projetos().then((p) => { projetos = p; desenhar(); }); });
+  R.aoMudar((l) => { recados = l; Promise.all([R.projetos(), R.vezes ? R.vezes() : []]).then(([p, v]) => { projetos = p; vezes = v; desenhar(); }); });
   carregar();
-  if (window.orq.teste) window.__orqRecados = { carregar, estado: () => ({ recados, projetos, filtro, vista }) };
+  if (window.orq.teste) window.__orqRecados = { carregar, estado: () => ({ recados, vezes, projetos, filtro, vista }) };
 })();

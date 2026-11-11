@@ -12,6 +12,10 @@
 // embrulhado em <orq-recado> (aparece "por trás", como os workflows).
 // Orquestrador → agente: bin/orq-recado para <projeto> "texto" escreve no
 // painel do agente (como o orq send) e registra.
+// Agente → agente: enviar --para <projeto|agente>; o app escreve no painel do outro.
+// Vez passada: o agente deixa onde parou, o que falta e o que não funcionou;
+// outro agente pega com pegar <id>. Quem decide quem pegou é o app, então só
+// um pega, uma vez (registro em vezes.jsonl).
 // Memória: <projeto>/.orq/memoria/*.md, uma nota por arquivo, só acrescenta.
 //
 // Registro: ~/.local/share/orq-app/recados/recados.jsonl, uma linha por recado
@@ -28,7 +32,7 @@ const SCRIPT = path.join(__dirname, '..', 'hooks', 'orq-recado.sh');
 // 10 min, o app segura e espera o usuário liberar na aba Recados.
 const LIMITE = 6;
 const JANELA_MS = 10 * 60 * 1000;
-const TIPOS = ['pergunta', 'aviso', 'pronto', 'travado'];
+const TIPOS = ['pergunta', 'aviso', 'pronto', 'travado', 'vez'];
 const TIPOS_NOTA = ['decisao', 'falhou', 'onde', 'aviso'];
 
 const pasta = () => path.join(os.homedir(), '.local', 'share', 'orq-app', 'recados');
@@ -60,8 +64,49 @@ function mudar(id, mudanca) { acrescentar({ id, mudanca: { ...mudanca, mudouEm: 
 const novoId = () => `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 const alvoDe = (f) => (f.emp ? `${f.emp}/${f.proj}` : f.proj);
 
-// Recolhe os recados deixados pelos agentes. frentes: as do coletor.estado().
-// Devolve os recados novos registrados (aceitos, segurados ou recusados).
+// --- vezes passadas (handoff com dono: só um agente pega, uma vez) ----------
+const arquivoVezes = () => path.join(pasta(), 'vezes.jsonl');
+function lerVezes(max = 500) {
+  let texto = '';
+  try { texto = fs.readFileSync(arquivoVezes(), 'utf8'); } catch { return []; }
+  const porId = new Map();
+  for (const l of texto.split('\n')) {
+    if (!l.trim()) continue;
+    let o;
+    try { o = JSON.parse(l); } catch { continue; }
+    if (o.de) porId.set(o.id, o);
+    else if (o.id && porId.has(o.id)) Object.assign(porId.get(o.id), o.mudanca || {});
+  }
+  return [...porId.values()].sort((a, b) => a.ts - b.ts).slice(-max);
+}
+function gravarVez(linha) { fs.mkdirSync(pasta(), { recursive: true }); fs.appendFileSync(arquivoVezes(), JSON.stringify(linha) + '\n'); }
+// A vez é para este agente? Sem destino: qualquer agente do app pega.
+const vezServe = (v, f) => v.estado === 'aberta' && !(v.de.alvo === alvoDe(f) && v.de.nome === f.nome)
+  && (!v.para || acharFrente([f], v.para).length > 0);
+
+// Resposta do app a um pedido do agente (pegar a vez): o script espera este arquivo.
+function responderAgente(dir, req, dados) {
+  if (!/^[\w-]{1,64}$/.test(String(req || ''))) return;
+  const p = path.join(dir, '.orq', 'recados', 'entrada');
+  fs.mkdirSync(p, { recursive: true });
+  const tmp = path.join(p, `.${req}.tmp`);
+  fs.writeFileSync(tmp, JSON.stringify(dados) + '\n');
+  fs.renameSync(tmp, path.join(p, `${req}.json`));
+}
+
+// Freio: conta os recados recentes de um projeto (ao orquestrador) ou de uma
+// dupla de agentes (nos dois sentidos).
+function freio(lista, r, agora) {
+  const desde = agora - JANELA_MS;
+  const mesmos = lista.filter((x) => x.ts >= desde && x.estado !== 'recusado' && x.de.tipo === 'agente' && (r.para.tipo === 'orquestrador'
+    ? x.para.tipo === 'orquestrador' && x.de.alvo === r.de.alvo
+    : x.para.tipo === 'agente' && ((x.de.nome === r.de.nome && x.para.nome === r.para.nome) || (x.de.nome === r.para.nome && x.para.nome === r.de.nome))));
+  return mesmos.length >= LIMITE;
+}
+
+// Recolhe o que os agentes deixaram em .orq/recados/saida/: recados (ao
+// orquestrador ou a outro agente), vezes passadas e pedidos de pegar a vez.
+// frentes: as do coletor.estado(). Devolve os recados novos registrados.
 function recolher(projetos, frentes, agora = Date.now()) {
   const novos = [];
   const recentes = ler(1000);
@@ -80,26 +125,66 @@ function recolher(projetos, frentes, agora = Date.now()) {
       const sessao = typeof m.sessao === 'string' && m.sessao ? m.sessao : null;
       const comSessao = doProjeto.filter((x) => x.sessaoClaude);
       const quem = (sessao && doProjeto.find((x) => x.sessaoClaude === sessao)) || doProjeto[0] || null;
-      let estado = 'novo';
-      let motivo = null;
-      if (!doProjeto.length) { estado = 'recusado'; motivo = 'nenhum agente do app neste projeto (veio de um terminal de fora?)'; }
-      else if (sessao && comSessao.length && !comSessao.some((x) => x.sessaoClaude === sessao)) { estado = 'recusado'; motivo = 'sessão que o app não acompanha (terminal de fora)'; }
-      else {
-        const desde = agora - JANELA_MS;
-        const doMesmo = [...recentes, ...novos].filter((r) => r.de.tipo === 'agente' && r.de.alvo === p.alvo && r.ts >= desde && r.estado !== 'recusado');
-        if (doMesmo.length >= LIMITE) { estado = 'segurado'; motivo = `mais de ${LIMITE} recados em 10 min: o app segurou para você conferir`; }
+      let recusa = null;
+      if (!doProjeto.length) recusa = 'nenhum agente do app neste projeto (veio de um terminal de fora?)';
+      else if (sessao && comSessao.length && !comSessao.some((x) => x.sessaoClaude === sessao)) recusa = 'sessão que o app não acompanha (terminal de fora)';
+      const de = { tipo: 'agente', alvo: p.alvo, nome: quem ? quem.nome : `Agente de ${p.proj}`, sessao };
+      const acao = ['vez', 'pegar'].includes(m.acao) ? m.acao : 'recado';
+      const mover = () => { try { fs.renameSync(arq, path.join(lidos, f)); } catch { /* fica para a próxima volta */ } };
+
+      if (acao === 'pegar') {
+        const v = lerVezes(5000).find((x) => x.id === String(m.vez || ''));
+        let resp;
+        if (recusa) resp = { ok: false, erro: recusa };
+        else if (!v) resp = { ok: false, erro: 'vez não encontrada' };
+        else if (v.estado !== 'aberta') resp = { ok: false, erro: `essa vez já foi pega por ${v.pegaPor ? v.pegaPor.nome : 'outro agente'}` };
+        else if (!vezServe(v, quem)) resp = { ok: false, erro: 'essa vez é para outro agente' };
+        else {
+          gravarVez({ id: v.id, mudanca: { estado: 'pega', pegaPor: { alvo: de.alvo, nome: de.nome }, pegaEm: agora } });
+          resp = { ok: true, vez: { ...v, estado: 'pega' } };
+        }
+        responderAgente(p.dir, m.req, resp);
+        mover();
+        continue;
       }
-      const r = {
-        id: novoId(), ts: agora, // a hora de chegada (a do arquivo vem do agente)
-        de: { tipo: 'agente', alvo: p.alvo, nome: quem ? quem.nome : `Agente de ${p.proj}`, sessao },
-        para: { tipo: 'orquestrador' },
-        tipo: TIPOS.includes(m.tipo) ? m.tipo : 'aviso',
-        texto: String(m.texto || '').slice(0, 2000),
-        estado, motivo,
-      };
+
+      if (acao === 'vez') {
+        const v = {
+          id: novoId(), ts: agora, de: { alvo: de.alvo, nome: de.nome },
+          para: m.para ? String(m.para).slice(0, 120) : null,
+          texto: String(m.texto || '').slice(0, 4000), falta: String(m.falta || '').slice(0, 2000), falhou: String(m.falhou || '').slice(0, 2000),
+          estado: recusa ? 'recusada' : 'aberta', motivo: recusa,
+        };
+        gravarVez(v);
+        // O orquestrador fica sabendo de toda vez passada (pode ter de abrir quem pega).
+        const r = { id: novoId(), ts: agora, de, para: { tipo: 'orquestrador' }, tipo: 'vez',
+          texto: `${v.texto}${v.falta ? `\nFalta: ${v.falta}` : ''}${v.falhou ? `\nNão funcionou: ${v.falhou}` : ''}\n(vez ${v.id}${v.para ? `, para ${v.para}` : ', para qualquer agente'})`,
+          estado: recusa ? 'recusado' : 'novo', motivo: recusa, vez: v.id };
+        acrescentar(r);
+        novos.push(r);
+        mover();
+        continue;
+      }
+
+      // Recado: ao orquestrador, ou a outro agente com --para.
+      let para = { tipo: 'orquestrador' };
+      if (m.para && !recusa) {
+        const alvo = acharFrente(frentes, m.para).filter((x) => !(x.dir === p.dir && x.nome === de.nome));
+        if (alvo.length === 1) para = { tipo: 'agente', alvo: alvoDe(alvo[0]), nome: alvo[0].nome };
+        else {
+          para = { tipo: 'agente', alvo: String(m.para).slice(0, 120), nome: String(m.para).slice(0, 120) };
+          recusa = alvo.length ? `"${m.para}" tem ${alvo.length} agentes; use o nome do agente` : `nenhum agente do app em "${m.para}" (veja .orq/bin/orq-recado agentes)`;
+        }
+      }
+      const r = { id: novoId(), ts: agora, de, para, tipo: TIPOS.includes(m.tipo) ? m.tipo : 'aviso', texto: String(m.texto || '').slice(0, 2000), estado: 'novo', motivo: null };
+      if (recusa) { r.estado = 'recusado'; r.motivo = recusa; }
+      else if (freio([...recentes, ...novos], r, agora)) {
+        r.estado = 'segurado';
+        r.motivo = r.para.tipo === 'orquestrador' ? `mais de ${LIMITE} recados em 10 min: o app segurou para você conferir` : `mais de ${LIMITE} recados entre esses dois agentes em 10 min: o app segurou para você conferir`;
+      }
       acrescentar(r);
       novos.push(r);
-      try { fs.renameSync(arq, path.join(lidos, f)); } catch { /* fica para a próxima volta */ }
+      mover();
     }
   }
   return novos;
@@ -109,25 +194,38 @@ const semAspas = (s) => String(s || '').replace(/["<>\n]/g, ' ').trim();
 // Como o recado aparece para o orquestrador: o texto do agente e como responder.
 function embrulho(r) {
   const corpo = String(r.texto).replace(/<\/?orq-recado[^>]*>/g, '');
-  const tipo = { pergunta: 'Pergunta', aviso: 'Aviso', pronto: 'Terminou', travado: 'Travado, precisa de ajuda' }[r.tipo] || 'Recado';
+  const tipo = { pergunta: 'Pergunta', aviso: 'Aviso', pronto: 'Terminou', travado: 'Travado, precisa de ajuda', vez: 'Passou a vez' }[r.tipo] || 'Recado';
   return `<orq-recado id="${semAspas(r.id)}" de="${semAspas(r.de.nome)}" projeto="${semAspas(r.de.alvo)}" tipo="${semAspas(r.tipo)}">\n`
     + `${tipo} de ${r.de.nome} (${r.de.alvo}):\n${corpo}\n\n`
+    + (r.tipo === 'vez' ? 'Se ninguém do app pode pegar essa vez, abra um agente para ela; ele pega com .orq/bin/orq-recado pegar <id>. Lista: orq-recado vezes. ' : '')
     + `Para responder a este agente: orq-recado para "${semAspas(r.de.alvo)}" "sua resposta". `
     + `Memória do projeto: orq-recado memoria "${semAspas(r.de.alvo)}".\n</orq-recado>`;
 }
 
-// Entrega os recados novos ao orquestrador, se a conversa dele estiver viva.
-// Sem ele vivo, esperam (não acorda o orquestrador por conta própria).
-function entregar(conversa) {
-  let o;
-  try { o = conversa.lista().find((x) => x.orquestrador); } catch { return 0; }
-  if (!(o && o.vivo)) return 0;
+// Entrega os recados novos: ao orquestrador, se a conversa dele estiver viva
+// (sem ele vivo, esperam: não acorda o orquestrador por conta própria); ao
+// agente, escrevendo no painel dele (sem o agente aberto, esperam).
+// obterFrentes só roda se houver recado esperando um agente.
+function entregar(conversa, obterFrentes = () => [], { tmux = tmuxPadrao } = {}) {
+  let o = null;
+  try { o = conversa.lista().find((x) => x.orquestrador); } catch { /* sem conversas */ }
   let n = 0;
+  let frentes = null;
   for (const r of ler(1000)) {
-    if (r.estado !== 'novo' || r.para.tipo !== 'orquestrador') continue;
-    conversa.mandar(o.id, embrulho(r));
-    mudar(r.id, { estado: 'entregue' });
-    n++;
+    if (r.estado !== 'novo') continue;
+    if (r.para.tipo === 'orquestrador') {
+      if (!(o && o.vivo)) continue;
+      conversa.mandar(o.id, embrulho(r));
+      mudar(r.id, { estado: 'entregue' });
+      n++;
+    } else if (r.para.tipo === 'agente' && r.de.tipo === 'agente') {
+      if (!frentes) frentes = obterFrentes();
+      const f = frentes.find((x) => alvoDe(x) === r.para.alvo && x.nome === r.para.nome);
+      if (!f) continue;
+      escreverNoPainel(f, `[recado de ${r.de.nome} (${r.de.alvo})] ${r.texto} — Para responder: .orq/bin/orq-recado enviar "texto" --para "${r.de.nome}".`, tmux);
+      mudar(r.id, { estado: 'entregue' });
+      n++;
+    }
   }
   return n;
 }
@@ -156,6 +254,35 @@ function instalar(dir) {
   return atual === null ? 'instalado' : 'atualizado';
 }
 
+// Quadro de cada projeto com o script instalado: quem está aberto no app
+// (.orq/recados/agentes.json) e as vezes que ele pode pegar (vezes.json). O
+// agente lê com orq-recado agentes / vezes. Só grava quando muda.
+function escreverQuadros(projetos, frentes) {
+  const agentes = frentes.map((f) => ({ nome: f.nome, projeto: alvoDe(f), estado: f.estado || null, tarefa: f.tarefa || null }));
+  const vezes = lerVezes(2000).filter((v) => v.estado === 'aberta');
+  let n = 0;
+  for (const p of projetos) {
+    if (!fs.existsSync(path.join(p.dir, '.orq', 'bin', 'orq-recado'))) continue;
+    const meus = frentes.filter((f) => f.dir === p.dir);
+    const servem = vezes.filter((v) => (meus.length ? meus.some((f) => vezServe(v, f)) : !v.para))
+      .map((v) => ({ id: v.id, de: v.de.nome, projeto: v.de.alvo, para: v.para, texto: v.texto, falta: v.falta, falhou: v.falhou, ts: v.ts }));
+    const base = path.join(p.dir, '.orq', 'recados');
+    for (const [nome, dados] of [['agentes.json', agentes.map((a) => ({ ...a, voce: meus.some((f) => f.nome === a.nome && alvoDe(f) === a.projeto) }))], ['vezes.json', servem]]) {
+      const arq = path.join(base, nome);
+      const texto = JSON.stringify(dados, null, 1) + '\n';
+      let atual = null;
+      try { atual = fs.readFileSync(arq, 'utf8'); } catch { /* ainda não tem */ }
+      if (atual === texto) continue;
+      fs.mkdirSync(base, { recursive: true });
+      const tmp = `${arq}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, texto);
+      fs.renameSync(tmp, arq);
+      n++;
+    }
+  }
+  return n;
+}
+
 // Acha a frente pelo projeto ("grupo/projeto" ou só "projeto") ou pelo nome.
 function acharFrente(frentes, alvo) {
   const a = String(alvo || '').trim().toLowerCase();
@@ -165,17 +292,20 @@ function acharFrente(frentes, alvo) {
 }
 
 const tmuxPadrao = (args) => execFileSync('tmux', args, { stdio: 'ignore', timeout: 4000 });
-// Escreve o recado no painel do agente, numa linha só (Enter manda), e registra.
+function escreverNoPainel(frente, linha, tmux) {
+  if (!/^%\d+$/.test(frente.pane)) throw new Error('painel inválido');
+  tmux(['send-keys', '-t', frente.pane, 'C-u']);
+  tmux(['send-keys', '-t', frente.pane, '-l', String(linha).replace(/\s+/g, ' ').trim()]);
+  tmux(['send-keys', '-t', frente.pane, 'C-m']);
+}
+// Escreve o recado do orquestrador no painel do agente, numa linha só (Enter manda), e registra.
 function mandarAoAgente(frente, texto, { tipo = 'aviso', tmux = tmuxPadrao } = {}) {
   const t = String(texto || '').replace(/\s+/g, ' ').trim();
   if (!t) throw new Error('recado vazio');
   if (!/^%\d+$/.test(frente.pane)) throw new Error('painel inválido');
   const instalacao = instalar(frente.dir);
   const rotulo = { pergunta: 'pergunta', aviso: 'recado', pronto: 'recado', travado: 'recado' }[tipo] || 'recado';
-  const linha = `[${rotulo} do orquestrador] ${t} — Para responder ou avisar o orquestrador: .orq/bin/orq-recado enviar "texto" --tipo pergunta|aviso|pronto|travado. Memória do projeto: .orq/bin/orq-recado memoria | buscar "termo" | lembrar "título" "texto".`;
-  tmux(['send-keys', '-t', frente.pane, 'C-u']);
-  tmux(['send-keys', '-t', frente.pane, '-l', linha]);
-  tmux(['send-keys', '-t', frente.pane, 'C-m']);
+  escreverNoPainel(frente, `[${rotulo} do orquestrador] ${t} — Para responder ou avisar o orquestrador: .orq/bin/orq-recado enviar "texto" --tipo pergunta|aviso|pronto|travado. Outros agentes: .orq/bin/orq-recado agentes; enviar "texto" --para <agente>. Memória do projeto: .orq/bin/orq-recado memoria | buscar "termo" | lembrar "título" "texto".`, tmux);
   const r = {
     id: novoId(), ts: Date.now(),
     de: { tipo: 'orquestrador' },
@@ -239,4 +369,4 @@ function lembrar(dir, { titulo, texto, tipo = 'decisao', autor = 'orquestrador' 
   throw new Error('não achei um nome livre para a nota');
 }
 
-module.exports = { ler, recolher, entregar, embrulho, liberar, instalar, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, LIMITE, MARCA };
+module.exports = { ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };

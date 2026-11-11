@@ -1483,3 +1483,6 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .recados-memoria .busca { margin-bottom: 10px; }
 .memoria-falhou .selo { color: var(--perigo); }
 .memoria-decisao .selo { background: var(--claude-suave); color: var(--claude); }
+.recado-tipo-vez .recado-selo-tipo, .vez-aberta .recado-selo-estado { background: var(--claude-suave); color: var(--claude); }
+.vez-pega .recado-selo-estado { background: var(--ativo-suave); color: var(--ativo); }
+.vez-falhou strong { color: var(--perigo); }

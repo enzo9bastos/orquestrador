@@ -10,6 +10,10 @@ const log = [
   { id: 'r3', ts: agora - 40000, de: { tipo: 'agente', alvo: 'site', nome: 'Agente 1 (site)' }, para: { tipo: 'orquestrador' }, tipo: 'aviso', texto: 'sétimo recado seguido', estado: 'segurado', motivo: 'mais de 6 recados em 10 min' },
   { id: 'r4', ts: agora - 30000, de: { tipo: 'agente', alvo: 'site', nome: 'Agente de site' }, para: { tipo: 'orquestrador' }, tipo: 'aviso', texto: 'de um terminal de fora', estado: 'recusado', motivo: 'nenhum agente do app neste projeto' },
 ].map((r) => JSON.stringify(r)).join('\n') + '\n';
+const vezes = [
+  { id: 'v1', ts: agora - 20000, de: { alvo: 'site', nome: 'Agente 1 (site)' }, para: null, texto: 'Parei no passo 3.', falta: 'testes no celular', falhou: 'máscara antiga', estado: 'aberta', motivo: null },
+  { id: 'v2', ts: agora - 10000, de: { alvo: 'site', nome: 'Agente 1 (site)' }, para: 'Agente 2', texto: 'Login pronto.', falta: '', falhou: '', estado: 'aberta', motivo: null },
+].map((v) => JSON.stringify(v)).join('\n') + '\n' + JSON.stringify({ id: 'v2', mudanca: { estado: 'pega', pegaPor: { alvo: 'api', nome: 'Agente 2 (api)' }, pegaEm: agora } }) + '\n';
 const nota = '---\ntipo: onde\ntitulo: Porta do servidor de teste\nquando: 2026-11-11 12:00\nautor: agente\n---\n\n# Porta do servidor de teste\n\nUsa a 4010 desde hoje.\n';
 
 test('recados', async (t) => {
@@ -17,6 +21,7 @@ test('recados', async (t) => {
     config: { raizProjetos: '~/projetos', niveis: 1 },
     arquivos: {
       '.local/share/orq-app/recados/recados.jsonl': log,
+      '.local/share/orq-app/recados/vezes.jsonl': vezes,
       'projetos/site/.orq/memoria/2026-11-11-120000-porta-do-servidor-de-teste.md': nota,
       'projetos/outro/leia.md': '',
     },
@@ -53,6 +58,16 @@ test('recados', async (t) => {
     assert.match(await app.avaliar("document.querySelector('#memoria-notas .memoria-nota').innerText"), /Porta do servidor de teste[\s\S]*Usa a 4010/);
     await app.avaliar("(() => { const i = document.getElementById('filtro-memoria'); i.value = 'nada disso'; i.dispatchEvent(new Event('input')); })()");
     await app.esperar("document.querySelectorAll('#memoria-notas .memoria-nota').length === 0");
+  });
+
+  await t.test('vezes passadas: aberta e pega, com o que falta e o que não funcionou', async () => {
+    await app.avaliar("document.querySelector('[data-rc-projeto=\"\"]').click()");
+    await app.avaliar("document.querySelector('[data-rc-aba=\"vezes\"]').click()");
+    await app.esperar("document.querySelectorAll('#vezes-linha .vez').length === 2");
+    const l = await app.avaliar("[...document.querySelectorAll('#vezes-linha .vez')].map((li) => ({ id: li.dataset.id, para: li.querySelector('.recado-para').textContent, estado: li.querySelector('.recado-selo-estado').textContent, texto: li.innerText }))");
+    assert.deepStrictEqual(l.map((x) => [x.id, x.para, x.estado]), [['v2', 'Agente 2 (api)', 'pega'], ['v1', 'qualquer agente', 'aberta']]);
+    assert.match(l[1].texto, /Falta: testes no celular[\s\S]*Não funcionou: máscara antiga/);
+    assert.ok(await app.avaliar("document.getElementById('recados-linha').hidden && document.getElementById('recados-memoria').hidden"));
   });
 
   await t.test('na conversa, o recado do agente aparece por trás, sem virar balão do usuário', async () => {

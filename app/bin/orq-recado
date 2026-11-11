@@ -7,6 +7,7 @@
 //                                    escreve no painel do agente (como o orq send) e registra
 //   orq-recado listar [--projeto X] [--n 20] [--json]   os últimos recados, dos dois lados
 //   orq-recado memoria <projeto> ["termo"] [--json]     notas da memória do projeto
+//   orq-recado vezes [--todas] [--json]                 vezes passadas entre agentes (abertas; --todas: também as pegas)
 //   orq-recado lembrar <projeto> "título" "texto" [--tipo decisao|falhou|onde|aviso]
 //                                    grava uma nota na memória do projeto
 //   orq-recado instalar <projeto>    põe .orq/bin/orq-recado no projeto
@@ -22,7 +23,7 @@ const pos = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i].startsWith('--')) {
     const k = args[i].slice(2);
-    if (['json'].includes(k)) opc[k] = true; else opc[k] = args[++i];
+    if (['json', 'todas'].includes(k)) opc[k] = true; else opc[k] = args[++i];
   } else pos.push(args[i]);
 }
 const [cmd, ...resto] = pos;
@@ -50,6 +51,15 @@ try {
     if (achou.length > 1) sair(`"${alvo}" tem ${achou.length} agentes: ${achou.map((f) => f.nome).join(', ')}; use o nome do agente`);
     const { recado, instalacao } = recados.mandarAoAgente(achou[0], texto, { tipo: opc.tipo || 'aviso' });
     console.log(`recado entregue a ${recado.para.nome} (${recado.para.alvo})${instalacao === 'instalado' ? '; .orq/bin/orq-recado instalado no projeto' : ''}`);
+  } else if (cmd === 'vezes') {
+    let lista = recados.lerVezes(2000);
+    if (!opc.todas) lista = lista.filter((v) => v.estado === 'aberta');
+    if (opc.json) console.log(JSON.stringify(lista, null, 2));
+    else if (!lista.length) console.log(opc.todas ? 'Nenhuma vez passada ainda.' : 'Nenhuma vez aberta. (--todas mostra as já pegas)');
+    else for (const v of lista) {
+      console.log(`${v.id}  ${v.de.nome} (${v.de.alvo}) → ${v.pegaPor ? `pega por ${v.pegaPor.nome}` : v.para || 'qualquer agente'}  [${v.estado}]\n    ${v.texto.replace(/\s+/g, ' ').slice(0, 300)}`
+        + (v.falta ? `\n    falta: ${v.falta}` : '') + (v.falhou ? `\n    não funcionou: ${v.falhou}` : ''));
+    }
   } else if (cmd === 'listar') {
     let lista = recados.ler(2000);
     if (opc.projeto) lista = lista.filter((r) => (r.de.alvo || r.para.alvo || '').toLowerCase().includes(String(opc.projeto).toLowerCase()));
@@ -77,7 +87,7 @@ try {
     const p = projeto(resto[0]);
     console.log(`${p.alvo}: ${{ instalado: 'instalado', atualizado: 'atualizado', igual: 'já estava em dia', alheio: 'já existe um .orq/bin/orq-recado que não é do app; deixei como está' }[recados.instalar(p.dir)]}`);
   } else {
-    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 15).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 16).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     if (cmd) process.exit(1);
   }
 } catch (e) { sair(`erro: ${e.message}`); }

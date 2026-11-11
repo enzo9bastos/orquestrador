@@ -221,7 +221,7 @@ Optional command-line helpers live in `app/bin/` — link them somewhere on your
 |---|---|
 | `orq-nav` | Drives the app's browser windows: `orq-nav abrir <url>`, `texto`, `elementos`, `clicar`, `digitar`, `print`… |
 | `orq-pet` | Calls the desktop helper: `orq-pet chamar`, `print`, `passear`, `voltar`. Bind it to a key — the wardrobe can create the GNOME shortcut for you. |
-| `orq-recado` | Messages from the orchestrator to the app's agents and each project's memory: `orq-recado para <project> "text"`, `listar`, `memoria <project> [term]`, `lembrar <project> "title" "text"`. See [Agent messages and project memory](#agent-messages-and-project-memory). |
+| `orq-recado` | Messages from the orchestrator to the app's agents and each project's memory: `orq-recado para <project> "text"`, `listar`, `memoria <project> [term]`, `lembrar <project> "title" "text"`, `vezes`. See [Agent messages and project memory](#agent-messages-and-project-memory). |
 
 ## Configuration
 
@@ -248,6 +248,13 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   orchestrator's chat as a behind-the-scenes message, with how to answer.
 - **Orchestrator → agent.** `orq-recado para <project|agent> "text"` types the message into that agent's pane, in one
   line, with how to answer. It also installs `.orq/bin/orq-recado` in the project when it is missing.
+- **Agent → agent.** `.orq/bin/orq-recado enviar "text" --para <agent|project>` reaches another agent of the app,
+  typed into its pane with how to answer. `.orq/bin/orq-recado agentes` lists who is open (the app keeps that list in
+  `<project>/.orq/recados/agentes.json`). A message to an agent that is not open waits until it opens.
+- **Handoffs.** `.orq/bin/orq-recado passar "where I stopped" --falta "…" --falhou "…" [--para <agent|project>]` leaves the
+  work for someone else (still to do, what didn't work). `vezes` lists the ones this agent can take and `pegar <id>`
+  takes one: the app decides who got it, so **only one agent takes each handoff, once**. The orchestrator is told
+  about every handoff; `orq-recado vezes` lists them on the host.
 - **Project memory.** `.orq/bin/orq-recado lembrar "title" "text" --tipo decisao|falhou|onde|aviso` (decision,
   didn't work, where things are, notice) writes one Markdown note in `<project>/.orq/memoria/`; `memoria`, `buscar
   "term"` and `ler <note>` read them. Notes are only ever added, never rewritten or deleted.
@@ -255,11 +262,11 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   running Claude in that folder) and, when the signal hook is on, only from that agent's session. A CLI opened in
   a terminal outside the app is turned away. This separates "in the app" from "outside"; it is not a defense
   against a hostile agent, which can write to its own project folder.
-- **Loop brake.** From the 7th message of the same project within 10 minutes, the app holds them; the **Messages**
-  tab shows them with a **Release** button.
+- **Loop brake.** From the 7th message of the same project to the orchestrator, or between the same two agents
+  (both ways), within 10 minutes, the app holds them; the **Messages** tab shows them with a **Release** button.
 
-The **Messages** tab lists both directions per project and shows each project's memory. The log is
-`~/.local/share/orq-app/recados/recados.jsonl`.
+The **Messages** tab lists messages and handoffs per project and shows each project's memory. The logs are
+`~/.local/share/orq-app/recados/recados.jsonl` and `vezes.jsonl`.
 
 ### Signal hook (optional)
 

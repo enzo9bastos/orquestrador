@@ -122,6 +122,7 @@ contextBridge.exposeInMainWorld('orq', {
   },
   recados: {
     lista: () => ipcRenderer.invoke('recados:lista'),
+    vezes: () => ipcRenderer.invoke('recados:vezes'),
     liberar: (id) => ipcRenderer.invoke('recados:liberar', id),
     projetos: () => ipcRenderer.invoke('recados:projetos'),
     memoria: (alvo) => ipcRenderer.invoke('recados:memoria', alvo),
