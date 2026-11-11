@@ -1452,3 +1452,34 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .opcao.multi.marcada::before { background: var(--claude); border-color: var(--claude); box-shadow: inset 0 0 0 2px var(--bg); }
 .opcao.unica.marcada::before { border-color: var(--claude); box-shadow: inset 0 0 0 3px var(--bg); background: var(--claude); }
 .opcao .previa { margin: 6px 0 0; padding: 8px 10px; border-radius: var(--r-sm); background: var(--bg); border: 1px solid var(--borda); font: 11.5px/1.35 var(--mono); color: var(--fg-2); white-space: pre; overflow-x: auto; max-height: 220px; text-align: left; }
+
+/* --- aba Recados (agentes ↔ orquestrador) e memória do projeto --- */
+.contador-aba { margin-left: 6px; min-width: 16px; padding: 0 5px; border-radius: 8px; background: var(--esperando); color: #101114; font: 600 10.5px/16px var(--mono); text-align: center; }
+.recados { display: grid; grid-template-columns: clamp(200px, 28%, 280px) minmax(0, 1fr); height: 100%; }
+.recados-lista { border-right: 1px solid var(--borda); overflow-y: auto; padding: 0 8px 16px; }
+.recados-lista .secao-titulo { margin: 12px 6px 4px; }
+.recados-lista .contador { font: 11px var(--mono); color: var(--fg-4); }
+.recados-detalhe { overflow-y: auto; padding: 16px 28px 80px; min-width: 0; }
+.recados-abas { display: flex; gap: 4px; margin-bottom: 12px; }
+.recados-abas button { padding: 4px 12px; border-radius: var(--r-sm); color: var(--fg-3); font-size: 12.5px; }
+.recados-abas button:hover { background: var(--painel-hover); color: var(--fg); }
+.recados-abas button.ativa { background: var(--claude-suave); color: var(--fg); }
+.recados-linha, .memoria-notas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.recado, .memoria-nota { border: 1px solid var(--borda); border-radius: var(--r-sm); padding: 10px 12px; background: var(--bg-elevado); }
+.recado-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--fg-3); }
+.recado-de, .recado-para { color: var(--fg); font-weight: 500; }
+.recado-projeto { font: 11.5px var(--mono); color: var(--fg-4); }
+.recado-hora { margin-left: auto; font: 11px var(--mono); color: var(--fg-4); }
+.recado-texto { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; color: var(--fg-2); }
+.recado-motivo { margin-top: 4px; }
+.recado .botao-texto { margin-top: 6px; }
+.selo { padding: 0 6px; border-radius: 8px; background: var(--parado-suave); color: var(--fg-2); font-size: 11px; line-height: 18px; }
+.recado-tipo-pergunta .recado-selo-tipo, .recado-tipo-travado .recado-selo-tipo { background: var(--esperando-suave); color: var(--esperando); }
+.recado-tipo-pronto .recado-selo-tipo { background: var(--ativo-suave); color: var(--ativo); }
+.recado-segurado { border-color: color-mix(in srgb, var(--esperando) 55%, transparent); }
+.recado-segurado .recado-selo-estado { background: var(--esperando-suave); color: var(--esperando); }
+.recado-recusado { opacity: .7; }
+.recado-recusado .recado-selo-estado { color: var(--perigo); }
+.recados-memoria .busca { margin-bottom: 10px; }
+.memoria-falhou .selo { color: var(--perigo); }
+.memoria-decisao .selo { background: var(--claude-suave); color: var(--claude); }

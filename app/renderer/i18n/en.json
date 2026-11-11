@@ -988,7 +988,19 @@
     "Lilás": "Lilac",
     "Grafite": "Graphite",
     "Esta espécie tem a cor dela. Só o Clássico muda de cor.": "This species has its own color. Only the Classic changes color.",
-    "Pode marcar mais de uma": "You can pick more than one"
+    "Pode marcar mais de uma": "You can pick more than one",
+    "Recados": "Messages",
+    "Recados entre os agentes e o orquestrador, e a memória de cada projeto": "Messages between the agents and the orchestrator, and each project's memory",
+    "Projetos": "Projects",
+    "Memória do projeto": "Project memory",
+    "Buscar na memória": "Search memory",
+    "Buscar na memória do projeto": "Search the project's memory",
+    "Todos": "All",
+    "Liberar para o orquestrador": "Release to the orchestrator",
+    "Escolha um projeto à esquerda para ver a memória dele.": "Pick a project on the left to see its memory.",
+    "Nenhum projeto com recado ou memória ainda.": "No project with messages or memory yet.",
+    "Nenhuma nota com esse termo.": "No note with that term.",
+    "Recado de": "Message from"
   },
   "padroes": [
     [

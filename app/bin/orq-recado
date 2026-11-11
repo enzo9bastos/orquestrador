@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+// orq-recado: recados do orquestrador para os agentes do app, e a memória de
+// cada projeto. Os agentes respondem com .orq/bin/orq-recado (o app instala
+// no projeto); o recado deles chega na conversa do orquestrador.
+//
+//   orq-recado para <projeto|agente> "texto" [--tipo pergunta|aviso]
+//                                    escreve no painel do agente (como o orq send) e registra
+//   orq-recado listar [--projeto X] [--n 20] [--json]   os últimos recados, dos dois lados
+//   orq-recado memoria <projeto> ["termo"] [--json]     notas da memória do projeto
+//   orq-recado lembrar <projeto> "título" "texto" [--tipo decisao|falhou|onde|aviso]
+//                                    grava uma nota na memória do projeto
+//   orq-recado instalar <projeto>    põe .orq/bin/orq-recado no projeto
+//
+// Só fala com agentes que o app acompanha (painel do tmux com o Claude na pasta
+// de um projeto). Registro: ~/.local/share/orq-app/recados/recados.jsonl.
+const coletor = require('../coletor');
+const recados = require('../recados');
+
+const args = process.argv.slice(2);
+const opc = {};
+const pos = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i].startsWith('--')) {
+    const k = args[i].slice(2);
+    if (['json'].includes(k)) opc[k] = true; else opc[k] = args[++i];
+  } else pos.push(args[i]);
+}
+const [cmd, ...resto] = pos;
+const sair = (msg, cod = 1) => { console.error(msg); process.exit(cod); };
+
+function projeto(alvo) {
+  const a = String(alvo || '').trim().toLowerCase();
+  if (!a) sair('falta o projeto');
+  const lista = coletor.projetos();
+  const achou = lista.filter((p) => p.alvo.toLowerCase() === a) || [];
+  const final = achou.length ? achou : lista.filter((p) => p.proj.toLowerCase() === a);
+  if (!final.length) sair(`projeto não encontrado: ${alvo}`);
+  if (final.length > 1) sair(`mais de um projeto com esse nome: ${final.map((p) => p.alvo).join(', ')}; use grupo/projeto`);
+  return final[0];
+}
+
+try {
+  if (cmd === 'para') {
+    const [alvo, ...txt] = resto;
+    const texto = txt.join(' ');
+    if (!alvo || !texto.trim()) sair('uso: orq-recado para <projeto|agente> "texto" [--tipo pergunta|aviso]');
+    const frentes = coletor.estado().frentes;
+    const achou = recados.acharFrente(frentes, alvo);
+    if (!achou.length) sair(`nenhum agente do app em "${alvo}". Agentes abertos: ${frentes.map((f) => `${f.nome} (${f.emp ? `${f.emp}/` : ''}${f.proj})`).join(', ') || 'nenhum'}`);
+    if (achou.length > 1) sair(`"${alvo}" tem ${achou.length} agentes: ${achou.map((f) => f.nome).join(', ')}; use o nome do agente`);
+    const { recado, instalacao } = recados.mandarAoAgente(achou[0], texto, { tipo: opc.tipo || 'aviso' });
+    console.log(`recado entregue a ${recado.para.nome} (${recado.para.alvo})${instalacao === 'instalado' ? '; .orq/bin/orq-recado instalado no projeto' : ''}`);
+  } else if (cmd === 'listar') {
+    let lista = recados.ler(2000);
+    if (opc.projeto) lista = lista.filter((r) => (r.de.alvo || r.para.alvo || '').toLowerCase().includes(String(opc.projeto).toLowerCase()));
+    lista = lista.slice(-(Number(opc.n) || 20));
+    if (opc.json) console.log(JSON.stringify(lista, null, 2));
+    else if (!lista.length) console.log('Nenhum recado ainda.');
+    else for (const r of lista) {
+      const hora = new Date(r.ts).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+      const de = r.de.tipo === 'orquestrador' ? 'orquestrador' : `${r.de.nome} (${r.de.alvo})`;
+      const para = r.para.tipo === 'orquestrador' ? 'orquestrador' : `${r.para.nome} (${r.para.alvo})`;
+      console.log(`${hora}  ${de} → ${para}  [${r.tipo} · ${r.estado}]  ${r.texto}`);
+    }
+  } else if (cmd === 'memoria') {
+    const p = projeto(resto[0]);
+    const notas = recados.memoria(p.dir, { termo: resto.slice(1).join(' ') });
+    if (opc.json) console.log(JSON.stringify(notas, null, 2));
+    else if (!notas.length) console.log(resto[1] ? 'Nenhuma nota cita esse termo.' : 'A memória deste projeto ainda está vazia.');
+    else for (const n of notas.slice(0, Number(opc.n) || 30)) console.log(`- [${n.tipo}] ${n.titulo}  (${n.quando}, ${n.autor})\n    ${n.texto.replace(/\s+/g, ' ').slice(0, 240)}`);
+  } else if (cmd === 'lembrar') {
+    const [alvo, titulo, ...txt] = resto;
+    const p = projeto(alvo);
+    const nome = recados.lembrar(p.dir, { titulo, texto: txt.join(' '), tipo: opc.tipo || 'decisao', autor: 'orquestrador' });
+    console.log(`nota gravada em ${p.alvo}: ${nome}`);
+  } else if (cmd === 'instalar') {
+    const p = projeto(resto[0]);
+    console.log(`${p.alvo}: ${{ instalado: 'instalado', atualizado: 'atualizado', igual: 'já estava em dia', alheio: 'já existe um .orq/bin/orq-recado que não é do app; deixei como está' }[recados.instalar(p.dir)]}`);
+  } else {
+    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 15).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    if (cmd) process.exit(1);
+  }
+} catch (e) { sair(`erro: ${e.message}`); }

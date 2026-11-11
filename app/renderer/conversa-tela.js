@@ -84,6 +84,17 @@
       caixa.append(el);
       return;
     }
+    // Recado de um agente que o app entregou ao orquestrador: por trás também.
+    const rc = /^<orq-recado id="[^"]*" de="([^"]*)" projeto="([^"]*)" tipo="([^"]*)">\n?([\s\S]*?)\n?<\/orq-recado>\s*$/.exec(String(texto).trim());
+    if (rc) {
+      grupo = null;
+      const el = document.createElement('details');
+      el.className = `msg-bastidor msg-bastidor-recado recado-${rc[3]}`;
+      const icone = { pergunta: '❓', travado: '⛔', pronto: '✅' }[rc[3]] || '✉';
+      el.innerHTML = `<summary>${icone} Recado de <span data-sem-traducao>${esc(rc[1])} · ${esc(rc[2])}</span></summary><div class="msg-bastidor-texto">${esc(rc[4])}</div>`;
+      caixa.append(el);
+      return;
+    }
     const u = textoDoUsuario(texto);
     if (!u) return;
     // O comando que abre a rodada não aparece: é bastidor, não conversa.

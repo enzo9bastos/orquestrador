@@ -120,6 +120,13 @@ contextBridge.exposeInMainWorld('orq', {
     listar: (forcar) => ipcRenderer.invoke('ias:listar', forcar === true),
     escolherCaminho: (id) => ipcRenderer.invoke('ias:escolherCaminho', id),
   },
+  recados: {
+    lista: () => ipcRenderer.invoke('recados:lista'),
+    liberar: (id) => ipcRenderer.invoke('recados:liberar', id),
+    projetos: () => ipcRenderer.invoke('recados:projetos'),
+    memoria: (alvo) => ipcRenderer.invoke('recados:memoria', alvo),
+    aoMudar: (fn) => ipcRenderer.on('recados:mudou', (_e, l) => fn(l)),
+  },
   topicos: {
     lista: () => ipcRenderer.invoke('topicos:lista'),
     nota: (id) => ipcRenderer.invoke('topicos:nota', id),

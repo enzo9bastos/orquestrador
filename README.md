@@ -221,6 +221,7 @@ Optional command-line helpers live in `app/bin/` — link them somewhere on your
 |---|---|
 | `orq-nav` | Drives the app's browser windows: `orq-nav abrir <url>`, `texto`, `elementos`, `clicar`, `digitar`, `print`… |
 | `orq-pet` | Calls the desktop helper: `orq-pet chamar`, `print`, `passear`, `voltar`. Bind it to a key — the wardrobe can create the GNOME shortcut for you. |
+| `orq-recado` | Messages from the orchestrator to the app's agents and each project's memory: `orq-recado para <project> "text"`, `listar`, `memoria <project> [term]`, `lembrar <project> "title" "text"`. See [Agent messages and project memory](#agent-messages-and-project-memory). |
 
 ## Configuration
 
@@ -236,6 +237,29 @@ in [`examples/CONFIGURATION.md`](examples/CONFIGURATION.md).
 | `comandoInicial`, `comandoDesligar` | Commands sent by the **Start** and **Shut down** buttons |
 | `linhaTarefa`, `comandoOrdem` | Regular expressions that tell the app what each agent is working on |
 | `ambiente` | Extra environment variables for the app's conversations and terminals |
+
+### Agent messages and project memory
+
+Agents and the orchestrator can talk to each other, and every project keeps a memory that any later agent can
+read — whatever AI it runs on. Everything is local files; nothing leaves the machine.
+
+- **Agent → orchestrator.** The agent runs `.orq/bin/orq-recado enviar "text" --tipo pergunta|aviso|pronto|travado`
+  (question, notice, done, stuck). The app picks it up from `<project>/.orq/recados/saida/` and hands it to the
+  orchestrator's chat as a behind-the-scenes message, with how to answer.
+- **Orchestrator → agent.** `orq-recado para <project|agent> "text"` types the message into that agent's pane, in one
+  line, with how to answer. It also installs `.orq/bin/orq-recado` in the project when it is missing.
+- **Project memory.** `.orq/bin/orq-recado lembrar "title" "text" --tipo decisao|falhou|onde|aviso` (decision,
+  didn't work, where things are, notice) writes one Markdown note in `<project>/.orq/memoria/`; `memoria`, `buscar
+  "term"` and `ler <note>` read them. Notes are only ever added, never rewritten or deleted.
+- **Only the app's agents.** A message counts only when the project has an agent the app follows (a tmux pane
+  running Claude in that folder) and, when the signal hook is on, only from that agent's session. A CLI opened in
+  a terminal outside the app is turned away. This separates "in the app" from "outside"; it is not a defense
+  against a hostile agent, which can write to its own project folder.
+- **Loop brake.** From the 7th message of the same project within 10 minutes, the app holds them; the **Messages**
+  tab shows them with a **Release** button.
+
+The **Messages** tab lists both directions per project and shows each project's memory. The log is
+`~/.local/share/orq-app/recados/recados.jsonl`.
 
 ### Signal hook (optional)
 
@@ -270,6 +294,7 @@ orquestrador/
 │   ├── main.js           main process: windows, IPC, notifications
 │   ├── conversa.js       headless Claude conversations (stream-json)
 │   ├── coletor.js        reads agent state from tmux and the signal hook
+│   ├── recados.js        messages between agents and the orchestrator, project memory
 │   ├── workflows.js      workflow engine, clock, folder watcher, credentials
 │   ├── navegador.js      browser windows and the orq-nav control server
 │   ├── ajudante.js       bridge to the desktop helper process
@@ -277,12 +302,12 @@ orquestrador/
 │   ├── renderer/         the app's UI (HTML, CSS, one script per tab)
 │   │   └── i18n/         translation catalog (Portuguese → English)
 │   ├── pet/              the desktop helper's own window (separate X11 process)
-│   ├── bin/              orq-nav and orq-pet command-line helpers
+│   ├── bin/              orq-nav, orq-pet, orq-topico and orq-recado command-line helpers
 │   ├── icons/
 │   └── tests/            unit/ (node:test) and e2e/ (drives the real app)
 ├── docs/images/          screenshots for this README
 ├── examples/             sample configuration and its guide
-├── hooks/                optional Claude Code signal hook
+├── hooks/                optional Claude Code signal hook, and the agents' status and message scripts
 └── scripts/              repository hygiene checks
 ```
 

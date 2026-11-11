@@ -363,9 +363,9 @@ class Conversa {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
-    // Mensagem de workflow ou de tópico aprovado/recusado (por trás): a
+    // Mensagem de workflow, de tópico aprovado/recusado ou recado de agente (por trás): a
     // resposta não vira notificação.
-    this.bastidor = /^<orq-(workflow|topico) /.test(texto);
+    this.bastidor = /^<orq-(workflow|topico|recado) /.test(texto);
     if (!this.proc) this.iniciar();
     // Conversa avulsa ganha o nome da primeira coisa escrita nela.
     if (!this.orquestrador && /^Conversa \d+$/.test(this.titulo)) {

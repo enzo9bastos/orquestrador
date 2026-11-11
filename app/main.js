@@ -34,6 +34,7 @@ const workflows = require('./workflows');
 const ajudante = require('./ajudante');
 const ias = require('./ias');
 const topicos = require('./topicos');
+const recados = require('./recados');
 const { t } = require('./i18n');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
@@ -390,6 +391,32 @@ const decidirTopico = (fn, acao) => (_e, ...a) => {
 ipcMain.handle('topicos:aprovar', decidirTopico((id, titulo) => topicos.aprovar(id, { titulo }), 'aprovado'));
 ipcMain.handle('topicos:recusar', decidirTopico((id) => topicos.recusar(id), 'recusado'));
 let pararTopicos = null;
+
+// --- recados (agentes ↔ orquestrador) e memória dos projetos ---------------
+// A cada 3 s: recolhe o que os agentes deixaram em .orq/recados/saida/ (só
+// chama o coletor, que é caro, quando há recado esperando) e entrega os novos
+// ao orquestrador, se ele estiver vivo. A tela recebe a lista quando o
+// registro muda (inclusive pelo bin/orq-recado).
+let marcaRecados = 0;
+function cicloRecados() {
+  try {
+    const ps = coletor.projetos();
+    const esperando = ps.some((p) => { try { return fs.readdirSync(path.join(p.dir, '.orq', 'recados', 'saida')).some((f) => f.endsWith('.json')); } catch { return false; } });
+    if (esperando) recados.recolher(ps, coletor.estado().frentes);
+    recados.entregar(conversa);
+    let m = 0;
+    try { m = fs.statSync(recados.arquivoLog()).mtimeMs; } catch { /* ainda sem recado */ }
+    if (m !== marcaRecados) { marcaRecados = m; enviar('recados:mudou', recados.ler()); }
+  } catch (e) { console.error('[recados]', e.message); }
+}
+setInterval(cicloRecados, 3000);
+ipcMain.handle('recados:lista', () => recados.ler());
+ipcMain.handle('recados:liberar', (_e, id) => { try { recados.liberar(id); cicloRecados(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
+ipcMain.handle('recados:projetos', () => coletor.projetos().map((p) => ({ alvo: p.alvo, notas: recados.memoria(p.dir, { max: 1000 }).length })));
+ipcMain.handle('recados:memoria', (_e, alvo) => {
+  const p = coletor.projetos().find((x) => x.alvo === alvo);
+  return p ? recados.memoria(p.dir) : [];
+});
 
 // --- dados ---------------------------------------------------------------
 // O que espera o usuário: permissões e pedidos dos agentes (fila) e
