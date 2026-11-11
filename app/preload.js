@@ -93,15 +93,6 @@ contextBridge.exposeInMainWorld('orq', {
     testarCredencial: (id) => ipcRenderer.invoke('workflows:testarCredencial', id),
     aoExecucao: (fn) => ipcRenderer.on('workflows:execucao', (_e, e) => fn(e)),
   },
-  navegador: {
-    presets: () => ipcRenderer.invoke('navegador:presets'),
-    registrar: (id, wcId, preset, url) => ipcRenderer.invoke('navegador:registrar', id, wcId, preset, url),
-    preset: (id, preset) => ipcRenderer.invoke('navegador:preset', id, preset),
-    responder: (n, r) => ipcRenderer.send('navegador:resposta', n, r),
-    aoPedido: (fn) => ipcRenderer.on('navegador:pedido', (_e, p) => fn(p)),
-    aoAbrir: (fn) => ipcRenderer.on('navegador:abrir', (_e, p) => fn(p)),
-    aoControlado: (fn) => ipcRenderer.on('navegador:controlado', (_e, id, acao) => fn(id, acao)),
-  },
   permissoes: {
     ler: () => ipcRenderer.invoke('permissoes:ler'),
     gravar: (novo) => ipcRenderer.invoke('permissoes:gravar', novo),

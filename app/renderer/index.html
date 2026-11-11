@@ -15,7 +15,6 @@
   <!-- Ícones (traço de 1.6 px, 16 px), usados com <svg><use href="#i-..."/></svg> -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-fluxo" viewBox="0 0 16 16"><rect x="1.8" y="2.5" width="4.4" height="3.6" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9.8" y="9.9" width="4.4" height="3.6" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.2 4.3h2.3a1.5 1.5 0 0 1 1.5 1.5v4.1" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
-    <symbol id="i-globo" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2.4 8h11.2M8 2.4c1.6 1.6 2.3 3.5 2.3 5.6S9.6 12 8 13.6M8 2.4C6.4 4 5.7 5.9 5.7 8S6.4 12 8 13.6" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
     <symbol id="i-terminal" viewBox="0 0 16 16"><path d="M3 4.5 6.5 8 3 11.5M8 12h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-grade" viewBox="0 0 16 16"><path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
     <symbol id="i-relogio" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
@@ -65,7 +64,6 @@
       <button class="sub-aba" data-aba="aba-grade" type="button" role="tab"><svg class="ico"><use href="#i-grade"/></svg><span class="rotulo-aba">Terminais</span></button>
       <button class="sub-aba" data-aba="aba-notas" type="button" role="tab"><svg class="ico"><use href="#i-notas"/></svg><span class="rotulo-aba">Notas</span></button>
       <button class="sub-aba" data-aba="aba-repertorio" type="button" role="tab"><svg class="ico"><use href="#i-lista"/></svg><span class="rotulo-aba">Repertório</span></button>
-      <button class="sub-aba" data-aba="aba-navegador" type="button" role="tab"><svg class="ico"><use href="#i-globo"/></svg><span class="rotulo-aba">Navegador</span></button>
       <button class="sub-aba" data-aba="aba-workflows" type="button" role="tab"><svg class="ico"><use href="#i-fluxo"/></svg><span class="rotulo-aba">Workflows</span></button>
       <button class="sub-aba" data-aba="aba-recados" type="button" role="tab" title="Recados entre os agentes e o orquestrador, e a memória de cada projeto"><svg class="ico"><use href="#i-recado"/></svg><span class="rotulo-aba">Recados</span><span class="contador-aba" id="n-recados-atencao" hidden></span></button>
       <button class="sub-aba aba-direita" data-aba="aba-terminal" type="button" role="tab" title="Shell de reserva"><svg class="ico"><use href="#i-terminal"/></svg><span class="rotulo-aba">Terminal</span></button>
@@ -149,14 +147,6 @@
           <button id="novo-terminal" class="botao-texto" type="button">+ Novo terminal</button>
         </header>
         <div id="terminais" class="terminais" data-n="0"></div>
-      </section>
-      <section id="aba-navegador" class="aba" aria-label="Navegador">
-        <header class="terminais-barra">
-          <span id="n-navegadores" class="contador"></span>
-          <span class="dica-nav" id="dica-nav" title="O orquestrador controla estas janelas pelo comando orq-nav">orquestrador pode controlar · orq-nav</span>
-          <button id="nova-janela-nav" class="botao-texto" type="button">+ Nova janela</button>
-        </header>
-        <div id="navegadores" class="navegadores" data-n="0"></div>
       </section>
       <section id="aba-workflows" class="aba" aria-label="Workflows">
         <div class="wf-inicio" id="wf-inicio">
@@ -342,7 +332,6 @@
             <button type="button" role="tab" id="config-aba-notificacoes" data-secao-config="notificacoes" aria-controls="config-sec-notificacoes" aria-selected="false" tabindex="-1">Notificações</button>
             <button type="button" role="tab" id="config-aba-orquestracao" data-secao-config="orquestracao" aria-controls="config-sec-orquestracao" aria-selected="false" tabindex="-1">Orquestração</button>
             <button type="button" role="tab" id="config-aba-ias" data-secao-config="ias" aria-controls="config-sec-ias" aria-selected="false" tabindex="-1">IAs conectadas (CLI)</button>
-            <button type="button" role="tab" id="config-aba-navegador" data-secao-config="navegador" aria-controls="config-sec-navegador" aria-selected="false" tabindex="-1">Navegador</button>
             <button type="button" role="tab" id="config-aba-projetos" data-secao-config="projetos" aria-controls="config-sec-projetos" aria-selected="false" tabindex="-1">Projetos e agentes</button>
             <button type="button" role="tab" id="config-aba-notas" data-secao-config="notas" aria-controls="config-sec-notas" aria-selected="false" tabindex="-1">Notas</button>
             <button type="button" role="tab" id="config-aba-avancado" data-secao-config="avancado" aria-controls="config-sec-avancado" aria-selected="false" tabindex="-1">Avançado</button>
@@ -424,13 +413,6 @@
             </div>
             <p class="config-ia-aviso" id="config-ia-aviso" hidden></p>
           </div>
-          <div class="config-painel" role="tabpanel" id="config-sec-navegador" data-secao="navegador" aria-labelledby="config-aba-navegador" tabindex="-1" hidden>
-            <h3 class="config-secao">Navegador</h3>
-            <div class="config-linha">
-              <div><strong>O orquestrador pode usar o navegador</strong><span>Pelo comando orq-nav, só de dentro deste computador e com uma chave que muda a cada abertura. Vale na próxima vez que o app abrir.</span></div>
-              <label class="chave"><input type="checkbox" data-cfg="navegadorControle"><span></span></label>
-            </div>
-          </div>
           <div class="config-painel" role="tabpanel" id="config-sec-projetos" data-secao="projetos" aria-labelledby="config-aba-projetos" tabindex="-1" hidden>
             <h3 class="config-secao">Projetos e agentes</h3>
             <div class="config-linha">
@@ -509,7 +491,6 @@
   <script src="notas-tela.js"></script>
   <script src="conversa-tela.js"></script>
   <script src="repertorio-tela.js"></script>
-  <script src="navegador-tela.js"></script>
   <script src="workflows-tela.js"></script>
   <script src="recados-tela.js"></script>
   <script src="pet-tela.js"></script>

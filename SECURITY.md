@@ -16,7 +16,6 @@ of opening a public issue.
 | Agents | Claude Code in tmux, ideally inside a dev container | Whatever their own permission settings allow |
 | Workflows | your user | `Command` steps run `bash -lc`; `Claude` steps run `claude -p`; folder triggers react to any file dropped in the watched folder |
 | Desktop helper | separate Electron process | Can take a screenshot of an area **you** select (saved locally under `~/.cache/orq-app/`); talks to the app over a local socket (mode 600) |
-| Browser tab | isolated `<webview>` partition, no preload, http/https only | A local control server on `127.0.0.1` with a random key (file mode 600) lets agents drive it |
 
 ## Secrets
 
@@ -54,5 +53,4 @@ of opening a public issue.
 
 ## What the app does not do
 
-No telemetry, no network calls of its own (only the AI CLIs you connect and the pages you open in the
-Browser tab), no automatic updates.
+No telemetry, no network calls of its own (only the AI CLIs you connect), no automatic updates.

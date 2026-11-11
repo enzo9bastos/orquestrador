@@ -40,13 +40,6 @@ inside the app. A starting point: [`config.example.json`](config.example.json).
 | `pastaNotas` | — | Folder with `topicos.md` and `diario/YYYY-MM-DD.md` (the orchestration notes) |
 | `pastasNotas` | — | Folders the notes editor opens: `[{ "nome": "My notes", "caminho": "~/notes" }]`. Only `.md` files are shown; every save keeps the previous version in `~/.local/share/orq-app/versoes/` |
 
-## Browser
-
-| Key | Default | Meaning |
-|---|---|---|
-| `navegadorControle` | `true` | Let the orchestrator drive the browser windows through `orq-nav` (local only, with a key that changes on every launch). Takes effect on the next launch |
-| `navegadorPorta` | `0` | Port of the local control server (`0` = any free port) |
-
 ## Everything else
 
 | Key | Default | Meaning |

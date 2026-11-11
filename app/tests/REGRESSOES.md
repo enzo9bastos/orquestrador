@@ -28,7 +28,6 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-10-29 | Ctrl+Shift+V no terminal colava duas vezes | `e2e/terminais.e2e.js` › regressão: Ctrl+Shift+V não cola duas vezes |
 | 2026-10-29 | Menu / das notas não rolava junto com as setas do teclado | `e2e/notas.e2e.js` › regressão: menu / rola junto… |
 | 2026-10-29 | Agente trabalhando aparecia como parado quando a dica do Claude empurrava o contador para fora da leitura | `unit/coletor.test.js` › regressão: contador com dica embaixo… |
-| 2026-10-29 | Preset de celular mostrava a página com 980 px (o modo de tela do Electron ignorava a meta viewport dentro da janela de navegador) | `e2e/navegador.e2e.js` › preset de celular: identidade de iPhone e tela de 390 px |
 | 2026-10-30 | Bichinho virado (espelhado) olhava para o lado oposto ao do mouse | `e2e/pet.e2e.js` › regressão: virado, os olhos continuam indo para o lado certo |
 | 2026-10-30 | Bloco de código com linha comprida: os botões Copiar/▶ Terminal rolavam junto e ficavam em cima do texto | `e2e/conversa.e2e.js` › regressão: botões do bloco de código ficam no canto, sem rolagem lateral |
 | 2026-10-30 | Bichinho "voando" acima da caixa de escrever (o chão era o fim da área de mensagens) | `e2e/pet.e2e.js` › regressão: pisa em cima da caixa de escrever, sem flutuar |

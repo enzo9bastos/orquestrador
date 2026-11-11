@@ -35,7 +35,7 @@ test('configuracoes', async (t) => {
 
   await t.test('seções: todo controle mora numa seção e só uma aparece por vez', async () => {
     assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#config-nav [role=tab]')].map((a) => a.dataset.secaoConfig)"),
-      ['aparencia', 'idioma', 'notificacoes', 'orquestracao', 'ias', 'navegador', 'projetos', 'notas', 'avancado']);
+      ['aparencia', 'idioma', 'notificacoes', 'orquestracao', 'ias', 'projetos', 'notas', 'avancado']);
     assert.strictEqual(await app.avaliar("[...document.querySelectorAll('#config [data-cfg], #config [data-segmento]')].filter((e) => !e.closest('.config-painel')).length"), 0);
     assert.strictEqual((await app.avaliar(visiveis)).length, 1);
     await aba('notificacoes');

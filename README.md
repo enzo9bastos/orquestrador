@@ -32,7 +32,7 @@ waiting for you. Closing the app never stops an agent.
 whatever CLI you are already logged into does the work. Settings → *Connected AIs (CLI)* shows which
 ones are installed. Today the orchestrator and the agents run on
 [Claude Code](https://claude.com/claude-code); Codex CLI, Gemini CLI, OpenCode and others are on the
-roadmap — see [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md). The Library, the browser and the
+roadmap — see [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md). The Library and the
 workflows already work with any of them.
 
 The app speaks **English and Portuguese** — switch in ⚙ Settings → *App language*.
@@ -105,15 +105,6 @@ Finds what you created in each AI tool — skills, commands, sub-agents, prompts
 Code, Codex, Gemini CLI, OpenCode, Windsurf and Cursor — and lets you add your own shortcuts (optionally
 bound to <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1…9</kbd>). Type `//name` in any conversation to use one;
 skills from other tools are sent with their instructions so any model can follow them.
-
-### 🌐 Browser
-
-<img src="docs/images/browser.png" alt="Browser: two windows side by side, desktop Chrome and an iPhone" width="900">
-
-Up to four windows side by side, each presenting itself as Chrome, Firefox, Edge or a phone (iPhone,
-Android — with the real phone viewport). The orchestrator drives the **same** windows through
-`orq-nav` — open, read, list elements, click, type, take screenshots — and a badge shows, live, what it
-is doing. Windows come back when you reopen the app.
 
 ### ⚡ Workflows
 
@@ -195,8 +186,7 @@ screen (the input box, attachments, agent cards).
 
 Settings are split into sections with search: appearance (dark or light theme, any accent color, the pet),
 **language (English / Português)**, one switch per notification, orchestration (Start / Shut down
-commands), **connected AI CLIs** (detected on your PATH, or point each one to a custom executable), browser
-control, projects, notes and advanced options — applied immediately.
+commands), **connected AI CLIs** (detected on your PATH, or point each one to a custom executable), projects, notes and advanced options — applied immediately.
 
 <img src="docs/images/settings.png" alt="The settings dialog" width="900">
 
@@ -219,7 +209,6 @@ Optional command-line helpers live in `app/bin/` — link them somewhere on your
 
 | Command | What it does |
 |---|---|
-| `orq-nav` | Drives the app's browser windows: `orq-nav abrir <url>`, `texto`, `elementos`, `clicar`, `digitar`, `print`… |
 | `orq-pet` | Calls the desktop helper: `orq-pet chamar`, `print`, `passear`, `voltar`. Bind it to a key — the wardrobe can create the GNOME shortcut for you. |
 | `orq-recado` | Messages from the orchestrator to the app's agents and each project's memory: `orq-recado para <project> "text"`, `listar`, `memoria <project> [term]`, `lembrar <project> "title" "text"`, `vezes`. See [Agent messages and project memory](#agent-messages-and-project-memory). |
 
@@ -303,13 +292,12 @@ orquestrador/
 │   ├── coletor.js        reads agent state from tmux and the signal hook
 │   ├── recados.js        messages between agents and the orchestrator, project memory
 │   ├── workflows.js      workflow engine, clock, folder watcher, credentials
-│   ├── navegador.js      browser windows and the orq-nav control server
 │   ├── ajudante.js       bridge to the desktop helper process
 │   ├── i18n.js           language for the main process (notifications)
 │   ├── renderer/         the app's UI (HTML, CSS, one script per tab)
 │   │   └── i18n/         translation catalog (Portuguese → English)
 │   ├── pet/              the desktop helper's own window (separate X11 process)
-│   ├── bin/              orq-nav, orq-pet, orq-topico and orq-recado command-line helpers
+│   ├── bin/              orq-pet, orq-topico and orq-recado command-line helpers
 │   ├── icons/
 │   └── tests/            unit/ (node:test) and e2e/ (drives the real app)
 ├── docs/images/          screenshots for this README

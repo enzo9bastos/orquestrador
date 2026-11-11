@@ -29,7 +29,6 @@ const conversa = require('./conversa');
 const notas = require('./notas');
 const permissoes = require('./permissoes');
 const repertorio = require('./repertorio');
-const navegador = require('./navegador');
 const workflows = require('./workflows');
 const ajudante = require('./ajudante');
 const ias = require('./ias');
@@ -67,9 +66,6 @@ function criarJanela() {
       nodeIntegration: false,
       sandbox: true,
       backgroundThrottling: !emTeste,
-      // Aba Navegador: as páginas da web rodam em <webview>, presas pelo
-      // navegador.js (sem Node, sem preload, só http/https).
-      webviewTag: true,
       // Geração das imagens do README (ORQ_APP_PRINT + ORQ_APP_PRINT_MS):
       // desenha fora da tela, o que deixa capturar quadro atrás de quadro.
       offscreen: !!(process.env.ORQ_APP_PRINT && process.env.ORQ_APP_PRINT_MS),
@@ -559,7 +555,6 @@ app.whenReady().then(() => {
     } catch { return new Response('', { status: 404 }); }
   });
   criarJanela();
-  navegador.ligar(() => janela);
   ajudante.ligar({ janela: () => janela, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
   workflows.ligar({
@@ -580,7 +575,6 @@ app.whenReady().then(() => {
 function encerrarTudo() {
   for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
   terminais.clear();
-  navegador.desligarControle();
   workflows.desligar();
   if (pararTopicos) { pararTopicos(); pararTopicos = null; }
   ajudante.desligar();

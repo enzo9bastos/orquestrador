@@ -11,7 +11,7 @@ test('idioma', async (t) => {
 
   await t.test('em inglês, as abas, os botões e as dicas aparecem em inglês', async () => {
     await app.esperar("window.orqI18n && window.orqI18n.idioma() === 'en' && document.querySelector('[data-aba=aba-orquestrador] .rotulo-aba').textContent.trim() === 'Orchestrator'", 15000);
-    assert.deepStrictEqual(await abas(), ['Orchestrator', 'Terminals', 'Notes', 'Library', 'Browser', 'Workflows', 'Messages', 'Terminal']);
+    assert.deepStrictEqual(await abas(), ['Orchestrator', 'Terminals', 'Notes', 'Library', 'Workflows', 'Messages', 'Terminal']);
     assert.strictEqual(await app.avaliar("document.querySelector('#iniciar-rodada .rotulo-botao').textContent.trim()"), 'Start');
     assert.strictEqual(await app.avaliar('document.documentElement.lang'), 'en');
   });

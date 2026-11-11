@@ -1028,35 +1028,6 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .acoes-codigo button:hover { color: var(--fg); border-color: var(--claude); }
 .acoes-codigo [data-codigo="terminal"] { color: var(--claude); }
 
-/* --- aba Navegador ------------------------------------------------------- */
-/* Escondida com visibility (não display:none): as páginas continuam vivas e o
-   orquestrador consegue usá-las com a aba fechada. */
-#aba-navegador { display: flex; flex-direction: column; gap: 8px; padding: 8px; visibility: hidden; pointer-events: none; }
-#aba-navegador.ativa { visibility: visible; pointer-events: auto; }
-.dica-nav { color: var(--fg-4); font-size: 11.5px; }
-.navegadores { flex: 1; min-height: 0; display: grid; gap: 8px; grid-template-columns: 1fr; grid-auto-rows: minmax(0, 1fr); }
-.navegadores[data-n="2"] { grid-template-columns: 1fr 1fr; }
-.navegadores[data-n="3"], .navegadores[data-n="4"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.navegadores[data-n="3"] .painel-navegador:nth-child(3) { grid-column: 1 / -1; }
-.painel-navegador { display: flex; flex-direction: column; min-width: 0; min-height: 0; border: 1px solid var(--borda); border-radius: var(--r-md); background: var(--bg-elevado); overflow: hidden; }
-.painel-navegador.focado { border-color: color-mix(in srgb, var(--claude) 60%, transparent); }
-.painel-navegador.controlada { border-color: var(--claude); box-shadow: 0 0 0 1px var(--claude); }
-.barra-navegador { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 6px; border-bottom: 1px solid var(--borda); flex: none; }
-.barra-navegador .botao-icone { width: 26px; height: 26px; font-size: 13px; flex: none; }
-.barra-navegador .endereco { flex: 1; min-width: 60px; height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid var(--borda); background: var(--bg); color: var(--fg); font-size: 12px; }
-.barra-navegador .endereco:focus { outline: none; border-color: var(--claude); }
-.barra-navegador .preset { height: 26px; max-width: 150px; border-radius: var(--r-sm); border: 1px solid var(--borda); background: var(--bg); color: var(--fg-2); font-size: 12px; padding: 0 4px; flex: none; }
-.painel-navegador.carregando .barra-navegador { background-image: linear-gradient(90deg, var(--claude), var(--claude)); background-size: 30% 2px; background-repeat: no-repeat; background-position: bottom left; animation: carregando-nav 1.1s linear infinite; }
-@keyframes carregando-nav { from { background-position: -30% 100%; } to { background-position: 130% 100%; } }
-.corpo-navegador { position: relative; flex: 1; min-height: 0; display: flex; background: #fff; overflow: auto; }
-.moldura { flex: 1; min-width: 0; min-height: 0; display: flex; }
-.moldura webview { flex: 1; width: 100%; height: 100%; border: 0; }
-.painel-navegador.celular .corpo-navegador { background: var(--bg); padding: 12px; }
-.painel-navegador.celular .moldura { flex: none; margin: 0 auto; border-radius: 18px; overflow: hidden; border: 6px solid #1a1b1f; box-sizing: content-box; }
-.selo-controle { position: absolute; right: 10px; bottom: 10px; padding: 4px 10px; border-radius: 12px; background: var(--claude); color: #fff; font-size: 12px; font-weight: 500; pointer-events: none; }
-.vazio-nav { grid-column: 1 / -1; align-self: center; justify-self: center; text-align: center; max-width: 420px; color: var(--fg-2); display: grid; gap: 8px; justify-items: center; }
-@media (prefers-reduced-motion: reduce) { .painel-navegador.carregando .barra-navegador { animation: none; } }
-
 /* --- aba Workflows (no jeito do n8n) ------------------------------------- */
 #aba-workflows { padding: 0; overflow: hidden; }
 .wf-inicio, .wf-editor { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }

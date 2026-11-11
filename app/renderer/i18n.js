@@ -2,12 +2,12 @@
 // troca na tela tudo o que for texto do app (textos, dicas, placeholders) pelo
 // dicionário em i18n/en.json — inclusive o que aparece depois, conforme a tela
 // muda. Não toca no que é conteúdo (conversa com o Claude, notas, terminal,
-// páginas do navegador, código). Trocar o idioma recarrega a tela.
+// código). Trocar o idioma recarrega a tela.
 (() => {
   const CHAVE = 'orq-idioma';
   const ATRIBUTOS = ['title', 'placeholder', 'aria-label', 'alt'];
   // Conteúdo, não texto do app: nunca traduzir.
-  const CONTEUDO = '.md, .balao, pre, code, .xterm, webview, textarea, [contenteditable="true"], .ProseMirror, .resposta, .aj-resposta, .tarefa, .texto-status, .nome-arquivo-nota, [data-sem-traducao]';
+  const CONTEUDO = '.md, .balao, pre, code, .xterm, textarea, [contenteditable="true"], .ProseMirror, .resposta, .aj-resposta, .tarefa, .texto-status, .nome-arquivo-nota, [data-sem-traducao]';
   let dic = null;
   let padroes = [];
   let idioma = 'pt-BR';
