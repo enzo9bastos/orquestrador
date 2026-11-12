@@ -129,9 +129,9 @@ PY
         case "$VAL" in decisao|falhou|onde|aviso) ;; *) echo "tipo inválido: $VAL (decisao|falhou|onde|aviso)"; exit 1 ;; esac
         [ "${#POS[@]}" -ge 2 ] || { echo 'uso: orq-recado lembrar "título" "texto" [--tipo decisao|falhou|onde|aviso]'; exit 1; }
         mkdir -p "$raiz/.orq/memoria"
-        python3 - "$raiz/.orq/memoria" "$VAL" "${POS[0]}" "${POS[*]:1}" "${CLAUDE_CODE_SESSION_ID:-}" <<'PY'
+        python3 - "$raiz/.orq/memoria" "$VAL" "${POS[0]}" "${POS[*]:1}" "${CLAUDE_CODE_SESSION_ID:-}" "$(basename "$raiz")" <<'PY'
 import os, re, sys, time, unicodedata
-pasta, tipo, titulo, texto, sessao = sys.argv[1:6]
+pasta, tipo, titulo, texto, sessao, origem = sys.argv[1:7]
 titulo = " ".join(titulo.split())[:120]
 base = unicodedata.normalize("NFKD", titulo).encode("ascii", "ignore").decode().lower()
 slug = re.sub(r"[^a-z0-9]+", "-", base).strip("-")[:50] or "nota"
@@ -141,7 +141,7 @@ arq = os.path.join(pasta, nome + ".md")
 n = 2
 while os.path.exists(arq):  # nunca sobrescreve
     arq = os.path.join(pasta, f"{nome}-{n}.md"); n += 1
-cab = ["---", f"tipo: {tipo}", f"titulo: {titulo}", f"quando: {time.strftime('%Y-%m-%d %H:%M', agora)}", "autor: agente"]
+cab = ["---", f"tipo: {tipo}", f"titulo: {titulo}", f"quando: {time.strftime('%Y-%m-%d %H:%M', agora)}", "autor: agente", f"origem: {origem}"]
 if sessao: cab.append(f"sessao: {sessao}")
 cab.append("---")
 fd = os.open(arq, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
@@ -179,7 +179,7 @@ if cmd == "memoria":
     print(f"Memória do projeto: {len(nomes)} nota(s); as {min(n, len(nomes))} mais recentes:")
     for nome in nomes[:n]:
         m, _ = cabeca(nome)
-        print(f"- [{m.get('tipo', '?')}] {m.get('titulo', nome)}  ({m.get('quando', '')}; {nome[:-3]})")
+        print(f"- [{m.get('tipo', '?')}] {m.get('titulo', nome)}  ({m.get('quando', '')}" + (f", de {m['origem']}" if m.get('origem') else "") + f"; {nome[:-3]})")
     sys.exit(0)
 termo = arg.lower().strip()
 if not termo:

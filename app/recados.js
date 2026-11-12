@@ -316,6 +316,67 @@ function mandarAoAgente(frente, texto, { tipo = 'aviso', tmux = tmuxPadrao } = {
   return { recado: r, instalacao };
 }
 
+// --- memória dividida entre cópias do mesmo projeto ---------------------------
+// Cópias do mesmo repositório (git worktree) dividem a memória; a configuração
+// memoriaGrupos junta outras pastas. O app copia para cada pasta do grupo as
+// notas que faltam nela (nunca sobrescreve, nunca apaga): cada agente continua
+// lendo só a própria .orq/memoria, que é o que o container dele enxerga.
+const cacheGit = new Map(); // dir → { comum, em }
+function repositorioDe(dir, agora = Date.now()) {
+  const c = cacheGit.get(dir);
+  if (c && agora - c.em < 5 * 60 * 1000) return c.comum;
+  let comum = null;
+  try {
+    comum = execFileSync('git', ['-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
+  } catch { /* não é repositório */ }
+  cacheGit.set(dir, { comum, em: agora });
+  return comum;
+}
+
+// Grupos de pastas (só os com 2 ou mais) que dividem a memória.
+function gruposDeMemoria(projetos, memoriaGrupos = []) {
+  const porChave = new Map();
+  const juntar = (chave, p) => { if (!porChave.has(chave)) porChave.set(chave, new Set()); porChave.get(chave).add(p.dir); };
+  for (const p of projetos) { const r = repositorioDe(p.dir); if (r) juntar(`git:${r}`, p); }
+  (memoriaGrupos || []).forEach((g, i) => {
+    for (const alvo of g) { const p = projetos.find((x) => x.alvo === alvo); if (p) juntar(`cfg:${i}`, p); }
+  });
+  // Grupos que se tocam viram um só (uma pasta em dois grupos liga os dois).
+  const grupos = [];
+  for (const s of porChave.values()) {
+    const junto = grupos.find((g) => [...s].some((d) => g.has(d)));
+    if (junto) for (const d of s) junto.add(d); else grupos.push(new Set(s));
+  }
+  return grupos.filter((g) => g.size >= 2).map((g) => [...g].sort());
+}
+
+function sincronizarMemoria(grupos) {
+  let copiadas = 0;
+  for (const g of grupos) {
+    const notas = new Map(); // nome → pasta de origem
+    for (const dir of g) {
+      try { for (const n of fs.readdirSync(path.join(dir, '.orq', 'memoria'))) if (n.endsWith('.md') && !notas.has(n)) notas.set(n, dir); } catch { /* sem memória ainda */ }
+    }
+    if (!notas.size) continue;
+    for (const dir of g) {
+      const destino = path.join(dir, '.orq', 'memoria');
+      for (const [n, origem] of notas) {
+        if (origem === dir || fs.existsSync(path.join(destino, n))) continue;
+        fs.mkdirSync(destino, { recursive: true });
+        try { fs.copyFileSync(path.join(origem, '.orq', 'memoria', n), path.join(destino, n), fs.constants.COPYFILE_EXCL); copiadas++; } catch { /* outra volta copia */ }
+      }
+    }
+  }
+  return copiadas;
+}
+
+// Põe o script em todo projeto com agente aberto no app (e atualiza o do app).
+function instalarNosAgentes(frentes) {
+  const r = {};
+  for (const dir of new Set(frentes.map((f) => f.dir))) { try { r[dir] = instalar(dir); } catch (e) { r[dir] = `erro: ${e.message}`; } }
+  return r;
+}
+
 // --- memória do projeto -------------------------------------------------------
 function cabecalho(texto) {
   const meta = {};
@@ -341,7 +402,7 @@ function memoria(dir, { termo = '', max = 200 } = {}) {
     if (t && !texto.toLowerCase().includes(t)) continue;
     const m = cabecalho(texto);
     const corpo = texto.replace(/^---\n[\s\S]*?\n---\n/, '').replace(/^\s*# .*\n/, '').trim();
-    lista.push({ nome: nome.slice(0, -3), tipo: m.tipo || 'nota', titulo: m.titulo || nome.slice(0, -3), quando: m.quando || '', autor: m.autor || '', texto: corpo });
+    lista.push({ nome: nome.slice(0, -3), tipo: m.tipo || 'nota', titulo: m.titulo || nome.slice(0, -3), quando: m.quando || '', autor: m.autor || '', origem: m.origem || '', texto: corpo });
     if (lista.length >= max) break;
   }
   return lista;
@@ -358,7 +419,7 @@ function lembrar(dir, { titulo, texto, tipo = 'decisao', autor = 'orquestrador' 
   const data = `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
   const hora = `${dois(d.getHours())}${dois(d.getMinutes())}${dois(d.getSeconds())}`;
   const slug = tit.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'nota';
-  const cab = ['---', `tipo: ${tipo}`, `titulo: ${tit}`, `quando: ${data} ${dois(d.getHours())}:${dois(d.getMinutes())}`, `autor: ${autor}`, '---'].join('\n');
+  const cab = ['---', `tipo: ${tipo}`, `titulo: ${tit}`, `quando: ${data} ${dois(d.getHours())}:${dois(d.getMinutes())}`, `autor: ${autor}`, `origem: ${path.basename(dir)}`, '---'].join('\n');
   for (let n = 1; n < 100; n++) {
     const arq = path.join(p, `${data}-${hora}-${slug}${n > 1 ? `-${n}` : ''}.md`);
     try {
@@ -369,4 +430,4 @@ function lembrar(dir, { titulo, texto, tipo = 'decisao', autor = 'orquestrador' 
   throw new Error('não achei um nome livre para a nota');
 }
 
-module.exports = { ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };
+module.exports = { ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };

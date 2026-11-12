@@ -410,7 +410,14 @@ function cicloRecados() {
     if (esperando) recados.recolher(ps, obterFrentes());
     recados.entregar(conversa, obterFrentes);
     // Quadro de quem está aberto e das vezes abertas, a cada 15 s.
-    if (Date.now() - ultimoQuadro > 15000) { ultimoQuadro = Date.now(); recados.escreverQuadros(ps, obterFrentes()); }
+    // A cada 15 s: o script em todo agente aberto, a memória igual entre as
+    // cópias do mesmo projeto e o quadro de quem está aberto.
+    if (Date.now() - ultimoQuadro > 15000) {
+      ultimoQuadro = Date.now();
+      recados.instalarNosAgentes(obterFrentes());
+      recados.sincronizarMemoria(recados.gruposDeMemoria(ps, config.ler().memoriaGrupos));
+      recados.escreverQuadros(ps, obterFrentes());
+    }
     let m = 0;
     try { m = fs.statSync(recados.arquivoLog()).mtimeMs; } catch { /* ainda sem recado */ }
     try { m += fs.statSync(recados.arquivoVezes()).mtimeMs; } catch { /* ainda sem vez passada */ }

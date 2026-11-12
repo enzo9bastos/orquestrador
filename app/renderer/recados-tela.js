@@ -81,7 +81,7 @@
     const termo = $('filtro-memoria').value.trim().toLowerCase();
     const notas = (await R.memoria(filtro)).filter((n) => !termo || `${n.titulo} ${n.texto}`.toLowerCase().includes(termo));
     $('memoria-notas').innerHTML = notas.length ? notas.map((n) => `<li class="memoria-nota memoria-${esc(n.tipo)}">
-      <div class="recado-topo"><span class="selo">${esc(NOTA[n.tipo] || n.tipo)}</span><strong data-sem-traducao>${esc(n.titulo)}</strong><span class="recado-hora">${esc(n.quando)} · ${esc(n.autor)}</span></div>
+      <div class="recado-topo"><span class="selo">${esc(NOTA[n.tipo] || n.tipo)}</span><strong data-sem-traducao>${esc(n.titulo)}</strong><span class="recado-hora">${esc(n.quando)} · ${esc(n.autor)}${n.origem ? ` · <span data-sem-traducao>${esc(n.origem)}</span>` : ''}</span></div>
       <div class="recado-texto" data-sem-traducao>${esc(n.texto)}</div></li>`).join('')
       : `<p class="nota">${termo ? 'Nenhuma nota com esse termo.' : 'A memória deste projeto ainda está vazia. Os agentes gravam com .orq/bin/orq-recado lembrar; o orquestrador, com orq-recado lembrar <projeto>.'}</p>`;
   }

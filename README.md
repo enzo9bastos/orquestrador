@@ -246,7 +246,13 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   about every handoff; `orq-recado vezes` lists them on the host.
 - **Project memory.** `.orq/bin/orq-recado lembrar "title" "text" --tipo decisao|falhou|onde|aviso` (decision,
   didn't work, where things are, notice) writes one Markdown note in `<project>/.orq/memoria/`; `memoria`, `buscar
-  "term"` and `ler <note>` read them. Notes are only ever added, never rewritten or deleted.
+  "term"` and `ler <note>` read them. Notes are only ever added, never rewritten or deleted. Each note records the
+  folder it came from.
+- **Shared between copies of a project.** Worktrees of the same git repository share one memory: every 15 s the app
+  copies to each copy the notes it is missing (never overwriting, never deleting), so an agent in a worktree reads
+  what an agent in another one learned. Other folders can be joined with the `memoriaGrupos` setting.
+- **Installed for you.** The app puts `.orq/bin/orq-recado` in every project that has an agent open (a file with that
+  name that the app did not put there is left alone).
 - **Only the app's agents.** A message counts only when the project has an agent the app follows (a tmux pane
   running Claude in that folder) and, when the signal hook is on, only from that agent's session. A CLI opened in
   a terminal outside the app is turned away. This separates "in the app" from "outside"; it is not a defense

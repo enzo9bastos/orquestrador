@@ -21,6 +21,11 @@ const PADRAO = {
   niveis: 1,
   ignorar: '^[_.-]',
 
+  // Projetos que dividem a memória dos agentes (.orq/memoria), além das cópias
+  // do mesmo repositório git (worktrees), que já dividem sozinhas:
+  // [["grupo/projeto", "grupo/projeto-copia"], ...].
+  memoriaGrupos: [],
+
   // Pastas que o editor de notas abre: [{ "nome": "...", "caminho": "~/..." }].
   // Vazia: usa a pastaNotas abaixo.
   pastasNotas: [],
@@ -144,6 +149,7 @@ function validar(m) {
       case 'ignorar': aceitar(k, !!texto(v) && regexOk(v), texto(v)); break;
       case 'linhaTarefa': case 'comandoOrdem': aceitar(k, regexOk(v), texto(v) || null); break;
       case 'rotuloContainer': case 'pastaTranscript': aceitar(k, !!texto(v), texto(v)); break;
+      case 'memoriaGrupos': aceitar(k, Array.isArray(v) && v.every((g) => Array.isArray(g) && g.length >= 2 && g.every((a) => typeof a === 'string' && a.trim())), v); break;
       case 'ambiente': aceitar(k, v && typeof v === 'object' && Object.entries(v).every(([a, b]) => /^[A-Z_][A-Z0-9_]*$/.test(a) && typeof b === 'string'), v); break;
       case 'iaOrquestrador': case 'iaAgentes': aceitar(k, ias.IDS.includes(v), v); break;
       case 'iasCaminhos': { const c = caminhosIas(v); aceitar(k, !!c, c); break; }

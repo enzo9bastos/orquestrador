@@ -254,3 +254,44 @@ test('pegar sem o app aberto: avisa e não trava', () => {
   assert.match(r.stdout, /o app não respondeu/);
   assert.notStrictEqual(spawnSync('bash', [SCRIPT, 'pegar', '../x'], { env: { ...process.env, CLAUDE_PROJECT_DIR: p.dir }, encoding: 'utf8' }).status, 0);
 });
+
+// --- memória dividida entre cópias do mesmo projeto ---------------------------
+test('memória dividida: worktrees do mesmo repositório e grupos da configuração', () => {
+  const git = (dir, ...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } });
+  const base = projeto('n-base');
+  git(base.dir, 'init', '-q'); fs.writeFileSync(path.join(base.dir, 'a'), 'a'); git(base.dir, 'add', 'a'); git(base.dir, 'commit', '-qm', 'a');
+  const wt = { emp: '', proj: 'n-base-x', dir: path.join(casa, 'projetos', 'n-base-x'), alvo: 'n-base-x' };
+  assert.strictEqual(git(base.dir, 'worktree', 'add', '-q', wt.dir, '-b', 'x').status, 0);
+  const solto = projeto('n-solto'); // outro repositório: só entra pela configuração
+  const outro = projeto('n-outro');  // nada a ver: fica de fora
+  const todos = [base, wt, solto, outro];
+
+  assert.deepStrictEqual(recados.gruposDeMemoria(todos), [[base.dir, wt.dir].sort()]);
+  const comCfg = recados.gruposDeMemoria(todos, [['n-base-x', 'n-solto']]);
+  assert.deepStrictEqual(comCfg, [[base.dir, wt.dir, solto.dir].sort()], 'a pasta em dois grupos liga os dois');
+
+  agente(wt.dir, '', { args: ['lembrar', 'Porta do banco', 'É a 5433 no ambiente de teste.', '--tipo', 'onde'] });
+  recados.lembrar(base.dir, { titulo: 'Não rodar a migração 12', texto: 'Trava a tabela grande.', tipo: 'falhou' });
+  // Mesmo nome com conteúdo diferente numa das pastas: nunca é sobrescrito.
+  const [nomeWt] = fs.readdirSync(path.join(wt.dir, '.orq/memoria'));
+  fs.mkdirSync(path.join(solto.dir, '.orq/memoria'), { recursive: true });
+  fs.writeFileSync(path.join(solto.dir, '.orq/memoria', nomeWt), 'versão própria desta pasta\n');
+
+  const copiadas = recados.sincronizarMemoria(comCfg);
+  assert.strictEqual(copiadas, 3, 'base ganha 1, worktree ganha 1, solto ganha 1');
+  for (const p of [base, wt, solto]) assert.strictEqual(fs.readdirSync(path.join(p.dir, '.orq/memoria')).length, 2, p.proj);
+  assert.strictEqual(fs.readFileSync(path.join(solto.dir, '.orq/memoria', nomeWt), 'utf8'), 'versão própria desta pasta\n');
+  assert.ok(!fs.existsSync(path.join(outro.dir, '.orq/memoria')), 'pasta fora do grupo não recebe nada');
+  assert.strictEqual(recados.sincronizarMemoria(comCfg), 0, 'sem nota nova, não copia de novo');
+  // O agente da outra cópia acha a nota, e sabe de onde ela veio.
+  const lista = agente(base.dir, '', { args: ['memoria'] }).stdout;
+  assert.match(lista, /\[onde\] Porta do banco .*de n-base-x/);
+  assert.strictEqual(recados.memoria(base.dir).find((n) => n.titulo === 'Não rodar a migração 12').origem, 'n-base');
+});
+
+test('instalarNosAgentes: põe o script em toda pasta com agente aberto, uma vez por pasta', () => {
+  const a = projeto('o-a'), b = projeto('o-b');
+  const r = recados.instalarNosAgentes([frente(a, 'A1'), frente(a, 'A2'), frente(b, 'B1')]);
+  assert.deepStrictEqual(r, { [a.dir]: 'instalado', [b.dir]: 'instalado' });
+  assert.deepStrictEqual(recados.instalarNosAgentes([frente(a, 'A1')]), { [a.dir]: 'igual' });
+});

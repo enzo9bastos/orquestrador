@@ -23,6 +23,7 @@ inside the app. A starting point: [`config.example.json`](config.example.json).
 | `niveis` | `1` | `1`: every folder in `raizProjetos` is a project. `2`: `<root>/<group>/<project>` |
 | `ignorar` | `^[_.-]` | Regular expression; matching folders are left out |
 | `linhaTarefa` | — | Regex with the named groups `numero`, `alvo` (`<group>/<project>` or `<project>`) and `tarefa`. The last line of `topicos.md` that matches tells what each agent is working on |
+| `memoriaGrupos` | `[]` | Projects that share the agents' memory (`.orq/memoria`) besides worktrees of the same git repository, which already do: `[["group/project", "group/project-copy"]]` |
 | `comandoOrdem` | — | Regex with the groups `acao` and `alvo`, applied to the commands the orchestrator runs; when it matches, the pixel helper announces the order |
 | `rotuloContainer`, `pastaTranscript` | `devcontainer.local_folder`, `-workspace-{projeto}` | How to find a project's devcontainer and the transcript folder inside it, to show each agent's model |
 
