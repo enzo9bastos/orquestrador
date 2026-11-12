@@ -33,7 +33,7 @@ whatever CLI you are already logged into does the work. Settings → *Connected 
 ones are installed. Today the orchestrator runs on [Claude Code](https://claude.com/claude-code); agents
 can run on Claude Code or on the **Codex CLI** (the app recognizes either one in a terminal and shows which, with
 its model), and an orchestrator can hand one-off tasks to either (`orq-recado pedir`). Codex as orchestrator,
-Gemini CLI, OpenCode and others are on the roadmap — see [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md).
+Gemini CLI, OpenCode and others are on the roadmap — see [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md). Ideas for later live in [`docs/IDEAS.md`](docs/IDEAS.md).
 The Library and the workflows already work with any of them.
 
 The app speaks **English and Portuguese** — switch in ⚙ Settings → *App language*.
