@@ -238,8 +238,14 @@ test('workflows', async (t) => {
     assert.ok(await tem('[data-cfg-no=modelo]') && !(await tem('[data-cfg-no=modeloLivre]')) && !(await tem('.wf-creds')), 'assinatura do Claude: lista de modelos, sem chave');
     await escolher('via', 'codex');
     assert.ok(!(await tem('[data-cfg-no=modelo]')) && await tem('[data-cfg-no=modeloLivre]') && !(await tem('.wf-creds')), 'Codex: modelo livre, sem chave');
+    await escolher('via', 'compativel');
+    assert.ok(await tem('[data-cfg-no=endereco]') && await tem('[data-cfg-no=modeloLivre]') && await tem('.wf-creds'), 'API compatível: endereço, modelo e chave');
+    await campo('[data-cfg-no=endereco]', 'https://openrouter.ai/api/v1');
+    await fechar();
+    assert.match(await app.avaliar("document.querySelector('.wf-no[data-no=n2]').innerText"), /API openrouter\.ai/);
+    await abrir('n2');
     await escolher('via', 'anthropic');
-    assert.ok(await tem('.wf-creds'), 'API: pede a chave');
+    assert.ok(await tem('.wf-creds') && !(await tem('[data-cfg-no=endereco]')), 'API da Anthropic: pede a chave, sem endereço');
     await fechar();
     assert.match(await app.avaliar("document.querySelector('.wf-no[data-no=n2]').innerText"), /API Claude/);
 

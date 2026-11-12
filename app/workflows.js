@@ -40,11 +40,12 @@ const TIPOS = {
     { k: 'pularSeOcupado', rotulo: 'Pular se ele estiver respondendo', tipo: 'sim', padrao: true },
   ] },
   claude: { nome: 'Perguntar a uma IA', grupo: 'ia', descricao: 'Uma IA à parte responde; a resposta segue adiante. Pela assinatura (Claude ou Codex) não custa nada a mais e serve para coisas leves; pela API usa a sua chave.', campos: [
-    { k: 'via', rotulo: 'Qual IA', tipo: 'lista', opcoes: [['claude', 'Claude pela assinatura'], ['codex', 'Codex pela assinatura'], ['anthropic', 'Claude pela API (chave)'], ['openai', 'OpenAI pela API (chave)']], padrao: 'claude' },
+    { k: 'via', rotulo: 'Qual IA', tipo: 'lista', opcoes: [['claude', 'Claude pela assinatura'], ['codex', 'Codex pela assinatura'], ['anthropic', 'Claude pela API (chave)'], ['compativel', 'Outra IA pela API (compatível com OpenAI)']], padrao: 'claude' },
+    { k: 'endereco', rotulo: 'Endereço da API (ex.: https://openrouter.ai/api/v1, https://api.groq.com/openai/v1, http://localhost:11434/v1)', tipo: 'texto', padrao: 'https://api.openai.com/v1', se: { via: 'compativel' } },
     { k: 'prompt', rotulo: 'Pedido', tipo: 'longo', padrao: '' },
     { k: 'modelo', rotulo: 'Modelo', tipo: 'lista', opcoes: [['sonnet', 'Sonnet'], ['haiku', 'Haiku'], ['opus', 'Opus']], padrao: 'sonnet', se: { via: 'claude' } },
-    { k: 'modeloLivre', rotulo: 'Modelo (vazio = o padrão)', tipo: 'texto', padrao: '', se: { via: ['codex', 'anthropic', 'openai'] } },
-    { k: 'credenciais', rotulo: 'Chave da API (marque uma credencial)', tipo: 'credenciais', padrao: [], se: { via: ['anthropic', 'openai'] } },
+    { k: 'modeloLivre', rotulo: 'Modelo (vazio = o padrão)', tipo: 'texto', padrao: '', se: { via: ['codex', 'anthropic', 'compativel'] } },
+    { k: 'credenciais', rotulo: 'Chave da API (marque uma credencial; sem chave só para IA local)', tipo: 'credenciais', padrao: [], se: { via: ['anthropic', 'compativel'] } },
   ] },
   http: { nome: 'Requisição HTTP', grupo: 'acao', descricao: 'Chama uma API ou um site; o corpo da resposta segue adiante. Credenciais marcadas entram no lugar de $VARIAVEL na URL, nos cabeçalhos e no corpo, e nunca aparecem na saída.', campos: [
     { k: 'metodo', rotulo: 'Método', tipo: 'lista', opcoes: [['GET', 'GET'], ['POST', 'POST'], ['PUT', 'PUT'], ['PATCH', 'PATCH'], ['DELETE', 'DELETE']], padrao: 'GET' },
@@ -394,17 +395,30 @@ async function perguntarAnthropic(pedido, modelo, chave) {
   return r.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
 }
 
-// Pela API da OpenAI (Responses API), por HTTP.
-async function perguntarOpenAI(pedido, modelo, chave) {
+// Qualquer API no formato da OpenAI (Chat Completions), que é o que quase
+// todas falam: OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Gemini
+// (endpoint compatível), e as locais (Ollama, LM Studio, vLLM). Sem chave só
+// faz sentido para IA local.
+async function perguntarCompativel(pedido, modelo, chave, endereco) {
   const model = String(modelo || '').trim();
-  if (!model) throw new Error('diga o modelo da OpenAI no campo Modelo');
-  const base = process.env.ORQ_WF_OPENAI_URL || 'https://api.openai.com/v1';
-  const r = await fetch(`${base}/responses`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${chave}` },
-    body: JSON.stringify({ model, input: pedido }), signal: AbortSignal.timeout(600000) });
+  if (!model) throw new Error('diga o modelo no campo Modelo (o nome que o provedor usa, ex.: openai/gpt-x no OpenRouter)');
+  const base = String(endereco || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
+  if (!/^https?:\/\/[^\s/]+/i.test(base)) throw new Error('o endereço da API precisa começar com http:// ou https://');
+  const headers = { 'content-type': 'application/json' };
+  if (chave) headers.authorization = `Bearer ${chave}`;
+  let r;
+  try {
+    r = await fetch(`${base}/chat/completions`, { method: 'POST', headers,
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: pedido }] }), signal: AbortSignal.timeout(600000) });
+  } catch (e) {
+    throw new Error(e.name === 'TimeoutError' ? 'a API passou de 10 min sem responder' : `não consegui falar com ${base} (${(e.cause && e.cause.code) || e.message})`);
+  }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`a API respondeu ${r.status}: ${String(j.error?.message || '').slice(0, 300)}`);
-  if (typeof j.output_text === 'string') return j.output_text.trim();
-  return (j.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('\n').trim();
+  if (!r.ok) throw new Error(`a API respondeu ${r.status}: ${String(j.error?.message || j.message || '').slice(0, 300)}`);
+  const msg = j.choices && j.choices[0] && j.choices[0].message;
+  const conteudo = msg && (typeof msg.content === 'string' ? msg.content : (msg.content || []).map((x) => x.text || '').join(''));
+  if (!conteudo && msg && msg.refusal) throw new Error(`a IA recusou o pedido: ${String(msg.refusal).slice(0, 200)}`);
+  return String(conteudo || '').trim();
 }
 
 // Cada passo devolve { saida } para seguir, ou { parar: 'motivo' } para
@@ -428,12 +442,14 @@ const PASSOS = {
     const p = preencher(c.prompt, entrada, ctx).trim();
     if (!p) throw new Error('pedido vazio');
     if (c.via === 'codex') return { saida: await perguntarCodex(p, c.modeloLivre) };
-    if (c.via === 'anthropic' || c.via === 'openai') {
+    if (c.via === 'anthropic' || c.via === 'compativel') {
       const [chave] = await lerCreds(c.credenciais);
-      if (!chave) throw new Error('marque a credencial com a chave da API neste passo');
+      if (!chave && c.via === 'anthropic') throw new Error('marque a credencial com a chave da API neste passo');
+      const valores = chave ? [chave.valor] : [];
       try {
-        return { saida: mascarar(await (c.via === 'anthropic' ? perguntarAnthropic : perguntarOpenAI)(p, c.modeloLivre, chave.valor), [chave.valor]) };
-      } catch (e) { throw new Error(mascarar(e.message, [chave.valor])); }
+        const r = c.via === 'anthropic' ? await perguntarAnthropic(p, c.modeloLivre, chave.valor) : await perguntarCompativel(p, c.modeloLivre, chave && chave.valor, c.endereco);
+        return { saida: mascarar(r, valores) };
+      } catch (e) { throw new Error(mascarar(e.message, valores)); }
     }
     // ORQ_WF_CLAUDE (testes) vale antes do caminho escolhido na engrenagem.
     const cmd = process.env.ORQ_WF_CLAUDE || ias.comando('claude', configApp.ler().iasCaminhos);

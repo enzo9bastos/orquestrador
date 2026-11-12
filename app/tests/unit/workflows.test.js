@@ -372,24 +372,35 @@ test('workflows: Perguntar a uma IA pela API da Anthropic: chave do cofre, model
   } finally { s.close(); delete process.env.ORQ_WF_ANTHROPIC_URL; }
 });
 
-test('workflows: Perguntar a uma IA pela API da OpenAI: pede o modelo, manda a chave e lê a resposta', async () => {
-  process.env.ORQ_TESTE_CHAVE_OAI = 'sk-oai-teste-abcdef012345';
-  const cred = wf.gravarCredencial({ id: 'c-oai', nome: 'openai', tipo: 'ambiente', ref: 'ORQ_TESTE_CHAVE_OAI', variavel: 'OPENAI' });
+test('workflows: Perguntar a uma IA por qualquer API compatível com OpenAI: endereço, modelo e chave; sem chave para IA local', async () => {
+  process.env.ORQ_TESTE_CHAVE_OAI = 'sk-or-teste-abcdef012345';
+  const cred = wf.gravarCredencial({ id: 'c-oai', nome: 'openrouter', tipo: 'ambiente', ref: 'ORQ_TESTE_CHAVE_OAI', variavel: 'OPENROUTER' });
   const pedidos = [];
   const { s, url } = await servidor((req, corpo, res) => {
     pedidos.push({ caminho: req.url, auth: req.headers.authorization, corpo: JSON.parse(corpo) });
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ output: [{ type: 'message', content: [{ type: 'output_text', text: 'resposta openai' }] }] }));
+    res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: `resposta de ${JSON.parse(corpo).model}` } }] }));
   });
-  process.env.ORQ_WF_OPENAI_URL = url;
+  const passo = (config) => wf.gravar({ id: 'w-comp', nome: 'comp', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'compativel', prompt: 'p', ...config } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
   try {
-    wf.gravar({ id: 'w-oai', nome: 'oai', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'openai', prompt: 'p', credenciais: [cred.id] } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
-    assert.match((await wf.rodar('w-oai')).execucao.passos[1].saida, /diga o modelo/);
+    passo({ endereco: `${url}/api/v1`, credenciais: [cred.id] });
+    assert.match((await wf.rodar('w-comp')).execucao.passos[1].saida, /diga o modelo/);
     assert.strictEqual(pedidos.length, 0);
-    wf.gravar({ id: 'w-oai', nome: 'oai', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'openai', modeloLivre: 'gpt-teste', prompt: 'p', credenciais: [cred.id] } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
-    const r = await wf.rodar('w-oai');
+
+    passo({ endereco: `${url}/api/v1/`, modeloLivre: 'openai/gpt-teste', credenciais: [cred.id] });
+    const r = await wf.rodar('w-comp');
     assert.ok(r.ok, JSON.stringify(r.execucao.passos));
-    assert.strictEqual(r.execucao.passos[1].saida, 'resposta openai');
-    assert.deepStrictEqual(pedidos[0], { caminho: '/responses', auth: 'Bearer sk-oai-teste-abcdef012345', corpo: { model: 'gpt-teste', input: 'p' } });
-  } finally { s.close(); delete process.env.ORQ_WF_OPENAI_URL; }
+    assert.strictEqual(r.execucao.passos[1].saida, 'resposta de openai/gpt-teste');
+    assert.deepStrictEqual(pedidos[0], { caminho: '/api/v1/chat/completions', auth: 'Bearer sk-or-teste-abcdef012345', corpo: { model: 'openai/gpt-teste', messages: [{ role: 'user', content: 'p' }] } });
+
+    passo({ endereco: `${url}/v1/chat/completions`, modeloLivre: 'llama-local' });
+    const local = await wf.rodar('w-comp');
+    assert.ok(local.ok, JSON.stringify(local.execucao.passos));
+    assert.strictEqual(pedidos[1].caminho, '/v1/chat/completions', 'endereço com /chat/completions no fim não duplica');
+    assert.strictEqual(pedidos[1].auth, undefined, 'IA local vai sem chave');
+
+    passo({ endereco: 'localhost:11434', modeloLivre: 'x' });
+    assert.match((await wf.rodar('w-comp')).execucao.passos[1].saida, /precisa começar com http/);
+    assert.strictEqual(wf.gravar({ id: 'w-comp-padrao', nome: 'x', nos: [{ id: 'n1', tipo: 'claude', config: { via: 'compativel' } }] }).nos[0].config.endereco, 'https://api.openai.com/v1');
+  } finally { s.close(); }
 });

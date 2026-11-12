@@ -119,7 +119,7 @@ n8n-style automations for your machine. The home screen lists **Workflows**, **C
   when the app opens), a manual button, or **a new file in a folder** (e.g. `*.pdf` in `~/Downloads`).
 - **Steps:** send a message to the orchestrator (in the background — never as if you typed it), **ask an
   AI** — through your subscription (Claude Code or Codex CLI, nothing extra to pay, good for light jobs)
-  or through an API key (Anthropic or OpenAI) — call any API with an **HTTP request** (credentials go in
+  or through an API — Anthropic, or **any OpenAI-compatible API** (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, or a local Ollama / LM Studio, with no key) — call any API with an **HTTP request** (credentials go in
   as `$VARIABLE` and are masked in the output), run a shell command, read / move / copy / write files,
   branch on a condition, show a desktop notification. Workflows run only while the app is open: they
   are for your working hours, not a 24/7 server. The output of one step is the input of the next

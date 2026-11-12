@@ -52,7 +52,7 @@
       case 'manual': return 'quando você aperta Rodar';
       case 'orquestrador': return curto(c.texto) || 'sem texto';
       case 'claude': {
-        const qual = { codex: 'Codex', anthropic: 'API Claude', openai: 'API OpenAI' }[c.via];
+        const qual = { codex: 'Codex', anthropic: 'API Claude', compativel: `API ${(String(c.endereco || '').match(/^https?:\/\/([^/:]+)/) || [])[1] || ''}`.trim() }[c.via];
         return `${qual ? `${qual}${c.modeloLivre ? ` ${c.modeloLivre}` : ''}` : c.modelo} · ${curto(c.prompt, 50) || 'sem pedido'}`;
       }
       case 'http': return `${c.metodo} ${curto(c.url, 50)}` + (c.credenciais?.length ? ` · 🔑${c.credenciais.length}` : '');
