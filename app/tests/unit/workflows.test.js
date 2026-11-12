@@ -223,3 +223,173 @@ test('workflows: credencial não vaza codificada nem cortada na saída guardada 
   const cort = await rodarCmd('w-s6b', 'printf %s "$S6"; head -c 19988 /dev/zero | tr "\\0" a');
   assert.ok(!cort.includes(V.slice(-12)), 'vazou o fim do segredo cortado');
 });
+
+// --- pedido de 2026-11-12: automações do expediente, HTTP e IA por assinatura ou API ---
+
+test('workflows: relógio de intervalo respeita a janela do expediente e os dias úteis', () => {
+  const c = { modo: 'intervalo', minutos: 30, de: '08:00', ate: '18:00', diasUteis: true };
+  const qui = (h, m) => new Date(2026, 10, 12, h, m).getTime(); // quinta
+  assert.ok(!wf.vence(c, qui(7, 59), 0), 'antes da janela');
+  assert.ok(wf.vence(c, qui(8, 0), 0), 'a janela abre e o intervalo já passou');
+  assert.ok(!wf.vence(c, qui(8, 10), qui(8, 0)), 'dentro da janela, antes do intervalo');
+  assert.ok(wf.vence(c, qui(18, 0), qui(17, 30)), 'até 18:00 inclusive');
+  assert.ok(!wf.vence(c, qui(18, 1), 0), 'depois da janela');
+  assert.ok(!wf.vence(c, new Date(2026, 10, 14, 10, 0).getTime(), 0), 'sábado');
+  assert.ok(wf.vence({ ...c, de: '', ate: '' }, qui(3, 0), 0), 'sem janela: qualquer hora');
+  const noite = { modo: 'intervalo', minutos: 30, de: '22:00', ate: '06:00' };
+  assert.ok(wf.vence(noite, qui(23, 0), 0) && wf.vence(noite, qui(5, 0), 0), 'janela que atravessa a meia-noite');
+  assert.ok(!wf.vence(noite, qui(12, 0), 0));
+});
+
+test('workflows: diário que passou com o PC desligado roda ao abrir, só se pedido e no mesmo dia', () => {
+  const c = { modo: 'diario', horario: '08:30', atrasado: true };
+  const hoje = (h, m) => new Date(2026, 10, 12, h, m).getTime();
+  const gravadoOntem = new Date(2026, 10, 11, 17, 0).getTime();
+  assert.ok(wf.vence(c, hoje(10, 0), 0, gravadoOntem), 'abriu às 10:00: roda o das 08:30');
+  assert.ok(!wf.vence({ ...c, atrasado: false }, hoje(10, 0), 0, gravadoOntem), 'sem a opção, continua como antes');
+  assert.ok(!wf.vence(c, hoje(10, 0), hoje(8, 31), gravadoOntem), 'já rodou hoje');
+  assert.ok(!wf.vence(c, hoje(10, 0), 0, hoje(9, 0)), 'ligado depois do horário: não roda o que já tinha passado');
+  assert.ok(!wf.vence(c, hoje(8, 0), 0, gravadoOntem), 'antes do horário');
+});
+
+const http = require('http');
+function servidor(trata) {
+  return new Promise((ok) => {
+    const s = http.createServer((req, res) => {
+      let corpo = '';
+      req.on('data', (d) => { corpo += d; });
+      req.on('end', () => trata(req, corpo, res));
+    });
+    s.listen(0, '127.0.0.1', () => ok({ s, url: `http://127.0.0.1:${s.address().port}` }));
+  });
+}
+const SEGREDO_HTTP = 'tok-HTTP-9f8e7d6c5b';
+process.env.ORQ_TESTE_TOKEN_WF = SEGREDO_HTTP;
+const credHttp = wf.gravarCredencial({ id: 'c-http', nome: 'token http', tipo: 'ambiente', ref: 'ORQ_TESTE_TOKEN_WF', variavel: 'TOKEN' });
+
+test('workflows: Requisição HTTP manda método, cabeçalho e corpo, troca a credencial e não deixa ela na saída', async () => {
+  const vistos = [];
+  const { s, url } = await servidor((req, corpo, res) => {
+    vistos.push({ metodo: req.method, caminho: req.url, auth: req.headers.authorization, tipo: req.headers['content-type'], corpo });
+    if (req.url === '/falha') { res.writeHead(500); res.end('quebrou'); return; }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ recebi: corpo, eco: req.headers.authorization }));
+  });
+  try {
+    wf.gravar({ id: 'w-http', nome: 'http', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'http', config: {
+      metodo: 'POST', url: `${url}/itens?q={{entrada}}`, cabecalhos: 'Authorization: Bearer $TOKEN\nContent-Type: application/json', corpo: '{"nome":"teste"}', credenciais: [credHttp.id] } }],
+    ligacoes: [{ de: 'n1', para: 'n2' }] });
+    const r = await wf.rodar('w-http');
+    assert.ok(r.ok, JSON.stringify(r.execucao.passos));
+    assert.deepStrictEqual(vistos[0], { metodo: 'POST', caminho: '/itens?q=', auth: `Bearer ${SEGREDO_HTTP}`, tipo: 'application/json', corpo: '{"nome":"teste"}' });
+    const saida = r.execucao.passos[1].saida;
+    assert.match(saida, /"recebi":"\{\\"nome\\":\\"teste\\"\}"/);
+    assert.ok(!saida.includes(SEGREDO_HTTP) && saida.includes('Bearer ••••'), 'o eco do token sai mascarado');
+    assert.ok(!fs.readFileSync(path.join(casa, '.cache/orq-app/workflows-execucoes.json'), 'utf8').includes(SEGREDO_HTTP));
+
+    wf.gravar({ id: 'w-http2', nome: 'http2', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'http', config: { metodo: 'GET', url: `${url}/falha` } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    const f = await wf.rodar('w-http2');
+    assert.strictEqual(f.ok, false);
+    assert.match(f.execucao.passos[1].saida, /^HTTP 500: quebrou/);
+    assert.strictEqual(vistos[1].corpo, '', 'GET vai sem corpo');
+
+    wf.gravar({ id: 'w-http3', nome: 'http3', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'http', config: { url: 'ftp://x' } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    assert.match((await wf.rodar('w-http3')).execucao.passos[1].saida, /precisa começar com http/);
+  } finally { s.close(); }
+});
+
+test('workflows: Perguntar a uma IA — passo antigo sem "via" continua no Claude da assinatura', () => {
+  const g = wf.gravar({ id: 'w-ia-velho', nome: 'velho', nos: [{ id: 'n1', tipo: 'claude', config: { prompt: 'oi', modelo: 'opus' } }] });
+  assert.strictEqual(g.nos[0].config.via, 'claude');
+  assert.strictEqual(g.nos[0].config.modelo, 'opus');
+});
+
+test('workflows: Perguntar a uma IA pelo Codex da assinatura: só leitura, pedido pela entrada, resposta do arquivo', async () => {
+  const falso = path.join(casa, 'codex-falso');
+  // Grava os argumentos e o pedido; escreve a resposta no arquivo do -o.
+  fs.writeFileSync(falso, `#!/bin/sh
+printf '%s\\n' "$@" > "${casa}/codex-args.txt"
+pedido=$(cat)
+while [ "$#" -gt 0 ]; do if [ "$1" = "-o" ]; then shift; printf 'resposta: %s' "$pedido" > "$1"; fi; shift; done
+echo "log do codex"
+`, { mode: 0o755 });
+  process.env.ORQ_WF_CODEX = falso;
+  try {
+    wf.gravar({ id: 'w-codex', nome: 'codex', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'codex', prompt: 'resuma {{entrada}}fim', modeloLivre: 'gpt-x' } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    const r = await wf.rodar('w-codex');
+    assert.ok(r.ok, JSON.stringify(r.execucao.passos));
+    assert.strictEqual(r.execucao.passos[1].saida, 'resposta: resuma fim');
+    const args = fs.readFileSync(path.join(casa, 'codex-args.txt'), 'utf8').split('\n');
+    assert.deepStrictEqual(args.slice(0, 6), ['exec', '--skip-git-repo-check', '--sandbox', 'read-only', '--color', 'never']);
+    assert.ok(args.includes('-m') && args.includes('gpt-x') && args.includes('-'));
+    assert.ok(!args.some((a) => /dangerously|danger-full/.test(a)), 'nunca sem sandbox');
+    const pasta = path.dirname(args[args.indexOf('-o') + 1]);
+    assert.ok(!fs.existsSync(pasta), 'a pasta temporária some no fim');
+  } finally { delete process.env.ORQ_WF_CODEX; }
+});
+
+test('workflows: Perguntar a uma IA pela API da Anthropic: chave do cofre, modelo padrão com reserva, recusa vira erro', async () => {
+  const CHAVE = 'sk-ant-teste-0123456789abcdef';
+  process.env.ORQ_TESTE_CHAVE_ANT = CHAVE;
+  const cred = wf.gravarCredencial({ id: 'c-ant', nome: 'anthropic', tipo: 'ambiente', ref: 'ORQ_TESTE_CHAVE_ANT', variavel: 'ANTHROPIC' });
+  const pedidos = [];
+  let recusar = false;
+  const { s, url } = await servidor((req, corpo, res) => {
+    const b = JSON.parse(corpo || '{}');
+    pedidos.push({ caminho: req.url, chave: req.headers['x-api-key'] || String(req.headers.authorization || '').replace(/^Bearer /, ''), beta: req.headers['anthropic-beta'] || '', corpo: b });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: b.model,
+      content: recusar ? [] : [{ type: 'text', text: `ok ${CHAVE.slice(0, 0)}resposta da API` }],
+      stop_reason: recusar ? 'refusal' : 'end_turn', stop_details: recusar ? { type: 'refusal', category: 'cyber' } : null,
+      usage: { input_tokens: 1, output_tokens: 1 } }));
+  });
+  process.env.ORQ_WF_ANTHROPIC_URL = url;
+  try {
+    wf.gravar({ id: 'w-ant', nome: 'ant', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'anthropic', prompt: 'classifique', credenciais: [cred.id] } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    const r = await wf.rodar('w-ant');
+    assert.ok(r.ok, JSON.stringify(r.execucao.passos));
+    assert.strictEqual(r.execucao.passos[1].saida, 'ok resposta da API');
+    const p = pedidos[0];
+    assert.strictEqual(p.chave, CHAVE);
+    assert.match(p.caminho, /^\/v1\/messages/);
+    assert.strictEqual(p.corpo.model, 'claude-opus-5-5');
+    assert.strictEqual(p.corpo.fallbacks, 'default');
+    assert.match(p.beta, /server-side-fallback-2026-07-01/);
+    assert.deepStrictEqual(p.corpo.messages, [{ role: 'user', content: 'classifique' }]);
+
+    wf.gravar({ id: 'w-ant2', nome: 'ant2', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'anthropic', modeloLivre: 'claude-haiku-5-5', prompt: 'x', credenciais: [cred.id] } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    await wf.rodar('w-ant2');
+    assert.strictEqual(pedidos[1].corpo.model, 'claude-haiku-5-5');
+    assert.strictEqual(pedidos[1].corpo.fallbacks, undefined, 'Haiku não tem reserva no servidor');
+
+    recusar = true;
+    const rec = await wf.rodar('w-ant');
+    assert.strictEqual(rec.ok, false);
+    assert.match(rec.execucao.passos[1].saida, /recusou o pedido \(cyber\)/);
+
+    wf.gravar({ id: 'w-ant3', nome: 'ant3', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'anthropic', prompt: 'x' } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    assert.match((await wf.rodar('w-ant3')).execucao.passos[1].saida, /marque a credencial/);
+  } finally { s.close(); delete process.env.ORQ_WF_ANTHROPIC_URL; }
+});
+
+test('workflows: Perguntar a uma IA pela API da OpenAI: pede o modelo, manda a chave e lê a resposta', async () => {
+  process.env.ORQ_TESTE_CHAVE_OAI = 'sk-oai-teste-abcdef012345';
+  const cred = wf.gravarCredencial({ id: 'c-oai', nome: 'openai', tipo: 'ambiente', ref: 'ORQ_TESTE_CHAVE_OAI', variavel: 'OPENAI' });
+  const pedidos = [];
+  const { s, url } = await servidor((req, corpo, res) => {
+    pedidos.push({ caminho: req.url, auth: req.headers.authorization, corpo: JSON.parse(corpo) });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ output: [{ type: 'message', content: [{ type: 'output_text', text: 'resposta openai' }] }] }));
+  });
+  process.env.ORQ_WF_OPENAI_URL = url;
+  try {
+    wf.gravar({ id: 'w-oai', nome: 'oai', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'openai', prompt: 'p', credenciais: [cred.id] } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    assert.match((await wf.rodar('w-oai')).execucao.passos[1].saida, /diga o modelo/);
+    assert.strictEqual(pedidos.length, 0);
+    wf.gravar({ id: 'w-oai', nome: 'oai', nos: [{ id: 'n1', tipo: 'manual' }, { id: 'n2', tipo: 'claude', config: { via: 'openai', modeloLivre: 'gpt-teste', prompt: 'p', credenciais: [cred.id] } }], ligacoes: [{ de: 'n1', para: 'n2' }] });
+    const r = await wf.rodar('w-oai');
+    assert.ok(r.ok, JSON.stringify(r.execucao.passos));
+    assert.strictEqual(r.execucao.passos[1].saida, 'resposta openai');
+    assert.deepStrictEqual(pedidos[0], { caminho: '/responses', auth: 'Bearer sk-oai-teste-abcdef012345', corpo: { model: 'gpt-teste', input: 'p' } });
+  } finally { s.close(); delete process.env.ORQ_WF_OPENAI_URL; }
+});

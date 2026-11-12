@@ -29,7 +29,7 @@
   const vistas = new Map(); // id do workflow → { x, y, z }
   let vista = { x: 0, y: 0, z: 1 };
 
-  const ICONES = { pasta: '📂', ler: '📄', mover: '➜', escrever: '✎', agenda: '⏱', manual: '▶', orquestrador: '✦', claude: '◆', comando: '›_', condicao: '⑂', notificar: '🔔' };
+  const ICONES = { pasta: '📂', ler: '📄', mover: '➜', escrever: '✎', agenda: '⏱', manual: '▶', orquestrador: '✦', claude: '◆', http: '⇄', comando: '›_', condicao: '⑂', notificar: '🔔' };
   const curto = (t, n = 70) => { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
   const quando = (ms) => {
     if (!ms) return '—';
@@ -43,10 +43,19 @@
   function resumo(n) {
     const c = n.config || {};
     switch (n.tipo) {
-      case 'agenda': return c.modo === 'diario' ? `todo dia às ${c.horario}${c.diasUteis ? ' (seg a sex)' : ''}` : `a cada ${c.minutos} min`;
+      case 'agenda': {
+        const seg = c.diasUteis ? ' (seg a sex)' : '';
+        if (c.modo === 'diario') return `todo dia às ${c.horario}${seg}${c.atrasado ? ' · roda ao abrir se perdeu' : ''}`;
+        const janela = c.de || c.ate ? ` · ${c.de || '00:00'}–${c.ate || '23:59'}` : '';
+        return `a cada ${c.minutos} min${janela}${seg}`;
+      }
       case 'manual': return 'quando você aperta Rodar';
       case 'orquestrador': return curto(c.texto) || 'sem texto';
-      case 'claude': return `${c.modelo} · ${curto(c.prompt, 50) || 'sem pedido'}`;
+      case 'claude': {
+        const qual = { codex: 'Codex', anthropic: 'API Claude', openai: 'API OpenAI' }[c.via];
+        return `${qual ? `${qual}${c.modeloLivre ? ` ${c.modeloLivre}` : ''}` : c.modelo} · ${curto(c.prompt, 50) || 'sem pedido'}`;
+      }
+      case 'http': return `${c.metodo} ${curto(c.url, 50)}` + (c.credenciais?.length ? ` · 🔑${c.credenciais.length}` : '');
       case 'comando': return (curto(c.comando) || 'sem comando') + (c.credenciais?.length ? ` · 🔑${c.credenciais.length}` : '');
       case 'condicao': return c.modo === 'naoVazia' ? 'entrada não vazia' : `${{ contem: 'contém', naoContem: 'não contém', regex: 'combina com' }[c.modo]} “${curto(c.valor, 30)}”`;
       case 'notificar': return curto(c.titulo);

@@ -203,5 +203,57 @@ test('workflows', async (t) => {
     assert.ok(await salvo('passada-frentes'), 'os outros continuam');
   });
 
+  // Pedido de 2026-11-12: janela do expediente no relógio, IA pela assinatura
+  // ou pela API, e o passo HTTP.
+  await t.test('ajustes novos: janela do relógio, qual IA (com chave só na API) e HTTP', async () => {
+    const g = await app.avaliar("window.orq.workflows.gravar({ nome: 'Expediente', nos: [{ id: 'n1', tipo: 'agenda' }, { id: 'n2', tipo: 'claude', x: 300 }, { id: 'n3', tipo: 'http', x: 560 }], ligacoes: [{ de: 'n1', para: 'n2' }, { de: 'n2', para: 'n3' }] })");
+    await clicar('[data-aba=aba-workflows]');
+    await app.esperar(`!!document.querySelector('[data-wf="${g.id}"]')`);
+    await clicar(`[data-wf="${g.id}"]`);
+    await app.esperar("!document.getElementById('wf-editor').hidden && document.querySelectorAll('.wf-no').length === 3");
+    const abrir = async (n) => {
+      await app.avaliar(`document.querySelector('.wf-no[data-no=${n}]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
+      await app.esperar(`!!document.querySelector('[data-passo=${n}]')`);
+    };
+    const tem = (sel) => app.avaliar(`!!document.querySelector(${JSON.stringify(sel)})`);
+    const escolher = async (k, v) => {
+      await app.avaliar(`(() => { const c = document.querySelector('[data-cfg-no=${k}]'); c.value = ${JSON.stringify(v)}; c.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await app.espera(150);
+    };
+    const fechar = async () => { await clicar('[data-fechar-modal]'); await app.esperar("document.getElementById('wf-modal').hidden"); };
+
+    await abrir('n1');
+    assert.ok(await tem('[data-cfg-no=de]') && await tem('[data-cfg-no=ate]') && await tem('[data-cfg-no=diasUteis]'), 'intervalo mostra a janela e os dias úteis');
+    assert.ok(!(await tem('[data-cfg-no=atrasado]')));
+    await campo('[data-cfg-no=de]', '08:00');
+    await campo('[data-cfg-no=ate]', '18:00');
+    await escolher('modo', 'diario');
+    assert.ok(await tem('[data-cfg-no=atrasado]') && !(await tem('[data-cfg-no=de]')), 'diário mostra o "rodar ao abrir" e esconde a janela');
+    await escolher('modo', 'intervalo');
+    await fechar();
+    assert.match(await app.avaliar("document.querySelector('.wf-no[data-no=n1]').innerText"), /a cada 3 min · 08:00–18:00/);
+
+    await abrir('n2');
+    assert.match(await app.avaliar("document.querySelector('[data-passo=n2] h3').innerText"), /Perguntar a uma IA/);
+    assert.ok(await tem('[data-cfg-no=modelo]') && !(await tem('[data-cfg-no=modeloLivre]')) && !(await tem('.wf-creds')), 'assinatura do Claude: lista de modelos, sem chave');
+    await escolher('via', 'codex');
+    assert.ok(!(await tem('[data-cfg-no=modelo]')) && await tem('[data-cfg-no=modeloLivre]') && !(await tem('.wf-creds')), 'Codex: modelo livre, sem chave');
+    await escolher('via', 'anthropic');
+    assert.ok(await tem('.wf-creds'), 'API: pede a chave');
+    await fechar();
+    assert.match(await app.avaliar("document.querySelector('.wf-no[data-no=n2]').innerText"), /API Claude/);
+
+    await abrir('n3');
+    assert.ok(!(await tem('[data-cfg-no=corpo]')), 'GET sem corpo');
+    await escolher('metodo', 'POST');
+    assert.ok(await tem('[data-cfg-no=corpo]') && await tem('.wf-creds'));
+    await campo('[data-cfg-no=url]', 'https://exemplo.test/api');
+    await fechar();
+    assert.match(await app.avaliar("document.querySelector('.wf-no[data-no=n3]').innerText"), /POST https:\/\/exemplo\.test\/api/);
+    await app.espera(500);
+    const s = await salvo(g.id);
+    assert.deepStrictEqual([s.nos[0].config.de, s.nos[0].config.ate, s.nos[1].config.via, s.nos[2].config.metodo], ['08:00', '18:00', 'anthropic', 'POST']);
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });

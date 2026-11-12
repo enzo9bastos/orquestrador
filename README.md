@@ -114,11 +114,15 @@ skills from other tools are sent with their instructions so any model can follow
 n8n-style automations for your machine. The home screen lists **Workflows**, **Credentials** and
 **Runs**; opening a workflow shows a full-screen canvas.
 
-- **Triggers:** a clock (every N minutes, or daily at a time, weekdays only if you want), a manual
-  button, or **a new file in a folder** (e.g. `*.pdf` in `~/Downloads`).
-- **Steps:** send a message to the orchestrator (in the background — never as if you typed it), ask a
-  separate Claude (Sonnet, Haiku or Opus), run a shell command, read / move / copy / write files,
-  branch on a condition, show a desktop notification. The output of one step is the input of the next
+- **Triggers:** a clock (every N minutes — optionally only inside working hours such as 08:00–18:00 —
+  or daily at a time; weekdays only if you want; a daily run missed while the computer was off can run
+  when the app opens), a manual button, or **a new file in a folder** (e.g. `*.pdf` in `~/Downloads`).
+- **Steps:** send a message to the orchestrator (in the background — never as if you typed it), **ask an
+  AI** — through your subscription (Claude Code or Codex CLI, nothing extra to pay, good for light jobs)
+  or through an API key (Anthropic or OpenAI) — call any API with an **HTTP request** (credentials go in
+  as `$VARIABLE` and are masked in the output), run a shell command, read / move / copy / write files,
+  branch on a condition, show a desktop notification. Workflows run only while the app is open: they
+  are for your working hours, not a 24/7 server. The output of one step is the input of the next
   (`{{entrada}}`); `{{arquivo}}` and `{{nome_arquivo}}` refer to the file that fired the workflow.
 - **Canvas like n8n / Maestri:** middle-drag to pan, <kbd>Ctrl</kbd>+wheel to zoom, rubber-band
   selection, right-click menus, <kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>Ctrl</kbd>+<kbd>D</kbd> /

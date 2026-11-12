@@ -24,7 +24,10 @@ const TIPOS = {
     { k: 'modo', rotulo: 'Quando', tipo: 'lista', opcoes: [['intervalo', 'A cada N minutos'], ['diario', 'Todo dia num horário']], padrao: 'intervalo' },
     { k: 'minutos', rotulo: 'A cada quantos minutos', tipo: 'numero', padrao: 3, se: { modo: 'intervalo' } },
     { k: 'horario', rotulo: 'Horário (HH:MM)', tipo: 'texto', padrao: '08:00', se: { modo: 'diario' } },
-    { k: 'diasUteis', rotulo: 'Só de segunda a sexta', tipo: 'sim', padrao: false, se: { modo: 'diario' } },
+    { k: 'de', rotulo: 'Só a partir de (HH:MM; vazio = qualquer hora)', tipo: 'texto', padrao: '', se: { modo: 'intervalo' } },
+    { k: 'ate', rotulo: 'Só até (HH:MM; vazio = qualquer hora)', tipo: 'texto', padrao: '', se: { modo: 'intervalo' } },
+    { k: 'diasUteis', rotulo: 'Só de segunda a sexta', tipo: 'sim', padrao: false },
+    { k: 'atrasado', rotulo: 'Se o PC estava desligado no horário, rodar quando o app abrir (no mesmo dia)', tipo: 'sim', padrao: false, se: { modo: 'diario' } },
   ] },
   manual: { nome: 'Botão', grupo: 'gatilho', descricao: 'Dispara só quando você aperta Rodar.', campos: [] },
   pasta: { nome: 'Arquivo novo na pasta', grupo: 'gatilho', descricao: 'Dispara quando aparece um arquivo novo na pasta (ligado). A saída é o caminho do arquivo.', campos: [
@@ -36,9 +39,19 @@ const TIPOS = {
     { k: 'soComRodada', rotulo: 'Só com a rodada iniciada (orquestrador aberto)', tipo: 'sim', padrao: true },
     { k: 'pularSeOcupado', rotulo: 'Pular se ele estiver respondendo', tipo: 'sim', padrao: true },
   ] },
-  claude: { nome: 'Perguntar ao Claude', grupo: 'ia', descricao: 'Um Claude à parte responde; a resposta segue adiante.', campos: [
+  claude: { nome: 'Perguntar a uma IA', grupo: 'ia', descricao: 'Uma IA à parte responde; a resposta segue adiante. Pela assinatura (Claude ou Codex) não custa nada a mais e serve para coisas leves; pela API usa a sua chave.', campos: [
+    { k: 'via', rotulo: 'Qual IA', tipo: 'lista', opcoes: [['claude', 'Claude pela assinatura'], ['codex', 'Codex pela assinatura'], ['anthropic', 'Claude pela API (chave)'], ['openai', 'OpenAI pela API (chave)']], padrao: 'claude' },
     { k: 'prompt', rotulo: 'Pedido', tipo: 'longo', padrao: '' },
-    { k: 'modelo', rotulo: 'Modelo', tipo: 'lista', opcoes: [['sonnet', 'Sonnet'], ['haiku', 'Haiku'], ['opus', 'Opus']], padrao: 'sonnet' },
+    { k: 'modelo', rotulo: 'Modelo', tipo: 'lista', opcoes: [['sonnet', 'Sonnet'], ['haiku', 'Haiku'], ['opus', 'Opus']], padrao: 'sonnet', se: { via: 'claude' } },
+    { k: 'modeloLivre', rotulo: 'Modelo (vazio = o padrão)', tipo: 'texto', padrao: '', se: { via: ['codex', 'anthropic', 'openai'] } },
+    { k: 'credenciais', rotulo: 'Chave da API (marque uma credencial)', tipo: 'credenciais', padrao: [], se: { via: ['anthropic', 'openai'] } },
+  ] },
+  http: { nome: 'Requisição HTTP', grupo: 'acao', descricao: 'Chama uma API ou um site; o corpo da resposta segue adiante. Credenciais marcadas entram no lugar de $VARIAVEL na URL, nos cabeçalhos e no corpo, e nunca aparecem na saída.', campos: [
+    { k: 'metodo', rotulo: 'Método', tipo: 'lista', opcoes: [['GET', 'GET'], ['POST', 'POST'], ['PUT', 'PUT'], ['PATCH', 'PATCH'], ['DELETE', 'DELETE']], padrao: 'GET' },
+    { k: 'url', rotulo: 'URL', tipo: 'texto', padrao: 'https://' },
+    { k: 'cabecalhos', rotulo: 'Cabeçalhos (um por linha, Nome: valor)', tipo: 'longo', padrao: '' },
+    { k: 'corpo', rotulo: 'Corpo', tipo: 'longo', padrao: '', se: { metodo: ['POST', 'PUT', 'PATCH', 'DELETE'] } },
+    { k: 'credenciais', rotulo: 'Credenciais', tipo: 'credenciais', padrao: [] },
   ] },
   comando: { nome: 'Rodar comando', grupo: 'acao', descricao: 'Roda no shell; a saída segue adiante. A entrada chega em $ORQ_ENTRADA.', campos: [
     { k: 'comando', rotulo: 'Comando', tipo: 'longo', padrao: '' },
@@ -323,6 +336,77 @@ function processo(cmd, args, { cwd, entrada, env, limite = 120000, valores = [] 
   });
 }
 
+// Lê as credenciais marcadas num passo: [{ variavel, valor }].
+async function lerCreds(ids) {
+  const todas = credenciais();
+  const l = [];
+  for (const id of ids || []) {
+    const cr = todas.find((x) => x.id === id);
+    if (!cr) throw new Error('uma credencial escolhida neste passo não existe mais');
+    l.push({ variavel: cr.variavel, valor: await resolver(cr) });
+  }
+  return l;
+}
+
+// --- IA ----------------------------------------------------------------------
+// Pela assinatura: o Codex do computador, sem poder gravar nada (sandbox só
+// leitura do próprio Codex), numa pasta vazia, sem perguntas.
+async function perguntarCodex(pedido, modelo) {
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-wf-codex-'));
+  const resposta = path.join(pasta, 'resposta.txt');
+  const cmd = process.env.ORQ_WF_CODEX || 'codex';
+  const args = ['exec', '--skip-git-repo-check', '--sandbox', 'read-only', '--color', 'never', '-o', resposta, ...(modelo ? ['-m', modelo] : []), '-'];
+  try {
+    const saida = await processo(cmd, args, { cwd: pasta, entrada: pedido, env: conversa.ambienteLimpo(), limite: 600000 });
+    let r = '';
+    try { r = fs.readFileSync(resposta, 'utf8').trim(); } catch { /* versão sem -o: usa a saída */ }
+    return r || saida;
+  } catch (e) {
+    if (e.code === 'ENOENT') throw new Error('o Codex não está instalado neste computador');
+    throw e;
+  } finally {
+    // Só o que foi criado aqui: o arquivo da resposta e a pasta, se vazia.
+    try { fs.unlinkSync(resposta); } catch { /* não chegou a existir */ }
+    try { fs.rmdirSync(pasta); } catch { /* sobrou algo: fica */ }
+  }
+}
+
+// Pela API da Anthropic, com o SDK oficial. Modelos que aceitam a reserva do
+// servidor (outro modelo responde se este recusar) ganham fallbacks: "default".
+const COM_RESERVA = new Set(['claude-fable-5-2', 'claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5']);
+async function perguntarAnthropic(pedido, modelo, chave) {
+  const Anthropic = require('@anthropic-ai/sdk');
+  const cliente = new Anthropic({ apiKey: chave, baseURL: process.env.ORQ_WF_ANTHROPIC_URL || undefined, timeout: 600000, maxRetries: 2 });
+  const model = String(modelo || '').trim() || 'claude-opus-5-5';
+  const corpo = { model, max_tokens: 16000, messages: [{ role: 'user', content: pedido }] };
+  let r;
+  try {
+    r = COM_RESERVA.has(model)
+      ? await cliente.beta.messages.create({ ...corpo, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+      : await cliente.messages.create(corpo);
+  } catch (e) {
+    if (e instanceof Anthropic.AuthenticationError) throw new Error('a API recusou a chave (401)');
+    if (e instanceof Anthropic.RateLimitError) throw new Error('limite de uso da API (429); tente mais tarde');
+    if (e instanceof Anthropic.APIError) throw new Error(`a API respondeu ${e.status || 'com erro'}: ${String(e.message || '').slice(0, 300)}`);
+    throw e;
+  }
+  if (r.stop_reason === 'refusal') throw new Error(`a IA recusou o pedido${r.stop_details?.category ? ` (${r.stop_details.category})` : ''}`);
+  return r.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+}
+
+// Pela API da OpenAI (Responses API), por HTTP.
+async function perguntarOpenAI(pedido, modelo, chave) {
+  const model = String(modelo || '').trim();
+  if (!model) throw new Error('diga o modelo da OpenAI no campo Modelo');
+  const base = process.env.ORQ_WF_OPENAI_URL || 'https://api.openai.com/v1';
+  const r = await fetch(`${base}/responses`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${chave}` },
+    body: JSON.stringify({ model, input: pedido }), signal: AbortSignal.timeout(600000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`a API respondeu ${r.status}: ${String(j.error?.message || '').slice(0, 300)}`);
+  if (typeof j.output_text === 'string') return j.output_text.trim();
+  return (j.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('\n').trim();
+}
+
 // Cada passo devolve { saida } para seguir, ou { parar: 'motivo' } para
 // encerrar aquele ramo sem erro.
 const PASSOS = {
@@ -343,23 +427,48 @@ const PASSOS = {
   claude: async (c, entrada, _w, ctx) => {
     const p = preencher(c.prompt, entrada, ctx).trim();
     if (!p) throw new Error('pedido vazio');
+    if (c.via === 'codex') return { saida: await perguntarCodex(p, c.modeloLivre) };
+    if (c.via === 'anthropic' || c.via === 'openai') {
+      const [chave] = await lerCreds(c.credenciais);
+      if (!chave) throw new Error('marque a credencial com a chave da API neste passo');
+      try {
+        return { saida: mascarar(await (c.via === 'anthropic' ? perguntarAnthropic : perguntarOpenAI)(p, c.modeloLivre, chave.valor), [chave.valor]) };
+      } catch (e) { throw new Error(mascarar(e.message, [chave.valor])); }
+    }
     // ORQ_WF_CLAUDE (testes) vale antes do caminho escolhido na engrenagem.
     const cmd = process.env.ORQ_WF_CLAUDE || ias.comando('claude', configApp.ler().iasCaminhos);
     return { saida: await processo(cmd, ['-p', '--model', c.modelo], { cwd: os.homedir(), entrada: p, env: conversa.ambienteLimpo(), limite: 600000 }) };
+  },
+  http: async (c, entrada, _w, ctx) => {
+    const creds = await lerCreds(c.credenciais);
+    const valores = creds.map((x) => x.valor);
+    // $VARIAVEL só das credenciais marcadas; o resto do texto fica como está.
+    const trocar = (t) => creds.reduce((s, x) => s.split(`$${x.variavel}`).join(x.valor), preencher(t, entrada, ctx));
+    try {
+      const url = trocar(c.url).trim();
+      if (!/^https?:\/\/[^\s/]+/i.test(url)) throw new Error('a URL precisa começar com http:// ou https://');
+      const headers = {};
+      for (const linha of trocar(c.cabecalhos).split('\n')) {
+        const i = linha.indexOf(':');
+        if (i > 0 && linha.slice(0, i).trim()) headers[linha.slice(0, i).trim()] = linha.slice(i + 1).trim();
+      }
+      const temCorpo = c.metodo !== 'GET' && String(c.corpo || '').trim();
+      const r = await fetch(url, { method: c.metodo, headers, body: temCorpo ? trocar(c.corpo) : undefined, signal: AbortSignal.timeout(60000), redirect: 'follow' });
+      const corpo = await r.text();
+      if (!r.ok) throw new Error(`HTTP ${r.status}${corpo.trim() ? `: ${corpo.trim().slice(0, 300)}` : ''}`);
+      return { saida: mascarar(corpo, valores).slice(0, MAX_SAIDA) };
+    } catch (e) {
+      const m = e.name === 'TimeoutError' ? 'passou de 60 s sem resposta' : (e.cause && e.cause.code ? `${e.message} (${e.cause.code})` : e.message);
+      throw new Error(mascarar(m, valores));
+    }
   },
   comando: async (c, entrada, _w, ctx) => {
     if (!c.comando.trim()) throw new Error('comando vazio');
     const pasta = casa(c.pasta || '~');
     const env = { ...conversa.ambienteLimpo(), ORQ_ENTRADA: entrada, ORQ_ARQUIVO: ctx.arquivo || '' };
-    const valores = [];
-    const todas = credenciais();
-    for (const id of c.credenciais || []) {
-      const cr = todas.find((x) => x.id === id);
-      if (!cr) throw new Error('uma credencial escolhida neste passo não existe mais');
-      const v = await resolver(cr);
-      env[cr.variavel] = v;
-      valores.push(v);
-    }
+    const creds = await lerCreds(c.credenciais);
+    for (const x of creds) env[x.variavel] = x.valor;
+    const valores = creds.map((x) => x.valor);
     try {
       return { saida: mascarar(await processo('bash', ['-lc', c.comando], { cwd: fs.existsSync(pasta) ? pasta : os.homedir(), entrada, env, valores }), valores) };
     } catch (e) { throw new Error(mascarar(e.message, valores)); }
@@ -465,15 +574,26 @@ async function rodar(id, { motivo = 'manual', gatilhos, arquivo = null } = {}) {
 // --- relógio --------------------------------------------------------------
 // Diz se um nó de relógio vence agora. ultimo: ms do último disparo (ou
 // da hora em que o relógio começou a contar, para não disparar na abertura).
-function vence(c, agora, ultimo) {
+// desde: quando o workflow foi gravado pela última vez. O "rodar quando o app
+// abrir" não dispara um horário que já tinha passado quando ele foi ligado.
+const minutosDoDia = (t) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+function vence(c, agora, ultimo, desde = 0) {
+  const d = new Date(agora);
+  if (c.diasUteis && (d.getDay() === 0 || d.getDay() === 6)) return false;
   if (c.modo === 'diario') {
     const m = /^(\d{1,2}):(\d{2})$/.exec(c.horario || '');
     if (!m) return false;
-    const d = new Date(agora);
-    if (c.diasUteis && (d.getDay() === 0 || d.getDay() === 6)) return false;
     const alvo = new Date(d); alvo.setHours(Number(m[1]), Number(m[2]), 0, 0);
-    return agora >= alvo.getTime() && agora - alvo.getTime() < 5 * 60000 && (!ultimo || ultimo < alvo.getTime());
+    const a = alvo.getTime();
+    if (agora < a || (ultimo && ultimo >= a)) return false;
+    if (agora - a < 5 * 60000) return true;
+    return !!c.atrasado && !(desde > a);
   }
+  // Janela do dia (de/até). "até" antes de "de" atravessa a meia-noite.
+  const de = minutosDoDia(c.de), ate = minutosDoDia(c.ate);
+  const agoraMin = d.getHours() * 60 + d.getMinutes();
+  if (de !== null && ate !== null && ate < de) { if (agoraMin < de && agoraMin > ate) return false; }
+  else if ((de !== null && agoraMin < de) || (ate !== null && agoraMin > ate)) return false;
   return agora - (ultimo || 0) >= Math.max(1, c.minutos) * 60000;
 }
 
@@ -488,7 +608,7 @@ function tique(agora = Date.now()) {
         if (guardado) ultimoDisparo.set(chave, guardado);
         else { ultimoDisparo.set(chave, n.config.modo === 'diario' ? 0 : agora); if (n.config.modo !== 'diario') continue; }
       }
-      if (vence(n.config, agora, ultimoDisparo.get(chave))) { guardarDisparo(chave, agora); devidos.push(n.id); }
+      if (vence(n.config, agora, ultimoDisparo.get(chave), w.atualizado || 0)) { guardarDisparo(chave, agora); devidos.push(n.id); }
     }
     if (devidos.length) rodar(w.id, { motivo: 'relógio', gatilhos: devidos }).catch(() => {});
   }

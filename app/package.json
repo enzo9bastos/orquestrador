@@ -13,6 +13,7 @@
     "test": "node tests/rodar.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@fontsource/inter": "^5.3.0",
     "@tiptap/core": "^3.32.1",
     "@tiptap/extension-code-block-lowlight": "^3.32.1",
@@ -38,6 +39,5 @@
     "@electron/rebuild": "^4.2.1",
     "esbuild": "^0.28.2"
   },
-  "license": "MIT",
   "author": "Enzo Bastos"
 }
