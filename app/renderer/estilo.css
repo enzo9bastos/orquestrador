@@ -1465,3 +1465,11 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .topico:hover .concluir-topico, .concluir-topico:focus-visible, .concluir-topico.confirmando { opacity: 1; }
 .concluir-topico:hover { background: var(--painel-hover); color: var(--ativo); }
 .concluir-topico.confirmando { color: var(--ativo); font-weight: 600; padding: 0 6px; white-space: nowrap; }
+.recado-aguardando { border-color: color-mix(in srgb, var(--esperando) 55%, transparent); }
+.recado-aguardando .recado-selo-estado { background: var(--esperando-suave); color: var(--esperando); }
+.recado-rodando .recado-selo-estado, .recado-na-fila .recado-selo-estado { background: var(--claude-suave); color: var(--claude); }
+.recado-pronto .recado-selo-estado { background: var(--ativo-suave); color: var(--ativo); }
+.recado-falhou .recado-selo-estado, .recado-negado .recado-selo-estado { color: var(--perigo); }
+.pedido-decidir { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.pedido-decidir textarea { width: 100%; resize: vertical; }
+.pedido-decidir .acoes { display: flex; gap: 8px; justify-content: flex-end; }

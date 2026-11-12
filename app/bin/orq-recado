@@ -7,6 +7,11 @@
 //                                    escreve no painel do agente (como o orq send) e registra
 //   orq-recado listar [--projeto X] [--n 20] [--json]   os últimos recados, dos dois lados
 //   orq-recado memoria <projeto> ["termo"] [--json]     notas da memória do projeto
+//   orq-recado pedir <projeto> "tarefa" [--motor codex|claude] [--escrever] [--modelo M]
+//                                    pedido avulso: um Codex (ou Claude) faz UMA tarefa no projeto,
+//                                    num container descartável; a pasta entra só leitura, a não ser
+//                                    com --escrever (aí espera o usuário aprovar na aba Recados).
+//                                    A resposta chega na sua conversa como recado.
 //   orq-recado vezes [--todas] [--json]                 vezes passadas entre agentes (abertas; --todas: também as pegas)
 //   orq-recado lembrar <projeto> "título" "texto" [--tipo decisao|falhou|onde|aviso]
 //                                    grava uma nota na memória do projeto
@@ -23,7 +28,7 @@ const pos = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i].startsWith('--')) {
     const k = args[i].slice(2);
-    if (['json', 'todas'].includes(k)) opc[k] = true; else opc[k] = args[++i];
+    if (['json', 'todas', 'escrever'].includes(k)) opc[k] = true; else opc[k] = args[++i];
   } else pos.push(args[i]);
 }
 const [cmd, ...resto] = pos;
@@ -51,6 +56,15 @@ try {
     if (achou.length > 1) sair(`"${alvo}" tem ${achou.length} agentes: ${achou.map((f) => f.nome).join(', ')}; use o nome do agente`);
     const { recado, instalacao } = recados.mandarAoAgente(achou[0], texto, { tipo: opc.tipo || 'aviso' });
     console.log(`recado entregue a ${recado.para.nome} (${recado.para.alvo})${instalacao === 'instalado' ? '; .orq/bin/orq-recado instalado no projeto' : ''}`);
+  } else if (cmd === 'pedir') {
+    const [alvo, ...txt] = resto;
+    const texto = txt.join(' ');
+    if (!alvo || !texto.trim()) sair('uso: orq-recado pedir <projeto> "tarefa" [--motor codex|claude] [--escrever] [--modelo M]');
+    const p = projeto(alvo);
+    const r = recados.pedir({ alvo: p.alvo, motor: opc.motor || 'codex', texto, escrever: !!opc.escrever, modelo: opc.modelo || null });
+    console.log(r.escrever
+      ? `pedido ${r.id} ao ${r.para.nome} em ${p.alvo}: pede escrita, então espera o usuário aprovar na aba Recados. A resposta chega como recado.`
+      : `pedido ${r.id} ao ${r.para.nome} em ${p.alvo} (só leitura): na fila. A resposta chega na sua conversa como recado.`);
   } else if (cmd === 'vezes') {
     let lista = recados.lerVezes(2000);
     if (!opc.todas) lista = lista.filter((v) => v.estado === 'aberta');
@@ -87,7 +101,7 @@ try {
     const p = projeto(resto[0]);
     console.log(`${p.alvo}: ${{ instalado: 'instalado', atualizado: 'atualizado', igual: 'já estava em dia', alheio: 'já existe um .orq/bin/orq-recado que não é do app; deixei como está' }[recados.instalar(p.dir)]}`);
   } else {
-    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 16).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 21).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     if (cmd) process.exit(1);
   }
 } catch (e) { sair(`erro: ${e.message}`); }

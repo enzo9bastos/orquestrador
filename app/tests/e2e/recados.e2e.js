@@ -9,6 +9,8 @@ const log = [
   { id: 'r2', ts: agora - 50000, de: { tipo: 'orquestrador' }, para: { tipo: 'agente', alvo: 'site', nome: 'Agente 1 (site)' }, tipo: 'aviso', texto: 'pode, e anota na memória', estado: 'entregue', motivo: null },
   { id: 'r3', ts: agora - 40000, de: { tipo: 'agente', alvo: 'site', nome: 'Agente 1 (site)' }, para: { tipo: 'orquestrador' }, tipo: 'aviso', texto: 'sétimo recado seguido', estado: 'segurado', motivo: 'mais de 6 recados em 10 min' },
   { id: 'r4', ts: agora - 30000, de: { tipo: 'agente', alvo: 'site', nome: 'Agente de site' }, para: { tipo: 'orquestrador' }, tipo: 'aviso', texto: 'de um terminal de fora', estado: 'recusado', motivo: 'nenhum agente do app neste projeto' },
+  { id: 'p1', ts: agora - 9000, de: { tipo: 'orquestrador' }, para: { tipo: 'avulso', motor: 'codex', alvo: 'site', nome: 'Codex avulso' }, tipo: 'pedido', texto: 'crie o ícone do site', escrever: true, estado: 'aguardando', motivo: 'pediu para escrever na pasta do projeto: espera você aprovar' },
+  { id: 'p2', ts: agora - 8000, de: { tipo: 'orquestrador' }, para: { tipo: 'avulso', motor: 'claude', alvo: 'site', nome: 'Claude avulso' }, tipo: 'pedido', texto: 'reescreva o README', escrever: true, estado: 'aguardando', motivo: null },
 ].map((r) => JSON.stringify(r)).join('\n') + '\n';
 const vezes = [
   { id: 'v1', ts: agora - 20000, de: { alvo: 'site', nome: 'Agente 1 (site)' }, para: null, texto: 'Parei no passo 3.', falta: 'testes no celular', falhou: 'máscara antiga', estado: 'aberta', motivo: null },
@@ -32,19 +34,20 @@ test('recados', async (t) => {
 
   await t.test('a aba mostra os recados dos dois lados, do mais novo ao mais antigo', async () => {
     await app.avaliar("document.querySelector('[data-aba=\"aba-recados\"]').click()");
-    await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 4");
+    await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 6");
     const l = await itens();
-    assert.deepStrictEqual(l.map((x) => x.id), ['r4', 'r3', 'r2', 'r1']);
-    assert.deepStrictEqual([l[2].de, l[2].para], ['Orquestrador', 'Agente 1 (site)']);
-    assert.deepStrictEqual(l.map((x) => x.estado), ['recusado', 'segurado', 'entregue', 'entregue']);
-    assert.deepStrictEqual(l.map((x) => x.liberar), [false, true, false, false], 'só o segurado tem Liberar');
+    assert.deepStrictEqual(l.map((x) => x.id), ['p2', 'p1', 'r4', 'r3', 'r2', 'r1']);
+    assert.deepStrictEqual([l[4].de, l[4].para], ['Orquestrador', 'Agente 1 (site)']);
+    assert.deepStrictEqual([l[1].de, l[1].para], ['Orquestrador', 'Codex avulso']);
+    assert.deepStrictEqual(l.map((x) => x.estado), ['espera você', 'espera você', 'recusado', 'segurado', 'entregue', 'entregue']);
+    assert.deepStrictEqual(l.map((x) => x.liberar), [false, false, false, true, false, false], 'só o segurado tem Liberar');
   });
 
   await t.test('o segurado aparece no contador da aba e sai dele ao liberar', async () => {
-    assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '1');
+    assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '3', '1 segurado + 2 pedidos esperando');
     await app.avaliar("document.querySelector('[data-rc-liberar=\"r3\"]').click()");
     await app.esperar("!document.querySelector('[data-rc-liberar]')");
-    assert.ok(await app.avaliar("document.getElementById('n-recados-atencao').hidden"));
+    assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '2', 'sobram os 2 pedidos');
     const r3 = (await itens()).find((x) => x.id === 'r3');
     assert.ok(['esperando o orquestrador', 'entregue'].includes(r3.estado), r3.estado);
   });
@@ -58,6 +61,29 @@ test('recados', async (t) => {
     assert.match(await app.avaliar("document.querySelector('#memoria-notas .memoria-nota').innerText"), /Porta do servidor de teste[\s\S]*Usa a 4010/);
     await app.avaliar("(() => { const i = document.getElementById('filtro-memoria'); i.value = 'nada disso'; i.dispatchEvent(new Event('input')); })()");
     await app.esperar("document.querySelectorAll('#memoria-notas .memoria-nota').length === 0");
+  });
+
+  // Pedido de 2026-11-12: pedido avulso que pede escrita espera você; texto
+  // opcional tanto ao aprovar quanto ao negar.
+  await t.test('pedido avulso: aprovar com orientação e negar com motivo, no próprio cartão', async () => {
+    await app.avaliar("document.querySelector('[data-rc-projeto=\"\"]').click()");
+    await app.avaliar("document.querySelector('[data-rc-aba=\"recados\"]').click()");
+    await app.esperar("!!document.querySelector('[data-rc-decidir=\"p1\"]')");
+    assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '2', 'os dois pedidos contam como esperando você');
+    await app.avaliar("(() => { const c = document.querySelector('[data-rc-nota=\"p1\"]'); c.value = 'só PNG, 64x64'; })()");
+    await app.avaliar("document.querySelector('[data-rc-decidir=\"p1\"][data-aprovar=\"1\"]').click()");
+    await app.esperar("!document.querySelector('[data-rc-decidir=\"p1\"]')");
+    await app.avaliar("document.querySelector('[data-rc-nota=\"p2\"]').value = 'o README é meu'");
+    await app.avaliar("document.querySelector('[data-rc-decidir=\"p2\"][data-aprovar=\"0\"]').click()");
+    await app.esperar("!document.querySelector('[data-rc-decidir]')");
+    const fs = require('fs');
+    const linhas = fs.readFileSync(require('path').join(app.casa, '.local/share/orq-app/recados/recados.jsonl'), 'utf8');
+    assert.match(linhas, /"id":"p1","mudanca":\{"estado":"na-fila","motivo":null,"nota":"só PNG, 64x64"/);
+    assert.match(linhas, /"id":"p2","mudanca":\{"estado":"negado","motivo":null,"nota":"o README é meu"/);
+    assert.match(linhas, /"tipo":"negado".*Motivo: o README é meu/);
+    const p1 = await app.avaliar("document.querySelector('[data-id=\"p1\"]').innerText");
+    assert.match(p1, /na fila[\s\S]*sua orientação: só PNG, 64x64/);
+    assert.ok(await app.avaliar("document.getElementById('n-recados-atencao').hidden"));
   });
 
   await t.test('vezes passadas: aberta e pega, com o que falta e o que não funcionou', async () => {

@@ -32,7 +32,7 @@ const SCRIPT = path.join(__dirname, '..', 'hooks', 'orq-recado.sh');
 // 10 min, o app segura e espera o usuário liberar na aba Recados.
 const LIMITE = 6;
 const JANELA_MS = 10 * 60 * 1000;
-const TIPOS = ['pergunta', 'aviso', 'pronto', 'travado', 'vez'];
+const TIPOS = ['pergunta', 'aviso', 'pronto', 'travado', 'vez', 'pedido', 'resposta', 'falhou', 'negado'];
 const TIPOS_NOTA = ['decisao', 'falhou', 'onde', 'aviso'];
 
 const pasta = () => path.join(os.homedir(), '.local', 'share', 'orq-app', 'recados');
@@ -194,7 +194,13 @@ const semAspas = (s) => String(s || '').replace(/["<>\n]/g, ' ').trim();
 // Como o recado aparece para o orquestrador: o texto do agente e como responder.
 function embrulho(r) {
   const corpo = String(r.texto).replace(/<\/?orq-recado[^>]*>/g, '');
-  const tipo = { pergunta: 'Pergunta', aviso: 'Aviso', pronto: 'Terminou', travado: 'Travado, precisa de ajuda', vez: 'Passou a vez' }[r.tipo] || 'Recado';
+  const tipo = { pergunta: 'Pergunta', aviso: 'Aviso', pronto: 'Terminou', travado: 'Travado, precisa de ajuda', vez: 'Passou a vez',
+    resposta: 'Resposta ao seu pedido avulso', falhou: 'Pedido avulso que não deu certo', negado: 'Pedido avulso negado' }[r.tipo] || 'Recado';
+  if (['resposta', 'falhou', 'negado'].includes(r.tipo)) {
+    return `<orq-recado id="${semAspas(r.id)}" de="${semAspas(r.de.nome)}" projeto="${semAspas(r.de.alvo)}" tipo="${semAspas(r.tipo)}">\n`
+      + `${tipo} (${r.de.nome}, projeto ${r.de.alvo}):\n${corpo}\n\n`
+      + 'Novo pedido avulso: orq-recado pedir <projeto> "tarefa" --motor codex|claude [--escrever].\n</orq-recado>';
+  }
   return `<orq-recado id="${semAspas(r.id)}" de="${semAspas(r.de.nome)}" projeto="${semAspas(r.de.alvo)}" tipo="${semAspas(r.tipo)}">\n`
     + `${tipo} de ${r.de.nome} (${r.de.alvo}):\n${corpo}\n\n`
     + (r.tipo === 'vez' ? 'Se ninguém do app pode pegar essa vez, abra um agente para ela; ele pega com .orq/bin/orq-recado pegar <id>. Lista: orq-recado vezes. ' : '')
@@ -316,6 +322,59 @@ function mandarAoAgente(frente, texto, { tipo = 'aviso', tmux = tmuxPadrao } = {
   return { recado: r, instalacao };
 }
 
+// --- pedidos avulsos (uma tarefa a um Claude ou Codex que não é agente) ------
+// Estados: aguardando (pediu escrita: espera o usuário) → na-fila → rodando →
+// pronto | falhou; ou negado. Ficam no mesmo registro dos recados. A resposta
+// (ou a negativa, com o motivo opcional do usuário) volta ao orquestrador como
+// recado, pela entrega de sempre.
+const NOME_MOTOR = { codex: 'Codex', claude: 'Claude' };
+function pedir({ alvo, motor = 'codex', texto, escrever = false, modelo = null }) {
+  const t = String(texto || '').trim();
+  if (!t) throw new Error('pedido vazio');
+  if (!NOME_MOTOR[motor]) throw new Error(`motor inválido: ${motor} (codex|claude)`);
+  if (!alvo) throw new Error('falta o projeto');
+  const r = {
+    id: novoId(), ts: Date.now(),
+    de: { tipo: 'orquestrador' },
+    para: { tipo: 'avulso', motor, alvo, nome: `${NOME_MOTOR[motor]} avulso` },
+    tipo: 'pedido', texto: t.slice(0, 8000), escrever: !!escrever, modelo: modelo || null,
+    estado: escrever ? 'aguardando' : 'na-fila', motivo: escrever ? 'pediu para escrever na pasta do projeto: espera você aprovar' : null,
+  };
+  acrescentar(r);
+  return r;
+}
+
+const pedidoPorId = (id) => ler(5000).find((x) => x.id === id && x.tipo === 'pedido');
+// Aprovar ou negar um pedido que espera o usuário; a nota é opcional nos dois.
+function decidirPedido(id, aprovar, nota = '') {
+  const r = pedidoPorId(id);
+  if (!r) throw new Error('pedido não encontrado');
+  if (r.estado !== 'aguardando') throw new Error('este pedido não está esperando você');
+  const n = String(nota || '').trim().slice(0, 2000) || null;
+  if (aprovar) { mudar(id, { estado: 'na-fila', motivo: null, nota: n }); return; }
+  mudar(id, { estado: 'negado', motivo: null, nota: n });
+  acrescentar({ id: novoId(), ts: Date.now(), de: { tipo: 'usuario', nome: 'Usuário', alvo: r.para.alvo }, para: { tipo: 'orquestrador' },
+    tipo: 'negado', texto: `O usuário negou o pedido ao ${r.para.nome}: «${r.texto.slice(0, 300)}»${n ? `\nMotivo: ${n}` : '\n(sem motivo)'}`, estado: 'novo', motivo: null, pedido: id });
+}
+
+const pedidosNaFila = () => ler(5000).filter((x) => x.tipo === 'pedido' && x.estado === 'na-fila');
+const pedidosRodando = () => ler(5000).filter((x) => x.tipo === 'pedido' && x.estado === 'rodando');
+function marcarRodando(id) { mudar(id, { estado: 'rodando', comecouEm: Date.now() }); }
+// O app fechou com pedido rodando: o container descartável morreu junto.
+function largarRodando() { for (const r of pedidosRodando()) concluirPedido(r.id, { ok: false, erro: 'o app fechou no meio do pedido' }); }
+
+function concluirPedido(id, res) {
+  const r = pedidoPorId(id);
+  if (!r) return;
+  const arquivos = (res.arquivos || []).slice(0, 100);
+  mudar(id, { estado: res.ok ? 'pronto' : 'falhou', resposta: String(res.resposta || '').slice(0, 20000), arquivos, erro: res.erro || null, terminouEm: Date.now() });
+  const lista = arquivos.length ? `\nArquivos criados ou alterados (${arquivos.length}): ${arquivos.join(', ')}` : '';
+  acrescentar({ id: novoId(), ts: Date.now(), de: { tipo: 'avulso', motor: r.para.motor, alvo: r.para.alvo, nome: r.para.nome }, para: { tipo: 'orquestrador' },
+    tipo: res.ok ? 'resposta' : 'falhou',
+    texto: res.ok ? `${String(res.resposta || '').slice(0, 6000)}${lista}` : `Não deu certo: ${res.erro}${res.resposta ? `\n${String(res.resposta).slice(0, 2000)}` : ''}${lista}`,
+    estado: 'novo', motivo: null, pedido: id });
+}
+
 // --- memória dividida entre cópias do mesmo projeto ---------------------------
 // Cópias do mesmo repositório (git worktree) dividem a memória; a configuração
 // memoriaGrupos junta outras pastas. O app copia para cada pasta do grupo as
@@ -430,4 +489,4 @@ function lembrar(dir, { titulo, texto, tipo = 'decisao', autor = 'orquestrador' 
   throw new Error('não achei um nome livre para a nota');
 }
 
-module.exports = { ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };
+module.exports = { ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, pedir, decidirPedido, pedidosNaFila, pedidosRodando, marcarRodando, largarRodando, concluirPedido, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };

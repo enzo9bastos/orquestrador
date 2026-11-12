@@ -34,6 +34,7 @@ const ajudante = require('./ajudante');
 const ias = require('./ias');
 const topicos = require('./topicos');
 const recados = require('./recados');
+const avulso = require('./avulso');
 const { t } = require('./i18n');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
@@ -425,6 +426,29 @@ function cicloRecados() {
   } catch (e) { console.error('[recados]', e.message); }
 }
 setInterval(cicloRecados, 3000);
+
+// Pedidos avulsos: até 2 rodando ao mesmo tempo, cada um num container
+// descartável. O que estava rodando quando o app fechou vira "falhou".
+try { recados.largarRodando(); } catch (e) { console.error('[avulso]', e.message); }
+const rodandoAvulso = new Set();
+function cicloAvulsos() {
+  if (process.env.ORQ_APP_E2E) return; // testes de tela não sobem container
+  let fila;
+  try { fila = recados.pedidosNaFila(); } catch { return; }
+  for (const p of fila) {
+    if (rodandoAvulso.size >= 2) break;
+    if (rodandoAvulso.has(p.id)) continue;
+    const proj = coletor.projetos().find((x) => x.alvo === p.para.alvo);
+    if (!proj) { recados.concluirPedido(p.id, { ok: false, erro: `projeto não encontrado: ${p.para.alvo}` }); continue; }
+    rodandoAvulso.add(p.id);
+    recados.marcarRodando(p.id);
+    avulso.rodar({ id: p.id, dir: proj.dir, motor: p.para.motor, texto: p.texto, escrever: p.escrever, modelo: p.modelo, nota: p.nota })
+      .catch((e) => ({ ok: false, erro: e.message }))
+      .then((res) => { try { recados.concluirPedido(p.id, res); } finally { rodandoAvulso.delete(p.id); cicloRecados(); } });
+  }
+}
+setInterval(cicloAvulsos, 3000);
+ipcMain.handle('recados:decidir', (_e, id, aprovar, nota) => { try { recados.decidirPedido(id, !!aprovar, nota); cicloRecados(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
 ipcMain.handle('recados:lista', () => recados.ler());
 ipcMain.handle('recados:vezes', () => recados.lerVezes());
 ipcMain.handle('recados:liberar', (_e, id) => { try { recados.liberar(id); cicloRecados(); return { ok: true }; } catch (e) { return { erro: e.message }; } });

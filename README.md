@@ -244,6 +244,12 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   work for someone else (still to do, what didn't work). `vezes` lists the ones this agent can take and `pegar <id>`
   takes one: the app decides who got it, so **only one agent takes each handoff, once**. The orchestrator is told
   about every handoff; `orq-recado vezes` lists them on the host.
+- **One-off requests to another AI.** `orq-recado pedir <project> "task" --motor codex|claude [--escrever]` hands a
+  single task to a Codex or Claude that is nobody's agent (e.g. the Claude orchestrator asks Codex for an image). It
+  runs in a throwaway container made from the project's devcontainer image, with the same firewall and the shared
+  logins; the project folder is mounted **read-only** unless the request asks to write, and then it waits for your
+  approval in the **Messages** tab (you may add guidance, or a reason when you deny). The answer, with the files it
+  created or changed, comes back to the orchestrator as a message. Up to two run at once; 20 minutes each.
 - **Project memory.** `.orq/bin/orq-recado lembrar "title" "text" --tipo decisao|falhou|onde|aviso` (decision,
   didn't work, where things are, notice) writes one Markdown note in `<project>/.orq/memoria/`; `memoria`, `buscar
   "term"` and `ler <note>` read them. Notes are only ever added, never rewritten or deleted. Each note records the

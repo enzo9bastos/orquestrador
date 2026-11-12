@@ -13,8 +13,10 @@
   let filtro = '';       // '' = todos os projetos
   let vista = 'recados'; // 'recados' | 'vezes' | 'memoria'
 
-  const ESTADO = { novo: 'esperando o orquestrador', entregue: 'entregue', segurado: 'segurado', recusado: 'recusado' };
-  const TIPO = { pergunta: 'pergunta', aviso: 'aviso', pronto: 'terminou', travado: 'travado', vez: 'passou a vez' };
+  const ESTADO = { novo: 'esperando o orquestrador', entregue: 'entregue', segurado: 'segurado', recusado: 'recusado',
+    aguardando: 'espera você', 'na-fila': 'na fila', rodando: 'rodando', pronto: 'pronto', falhou: 'falhou', negado: 'negado' };
+  const TIPO = { pergunta: 'pergunta', aviso: 'aviso', pronto: 'terminou', travado: 'travado', vez: 'passou a vez',
+    pedido: 'pedido avulso', resposta: 'resposta', falhou: 'não deu certo', negado: 'negado' };
   const ESTADO_VEZ = { aberta: 'aberta', pega: 'pega', recusada: 'recusada' };
   const NOTA = { decisao: 'decisão', falhou: 'não funcionou', onde: 'onde está', aviso: 'aviso' };
   const hora = (ts) => {
@@ -26,11 +28,11 @@
   const quem = (x) => (x.tipo === 'orquestrador' ? 'Orquestrador' : x.nome || x.alvo);
 
   function desenharContador() {
-    const n = recados.filter((r) => r.estado === 'segurado').length;
+    const n = recados.filter((r) => r.estado === 'segurado' || r.estado === 'aguardando').length;
     const el = $('n-recados-atencao');
     el.hidden = !n;
     el.textContent = n ? String(n) : '';
-    el.title = n ? `${n} recado(s) segurado(s) esperando você` : '';
+    el.title = n ? `${n} recado(s) ou pedido(s) esperando você` : '';
   }
 
   function desenharProjetos() {
@@ -54,7 +56,14 @@
         <span class="recado-hora">${esc(hora(r.ts))}</span></div>
       <div class="recado-texto" data-sem-traducao>${esc(r.texto)}</div>
       ${r.motivo ? `<div class="nota recado-motivo">${esc(r.motivo)}</div>` : ''}
+      ${r.tipo === 'pedido' ? `<div class="nota recado-motivo">${r.escrever ? 'Pode escrever na pasta do projeto' : 'Só leitura'}${r.modelo ? ` · modelo ${esc(r.modelo)}` : ''}${r.nota ? ` · sua orientação: <span data-sem-traducao>${esc(r.nota)}</span>` : ''}</div>` : ''}
+      ${r.tipo === 'pedido' && r.arquivos && r.arquivos.length ? `<div class="recado-texto pedido-arquivos"><strong>Arquivos:</strong> <span data-sem-traducao>${r.arquivos.map(esc).join(', ')}</span></div>` : ''}
+      ${r.tipo === 'pedido' && r.erro ? `<div class="nota recado-motivo">${esc(r.erro)}</div>` : ''}
       ${r.estado === 'segurado' ? `<button type="button" class="botao-texto" data-rc-liberar="${esc(r.id)}">Liberar para o orquestrador</button>` : ''}
+      ${r.estado === 'aguardando' ? `<div class="pedido-decidir">
+        <textarea class="campo-config" rows="2" maxlength="2000" data-rc-nota="${esc(r.id)}" placeholder="Orientação ou motivo (opcional): vai junto da sua resposta" aria-label="Orientação ou motivo (opcional)"></textarea>
+        <div class="acoes"><button type="button" class="botao secundario" data-rc-decidir="${esc(r.id)}" data-aprovar="0">Negar</button>
+        <button type="button" class="botao primario" data-rc-decidir="${esc(r.id)}" data-aprovar="1">Aprovar</button></div></div>` : ''}
     </li>`).join('');
   }
 
@@ -107,6 +116,16 @@
     if (p) { filtro = p.dataset.rcProjeto; desenhar(); return; }
     const a = ev.target.closest('[data-rc-aba]');
     if (a) { vista = a.dataset.rcAba; desenhar(); return; }
+    const d = ev.target.closest('[data-rc-decidir]');
+    if (d) {
+      const id = d.dataset.rcDecidir;
+      const campo = document.querySelector(`[data-rc-nota="${CSS.escape(id)}"]`);
+      d.disabled = true;
+      const r = await R.decidir(id, d.dataset.aprovar === '1', campo ? campo.value : '');
+      if (r && r.erro) { d.disabled = false; d.textContent = r.erro; return; }
+      await carregar();
+      return;
+    }
     const l = ev.target.closest('[data-rc-liberar]');
     if (l) {
       l.disabled = true;
