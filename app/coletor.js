@@ -11,6 +11,18 @@ const config = require('./config');
 
 // Mesma interface do Claude que o `orq` usa para reconhecer um agente na tela.
 const TELA_CLAUDE = /│ >|esc to interrupt|Try "|╭─+╮|⏵⏵|⏸|bypass|auto mode/;
+// A interface do Codex CLI: caixa com "›", "Working (12s • esc to interrupt)",
+// rodapé "<modelo> <esforço> · <pasta>" e a tela de abertura.
+const TELA_CODEX = /OpenAI Codex \(v|Working \(\d|Ask Codex to do anything|^\s*› /m;
+// Qual CLI está no painel. O Claude usa "❯" e "⏵⏵"; o Codex, "›".
+function motorDaTela(fim) {
+  return TELA_CODEX.test(fim) && !/⏵⏵|❯/.test(fim) ? 'codex' : 'claude';
+}
+// Modelo do Codex pelo rodapé ("GPT-6-Luna default · /pasta").
+function modeloDoCodex(fim) {
+  const m = /^\s*((?:gpt|GPT|o\d|codex)[\w.-]*)(?:\s+(?:default|minimal|low|medium|high|xhigh))?\s+·/m.exec(fim);
+  return m ? m[1].replace(/^gpt/, 'GPT') : null;
+}
 
 function rodar(cmd, args) {
   try {
@@ -65,9 +77,9 @@ function tela(pane, linhas = 8) {
 // ignorando a caixa de digitar e o rodapé, que ficam embaixo.
 const CONTADOR = /…\s*\(\s*\d+\s*[smh]/;
 function estadoPelaTela(fim, mexeuAgora = false) {
-  if (/do you want|❯ 1\.|\(y\/n\)|Allow|permitir/i.test(fim)) return 'permissao';
+  if (/do you want|would you like to|❯ 1\.|\(y\/n\)|Allow|permitir/i.test(fim)) return 'permissao';
   if (/esc to interrupt/.test(fim) || CONTADOR.test(fim) || mexeuAgora) return 'trabalhando';
-  if (/⏵⏵|shift\+tab|❯/.test(fim)) return 'esperando';
+  if (/⏵⏵|shift\+tab|❯|^\s*› |Ask Codex to do anything/m.test(fim)) return 'esperando';
   return 'desconhecido';
 }
 
@@ -79,7 +91,7 @@ function estadoPelaTela(fim, mexeuAgora = false) {
 const SEGURA_AGENTE = 2 * 60 * 1000;
 const vistosComoAgente = new Map(); // pane → última vez que a tela era do Claude
 function ehAgente(pane, fim, agora = Date.now()) {
-  if (TELA_CLAUDE.test(fim)) { vistosComoAgente.set(pane, agora); return true; }
+  if (TELA_CLAUDE.test(fim) || TELA_CODEX.test(fim)) { vistosComoAgente.set(pane, agora); return true; }
   const ultima = String(fim).split('\n').filter((l) => l.trim()).pop() || '';
   if (/[$#]\s*$/.test(ultima)) { vistosComoAgente.delete(pane); return false; }
   const visto = vistosComoAgente.get(pane);
@@ -296,7 +308,8 @@ function estado() {
         ultimaResposta: resposta ? resposta.last_assistant_message : null,
         linhaDoTempo: eventos || [],
         git: git(dir),
-        modeloAgente: modelosAtuais[dir] || null,
+        motor: motorDaTela(fim),
+        modeloAgente: motorDaTela(fim) === 'codex' ? modeloDoCodex(inteira) : (modelosAtuais[dir] || null),
         tarefa: (tarefasAtuais[alvo] || {}).tarefa || null,
       });
     }
@@ -351,4 +364,4 @@ function lerNota(qual) {
   try { return fs.readFileSync(arq, 'utf8'); } catch { return null; }
 }
 
-module.exports = { lerStatus, estadoComStatus, estadoPelaTela, mexeu, ehAgente, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };
+module.exports = { lerStatus, estadoComStatus, estadoPelaTela, mexeu, ehAgente, motorDaTela, modeloDoCodex, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };

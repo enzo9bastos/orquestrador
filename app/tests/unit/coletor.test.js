@@ -96,3 +96,30 @@ test('regressão: agente não some enquanto a demanda é digitada na caixa dele'
   assert.strictEqual(coletor.ehAgente('%92', 'Bye!\nnode@a1b2:/workspaces/proj$ ', t0 + 1000), false, 'Claude fechou: shell no fim solta na hora');
   assert.strictEqual(coletor.ehAgente('%92', digitando, t0 + 2000), false, 'e não volta pela memória');
 });
+
+// Etapa 3b (2026-11-12): agentes Codex no terminal. Telas copiadas do Codex
+// CLI 0.167 rodando num tmux.
+test('Codex: reconhece a tela, o motor, o modelo e o estado', () => {
+  const ocioso = [
+    '  >_ OpenAI Codex (v0.167.2)',
+    '  /review - review any changes and find issues',
+    '› Ask Codex to do anything',
+    '  GPT-6-Luna default · /workspace/jogo · ← for agents                    ⚠ 1 warning',
+  ].join('\n');
+  const trabalhando = [
+    '• Vou gerar o sprite e salvar em assets/.',
+    '• Working (10s • esc to interrupt)',
+    '› Ask Codex to do anything',
+    '  GPT-6-Luna default · /workspace/jogo · Gerar sprite · ← for agents',
+  ].join('\n');
+  const claude = '● Pronto.\n────────\n❯ \n────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents';
+  assert.strictEqual(coletor.ehAgente('%95', ocioso, 1), true);
+  assert.strictEqual(coletor.motorDaTela(ocioso), 'codex');
+  assert.strictEqual(coletor.motorDaTela(trabalhando), 'codex');
+  assert.strictEqual(coletor.motorDaTela(claude), 'claude', '"← for agents" sozinho não faz virar Codex');
+  assert.strictEqual(coletor.modeloDoCodex(ocioso), 'GPT-6-Luna');
+  assert.strictEqual(coletor.modeloDoCodex(claude), null);
+  assert.strictEqual(coletor.estadoPelaTela(ocioso), 'esperando');
+  assert.strictEqual(coletor.estadoPelaTela(trabalhando), 'trabalhando');
+  assert.strictEqual(coletor.estadoPelaTela('Would you like to run the following command?\n  $ npm test\n› 1. Yes, proceed'), 'permissao');
+});

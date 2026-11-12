@@ -279,7 +279,7 @@ function desenharFrentes(r) {
         ${f.statusAgente ? `<span class="status-agente status-${esc(f.statusAgente.estado)}" title="Publicado pelo agente há ${haQuanto(f.statusAgente.ts)}">
           <span class="rotulo-status">${esc(ROTULO_STATUS[f.statusAgente.estado] || f.statusAgente.estado)}</span>${esc(f.statusAgente.texto)}
           ${f.statusAgente.progresso ? (() => { const [a, b] = f.statusAgente.progresso.split('/').map(Number); return `<span class="progresso-agente" title="${a} de ${b}"><i style="width:${Math.min(100, (a / (b || 1)) * 100)}%"></i></span>`; })() : ''}</span>` : ''}
-        <span class="proj" title="${esc(f.proj)}">${f.modeloAgente ? `<span class="modelo-agente">✳ ${esc(f.modeloAgente)}</span>` : esc(f.proj)}</span>
+        <span class="proj" title="${esc(f.proj)}">${f.modeloAgente || f.motor === 'codex' ? `<span class="modelo-agente${f.motor === 'codex' ? ' motor-codex' : ''}">${f.motor === 'codex' ? `◆ Codex${f.modeloAgente ? ` · ${esc(f.modeloAgente)}` : ''}` : `✳ ${esc(f.modeloAgente)}`}</span>` : esc(f.proj)}</span>
       </button>`).join(''));
   }
   $('sem-terminal').textContent = r.semTerminal ? `${r.semTerminal} projeto(s) sem agente aberto` : '';

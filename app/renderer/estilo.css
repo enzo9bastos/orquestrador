@@ -1473,3 +1473,4 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .pedido-decidir { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .pedido-decidir textarea { width: 100%; resize: vertical; }
 .pedido-decidir .acoes { display: flex; gap: 8px; justify-content: flex-end; }
+.cartao-agente .modelo-agente.motor-codex { color: var(--fg-2); }
