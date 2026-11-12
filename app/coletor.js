@@ -71,6 +71,21 @@ function estadoPelaTela(fim, mexeuAgora = false) {
   return 'desconhecido';
 }
 
+// É um agente? Pela tela do Claude (TELA_CLAUDE). Enquanto o orquestrador
+// digita uma demanda longa na caixa do agente, o fim da tela vira só o texto
+// da demanda e nenhuma marca aparece: o painel que já foi reconhecido segura
+// o lugar por até 2 min, para o cartão não sumir e voltar. Prompt de shell no
+// fim (o Claude fechou) solta na hora.
+const SEGURA_AGENTE = 2 * 60 * 1000;
+const vistosComoAgente = new Map(); // pane → última vez que a tela era do Claude
+function ehAgente(pane, fim, agora = Date.now()) {
+  if (TELA_CLAUDE.test(fim)) { vistosComoAgente.set(pane, agora); return true; }
+  const ultima = String(fim).split('\n').filter((l) => l.trim()).pop() || '';
+  if (/[$#]\s*$/.test(ultima)) { vistosComoAgente.delete(pane); return false; }
+  const visto = vistosComoAgente.get(pane);
+  return visto != null && agora - visto < SEGURA_AGENTE;
+}
+
 // Movimento: guarda um resumo da parte de cima de cada tela e quando ela
 // mudou pela última vez. Conta como "mexeu agora" até 8 s depois.
 const JANELA_MOVIMENTO = 8000;
@@ -260,7 +275,7 @@ function estado() {
       // linha do contador para fora de uma janela menor.
       const fim = inteira.split('\n').slice(-12).join('\n');
       const mexeuAgora = mexeu(p.pane, inteira);
-      if (!TELA_CLAUDE.test(fim)) continue;
+      if (!ehAgente(p.pane, fim)) continue;
       achou = true;
       const ultimo = eventos && eventos.length ? eventos[eventos.length - 1] : null;
       const resposta = eventos ? [...eventos].reverse().find((e) => e.last_assistant_message) : null;
@@ -336,4 +351,4 @@ function lerNota(qual) {
   try { return fs.readFileSync(arq, 'utf8'); } catch { return null; }
 }
 
-module.exports = { lerStatus, estadoComStatus, estadoPelaTela, mexeu, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };
+module.exports = { lerStatus, estadoComStatus, estadoPelaTela, mexeu, ehAgente, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };

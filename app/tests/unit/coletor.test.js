@@ -80,3 +80,19 @@ test('regressão: contador com dica embaixo continua contando como trabalho', ()
   const fim = tela.slice(-12).join('\n');
   assert.strictEqual(coletor.estadoPelaTela(fim), 'trabalhando');
 });
+
+// Regressão 2026-11-12: com o orquestrador digitando uma demanda longa na caixa
+// do agente, o fim da tela era só o texto da demanda; o cartão sumia da lista
+// e voltava quando o agente começava a trabalhar.
+test('regressão: agente não some enquanto a demanda é digitada na caixa dele', () => {
+  const ocioso = '● Pronto.\n────────\n❯ \n────────\n  ⏵⏵ auto mode on (shift+tab to cycle)';
+  const digitando = Array.from({ length: 12 }, (_, i) => `  linha ${i + 1} da demanda que o orquestrador está mandando para o agente`).join('\n');
+  const t0 = 1_000_000;
+  assert.strictEqual(coletor.ehAgente('%90', ocioso, t0), true);
+  assert.strictEqual(coletor.ehAgente('%90', digitando, t0 + 3000), true, 'segura o lugar enquanto digita');
+  assert.strictEqual(coletor.ehAgente('%90', digitando, t0 + 3 * 60 * 1000), false, 'depois de 2 min sem a tela do Claude, sai');
+  assert.strictEqual(coletor.ehAgente('%91', digitando, t0), false, 'painel nunca visto como Claude não entra');
+  assert.strictEqual(coletor.ehAgente('%92', ocioso, t0), true);
+  assert.strictEqual(coletor.ehAgente('%92', 'Bye!\nnode@a1b2:/workspaces/proj$ ', t0 + 1000), false, 'Claude fechou: shell no fim solta na hora');
+  assert.strictEqual(coletor.ehAgente('%92', digitando, t0 + 2000), false, 'e não volta pela memória');
+});
