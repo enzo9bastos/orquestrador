@@ -35,3 +35,4 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-11-11 | Nome de arquivo sem o caminho inteiro (ex.: o vídeo "em Downloads") não era clicável na conversa | `e2e/conversa.e2e.js` › nome de arquivo sem caminho vira clicável e é achado |
 | 2026-11-12 | Demanda no cartão resumido não tinha como ser concluída pelo próprio cartão (só abrindo a nota) | `e2e/demandas.e2e.js` › ✓ no cartão conclui em dois cliques, avisa o que falta e não abre a nota |
 | 2026-11-12 | Agente sumia da lista "Agentes" enquanto o orquestrador digitava uma demanda longa na caixa dele (o fim da tela virava só o texto) e voltava quando começava a trabalhar | `unit/coletor.test.js` › regressão: agente não some enquanto a demanda é digitada na caixa dele |
+| 2026-11-12 | Menu do Codex ("› 1. Trust and continue") aparecia como agente esperando, e não pedindo a resposta do usuário | `unit/coletor.test.js` › regressão: menu do Codex conta como pedindo resposta |

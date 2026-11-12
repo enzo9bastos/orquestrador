@@ -77,7 +77,7 @@ function tela(pane, linhas = 8) {
 // ignorando a caixa de digitar e o rodapé, que ficam embaixo.
 const CONTADOR = /…\s*\(\s*\d+\s*[smh]/;
 function estadoPelaTela(fim, mexeuAgora = false) {
-  if (/do you want|would you like to|❯ 1\.|\(y\/n\)|Allow|permitir/i.test(fim)) return 'permissao';
+  if (/do you want|would you like to|[❯›] 1\.|\(y\/n\)|Allow|permitir/i.test(fim)) return 'permissao';
   if (/esc to interrupt/.test(fim) || CONTADOR.test(fim) || mexeuAgora) return 'trabalhando';
   if (/⏵⏵|shift\+tab|❯|^\s*› |Ask Codex to do anything/m.test(fim)) return 'esperando';
   return 'desconhecido';

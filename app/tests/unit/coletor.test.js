@@ -123,3 +123,10 @@ test('Codex: reconhece a tela, o motor, o modelo e o estado', () => {
   assert.strictEqual(coletor.estadoPelaTela(trabalhando), 'trabalhando');
   assert.strictEqual(coletor.estadoPelaTela('Would you like to run the following command?\n  $ npm test\n› 1. Yes, proceed'), 'permissao');
 });
+
+// Regressão 2026-11-12: menu do Codex ("confiar nesta pasta?", "› 1. Trust and
+// continue") aparecia como "esperando" em vez de pedindo a resposta do usuário.
+test('regressão: menu do Codex conta como pedindo resposta', () => {
+  const menu = '  model request. Continue only if you trust these files.\n› 1. Trust and continue\n  2. Back to Agent Command Center\n  enter continue · esc back';
+  assert.strictEqual(coletor.estadoPelaTela(menu), 'permissao');
+});
