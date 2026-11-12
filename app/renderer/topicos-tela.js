@@ -38,6 +38,13 @@
     ? `<button type="button" class="apagar-topico confirmando" data-apagar-topico="${esc(t.id)}" title="${t.arquivo ? 'Confirmar: a demanda sai do painel e a nota vai para a lixeira' : 'Confirmar: a demanda sai do painel'}">Apagar?</button>`
     : `<button type="button" class="apagar-topico" data-apagar-topico="${esc(t.id)}" aria-label="Apagar demanda" title="Apagar demanda"><svg class="ico" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`);
 
+  // Concluir pelo cartão resumido (✓), também em dois cliques; avisa quantas
+  // etapas faltam. Concluir mesmo com etapa aberta, como o botão do cartão inteiro.
+  let confirmandoConcluir = null, tConcluir = null;
+  const botaoConcluir = (t, faltam) => (confirmandoConcluir === t.id
+    ? `<button type="button" class="concluir-topico confirmando" data-concluir-cartao="${esc(t.id)}" title="Confirmar: a demanda vai para as concluídas">${faltam ? `Faltam ${faltam}. Concluir?` : 'Concluir?'}</button>`
+    : `<button type="button" class="concluir-topico" data-concluir-cartao="${esc(t.id)}" aria-label="Concluir demanda" title="Concluir demanda"><svg class="ico" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`);
+
   function cartaoSugerido(t) {
     return `<article class="topico estado-sugerido" data-topico="${esc(t.id)}">
       <p class="topico-sugerido-por">Sugerido pelo orquestrador</p>
@@ -91,6 +98,7 @@
         <span class="chip-topico chip-${esc(t.estado)}">${ROTULO[t.estado]}</span>
         <strong class="topico-titulo" data-sem-traducao>${esc(t.titulo)}</strong>
         ${faltam.length ? `<button type="button" class="seta-topico${aberto ? ' aberta' : ''}" data-expandir-topico="${esc(t.id)}" aria-expanded="${aberto}" aria-label="Mostrar o que falta fazer" title="Mostrar o que falta fazer"><svg class="ico" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}
+        ${t.estado !== 'concluido' ? botaoConcluir(t, faltam.length) : ''}
         ${botaoApagar(t)}
       </header>
       <div class="topico-meta">
@@ -266,6 +274,23 @@
     if (r && r.erro) { desenhar(); mostrarErro(`Não consegui apagar: ${r.erro}`); return; }
     receber(r);
     if (r && window.orqNotas && window.orqNotas.fecharSe) await window.orqNotas.fecharSe(r.fechar ? r.fechar.i : -1, r.fechar ? r.fechar.rel : '');
+  });
+  coluna.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-concluir-cartao]');
+    if (!b) return;
+    const id = b.dataset.concluirCartao;
+    clearTimeout(tConcluir);
+    if (confirmandoConcluir !== id) {
+      confirmandoConcluir = id;
+      tConcluir = setTimeout(() => { confirmandoConcluir = null; desenhar(); }, 4000);
+      desenhar();
+      return;
+    }
+    confirmandoConcluir = null;
+    b.disabled = true;
+    const r = await T.concluir(id);
+    if (r && r.erro) { desenhar(); mostrarErro(`Não consegui concluir: ${r.erro}`); return; }
+    receber(r);
   });
   // Setinha do cartão resumido: mostra/esconde o que falta fazer (só na tela;
   // o cartão volta recolhido ao reabrir o app).

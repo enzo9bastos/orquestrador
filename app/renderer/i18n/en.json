@@ -930,6 +930,9 @@
     "Apagar?": "Delete?",
     "Confirmar: a demanda sai do painel e a nota vai para a lixeira": "Confirm: the request leaves the panel and its note goes to the trash",
     "Confirmar: a demanda sai do painel": "Confirm: the request leaves the panel",
+    "Concluir demanda": "Finish request",
+    "Concluir?": "Finish?",
+    "Confirmar: a demanda vai para as concluídas": "Confirm: the request moves to finished",
     "Passada nos agentes (a cada 3 min)": "Agent sweep (every 3 min)",
     "Clássico": "Classic",
     "Gatinho": "Kitten",
@@ -993,6 +996,10 @@
     [
       "^Faltam (\\d+)\\. Concluir mesmo assim\\?$",
       "$1 left. Finish anyway?"
+    ],
+    [
+      "^Faltam (\\d+)\\. Concluir\\?$",
+      "$1 left. Finish?"
     ],
     [
       "^(\\d+) de (\\d+) feitos$",

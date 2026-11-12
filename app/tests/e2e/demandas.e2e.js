@@ -51,6 +51,24 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
     await app.esperar("/2\\/2/.test(document.querySelector('.topico-resumido').innerText)", 8000);
   });
 
+  // Pedido de 2026-11-12: concluir pelo próprio cartão, sem abrir a nota.
+  await t.test('✓ no cartão conclui em dois cliques, avisa o que falta e não abre a nota', async () => {
+    const idC = orq('abrir', 'Trocar o certificado').match(/\d+/)[0];
+    orq('item', idC, 'Gerar'); orq('item', idC, 'Instalar'); orq('marcar', idC, '1');
+    const sel = `[data-topico="${idC}"] [data-concluir-cartao]`;
+    await app.esperar(`!!document.querySelector('${sel}')`, 8000);
+    await app.esperar(`/1\\/2/.test(document.querySelector('[data-topico="${idC}"]').innerText)`, 8000);
+    await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
+    await app.avaliar(`document.querySelector('${sel}').click()`);
+    await app.esperar(`/Faltam 1\\. Concluir\\?/.test(document.querySelector('${sel}').textContent)`);
+    assert.ok(!orq('listar', '--estado', 'concluido').includes('Trocar o certificado'), 'o primeiro clique não conclui');
+    assert.ok(!(await app.avaliar("document.getElementById('aba-notas').classList.contains('ativa')")), 'não abre a nota');
+    await app.avaliar(`document.querySelector('${sel}').click()`);
+    await app.esperar(`!!document.querySelector('#lista-concluidos [data-topico="${idC}"]')`, 8000);
+    assert.ok(fs.existsSync(path.join(app.casa, 'orq', 'Demandas', 'Trocar o certificado - Concluída.md')));
+    assert.ok(!(await app.avaliar(`!!document.querySelector('#lista-concluidos [data-topico="${idC}"] [data-concluir-cartao]')`)), 'concluída não tem ✓');
+  });
+
   await t.test('concluída fica com " - Concluída" no nome e vai para a lista de concluídas', async () => {
     orq('concluir', id);
     assert.ok(fs.existsSync(path.join(app.casa, 'orq', 'Demandas', 'Revisar os backups - Concluída.md')));
