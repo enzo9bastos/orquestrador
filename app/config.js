@@ -79,6 +79,19 @@ const PADRAO = {
   // { "claude": "/opt/claude/bin/claude" }. Sem entrada: acha no PATH.
   iasCaminhos: {},
 
+  // Canal entre orquestradores de computadores diferentes (canal.js), por um
+  // servidor ntfy. Desligado enquanto não houver caixa nem contato.
+  // canalServidor: vazio = o default-host do arquivo do cliente do ntfy.
+  // canalArquivoCliente: client.yml do ntfy, de onde sai o token (default-token).
+  // canalMinhaCaixa: o tópico que só eu leio. canalMeuNome: como me apresento.
+  // canalContatos: [{ nome, caixa }]. canalAprovarEnvio: nada sai sem eu aprovar.
+  canalServidor: null,
+  canalArquivoCliente: '~/.config/ntfy/client.yml',
+  canalMinhaCaixa: null,
+  canalMeuNome: null,
+  canalContatos: [],
+  canalAprovarEnvio: true,
+
   // Programa que recorta um pedaço da tela para o ajudante (bichinho): lista
   // com o caminho e os argumentos; ele imprime o caminho da imagem na última
   // linha. Sem ele: gnome-screenshot. Ex.: ["~/bin/meu-print", "--salvar"].
@@ -154,6 +167,12 @@ function validar(m) {
       case 'iaOrquestrador': case 'iaAgentes': aceitar(k, ias.IDS.includes(v), v); break;
       case 'iasCaminhos': { const c = caminhosIas(v); aceitar(k, !!c, c); break; }
       case 'detectarFerramentas': aceitar(k, typeof v === 'boolean', v); break;
+      case 'canalServidor': aceitar(k, !texto(v) || /^https?:\/\/[^\s]+$/.test(texto(v)), texto(v).replace(/\/+$/, '') || null); break;
+      case 'canalArquivoCliente': aceitar(k, true, texto(v) || '~/.config/ntfy/client.yml'); break;
+      case 'canalMinhaCaixa': aceitar(k, !texto(v) || /^[A-Za-z0-9_-]{1,64}$/.test(texto(v)), texto(v) || null); break;
+      case 'canalMeuNome': aceitar(k, true, texto(v).slice(0, 60) || null); break;
+      case 'canalContatos': { const c = require('./canal').contatosDe(v); aceitar(k, Array.isArray(v) || typeof v === 'string', c); break; }
+      case 'canalAprovarEnvio': aceitar(k, typeof v === 'boolean', v); break;
       case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
       case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;
       default: recusado.push(k);

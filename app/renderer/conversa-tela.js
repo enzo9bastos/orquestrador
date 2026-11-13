@@ -97,6 +97,19 @@
       caixa.append(el);
       return;
     }
+    // Recado do canal entre orquestradores (de outro computador, ou o retorno
+    // de um envio para fora): por trás, com a origem à vista.
+    const ce = /^<orq-recado id="[^"]*" de="([^"]*)" tipo="([^"]*)" canal="externo">\n?([\s\S]*?)\n?<\/orq-recado>\s*$/.exec(String(texto).trim());
+    if (ce) {
+      grupo = null;
+      const el = document.createElement('details');
+      el.className = `msg-bastidor msg-bastidor-recado msg-bastidor-externo recado-${ce[2]}`;
+      const resumo = ce[2] === 'externo' ? `🌐 Recado de fora: <span data-sem-traducao>${esc(ce[1])}</span>`
+        : ce[2] === 'negado' ? '🚫 Recado para fora que você não deixou sair' : '⚠ Recado para fora que não saiu';
+      el.innerHTML = `<summary>${resumo}</summary><div class="msg-bastidor-texto">${esc(ce[3])}</div>`;
+      caixa.append(el);
+      return;
+    }
     const u = textoDoUsuario(texto);
     if (!u) return;
     // O comando que abre a rodada não aparece: é bastidor, não conversa.

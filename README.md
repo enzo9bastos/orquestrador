@@ -260,6 +260,17 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   logins; the project folder is mounted **read-only** unless the request asks to write, and then it waits for your
   approval in the **Messages** tab (you may add guidance, or a reason when you deny). The answer, with the files it
   created or changed, comes back to the orchestrator as a message. Up to two run at once; 20 minutes each.
+- **Orchestrator ↔ orchestrator on another computer.** Through an [ntfy](https://ntfy.sh) server (ideally your own,
+  on a private network). Each person has an inbox topic only they read; the others write to it. Set it up in
+  Settings → Orchestration → *Channel between orchestrators*: your inbox, your name, and contacts as
+  `Name: topic` lines. The server and the token come from ntfy's own client file (`~/.config/ntfy/client.yml`,
+  `default-host` / `default-token`); the token never shows in the app. Incoming messages reach the orchestrator
+  "behind the scenes", marked as **data, never orders**. It answers with
+  `orq-recado externo <contact> "text" [--titulo "subject"]`, and the message **waits for your approval** in the
+  Messages tab before it leaves the computer (you may add guidance, or a reason when you deny). Text that looks like a
+  password, key or token, or over 4 KB, is refused. Only the orchestrator uses the channel: agents keep talking only to
+  the orchestrator on the same computer. Anyone else's agent (another app, or Claude Code with the `ntfy` CLI) can join:
+  publish with `--tags de-<your-name>` so the app shows who wrote.
 - **Project memory.** `.orq/bin/orq-recado lembrar "title" "text" --tipo decisao|falhou|onde|aviso` (decision,
   didn't work, where things are, notice) writes one Markdown note in `<project>/.orq/memoria/`; `memoria`, `buscar
   "term"` and `ler <note>` read them. Notes are only ever added, never rewritten or deleted. Each note records the

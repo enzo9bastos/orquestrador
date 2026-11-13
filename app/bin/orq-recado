@@ -16,6 +16,10 @@
 //   orq-recado lembrar <projeto> "título" "texto" [--tipo decisao|falhou|onde|aviso]
 //                                    grava uma nota na memória do projeto
 //   orq-recado instalar <projeto>    põe .orq/bin/orq-recado no projeto
+//   orq-recado externo <contato> "texto" [--titulo "assunto"]
+//                                    recado ao orquestrador de OUTRO computador (canal ntfy da
+//                                    configuração); sai só depois que o usuário aprovar na aba Recados
+//   orq-recado contatos [--json]     contatos do canal externo e se ele está ligado
 //
 // Só fala com agentes que o app acompanha (painel do tmux com o Claude na pasta
 // de um projeto). Registro: ~/.local/share/orq-app/recados/recados.jsonl.
@@ -100,8 +104,33 @@ try {
   } else if (cmd === 'instalar') {
     const p = projeto(resto[0]);
     console.log(`${p.alvo}: ${{ instalado: 'instalado', atualizado: 'atualizado', igual: 'já estava em dia', alheio: 'já existe um .orq/bin/orq-recado que não é do app; deixei como está' }[recados.instalar(p.dir)]}`);
+  } else if (cmd === 'externo') {
+    const canal = require('../canal');
+    const a = canal.ajustes(require('../config').ler());
+    const [quem, ...txt] = resto;
+    const texto = txt.join(' ');
+    if (!quem || !texto.trim()) sair('uso: orq-recado externo <contato> "texto" [--titulo "assunto"]');
+    if (!a.contatos.length) sair('o canal externo não tem contatos (Configurações → Orquestração → Canal entre orquestradores)');
+    const contato = canal.acharContato(a.contatos, quem);
+    if (!contato) sair(`contato não encontrado: ${quem}. Contatos: ${a.contatos.map((c) => `${c.nome} (${c.caixa})`).join(', ')}`);
+    const problema = canal.problemaDoTexto(texto);
+    if (problema) sair(`recusado: ${problema}`);
+    const r = recados.pedirExterno({ contato, texto, titulo: opc.titulo || null, aprovar: a.aprovarEnvio });
+    console.log(a.aprovarEnvio
+      ? `recado para ${contato.nome} esperando o usuário aprovar na aba Recados (${r.id}); a resposta dele, se vier, chega na sua conversa`
+      : `recado para ${contato.nome} na fila de envio (${r.id})`);
+    if (!a.pronto) console.log(`atenção: o canal ainda não está pronto: ${a.falta}`);
+  } else if (cmd === 'contatos') {
+    const canal = require('../canal');
+    const a = canal.ajustes(require('../config').ler());
+    const info = { ligado: a.pronto, falta: a.falta, minhaCaixa: a.minhaCaixa, aprovarEnvio: a.aprovarEnvio, contatos: a.contatos };
+    if (opc.json) console.log(JSON.stringify(info, null, 2));
+    else {
+      console.log(a.ativo ? (a.pronto ? `canal ligado; minha caixa: ${a.minhaCaixa || '(nenhuma: só envio)'}` : `canal configurado mas não pronto: ${a.falta}`) : 'canal externo desligado (sem caixa nem contatos)');
+      for (const c of a.contatos) console.log(`  ${c.nome} → ${c.caixa}`);
+    }
   } else {
-    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 21).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 25).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     if (cmd) process.exit(1);
   }
 } catch (e) { sair(`erro: ${e.message}`); }

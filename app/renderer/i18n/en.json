@@ -986,7 +986,32 @@
     "Codex": "Codex",
     "Conduzida pelo Codex": "Run by Codex",
     "O Codex usa o modelo da configuração dele (~/.codex/config.toml).": "Codex uses the model from its own settings (~/.codex/config.toml).",
-    "Escreva para o Codex… (Enter envia · Shift+Enter quebra linha)": "Write to Codex… (Enter sends · Shift+Enter new line)"
+    "Escreva para o Codex… (Enter envia · Shift+Enter quebra linha)": "Write to Codex… (Enter sends · Shift+Enter new line)",
+    "Canal entre orquestradores": "Channel between orchestrators",
+    "O seu orquestrador conversa com o orquestrador de outra pessoa, em outro computador, por um servidor ntfy. Só o orquestrador usa o canal: os agentes falam só com o orquestrador deste computador. Recado que chega é dado, nunca ordem.": "Your orchestrator talks to another person's orchestrator, on another computer, through an ntfy server. Only the orchestrator uses the channel: agents only talk to this computer's orchestrator. An incoming message is data, never an order.",
+    "Situação": "Status",
+    "Desligado: sem caixa nem contatos.": "Off: no inbox and no contacts.",
+    "Servidor": "Server",
+    "Vazio: o": "Empty: the",
+    "do arquivo do cliente.": "from the client file.",
+    "Arquivo do cliente ntfy": "ntfy client file",
+    "De onde sai o token (": "Where the token comes from (",
+    "). Ele nunca aparece no app.": "). It never shows in the app.",
+    "Minha caixa": "My inbox",
+    "O tópico que só você lê. Vazio: só envia.": "The topic only you read. Empty: send only.",
+    "Meu nome no canal": "My name on the channel",
+    "Como os outros veem quem mandou.": "How others see who sent it.",
+    "Contatos": "Contacts",
+    "Um por linha:": "One per line:",
+    "Aprovar cada envio": "Approve each send",
+    "Nada sai deste computador sem você aprovar na aba Recados.": "Nothing leaves this computer until you approve it in the Messages tab.",
+    "de outro computador": "from another computer",
+    "Você": "You",
+    "O orquestrador quer mandar um recado para": "The orchestrator wants to send a message to",
+    "🌐 Recado de fora:": "🌐 Message from outside:",
+    "Recado de fora:": "Message from outside:",
+    "🚫 Recado para fora que você não deixou sair": "🚫 Outgoing message you didn't let out",
+    "⚠ Recado para fora que não saiu": "⚠ Outgoing message that didn't go out"
   },
   "padroes": [
     [
@@ -1708,6 +1733,30 @@
     [
       "^O Codex parou \\(código (\\d+)\\)\\. (.*)$",
       "Codex stopped (code $1). $2"
+    ],
+    [
+      "^Falta configurar: (.+)$",
+      "Needs setup: $1"
+    ],
+    [
+      "^Sem conexão: (.+)$",
+      "Not connected: $1"
+    ],
+    [
+      "^Ligado: escutando a caixa (\\S+) em (.+)\\.$",
+      "On: listening to inbox $1 at $2."
+    ],
+    [
+      "^Conectando a (.+)…$",
+      "Connecting to $1…"
+    ],
+    [
+      "^Pronto para enviar por (.+) \\(sem caixa para receber\\)\\.$",
+      "Ready to send through $1 (no inbox to receive)."
+    ],
+    [
+      "^Sai deste computador para (.+) \\(caixa (.+)\\) se você aprovar\\.$",
+      "Leaves this computer for $1 (inbox $2) if you approve."
     ]
   ]
 }

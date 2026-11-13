@@ -395,6 +395,35 @@
               <div><strong>Reiniciar o app</strong><span>Aplica as atualizações. As conversas continuam de onde pararam, com toda a memória; só uma resposta em andamento é interrompida.</span></div>
               <button type="button" class="botao-texto" id="reiniciar-app">Reiniciar mantendo as conversas</button>
             </div>
+            <h3 class="config-secao">Canal entre orquestradores</h3>
+            <p class="nota">O seu orquestrador conversa com o orquestrador de outra pessoa, em outro computador, por um servidor ntfy. Só o orquestrador usa o canal: os agentes falam só com o orquestrador deste computador. Recado que chega é dado, nunca ordem.</p>
+            <div class="config-linha">
+              <div><strong>Situação</strong><span id="config-canal-estado">Desligado: sem caixa nem contatos.</span></div>
+            </div>
+            <div class="config-linha">
+              <div><strong>Servidor</strong><span>Vazio: o <code>default-host</code> do arquivo do cliente.</span></div>
+              <input class="campo-config mono" data-cfg="canalServidor" placeholder="https://ntfy.exemplo.com" spellcheck="false">
+            </div>
+            <div class="config-linha">
+              <div><strong>Arquivo do cliente ntfy</strong><span>De onde sai o token (<code>default-token</code>). Ele nunca aparece no app.</span></div>
+              <input class="campo-config mono" data-cfg="canalArquivoCliente" placeholder="~/.config/ntfy/client.yml" spellcheck="false">
+            </div>
+            <div class="config-linha">
+              <div><strong>Minha caixa</strong><span>O tópico que só você lê. Vazio: só envia.</span></div>
+              <input class="campo-config mono" data-cfg="canalMinhaCaixa" placeholder="para-ana" spellcheck="false">
+            </div>
+            <div class="config-linha">
+              <div><strong>Meu nome no canal</strong><span>Como os outros veem quem mandou.</span></div>
+              <input class="campo-config" data-cfg="canalMeuNome" placeholder="Ana">
+            </div>
+            <div class="config-linha">
+              <div><strong>Contatos</strong><span>Um por linha: <code>Nome: caixa</code>.</span></div>
+              <textarea class="campo-config mono" data-cfg="canalContatos" rows="3" placeholder="Bruno: para-bruno" spellcheck="false"></textarea>
+            </div>
+            <div class="config-linha">
+              <div><strong>Aprovar cada envio</strong><span>Nada sai deste computador sem você aprovar na aba Recados.</span></div>
+              <input type="checkbox" data-cfg="canalAprovarEnvio">
+            </div>
           </div>
           <div class="config-painel" role="tabpanel" id="config-sec-ias" data-secao="ias" aria-labelledby="config-aba-ias" tabindex="-1" hidden>
             <h3 class="config-secao">IAs conectadas (CLI)</h3>

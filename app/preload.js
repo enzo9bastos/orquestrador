@@ -120,6 +120,10 @@ contextBridge.exposeInMainWorld('orq', {
     memoria: (alvo) => ipcRenderer.invoke('recados:memoria', alvo),
     aoMudar: (fn) => ipcRenderer.on('recados:mudou', (_e, l) => fn(l)),
   },
+  canal: {
+    estado: () => ipcRenderer.invoke('canal:estado'),
+    aoMudar: (fn) => ipcRenderer.on('canal:estado', (_e, e) => fn(e)),
+  },
   topicos: {
     lista: () => ipcRenderer.invoke('topicos:lista'),
     nota: (id) => ipcRenderer.invoke('topicos:nota', id),

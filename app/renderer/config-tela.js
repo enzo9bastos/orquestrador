@@ -47,6 +47,7 @@
       const v = pegar(el.dataset.cfg);
       if (el.type === 'checkbox') el.checked = v !== false;
       else if (el.dataset.cfg === 'ambiente') el.value = Object.entries(v || {}).map(([a, b]) => `${a}=${b}`).join('\n');
+      else if (el.dataset.cfg === 'canalContatos') el.value = (v || []).map((c) => `${c.nome}: ${c.caixa}`).join('\n');
       else el.value = v == null ? '' : v;
     }
     for (const seg of document.querySelectorAll('#config [data-segmento]')) {
@@ -71,8 +72,24 @@
     }
     return { [k]: el.value };
   }
+  // Canal entre orquestradores: a situação ao vivo (ligado, erro, o que falta).
+  function desenharCanal(e) {
+    if (!e) return;
+    const el = $('config-canal-estado');
+    el.classList.toggle('erro', !!(e.ativo && (!e.pronto || e.erro)));
+    el.textContent = !e.ativo ? 'Desligado: sem caixa nem contatos.'
+      : !e.pronto ? `Falta configurar: ${e.falta}`
+      : e.erro ? `Sem conexão: ${e.erro}`
+      : e.conectado ? `Ligado: escutando a caixa ${e.minhaCaixa} em ${e.servidor}.`
+      : e.minhaCaixa ? `Conectando a ${e.servidor}…` : `Pronto para enviar por ${e.servidor} (sem caixa para receber).`;
+  }
+  if (window.orq.canal) {
+    window.orq.canal.aoMudar(desenharCanal);
+    document.getElementById('abrir-config')?.addEventListener('click', () => window.orq.canal.estado().then(desenharCanal));
+  }
   $('config').addEventListener('change', (ev) => {
     const el = ev.target.closest('[data-cfg]');
+    if (el && /^canal/.test(el.dataset.cfg) && window.orq.canal) setTimeout(() => window.orq.canal.estado().then(desenharCanal), 3500);
     // Trocar a IA muda o aviso de "o app usa o Claude": relê depois de gravar.
     if (el) mudar(valorDe(el)).then(() => { if (/^ia[A-Z]/.test(el.dataset.cfg)) carregarIas(); });
   });

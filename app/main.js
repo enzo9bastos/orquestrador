@@ -34,6 +34,7 @@ const ajudante = require('./ajudante');
 const ias = require('./ias');
 const topicos = require('./topicos');
 const recados = require('./recados');
+const canal = require('./canal');
 const avulso = require('./avulso');
 const { t } = require('./i18n');
 
@@ -448,7 +449,70 @@ function cicloAvulsos() {
   }
 }
 setInterval(cicloAvulsos, 3000);
-ipcMain.handle('recados:decidir', (_e, id, aprovar, nota) => { try { recados.decidirPedido(id, !!aprovar, nota); cicloRecados(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
+ipcMain.handle('recados:decidir', (_e, id, aprovar, nota) => { try { recados.decidir(id, !!aprovar, nota); cicloRecados(); cicloCanal(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
+
+// --- canal entre orquestradores de computadores diferentes (canal.js) ---------
+// A cada 3 s: (re)liga a escuta quando a configuração muda e publica o que o
+// usuário aprovou. Falha de rede tenta de novo com espera crescente; recusa do
+// servidor (token, permissão, tamanho) vira "falhou" e o orquestrador fica sabendo.
+let canalEscuta = null;
+let canalChave = null;
+let canalSituacao = { conectado: false, erro: null };
+const canalTentativas = new Map(); // id → { n, depois }
+const canalEnviando = new Set();
+const avisadosCanal = new Set();
+function situacaoCanal() {
+  const a = canal.ajustes(config.ler());
+  return { ativo: a.ativo, pronto: a.pronto, falta: a.falta, servidor: a.host, minhaCaixa: a.minhaCaixa, contatos: a.contatos,
+    aprovarEnvio: a.aprovarEnvio, conectado: !!(canalEscuta && canalSituacao.conectado), erro: canalEscuta ? canalSituacao.erro : null };
+}
+function cicloCanal() {
+  try {
+    const a = canal.ajustes(config.ler());
+    // A chave muda com servidor, caixa ou token (o token só entra resumido).
+    const chave = a.pronto && a.minhaCaixa ? `${a.host}|${a.minhaCaixa}|${require('crypto').createHash('sha256').update(a.token).digest('hex').slice(0, 12)}` : null;
+    if (chave !== canalChave) {
+      if (canalEscuta) canalEscuta.parar();
+      canalEscuta = null; canalChave = chave; canalSituacao = { conectado: false, erro: null };
+      if (chave) {
+        canalEscuta = canal.escutar(a, {
+          aoChegar: (m) => { if (recados.recebidoExterno(m, canal.remetente(m, a.contatos))) cicloRecados(); },
+          aoEstado: (e) => { canalSituacao = e; enviar('canal:estado', situacaoCanal()); },
+        });
+      }
+      enviar('canal:estado', situacaoCanal());
+    }
+    const fila = recados.externosNaFila();
+    // Recado esperando aprovação: avisa uma vez (notificação do sistema).
+    for (const r of recados.ler(1000)) {
+      if (!(r.canal && r.para.tipo === 'externo' && r.estado === 'aguardando') || avisadosCanal.has(r.id)) continue;
+      avisadosCanal.add(r.id);
+      if (Notification.isSupported()) new Notification({ title: t('Precisa de você'), body: `${t('O orquestrador quer mandar um recado para')} ${r.para.nome}`, urgency: 'critical' }).show();
+    }
+    if (!fila.length) return;
+    for (const r of fila) {
+      if (canalEnviando.has(r.id)) continue;
+      const tent = canalTentativas.get(r.id) || { n: 0, depois: 0 };
+      if (Date.now() < tent.depois) continue;
+      if (!a.pronto) { recados.adiarExterno(r.id, `canal sem configuração: ${a.falta || 'falta caixa ou contato'}`); canalTentativas.set(r.id, { n: tent.n, depois: Date.now() + 30000 }); continue; }
+      if (!a.contatos.some((c) => c.caixa === r.para.caixa)) { recados.concluirExterno(r.id, { ok: false, erro: `${r.para.nome} não está mais nos contatos do canal` }); continue; }
+      const problema = canal.problemaDoTexto(r.texto);
+      if (problema) { recados.concluirExterno(r.id, { ok: false, erro: problema }); continue; }
+      canalEnviando.add(r.id);
+      canal.publicar(a, { caixa: r.para.caixa, texto: r.texto, titulo: r.titulo })
+        .then(() => { canalTentativas.delete(r.id); recados.concluirExterno(r.id, { ok: true }); })
+        .catch((e) => {
+          const definitivo = e.status && e.status !== 429 && e.status < 500;
+          if (definitivo || tent.n >= 20) { canalTentativas.delete(r.id); recados.concluirExterno(r.id, { ok: false, erro: e.message }); return; }
+          canalTentativas.set(r.id, { n: tent.n + 1, depois: Date.now() + Math.min(5000 * 2 ** tent.n, 10 * 60 * 1000) });
+          recados.adiarExterno(r.id, `não saiu ainda (${e.message}); tento de novo sozinho`);
+        })
+        .finally(() => { canalEnviando.delete(r.id); cicloRecados(); });
+    }
+  } catch (e) { console.error('[canal]', e.message); }
+}
+setInterval(cicloCanal, 3000);
+ipcMain.handle('canal:estado', () => situacaoCanal());
 ipcMain.handle('recados:lista', () => recados.ler());
 ipcMain.handle('recados:vezes', () => recados.lerVezes());
 ipcMain.handle('recados:liberar', (_e, id) => { try { recados.liberar(id); cicloRecados(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
