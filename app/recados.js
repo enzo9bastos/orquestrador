@@ -455,6 +455,11 @@ function recebidoExterno(msg, nome) {
   acrescentar(r);
   return r;
 }
+// Há algo esperando aprovação que nasceu há pouco? (Aí o fim de turno do
+// orquestrador não vira notificação do sistema: o bichinho já vem trazer.)
+function aprovacaoRecente(agora = Date.now(), janelaMs = 10 * 60 * 1000) {
+  return ler(1000).some((r) => r.estado === 'aguardando' && r.ts >= agora - janelaMs);
+}
 // Aprovar/negar o que espera o usuário: pedido avulso ou recado para fora.
 function decidir(id, aprovar, nota = '') {
   if (externoPorId(id)) return decidirExterno(id, aprovar, nota);
@@ -575,4 +580,4 @@ function lembrar(dir, { titulo, texto, tipo = 'decisao', autor = 'orquestrador' 
   throw new Error('não achei um nome livre para a nota');
 }
 
-module.exports = { ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, pedir, decidirPedido, decidir, pedirExterno, decidirExterno, externosNaFila, concluirExterno, adiarExterno, recebidoExterno, pedidosNaFila, pedidosRodando, marcarRodando, largarRodando, concluirPedido, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };
+module.exports = { aprovacaoRecente, ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, pedir, decidirPedido, decidir, pedirExterno, decidirExterno, externosNaFila, concluirExterno, adiarExterno, recebidoExterno, pedidosNaFila, pedidosRodando, marcarRodando, largarRodando, concluirPedido, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };

@@ -225,3 +225,21 @@ test('canal: pelo comando, informação liberada vai direto para a fila; a que f
     assert.match(u.motivo, /«decidiu»/);
   } finally { fs.writeFileSync(cfg, antes); }
 });
+
+// Pedido de 2026-11-13: aprovação pendente é avisada só pelo bichinho — nem a
+// notificação do canal, nem a de "o orquestrador respondeu" quando o turno
+// terminou deixando recado para aprovar.
+test('canal: aprovação pendente não vira notificação do sistema', () => {
+  const main = fs.readFileSync(path.join(__dirname, '../../main.js'), 'utf8');
+  const ciclo = main.slice(main.indexOf('function cicloCanal'), main.indexOf("setInterval(cicloCanal"));
+  assert.doesNotMatch(ciclo, /new Notification/);
+  assert.match(main, /a\.tipo === 'resposta' && a\.orquestrador && recados\.aprovacaoRecente\(\)\) return;/);
+  const agora = Date.now();
+  const a = ajustes();
+  const r = recados.pedirExterno({ contato: a.contatos[0], texto: 'teste recente', segurar: 'decisão: espera você aprovar' });
+  assert.strictEqual(recados.aprovacaoRecente(), true);
+  assert.strictEqual(recados.aprovacaoRecente(agora + 11 * 60 * 1000), false, 'antiga (mais de 10 min): a notificação volta a valer');
+  for (const x of recados.ler().filter((y) => y.estado === 'aguardando')) recados.decidir(x.id, false, '');
+  assert.ok(recados.ler().some((y) => y.id === r.id && y.estado === 'negado'));
+  assert.strictEqual(recados.aprovacaoRecente(), false, 'decididas: nada esperando');
+});

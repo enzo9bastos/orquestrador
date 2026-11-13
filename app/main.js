@@ -266,6 +266,9 @@ conversa.ligarAvisos((a) => {
   const emFoco = janela && janela.isFocused() && !janela.isMinimized();
   if (a.tipo === 'pedido' && n.pedidos === false) return;
   if (a.tipo === 'resposta' && (n.respostas === false || emFoco)) return;
+  // Turno que terminou deixando recado para aprovar: quem avisa é o bichinho
+  // (pedido de 2026-11-13), sem notificação do sistema por cima.
+  if (a.tipo === 'resposta' && a.orquestrador && recados.aprovacaoRecente()) return;
   if (!Notification.isSupported()) return;
   const quem = a.orquestrador ? 'O orquestrador' : `"${a.titulo}"`;
   const titulo = t(a.tipo === 'pedido' ? `${quem} precisa de você` : `${quem} respondeu`);
@@ -460,7 +463,6 @@ let canalChave = null;
 let canalSituacao = { conectado: false, erro: null };
 const canalTentativas = new Map(); // id → { n, depois }
 const canalEnviando = new Set();
-const avisadosCanal = new Set();
 function situacaoCanal() {
   const a = canal.ajustes(config.ler());
   return { ativo: a.ativo, pronto: a.pronto, falta: a.falta, servidor: a.host, minhaCaixa: a.minhaCaixa, contatos: a.contatos,
@@ -483,12 +485,8 @@ function cicloCanal() {
       enviar('canal:estado', situacaoCanal());
     }
     const fila = recados.externosNaFila();
-    // Recado esperando aprovação: avisa uma vez (notificação do sistema).
-    for (const r of recados.ler(1000)) {
-      if (!(r.canal && r.para.tipo === 'externo' && r.estado === 'aguardando') || avisadosCanal.has(r.id)) continue;
-      avisadosCanal.add(r.id);
-      if (Notification.isSupported()) new Notification({ title: t('Precisa de você'), body: `${t('O orquestrador quer mandar um recado para')} ${r.para.nome}`, urgency: 'critical' }).show();
-    }
+    // Recado esperando aprovação: quem avisa é o bichinho (pendências) e o
+    // cartão na conversa; sem notificação do sistema (pedido de 2026-11-13).
     if (!fila.length) return;
     for (const r of fila) {
       if (canalEnviando.has(r.id)) continue;
