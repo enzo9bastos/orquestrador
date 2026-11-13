@@ -14,6 +14,7 @@ const readline = require('readline');
 const { spawn } = require('child_process');
 const config = require('./config');
 const ias = require('./ias');
+const codex = require('./conversa-codex');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
 const TESTE = process.env.ORQ_APP_TESTE === '1';
@@ -73,6 +74,20 @@ function esforcoPadrao() {
   try { return JSON.parse(fs.readFileSync(path.join(os.homedir(), '.claude', 'settings.json'), 'utf8')).effortLevel || null; } catch { return null; }
 }
 const conversas = new Map(); // id → Conversa
+
+// Motores que o app sabe conduzir numa conversa.
+const MOTORES = ['claude', 'codex'];
+function motorDoOrquestrador() {
+  const m = config.ler().iaOrquestrador;
+  return MOTORES.includes(m) ? m : 'claude';
+}
+// O que o motor Codex precisa da conversa (conversa-codex.js).
+const CTX_CODEX = {
+  gravarLista: () => gravarLista(),
+  avisar: (a) => avisar(a),
+  avisarLista: () => avisarLista(),
+  fimDeTurno: (c, r) => c.fimDeTurno(r),
+};
 
 const arqTranscript = (sessao) => path.join(os.homedir(), '.claude', 'projects', PASTA.replace(/[^A-Za-z0-9]/g, '-'), sessao + '.jsonl');
 function linhasDoTranscript(sessao) {
@@ -154,7 +169,12 @@ function comandosLocais() {
 }
 
 class Conversa {
-  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null }) {
+  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {} }) {
+    // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
+    // orquestrador segue a "IA do orquestrador" da configuração; trocar de
+    // motor guarda a conversa do anterior em sessoesMotor e retoma a do novo.
+    this.motor = MOTORES.includes(motor) ? motor : 'claude';
+    this.sessoesMotor = sessoesMotor && typeof sessoesMotor === 'object' ? sessoesMotor : {};
     this.anteriores = anteriores; // sessões de rodadas já desligadas
     // Volta pendente: { de: sessão original, ate: uuid }. Vale até a 1ª
     // resposta da sessão nova; fechar o app antes disso refaz a volta.
@@ -168,7 +188,23 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { modelo: modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || esforcoPadrao(), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, rotuloLongo: null, ocupado: false };
+  }
+
+  // O orquestrador segue a IA escolhida na configuração. Só troca parado:
+  // a conversa do motor que sai fica guardada para quando ele voltar.
+  acertarMotor() {
+    if (!this.orquestrador || this.proc) return;
+    const quer = motorDoOrquestrador();
+    if (quer === this.motor) return;
+    this.sessoesMotor[this.motor] = this.sessao;
+    this.motor = quer;
+    this.sessao = this.sessoesMotor[quer] || null;
+    delete this.sessoesMotor[quer];
+    this.volta = null;
+    this.modeloEscolhido = quer === 'codex' ? null : this.modeloEscolhido;
+    Object.assign(this.info, { motor: quer, modelo: quer === 'codex' ? null : this.modeloEscolhido ? MODELOS[this.modeloEscolhido] : modeloPadrao(), esforco: this.esforco || (quer === 'codex' ? null : esforcoPadrao()), contexto: null, janela: null, uso5h: null, uso7d: null, rotuloLongo: null });
+    gravarLista();
   }
 
   enviar(canal, dado) { enviarTela(canal, { id: this.id, dado }); }
@@ -195,6 +231,7 @@ class Conversa {
   // Tira a mensagem escolhida e tudo o que veio depois dela do contexto do
   // Claude. Devolve o texto dela, para a tela pôr na caixa e corrigir.
   voltar(ordemDoFim, textoBalao) {
+    if (this.motor === 'codex') throw new Error('voltar a conversa ainda não funciona com o Codex');
     const de = this.volta ? this.volta.de : this.sessao;
     if (!de) throw new Error('esta conversa ainda não tem histórico para voltar');
     const linhas = this.volta
@@ -218,6 +255,15 @@ class Conversa {
 
   iniciar({ primeiraMensagem } = {}) {
     if (this.proc) return;
+    this.acertarMotor();
+    if (this.motor === 'codex') {
+      const retomando = !!this.sessao;
+      this.eventos = []; // o histórico chega quando o Codex retoma a conversa
+      this.enviar('conversa:tudo', this.estado());
+      codex.iniciar(this, { comando: ias.comando('codex', config.ler().iasCaminhos), cwd: PASTA, env: ambienteLimpo(), ctx: CTX_CODEX });
+      if (!retomando && primeiraMensagem) this.mandar(primeiraMensagem);
+      return;
+    }
     const args = this.argumentos();
     const retomando = !!(this.volta || this.sessao);
     this.eventos = this.volta ? historicoDoTranscript(this.volta.de, this.volta.ate) : retomando ? historicoDoTranscript(this.sessao) : [];
@@ -308,7 +354,6 @@ class Conversa {
         return;
       }
       case 'result': {
-        info.ocupado = false;
         // 1ª resposta depois de voltar: a sessão nova já está gravada.
         if (this.volta && this.sessaoDaVolta) {
           this.anteriores = [...(this.anteriores || []), this.volta.de].slice(-20);
@@ -318,13 +363,7 @@ class Conversa {
         }
         const mu = Object.values(d.modelUsage || {})[0];
         if (mu && mu.contextWindow) info.janela = mu.contextWindow;
-        this.avisarInfo();
-        this.registrar({ tipo: 'resultado', erro: d.is_error, duracao: d.duration_ms, texto: d.is_error ? d.result : null });
-        // Fim de turno: o Claude parou e espera o usuário (a tela decide se avisa).
-        if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (d.is_error ? 'Terminou com erro.' : 'Terminou.') });
-        this.ultimoTexto = '';
-        if (this.desligando) { this.desligando = false; this.encerrar(); return; }
-        if (this.reiniciarDepois) { this.reiniciarDepois = false; this.reiniciar(); }
+        this.fimDeTurno({ erro: d.is_error, duracao: d.duration_ms, texto: d.is_error ? d.result : null });
         return;
       }
       case 'control_request':
@@ -340,6 +379,18 @@ class Conversa {
         return;
       default:
     }
+  }
+
+  // Fim de turno (Claude ou Codex): a IA parou e espera o usuário (a tela
+  // decide se avisa).
+  fimDeTurno({ erro = false, duracao = null, texto = null } = {}) {
+    this.info.ocupado = false;
+    this.avisarInfo();
+    this.registrar({ tipo: 'resultado', erro, duracao, texto: erro ? texto : null });
+    if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
+    this.ultimoTexto = '';
+    if (this.desligando) { this.desligando = false; this.encerrar(); return; }
+    if (this.reiniciarDepois) { this.reiniciarDepois = false; this.reiniciar(); }
   }
 
   juntarComandos() {
@@ -379,6 +430,7 @@ class Conversa {
       : texto;
     const mostrado = exibir && !imagens.length ? exibir : content;
     this.registrar({ tipo: 'user', message: { role: 'user', content: mostrado }, local: true });
+    if (this.motor === 'codex') return codex.mandar(this, texto, imagens);
     return this.escrever({ type: 'user', message: { role: 'user', content } });
   }
 
@@ -387,6 +439,12 @@ class Conversa {
     const p = this.pendentes.get(reqId);
     if (!p) return false;
     this.pendentes.delete(reqId);
+    if (this.motor === 'codex') {
+      codex.responder(this, p, decisao);
+      this.enviar('conversa:respondido', reqId);
+      avisarLista();
+      return true;
+    }
     const resposta = decisao.permitir
       ? { behavior: 'allow', updatedInput: decisao.respostas ? { ...p.entrada, answers: decisao.respostas } : p.entrada }
       : { behavior: 'deny', message: decisao.motivo || 'Negado pelo usuário no app.' };
@@ -400,6 +458,16 @@ class Conversa {
   // conversa reinicia com --resume (mesma conversa, histórico intacto). No meio
   // de um turno, espera o turno acabar.
   configurar({ modelo, esforco }) {
+    if (this.motor === 'codex') {
+      // O Codex usa o modelo da configuração dele; o esforço vai a cada turno
+      // (sem reiniciar).
+      if (modelo) return false;
+      if (esforco !== undefined) { if (esforco && !codex.ESFORCO[esforco]) return false; this.esforco = esforco || null; }
+      this.info.esforco = this.esforco;
+      gravarLista();
+      this.avisarInfo();
+      return true;
+    }
     if (modelo !== undefined) { if (modelo && !MODELOS[modelo]) return false; this.modeloEscolhido = modelo || null; }
     if (esforco !== undefined) { if (esforco && !ESFORCOS.includes(esforco)) return false; this.esforco = esforco || null; }
     if (this.modeloEscolhido) this.info.modelo = MODELOS[this.modeloEscolhido];
@@ -431,6 +499,7 @@ class Conversa {
   }
 
   interromper() {
+    if (this.motor === 'codex') return codex.interromper(this);
     return this.escrever({ type: 'control_request', request_id: `int-${Date.now()}`, request: { subtype: 'interrupt' } });
   }
 
@@ -439,18 +508,19 @@ class Conversa {
   }
 
   estado() {
-    return { id: this.id, comandos: this.comandos || comandosLocais(), eventos: this.eventos, pendentes: [...this.pendentes.values()], info: this.info, vivo: !!this.proc };
+    const comandos = this.motor === 'codex' ? codex.comandosDoCodex() : this.comandos || comandosLocais();
+    return { id: this.id, comandos, eventos: this.eventos, pendentes: [...this.pendentes.values()], info: this.info, vivo: !!this.proc };
   }
 
   resumo() {
-    return { id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, ocupado: this.info.ocupado, pedidos: this.pendentes.size, vivo: !!this.proc };
+    return { id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, motor: this.motor, ocupado: this.info.ocupado, pedidos: this.pendentes.size, vivo: !!this.proc };
   }
 }
 
 // --- lista guardada -----------------------------------------------------
 function gravarLista() {
   fs.mkdirSync(CACHE, { recursive: true });
-  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined }));
+  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined }));
   fs.writeFileSync(ARQ_LISTA, JSON.stringify(lista, null, 2) + '\n');
 }
 

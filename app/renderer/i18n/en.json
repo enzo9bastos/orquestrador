@@ -982,7 +982,11 @@
     "Recado de": "Message from",
     "Vezes passadas": "Handoffs",
     "Falta:": "Still to do:",
-    "Não funcionou:": "Didn't work:"
+    "Não funcionou:": "Didn't work:",
+    "Codex": "Codex",
+    "Conduzida pelo Codex": "Run by Codex",
+    "O Codex usa o modelo da configuração dele (~/.codex/config.toml).": "Codex uses the model from its own settings (~/.codex/config.toml).",
+    "Escreva para o Codex… (Enter envia · Shift+Enter quebra linha)": "Write to Codex… (Enter sends · Shift+Enter new line)"
   },
   "padroes": [
     [
@@ -1688,6 +1692,22 @@
     [
       "^pergunta (\\d+) de (\\d+) · pode marcar mais de uma$",
       "question $1 of $2 · you can pick more than one"
+    ],
+    [
+      "^(\\d+) dias$",
+      "$1 days"
+    ],
+    [
+      "^(\\d+) dia$",
+      "$1 day"
+    ],
+    [
+      "^O revisor do Codex negou um comando(.*)$",
+      "Codex's reviewer denied a command$1"
+    ],
+    [
+      "^O Codex parou \\(código (\\d+)\\)\\. (.*)$",
+      "Codex stopped (code $1). $2"
     ]
   ]
 }

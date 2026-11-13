@@ -33,7 +33,8 @@ test('ias: acha os CLIs do PATH com caminho e versão', async () => {
   assert.deepStrictEqual(lista.map((c) => c.id), ['claude', 'codex', 'gemini', 'opencode', 'cursor', 'aider', 'qwen']);
   assert.deepStrictEqual(por.claude, { id: 'claude', nome: 'Claude Code', comando: 'claude', encontrado: true, caminho: path.join(bin, 'claude'), versao: '9.8.7', suportado: true });
   assert.strictEqual(por.codex.versao, '0.41.2');
-  assert.strictEqual(por.codex.suportado, false, 'por enquanto só o Claude é orquestrador');
+  assert.strictEqual(por.codex.suportado, true, 'o Codex também conduz o orquestrador (conversa-codex.js)');
+  assert.strictEqual(por.gemini.suportado, false);
   assert.strictEqual(por.gemini.encontrado, true);
   assert.strictEqual(por.gemini.versao, null);
   assert.strictEqual(por.cursor.comando, 'cursor-agent');
@@ -64,7 +65,8 @@ test('ias: guarda o resultado por 1 min; forcar detecta de novo', async () => {
 test('ias: a IA efetiva é a escolhida só se for suportada e estiver instalada', async () => {
   const lista = await ias.listar({ env });
   assert.strictEqual(ias.efetiva('claude', lista), 'claude');
-  assert.strictEqual(ias.efetiva('codex', lista), 'claude', 'codex ainda não é suportado: volta ao Claude');
+  assert.strictEqual(ias.efetiva('codex', lista), 'codex', 'codex suportado e instalado');
+  assert.strictEqual(ias.efetiva('gemini', lista), 'claude', 'gemini ainda não é suportado: volta ao Claude');
   assert.strictEqual(ias.efetiva('nada', lista), 'claude');
   assert.strictEqual(ias.efetiva(undefined, []), 'claude');
 });

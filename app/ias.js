@@ -1,8 +1,9 @@
 // IAs conectadas: acha as ferramentas de IA de linha de comando (CLIs) que
 // estão no PATH do app (ou no caminho escolhido na engrenagem), com a versão
 // de cada uma. Primeiro passo para o app
-// conduzir agentes de outras IAs além do Claude Code: por enquanto só o
-// Claude sabe ser o orquestrador (conversa.js); as outras aparecem na lista.
+// conduzir agentes de outras IAs além do Claude Code: o Claude e o Codex sabem
+// ser o orquestrador (conversa.js, conversa-codex.js); as outras aparecem na
+// lista.
 //
 // Cada candidato roda só com --version, sem shell, com tempo curto e o
 // ambiente das conversas. Da saída fica só o número da versão: nada do que a
@@ -15,7 +16,7 @@ const { execFile } = require('child_process');
 // suportado: o app já sabe conduzir esta IA como orquestrador.
 const CANDIDATOS = [
   { id: 'claude', nome: 'Claude Code', comando: 'claude', suportado: true },
-  { id: 'codex', nome: 'Codex CLI', comando: 'codex', suportado: false },
+  { id: 'codex', nome: 'Codex CLI', comando: 'codex', suportado: true },
   { id: 'gemini', nome: 'Gemini CLI', comando: 'gemini', suportado: false },
   { id: 'opencode', nome: 'OpenCode', comando: 'opencode', suportado: false },
   { id: 'cursor', nome: 'Cursor CLI', comando: 'cursor-agent', suportado: false },
@@ -118,7 +119,7 @@ async function listar({ env = process.env, forcar = false, caminhos = {} } = {})
 }
 
 // A IA que vai de fato rodar: a escolhida, se o app souber conduzi-la e ela
-// estiver instalada; senão o Claude (o único ligado hoje).
+// estiver instalada; senão o Claude.
 function efetiva(escolhida, lista) {
   const c = (lista || []).find((x) => x.id === escolhida);
   return c && c.suportado && c.encontrado ? c.id : PADRAO;

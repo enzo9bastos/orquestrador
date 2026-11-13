@@ -182,7 +182,7 @@ Already multi-tool (`repertorio.js` `FERRAMENTAS`). Remaining work:
 | **1 (done)** | `ias.js` detection, settings panel "IAs conectadas (CLI)", config keys `iaOrquestrador` / `iaAgentes`, fallback to Claude with a notice, tests `tests/unit/ias.test.js`, `tests/e2e/ias.e2e.js` | Panel lists the 7 CLIs with version/path; nothing else changes |
 | 2 | Extract `ias/claude.js` from `conversa.js` behind the adapter interface; no behaviour change | Every existing `conversa` test passes untouched; `Conversa` has no `claude` string left |
 | 3 | Workflow step `ia` with per-CLI one-shot (read-only) | A workflow can ask Codex/Gemini/OpenCode/Cursor/Qwen; old `claude` steps still run |
-| 4 | First second orchestrator: an ACP adapter (Gemini/Qwen/OpenCode) **or** Codex `app-server`, whichever passes the permission round-trip check first; mark `suportado: true` | Orchestrator chat works with permissions, interrupt, resume, model switch |
+| 4 | **Done (2026-11-12): Codex `app-server`** (`app/conversa-codex.js`, `suportado: true`). Outside the sandbox, `untrusted` + `auto_review`; `request_user_input` enabled with `--enable default_mode_request_user_input`. Not yet: rewind and model switch for Codex. Next: an ACP adapter (Gemini/Qwen/OpenCode) | Orchestrator chat works with permissions, interrupt, resume, model switch |
 | 5 | tmux agents per CLI: detection profiles + event bridges into `.orq/eventos` | Agents of each CLI appear with correct state; screen fallback for the rest |
 | 6 | "Agentes novos usam" actually used when the orchestrator opens an agent (the `comandoInicial` round command and project scripts receive the chosen CLI) | A new agent starts on the configured CLI |
 

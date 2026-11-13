@@ -36,7 +36,9 @@
     grupo = document.createElement('div');
     grupo.className = 'msg-claude';
     const ms = horaEvento === undefined ? Date.now() : horaEvento;
-    grupo.innerHTML = `<div class="autor"><span class="marca-claude">✳</span>Claude${ms ? `<time class="hora-msg" data-sem-traducao title="${esc(new Date(ms).toLocaleString('pt-BR'))}">${esc(horario(ms))}</time>` : ''}</div>`;
+    // Quem responde: o Claude ou o Codex (motor da conversa aberta).
+    const autor = infoAtual.motor === 'codex' ? '<span class="marca-claude marca-codex">◎</span>Codex' : '<span class="marca-claude">✳</span>Claude';
+    grupo.innerHTML = `<div class="autor">${autor}${ms ? `<time class="hora-msg" data-sem-traducao title="${esc(new Date(ms).toLocaleString('pt-BR'))}">${esc(horario(ms))}</time>` : ''}</div>`;
     caixa.append(grupo);
     return grupo;
   }
@@ -431,7 +433,8 @@
     const janela = i.janela || null;
     medidor($('info-contexto'), 'Contexto', i.contexto != null && janela ? Math.round((i.contexto / janela) * 100) : null);
     medidor($('info-5h'), '5 h', i.uso5h);
-    medidor($('info-7d'), '7 dias', i.uso7d);
+    // A janela longa: 7 dias no Claude; no Codex, a do plano (ex.: 30 dias no free).
+    medidor($('info-7d'), i.rotuloLongo || '7 dias', i.uso7d);
     $('trabalhando').hidden = !i.ocupado;
   }
 
@@ -448,9 +451,12 @@
   }
   function desenharMenu() {
     const m = infoAtual.modelo || '';
-    $('opcoes-modelo').innerHTML = MODELOS.map(([k, nome, id]) =>
-      `<button type="button" data-modelo="${k}" aria-pressed="${m === id}">${nome}</button>`).join('');
-    $('opcoes-esforco').innerHTML = ESFORCOS.map(([k, nome, n]) =>
+    const codex = infoAtual.motor === 'codex';
+    // O Codex usa o modelo da configuração dele; aqui só o esforço muda.
+    $('opcoes-modelo').innerHTML = codex
+      ? '<p class="popup-nota">O Codex usa o modelo da configuração dele (~/.codex/config.toml).</p>'
+      : MODELOS.map(([k, nome, id]) => `<button type="button" data-modelo="${k}" aria-pressed="${m === id}">${nome}</button>`).join('');
+    $('opcoes-esforco').innerHTML = ESFORCOS.filter(([k]) => !codex || k !== 'max').map(([k, nome, n]) =>
       `<button type="button" data-esforco="${k}" aria-pressed="${infoAtual.esforco === k}"><span class="nivel">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'cheio' : ''}"></i>`).join('')}</span>${nome}</button>`).join('');
   }
   function fecharMenu() { $('menu-modelo').hidden = true; $('botao-modelo').setAttribute('aria-expanded', 'false'); }
@@ -672,6 +678,7 @@
         <button type="button" class="abrir-conversa" data-conversa="${esc(c.id)}">
           <svg class="ico"><use href="#${c.orquestrador ? 'i-estrela' : 'i-balao'}"/></svg>
           <span class="titulo-conversa">${esc(c.titulo)}</span>
+          ${c.motor === 'codex' ? '<span class="selo-motor" title="Conduzida pelo Codex">Codex</span>' : ''}
           <span class="ponto ${estado}" title="${texto}"></span>
         </button>
         ${c.orquestrador ? '' : `<button type="button" class="fechar-conversa" data-fechar-conversa="${esc(c.id)}" title="Tirar da lista (a conversa continua no histórico do Claude)" aria-label="Fechar conversa">✕</button>`}
@@ -684,7 +691,7 @@
     $('desligar').hidden = !(atual && atual.orquestrador && cfg.comandoDesligar);
     $('palco-pet').hidden = !!(atual && !atual.orquestrador);
     $('entrada').placeholder = atual && !atual.orquestrador
-      ? 'Escreva para o Claude…  (Enter envia · Shift+Enter quebra linha)'
+      ? (atual.motor === 'codex' ? 'Escreva para o Codex…  (Enter envia · Shift+Enter quebra linha)' : 'Escreva para o Claude…  (Enter envia · Shift+Enter quebra linha)')
       : 'Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)';
   }
   C.aoLista(desenharLista);

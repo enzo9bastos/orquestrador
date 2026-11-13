@@ -30,10 +30,15 @@ waiting for you. Closing the app never stops an agent.
 
 **It drives the AIs through their own command-line tools** — no API keys to paste, no extra accounts:
 whatever CLI you are already logged into does the work. Settings → *Connected AIs (CLI)* shows which
-ones are installed. Today the orchestrator runs on [Claude Code](https://claude.com/claude-code); agents
-can run on Claude Code or on the **Codex CLI** (the app recognizes either one in a terminal and shows which, with
-its model), and an orchestrator can hand one-off tasks to either (`orq-recado pedir`). Codex as orchestrator,
-Gemini CLI, OpenCode and others are on the roadmap — see [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md). Ideas for later live in [`docs/IDEAS.md`](docs/IDEAS.md).
+ones are installed. The orchestrator runs on [Claude Code](https://claude.com/claude-code) or on the **Codex CLI**
+(Settings → *Orchestrator AI*; each one keeps its own conversation when you switch). Agents can run on either
+(the app recognizes each one in a terminal and shows which, with its model), and an orchestrator can hand one-off
+tasks to either (`orq-recado pedir`). The Codex orchestrator talks to `codex app-server`: its multiple-choice
+questions and approvals become the same cards as Claude's. It runs outside Codex's sandbox (the `orq` commands need
+tmux and docker), with the `untrusted` approval policy and Codex's own `auto_review` reviewer deciding every command
+that is not read-only; a denial shows up in the chat with the reviewer's reason. The start command (e.g.
+`/orquestrar-app`) is sent as the Codex skill of the same name from `~/.codex/skills`. Gemini CLI, OpenCode and
+others are on the roadmap — see [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md). Ideas for later live in [`docs/IDEAS.md`](docs/IDEAS.md).
 The Library and the workflows already work with any of them.
 
 The app speaks **English and Portuguese** — switch in ⚙ Settings → *App language*.
