@@ -484,6 +484,9 @@ function cicloCanal() {
       }
       enviar('canal:estado', situacaoCanal());
     }
+    // Envio que o usuário mandou fazer: o trecho citado tem de estar numa
+    // mensagem que ele digitou na conversa do orquestrador.
+    for (const r of recados.conferindoExternos()) recados.conferirAutorizacao(r.id, conversa.usuarioEscreveu(r.autorizadoPor));
     const fila = recados.externosNaFila();
     // Recado esperando aprovação: quem avisa é o bichinho (pendências) e o
     // cartão na conversa; sem notificação do sistema (pedido de 2026-11-13).

@@ -14,7 +14,7 @@
   let vista = 'recados'; // 'recados' | 'vezes' | 'memoria'
 
   const ESTADO = { novo: 'esperando o orquestrador', entregue: 'entregue', segurado: 'segurado', recusado: 'recusado',
-    aguardando: 'espera você', 'na-fila': 'na fila', rodando: 'rodando', pronto: 'pronto', falhou: 'falhou', negado: 'negado' };
+    aguardando: 'espera você', conferindo: 'conferindo', 'na-fila': 'na fila', rodando: 'rodando', pronto: 'pronto', falhou: 'falhou', negado: 'negado' };
   const TIPO = { pergunta: 'pergunta', aviso: 'aviso', pronto: 'terminou', travado: 'travado', vez: 'passou a vez',
     pedido: 'pedido avulso', resposta: 'resposta', falhou: 'não deu certo', negado: 'negado', externo: 'de outro computador' };
   const ESTADO_VEZ = { aberta: 'aberta', pega: 'pega', recusada: 'recusada' };

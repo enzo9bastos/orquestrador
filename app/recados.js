@@ -403,7 +403,9 @@ function embrulhoExterno(r, corpo) {
 }
 
 // segurar: null = sai sem aprovar; texto = o motivo de esperar o usuário.
-function pedirExterno({ contato, texto, titulo = null, classe = 'decisao', segurar = 'espera você aprovar' }) {
+// autorizadoPor: trecho literal da mensagem em que o usuário mandou enviar; o
+// app confere na conversa (conferindo) e, batendo, o recado sai sem aprovação.
+function pedirExterno({ contato, texto, titulo = null, classe = 'decisao', segurar = 'espera você aprovar', autorizadoPor = null }) {
   const t = String(texto || '').trim();
   if (!t) throw new Error('recado vazio');
   if (!contato || !contato.caixa) throw new Error('contato desconhecido');
@@ -411,7 +413,9 @@ function pedirExterno({ contato, texto, titulo = null, classe = 'decisao', segur
     id: novoId(), ts: Date.now(), canal: true,
     de: { tipo: 'orquestrador' }, para: { tipo: 'externo', nome: contato.nome, caixa: contato.caixa },
     tipo: 'externo', texto: t, titulo: titulo ? String(titulo).trim().slice(0, 120) : null, classe,
-    estado: segurar ? 'aguardando' : 'na-fila', motivo: segurar ? `vai sair deste computador; ${segurar}` : null, semAprovacao: !segurar,
+    estado: segurar ? (autorizadoPor ? 'conferindo' : 'aguardando') : 'na-fila',
+    motivo: segurar ? (autorizadoPor ? 'conferindo a sua autorização na conversa' : `vai sair deste computador; ${segurar}`) : null,
+    semAprovacao: !segurar, segurar: segurar || null, autorizadoPor: segurar && autorizadoPor ? String(autorizadoPor).slice(0, 300) : null,
   };
   acrescentar(r);
   return r;
@@ -431,6 +435,13 @@ function decidirExterno(id, aprovar, nota = '') {
   if (aprovar) { mudar(id, { estado: 'na-fila', motivo: null, nota: n }); return; }
   mudar(id, { estado: 'negado', motivo: null, nota: n });
   avisarOrquestradorDoEnvio(r, `O usuário NÃO deixou sair o recado para ${r.para.nome}: «${r.texto.slice(0, 300)}»${n ? `\nMotivo/orientação: ${n}` : '\n(sem motivo)'}`, 'negado');
+}
+const conferindoExternos = () => ler(5000).filter((x) => x.canal && x.para.tipo === 'externo' && x.estado === 'conferindo');
+function conferirAutorizacao(id, achou) {
+  const r = externoPorId(id);
+  if (!r || r.estado !== 'conferindo') return;
+  if (achou) mudar(id, { estado: 'na-fila', motivo: `autorizado por você na conversa: «${r.autorizadoPor}»`, semAprovacao: true });
+  else mudar(id, { estado: 'aguardando', motivo: `vai sair deste computador; ${r.segurar || 'espera você aprovar'} (a autorização citada não está numa mensagem sua da última hora)` });
 }
 const externosNaFila = () => ler(5000).filter((x) => x.canal && x.para.tipo === 'externo' && x.estado === 'na-fila');
 function concluirExterno(id, { ok, erro = null }) {
@@ -580,4 +591,4 @@ function lembrar(dir, { titulo, texto, tipo = 'decisao', autor = 'orquestrador' 
   throw new Error('não achei um nome livre para a nota');
 }
 
-module.exports = { aprovacaoRecente, ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, pedir, decidirPedido, decidir, pedirExterno, decidirExterno, externosNaFila, concluirExterno, adiarExterno, recebidoExterno, pedidosNaFila, pedidosRodando, marcarRodando, largarRodando, concluirPedido, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };
+module.exports = { aprovacaoRecente, conferindoExternos, conferirAutorizacao, ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, pedir, decidirPedido, decidir, pedirExterno, decidirExterno, externosNaFila, concluirExterno, adiarExterno, recebidoExterno, pedidosNaFila, pedidosRodando, marcarRodando, largarRodando, concluirPedido, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };

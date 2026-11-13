@@ -540,6 +540,24 @@ function carregarLista() {
 function avisarLista() { enviarTela('conversa:lista', lista()); }
 function lista() { return [...conversas.values()].map((c) => c.resumo()); }
 
+// O usuário escreveu este trecho na conversa do orquestrador há pouco? Serve
+// para o recado que ELE mandou enviar não pedir aprovação de novo. Só conta
+// mensagem digitada por ele: recado de fora, workflow (<orq-…>) e comando (/…)
+// não valem, então ninguém de fora consegue "autorizar" em nome dele.
+const normalizar = (t) => String(t || '').toLowerCase().normalize('NFC').replace(/[\s"'«»“”]+/g, ' ').trim();
+function usuarioEscreveu(trecho, { janelaMs = 60 * 60 * 1000, agora = Date.now() } = {}) {
+  const alvo = normalizar(trecho);
+  if (alvo.length < 15) return false;
+  const o = [...conversas.values()].find((c) => c.orquestrador);
+  if (!o) return false;
+  return o.eventos.some((e) => {
+    if (e.tipo !== 'user' || e.sub || !e.message || (e.ts || 0) < agora - janelaMs) return false;
+    const t = textoDoPrompt(e.message.content);
+    if (t == null || /^\s*[</]/.test(t)) return false;
+    return normalizar(t).includes(alvo);
+  });
+}
+
 function pegar(id) {
   const c = conversas.get(id);
   if (!c) throw new Error('conversa desconhecida');
@@ -603,6 +621,7 @@ function encerrarTodas() {
 carregarLista();
 
 module.exports = {
+  usuarioEscreveu, _pegar: (id) => pegar(id),
   ligar: (fn) => { enviarTela = fn; },
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade

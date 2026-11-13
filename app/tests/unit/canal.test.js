@@ -243,3 +243,21 @@ test('canal: aprovação pendente não vira notificação do sistema', () => {
   assert.ok(recados.ler().some((y) => y.id === r.id && y.estado === 'negado'));
   assert.strictEqual(recados.aprovacaoRecente(), false, 'decididas: nada esperando');
 });
+
+test('canal: envio autorizado pelo usuário: confere o trecho; bateu sai, não bateu espera', () => {
+  const a = ajustes();
+  const r1 = recados.pedirExterno({ contato: a.contatos[0], texto: 'o Enzo quer assim', segurar: 'decisão: espera você aprovar', autorizadoPor: 'avisa a ele pra organizar assim' });
+  assert.deepStrictEqual([r1.estado, r1.autorizadoPor], ['conferindo', 'avisa a ele pra organizar assim']);
+  assert.ok(!recados.externosNaFila().some((x) => x.id === r1.id), 'nada sai antes de conferir');
+  recados.conferirAutorizacao(r1.id, true);
+  const d1 = recados.ler().find((x) => x.id === r1.id);
+  assert.deepStrictEqual([d1.estado, d1.semAprovacao], ['na-fila', true]);
+  assert.match(d1.motivo, /autorizado por você na conversa: «avisa a ele pra organizar assim»/);
+  const r2 = recados.pedirExterno({ contato: a.contatos[0], texto: 'o Enzo topa', segurar: 'decisão: espera você aprovar', autorizadoPor: 'trecho que ele nunca escreveu' });
+  recados.conferirAutorizacao(r2.id, false);
+  const d2 = recados.ler().find((x) => x.id === r2.id);
+  assert.strictEqual(d2.estado, 'aguardando');
+  assert.match(d2.motivo, /a autorização citada não está numa mensagem sua da última hora/);
+  const r3 = recados.pedirExterno({ contato: a.contatos[0], texto: 'recebi', segurar: null, autorizadoPor: 'qualquer coisa aqui' });
+  assert.strictEqual(r3.estado, 'na-fila', 'o que já sai sozinho não precisa conferir');
+});

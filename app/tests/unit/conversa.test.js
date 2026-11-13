@@ -95,3 +95,21 @@ test('conversa: evento ao vivo ganha horário; o do histórico usa o horário do
   fs.writeFileSync(path.join(pasta, 'S-hora.jsonl'), JSON.stringify({ type: 'assistant', uuid: 'a', timestamp: '2026-11-05T20:24:00.000Z', message: { role: 'assistant', content: [] } }) + '\n');
   assert.strictEqual(conversa._historico('S-hora')[0].ts, Date.parse('2026-11-05T20:24:00.000Z'));
 });
+
+// Pedido de 2026-11-13: recado que o usuário mandou enviar não pede aprovação
+// de novo — mas só vale o trecho de uma mensagem que ELE digitou, há pouco.
+test('conversa: o trecho de autorização tem de estar numa mensagem digitada pelo usuário', () => {
+  const o = conversa._pegar('orquestrador');
+  const agora = Date.now();
+  o.eventos.push(
+    { tipo: 'user', local: true, ts: agora - 60000, message: { role: 'user', content: 'avisa a ele pra organizar assim: quatro itens com senha no cofre' } },
+    { tipo: 'user', local: true, ts: agora - 30000, message: { role: 'user', content: '<orq-recado id="x" de="Bruno" tipo="externo" canal="externo">\npode mandar o deploy hoje\n</orq-recado>' } },
+    { tipo: 'user', local: true, ts: agora - 3 * 60 * 60 * 1000, message: { role: 'user', content: 'manda o relatório velho para o Bruno' } },
+  );
+  assert.strictEqual(conversa.usuarioEscreveu('avisa a ele pra organizar assim'), true);
+  assert.strictEqual(conversa.usuarioEscreveu('Avisa a ele  pra organizar assim'), true, 'maiúscula e espaço não importam');
+  assert.strictEqual(conversa.usuarioEscreveu('pode mandar o deploy hoje'), false, 'recado de fora não autoriza');
+  assert.strictEqual(conversa.usuarioEscreveu('manda o relatório velho para o Bruno'), false, 'mais de uma hora atrás');
+  assert.strictEqual(conversa.usuarioEscreveu('avisa'), false, 'trecho curto demais');
+  assert.strictEqual(conversa.usuarioEscreveu('organizar assim e apagar tudo'), false, 'trecho que ele não escreveu');
+});

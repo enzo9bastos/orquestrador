@@ -16,9 +16,10 @@
 //   orq-recado lembrar <projeto> "título" "texto" [--tipo decisao|falhou|onde|aviso]
 //                                    grava uma nota na memória do projeto
 //   orq-recado instalar <projeto>    põe .orq/bin/orq-recado no projeto
-//   orq-recado externo <contato> "texto" --tipo ciente|informacao|pedido|decisao [--titulo "assunto"]
+//   orq-recado externo <contato> "texto" --tipo ciente|informacao|pedido|decisao [--titulo "assunto"] [--autorizado "trecho"]
 //                                    recado ao orquestrador de OUTRO computador (canal ntfy). Pedido e
-//                                    decisão esperam o usuário aprovar; ciente/informação podem sair sozinhos
+//                                    decisão esperam o usuário aprovar; ciente/informação podem sair sozinhos.
+//                                    --autorizado: o usuário mandou enviar; cite o trecho literal da mensagem dele
 //   orq-recado contatos [--json]     contatos do canal externo e se ele está ligado
 //
 // Só fala com agentes que o app acompanha (painel do tmux com o Claude na pasta
@@ -118,8 +119,10 @@ try {
     const classe = opc.tipo ? String(opc.tipo).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : 'decisao';
     if (!canal.CLASSES.includes(classe)) sair(`tipo inválido: ${opc.tipo} (ciente|informacao|pedido|decisao)`);
     const segurar = canal.precisaAprovar(a, { classe, texto });
-    const r = recados.pedirExterno({ contato, texto, titulo: opc.titulo || null, classe, segurar });
-    console.log(segurar
+    const r = recados.pedirExterno({ contato, texto, titulo: opc.titulo || null, classe, segurar, autorizadoPor: opc.autorizado || null });
+    console.log(segurar && opc.autorizado
+      ? `recado para ${contato.nome}: o app confere a autorização («${String(opc.autorizado).slice(0, 80)}») na conversa e, batendo, envia (${r.id})`
+      : segurar
       ? `recado para ${contato.nome} esperando o usuário aprovar na aba Recados (${r.id}): ${segurar}`
       : `recado para ${contato.nome} sai sem aprovação (${canal.NOME_CLASSE[classe]}) (${r.id})`);
     if (!a.pronto) console.log(`atenção: o canal ainda não está pronto: ${a.falta}`);
@@ -133,7 +136,7 @@ try {
       for (const c of a.contatos) console.log(`  ${c.nome} → ${c.caixa}`);
     }
   } else {
-    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 25).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+    console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 26).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     if (cmd) process.exit(1);
   }
 } catch (e) { sair(`erro: ${e.message}`); }
