@@ -1,0 +1,7 @@
+{
+  "uuid": "orq-janelas@orquestrador",
+  "name": "Orquestrador: window presence",
+  "description": "Tells the Orquestrador app (over D-Bus) whether its own window is focused and visible on the current workspace, so its helper doesn't pop out while you are looking at the app. Answers only about the app's own windows: no titles or names of other windows.",
+  "shell-version": ["45", "46", "47", "48", "49"],
+  "url": "https://github.com/enzo9bastos/orquestrador"
+}

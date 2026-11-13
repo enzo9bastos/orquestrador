@@ -150,6 +150,12 @@
         <div class="aj-opcoes">${(q.options || []).map((o) => `<button type="button" class="aj-opcao${pg.marcadas.has(o.label) ? ' marcada' : ''}" data-op="${esc(o.label)}"><strong>${esc(o.label)}</strong>${o.description ? `<small>${esc(o.description)}</small>` : ''}</button>`).join('')}</div>
         <textarea id="pg-outra" rows="2" placeholder="Outra resposta… (Enter envia)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
       $('pg-acoes').innerHTML = `<button type="button" class="botao-texto" data-pg="app">Abrir no app</button>${q.multiSelect ? '<button type="button" class="botao primario" data-pg="confirmar">Confirmar</button>' : ''}`;
+    } else if (it.tipo === 'aprovacao') {
+      // O pombo-correio: algo que só sai (ou só roda) com o seu sim.
+      $('pg-passo').textContent = 'espera você aprovar';
+      $('pg-corpo').innerHTML = `<p class="pergunta">${it.canal ? `Recado para ${esc(it.quem)}` : `Pedido ao ${esc(it.quem)}`}</p>${it.titulo ? `<p><strong>${esc(it.titulo)}</strong></p>` : ''}<pre class="aj-comando aj-recado">${esc(it.texto)}</pre>${it.motivo ? `<p class="aj-motivo">${esc(it.motivo)}</p>` : ''}
+        <textarea id="pg-nota" rows="2" placeholder="Orientação ou motivo (opcional)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
+      $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao-texto" data-pg="negar">Negar</button><button type="button" class="botao primario" data-pg="permitir">Aprovar</button>';
     } else if (it.tipo === 'acao') {
       // O orquestrador pediu para rodar algo: mostra os comandos para copiar.
       $('pg-passo').textContent = 'pede uma ação sua';
@@ -189,7 +195,7 @@
     const a = ev.target.closest('[data-pg]')?.dataset.pg;
     if (a === 'feito') { enviarResposta({ feito: true }); return; }
     if (a === 'app') A.enviar({ t: 'abrirApp', conversa: alvoPendencia });
-    else if (a === 'permitir' || a === 'negar') enviarResposta({ permitir: a === 'permitir' });
+    else if (a === 'permitir' || a === 'negar') enviarResposta({ permitir: a === 'permitir', ...($('pg-nota') ? { nota: $('pg-nota').value.trim() } : {}) });
     else if (a === 'confirmar') {
       const outra = $('pg-outra')?.value.trim();
       const r = outra || [...pg.marcadas].join(', ');

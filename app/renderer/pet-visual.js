@@ -123,8 +123,12 @@
     return { especie: ESPECIES[v?.especie] ? v.especie : 'bicho', cor: CORES.some((c) => c[0] === v?.cor) ? v.cor : 'padrao', itens };
   }
 
+  // A carta do pombo-correio (o passarinho que traz o que espera aprovação).
+  // Fica fora do guarda-roupa: só aparece nessa visita.
+  const CARTA = [[11, 1, 4, 3, '#ecf0f1'], [11, 1, 4, 0.6, '#bdc3c7'], [11.5, 1.6, 1, 0.6, '#bdc3c7'], [13.5, 1.6, 1, 0.6, '#bdc3c7'], [12.5, 2.2, 1, 1, '#c0392b']];
   function svg(visual) {
     const v = limpar(visual);
+    const carta = !!(visual && visual.carta);
     const e0 = ESPECIES[v.especie];
     // Cor própria da espécie; só o Clássico usa a cor escolhida.
     const cor = 'fixa' in e0 ? e0.fixa : CORES.find((c) => c[0] === v.cor)[2];
@@ -145,7 +149,7 @@
         ${atras ? '' : it('corpo')}
         <g class="olhos">${(e.olhos || [[3, 1, 1, 2], [8, 1, 1, 2]]).map(([x, y, w, h]) => `<rect class="olho" x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('')}</g>
         ${it('rosto')}${it('pescoco')}${it('olhos')}${it('cabeca')}
-        <g class="braco braco-d">${(Array.isArray(e.bracoD[0]) ? e.bracoD : [e.bracoD]).map((p) => r(p, 'pele')).join('')}${it('mao')}</g>
+        <g class="braco braco-d">${(Array.isArray(e.bracoD[0]) ? e.bracoD : [e.bracoD]).map((p) => r(p, 'pele')).join('')}${carta ? `<g class="item item-carta">${rects(CARTA)}</g>` : it('mao')}</g>
       </g>
     </svg>`;
   }

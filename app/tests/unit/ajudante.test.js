@@ -71,17 +71,48 @@ test('pet: resposta da conversa do ajudante vai para o bichinho, não vira notif
   assert.strictEqual(ajudante.aviso({ id: 'orquestrador', tipo: 'resposta', texto: 'oi' }), false);
 });
 
-test('pet: só vai avisar se a pendência ainda existe e o app está fora de foco', () => {
+test('pet: só vai avisar se a pendência ainda existe e o app está fora de foco', async () => {
   let foco = false;
-  ajudante.ligar({ janela: () => ({ isFocused: () => foco, isMinimized: () => false }), conversa: null, enviarTela: () => {} });
+  ajudante.ligar({ janela: () => ({ isFocused: () => foco, isMinimized: () => false }), presenca: async () => ({ foco: 'outro', visivel: false }), conversa: null, enviarTela: () => {} });
   ajudante.pendencias([{ id: 'p1', texto: 'Pergunta', conversa: 'orquestrador' }]);
   ajudante.pendencias([]); // respondida antes da hora de avisar
-  assert.strictEqual(ajudante.confirmarAviso(['p1']), null, 'já respondida: não vai');
+  assert.strictEqual(await ajudante.confirmarAviso(['p1']), null, 'já respondida: não vai');
   ajudante.pendencias([{ id: 'p2', texto: 'Outra', conversa: 'orquestrador' }]);
   foco = true;
-  assert.strictEqual(ajudante.confirmarAviso(['p2']), null, 'usuário no app: não vai');
+  assert.strictEqual(await ajudante.confirmarAviso(['p2']), null, 'usuário no app: não vai');
   foco = false;
-  assert.deepStrictEqual(ajudante.confirmarAviso(['p2']), { t: 'pendencia', texto: 'Outra', total: 1, conversa: 'orquestrador', id: 'p2', item: null }, 'vai, e sabe qual conversa abrir');
+  assert.deepStrictEqual(await ajudante.confirmarAviso(['p2']), { t: 'pendencia', texto: 'Outra', total: 1, conversa: 'orquestrador', id: 'p2', item: null }, 'vai, e sabe qual conversa abrir');
+});
+
+// Pedido de 2026-11-13: clicar fora (na área de trabalho) com o app à vista
+// não faz o bichinho sair do app.
+test('pet: app à vista sem nada mais em foco: o aviso fica no app; coberto ou outra janela em foco: vai', async () => {
+  let presenca = { foco: 'nenhum', visivel: true };
+  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => false }), presenca: async () => presenca, conversa: null, enviarTela: () => {} });
+  ajudante.pendencias([{ id: 'v1', texto: 'Pergunta', conversa: 'orquestrador' }]);
+  assert.strictEqual(await ajudante.confirmarAviso(['v1']), null, 'clicou na área de trabalho: fica no app');
+  presenca = { foco: 'outro', visivel: true };
+  assert.strictEqual((await ajudante.confirmarAviso(['v1'])).id, 'v1', 'outra janela em foco: vai');
+  ajudante.pendencias([]);
+  ajudante.pendencias([{ id: 'v2', texto: 'Outra', conversa: 'orquestrador' }]);
+  presenca = { foco: 'nenhum', visivel: false };
+  assert.strictEqual((await ajudante.confirmarAviso(['v2'])).id, 'v2', 'app coberto ou em outra área: vai');
+  ajudante.pendencias([]);
+});
+
+test('pet: sem como saber o que está na tela, espera antes de sair (regra de reserva)', async () => {
+  const msgs = [];
+  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => false }), presenca: async () => null, conversa: null, enviarTela: () => {} });
+  ajudante.pendencias([{ id: 'r1', texto: 'Pergunta', conversa: 'orquestrador' }]);
+  assert.strictEqual(await ajudante.confirmarAviso(['r1']), null, 'primeiro espera');
+  assert.strictEqual((await ajudante.confirmarAviso(['r1'], { reserva: true })).id, 'r1', 'depois da espera, ainda pendente: vai');
+  ajudante.pendencias([]);
+  // Minimizado: vai direto, sem perguntar ao ambiente.
+  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => true }), presenca: async () => { msgs.push('perguntou'); return null; }, conversa: null, enviarTela: () => {} });
+  ajudante.pendencias([{ id: 'r2', texto: 'Outra', conversa: 'orquestrador' }]);
+  assert.strictEqual((await ajudante.confirmarAviso(['r2'])).id, 'r2');
+  assert.deepStrictEqual(msgs, []);
+  ajudante.pendencias([]);
 });
 
 test('pet: resposta dada no ajudante vai para a conversa ou para o agente certo', () => {
@@ -110,17 +141,17 @@ test('pet: resposta dada no ajudante vai para a conversa ou para o agente certo'
 });
 
 // Pedido de 2026-10-30: o orquestrador pediu para rodar um comando e nada avisou.
-test('pet: resposta que pede para rodar um comando vira pendência "acao" até o Feito', () => {
+test('pet: resposta que pede para rodar um comando vira pendência "acao" até o Feito', async () => {
   assert.ok(ajudante.pedeAcao('Rode de novo no seu computador:\n\n```\n./instalar.sh --aplicar\n```'));
   assert.strictEqual(ajudante.pedeAcao('Rodou tudo certo:\n```\nok\n```'), null, 'relato, não pedido');
   assert.strictEqual(ajudante.pedeAcao('Rode os testes depois.'), null, 'sem comando para rodar');
-  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => false }), conversa: { responder: () => true }, enviarTela: () => {} });
+  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => false }), presenca: async () => ({ foco: 'outro', visivel: false }), conversa: { responder: () => true }, enviarTela: () => {} });
   ajudante.pendencias([]);
   ajudante.aviso({ tipo: 'resposta', id: 'orquestrador', orquestrador: true, texto: 'Execute no seu terminal:\n```\nls -la\n```' });
   const [id] = ajudante.acoesAbertas();
   assert.ok(id, 'virou pendência');
   ajudante.pendencias([]); // a próxima leitura do estado não a apaga
-  const msg = ajudante.confirmarAviso([id]);
+  const msg = await ajudante.confirmarAviso([id]);
   assert.strictEqual(msg.item.tipo, 'acao');
   assert.deepStrictEqual(msg.item.comandos, ['ls -la']);
   assert.ok(ajudante.responder({ id, feito: true }), 'Feito');
@@ -159,4 +190,20 @@ test('pet: só o Clássico usa a cor escolhida; paleta sem cor repetida', () => 
   assert.ok(!hex.includes('#8b5cf6'), 'o roxo é a "Cor do app" padrão; não repete');
   assert.ok(V.CORES.length >= 15);
   assert.strictEqual(V.limpar({ cor: 'roxo' }).cor, 'padrao', 'quem tinha "Roxo" volta para a cor do app (o mesmo roxo)');
+});
+
+// Pedido de 2026-11-13: aprovação (recado para fora, pedido avulso com escrita)
+// vem no pombo-correio e é decidida ali mesmo, com motivo opcional.
+test('pet: aprovação vira visita do pombo-correio e a decisão vai para a aba Recados', async () => {
+  const decisoes = [];
+  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => true }), decidir: (...a) => { decisoes.push(a); return true; }, conversa: null, enviarTela: () => {} });
+  ajudante.pendencias([{ id: 'aprovar:e1', texto: 'Recado para Bruno espera você aprovar', item: { tipo: 'aprovacao', recado: 'e1', canal: true, quem: 'Bruno', texto: 'oi' } }]);
+  const msg = await ajudante.confirmarAviso(['aprovar:e1']);
+  assert.strictEqual(msg.mensageiro, true);
+  assert.ok(ajudante.responder({ id: 'aprovar:e1', permitir: false, nota: 'agora não' }));
+  assert.deepStrictEqual(decisoes, [['e1', false, 'agora não']]);
+  // Junto com uma pergunta: vem o bichinho de sempre.
+  ajudante.pendencias([{ id: 'aprovar:e2', texto: 'x', item: { tipo: 'aprovacao', recado: 'e2', quem: 'Bruno', texto: 'y' } }, { id: 'conversa:o:r1', conversa: 'o', texto: 'pergunta' }]);
+  assert.strictEqual((await ajudante.confirmarAviso(['aprovar:e2', 'conversa:o:r1'])).mensageiro, undefined);
+  ajudante.pendencias([]);
 });

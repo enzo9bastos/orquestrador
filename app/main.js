@@ -541,6 +541,13 @@ function verPendencias(r) {
       // ajudante mostra e o usuário responde ali mesmo.
       item: { tipo: p.entrada?.questions ? 'pergunta' : 'permissao', quem: c.orquestrador ? 'O orquestrador' : c.titulo, reqId: p.id, perguntas: p.entrada?.questions || null, ferramenta: p.ferramenta, comando: p.entrada?.command || p.entrada?.file_path || null, descricao: p.entrada?.description || null },
     }))),
+    // O que espera aprovação na aba Recados (recado para fora, pedido avulso
+    // que pede escrita): vem o pombo-correio, e dá para decidir ali mesmo.
+    ...recados.ler(1000).filter((r) => r.estado === 'aguardando').map((r) => ({
+      id: `aprovar:${r.id}`,
+      texto: r.canal ? `Recado para ${r.para.nome} espera você aprovar` : `Pedido ao ${r.para.nome} espera você aprovar`,
+      item: { tipo: 'aprovacao', recado: r.id, canal: !!r.canal, quem: r.para.nome, titulo: r.titulo || null, texto: String(r.texto || '').slice(0, 1500), motivo: r.motivo || null },
+    })),
   ];
   ajudante.pendencias(lista);
 }
@@ -650,7 +657,8 @@ app.whenReady().then(() => {
     } catch { return new Response('', { status: 404 }); }
   });
   criarJanela();
-  ajudante.ligar({ janela: () => janela, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
+  ajudante.ligar({ janela: () => janela, presenca: () => require('./janelas').estado([process.pid]),
+    decidir: (id, aprovar, nota) => { recados.decidir(id, aprovar, nota); cicloRecados(); cicloCanal(); return true; }, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
   workflows.ligar({
     conversa,

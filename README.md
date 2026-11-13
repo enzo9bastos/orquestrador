@@ -166,8 +166,19 @@ screen (the input box, attachments, agent cards).
 - **Leaves the app and walks your desktop** (a transparent X11 window, so it can move freely even on
   Wayland). It lives on every workspace, stays out of the overview and Alt+Tab, and when you switch
   workspaces it walks in from the side you came from — only on the monitor that actually switched.
-- **Brings you what needs you.** When something new is pending and the app is not focused, it walks in
+- **Brings you what needs you.** When something new is pending and you are not looking at the app, it walks in
   with the question and its options (or the permission, with *Allow / Deny*) and you answer right there.
+  What waits for your **approval** (a message to another computer, a one-off request that wants to write) comes
+  with a **carrier pigeon** instead — the little bird holding a letter — with *Approve / Deny* and an optional reason.
+- **Knows when the app is on screen.** Clicking the desktop takes the focus away but the app is still in front of
+  you, so the helper stays inside it. Wayland doesn't let apps see other windows, so each desktop has its own way:
+  | Desktop | How the app knows | Setup |
+  |---|---|---|
+  | GNOME (Wayland or X11) | a tiny read-only GNOME Shell extension, [`extras/gnome-shell`](extras/gnome-shell) — it answers only about the app's own windows | `extras/gnome-shell/instalar.sh`, then log out and back in |
+  | Sway | `swaymsg -t get_tree` | none |
+  | Hyprland | `hyprctl` | none |
+  | any other X11 desktop (Xfce, MATE, Cinnamon…) | `xprop` / `xwininfo` | none |
+  | anything else (e.g. KDE Plasma on Wayland, for now) | fallback: minimized → it goes out; otherwise it waits 2 min and goes out if the thing is still pending | none |
 - **Call it from anywhere** with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> (`orq-pet`): chat right
   there, or **📷 crop a piece of your screen** and ask about it (`gnome-screenshot` by default; set your own
   capture program with `capturaTela`, see [the configuration reference](examples/CONFIGURATION.md)).

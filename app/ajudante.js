@@ -104,7 +104,8 @@ function responder(m) {
   if (p && p.item && p.item.tipo === 'acao') { acoes.delete(m.id); ok = true; } // "Feito"
   else if (p && p.item) {
     try {
-      if (p.item.tipo === 'agente') ok = ctx.responderAgente(p.item.emp, p.item.proj, p.item.id, m.permitir ? 'permitir' : 'negar');
+      if (p.item.tipo === 'aprovacao') ok = !!ctx.decidir && ctx.decidir(p.item.recado, !!m.permitir, m.nota || '') !== false;
+      else if (p.item.tipo === 'agente') ok = ctx.responderAgente(p.item.emp, p.item.proj, p.item.id, m.permitir ? 'permitir' : 'negar');
       else if (p.item.tipo === 'pergunta') ok = ctx.conversa.responder(p.conversa, p.item.reqId, { permitir: true, respostas: m.respostas || {} });
       else ok = ctx.conversa.responder(p.conversa, p.item.reqId, { permitir: !!m.permitir });
     } catch { ok = false; }
@@ -201,7 +202,22 @@ function recolher() { mandar({ t: 'sumir' }); }
 const ESPERA_AVISO = TESTE ? 50 : 6000;
 let atuais = new Map();
 let mostrando = null;
-const appNaFrente = () => { const j = ctx.janela(); return !!(j && j.isFocused() && !j.isMinimized()); };
+// Reconferir enquanto o app está à vista; sem como saber, esperar mais antes de sair.
+const RECONFERE = TESTE ? 60 : 30000;
+const ESPERA_RESERVA = TESTE ? 120 : 2 * 60 * 1000;
+// O usuário está com o app na tela? true / false, ou null quando não dá para
+// saber (app fora de foco e o ambiente não conta o que está à vista: janelas.js).
+// Clicar na área de trabalho tira o foco, mas o app continua à vista: aí o
+// aviso fica dentro do app.
+async function appNaTela() {
+  const j = ctx.janela();
+  if (!j || j.isMinimized() || (j.isVisible && !j.isVisible())) return false;
+  if (j.isFocused()) return true;
+  let e = null;
+  try { e = ctx.presenca ? await ctx.presenca() : null; } catch { e = null; }
+  if (e) return !!(e.visivel && e.foco !== 'outro');
+  return null;
+}
 function pendencias(lista) {
   lista = [...lista.filter((p) => !p.id.startsWith('acao:')), ...acoes.values()];
   atuais = new Map(lista.map((p) => [p.id, p]));
@@ -216,15 +232,27 @@ function pendencias(lista) {
   }
   return novas;
 }
-function confirmarAviso(ids) {
-  const ainda = ids.filter((id) => atuais.has(id)).map((id) => atuais.get(id));
-  if (!ainda.length || appNaFrente()) return null;
+async function confirmarAviso(ids, { reserva = false } = {}) {
+  let ainda = ids.filter((id) => atuais.has(id)).map((id) => atuais.get(id));
+  if (!ainda.length) return null;
+  const naTela = await appNaTela();
+  if (naTela === true) { reconferir(ids, {}, RECONFERE); return null; }
+  if (naTela === null && !reserva) { reconferir(ids, { reserva: true }, ESPERA_RESERVA); return null; }
+  ainda = ids.filter((id) => atuais.has(id)).map((id) => atuais.get(id));
+  if (!ainda.length) return null;
   iniciar();
   mostrando = new Set(ainda.map((p) => p.id));
   const texto = ainda.length === 1 ? ainda[0].texto : `${ainda.length} coisas esperando por você`;
   const msg = { t: 'pendencia', texto, total: atuais.size, conversa: ainda[0].conversa || null, id: ainda[0].id, item: ainda[0].item || null };
+  // Só aprovação na visita: vem o pombo-correio, não o bichinho de sempre.
+  if (ainda.every((p) => p.item && p.item.tipo === 'aprovacao')) msg.mensageiro = true;
   mandar(msg);
   return msg;
+}
+
+function reconferir(ids, opc, ms) {
+  const t = setTimeout(() => { confirmarAviso(ids, opc).catch(() => {}); }, ms);
+  if (t.unref) t.unref();
 }
 
 // --- atalho do sistema ---------------------------------------------------------
