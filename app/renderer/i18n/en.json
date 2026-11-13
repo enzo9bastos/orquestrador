@@ -1022,7 +1022,8 @@
     "ciente": "acknowledgment",
     "informação": "information",
     "decisão": "decision",
-    "pedido": "request"
+    "pedido": "request",
+    "Esperando você aprovar": "Waiting for your approval"
   },
   "padroes": [
     [

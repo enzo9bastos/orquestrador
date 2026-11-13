@@ -703,6 +703,7 @@
     $('iniciar-rodada').hidden = !(atual && atual.orquestrador && cfg.comandoInicial);
     $('desligar').hidden = !(atual && atual.orquestrador && cfg.comandoDesligar);
     $('palco-pet').hidden = !!(atual && !atual.orquestrador);
+    try { desenharAprovacoes(); } catch { /* ainda carregando a tela */ }
     $('entrada').placeholder = atual && !atual.orquestrador
       ? (atual.motor === 'codex' ? 'Escreva para o Codex…  (Enter envia · Shift+Enter quebra linha)' : 'Escreva para o Claude…  (Enter envia · Shift+Enter quebra linha)')
       : 'Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)';
@@ -1151,5 +1152,53 @@
   });
   // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
   // Fica no fim do script: tudo o que ele expõe já existe aqui.
+  // --- o que espera aprovação (aba Recados), também aqui na conversa ----------
+  // Recado para outro computador ou pedido avulso que pede escrita: um cartão
+  // acima da caixa de texto, na conversa do orquestrador. Decidir aqui ou na
+  // aba Recados é a mesma coisa.
+  const R = window.orq.recados;
+  let aguardando = [];
+  function desenharAprovacoes() {
+    const el = $('aprovacoes-chat');
+    const naDoOrquestrador = !!(listaConversas || []).find((c) => c.id === ativa && c.orquestrador);
+    const lista = naDoOrquestrador ? aguardando : [];
+    el.hidden = !lista.length;
+    // Não redesenha um cartão em que o usuário está escrevendo o motivo.
+    const vivos = new Set(lista.map((r) => r.id));
+    for (const c of [...el.querySelectorAll('[data-aprovacao]')]) if (!vivos.has(c.dataset.aprovacao)) c.remove();
+    for (const r of lista) {
+      if (el.querySelector(`[data-aprovacao="${CSS.escape(r.id)}"]`)) continue;
+      const c = document.createElement('div');
+      c.className = 'cartao-pedido cartao-aprovacao';
+      c.dataset.aprovacao = r.id;
+      const para = r.canal ? `Recado para ${r.para.nome}` : `Pedido ao ${r.para.nome}`;
+      c.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span><strong data-sem-traducao>${esc(para)}</strong>${r.titulo ? ` · <span data-sem-traducao>${esc(r.titulo)}</span>` : ''}<span class="selo">espera você</span></div>
+        <div class="texto-aprovacao" data-sem-traducao>${esc(r.texto)}</div>
+        ${r.motivo ? `<div class="nota">${esc(r.motivo)}</div>` : ''}
+        <textarea class="outra" rows="1" maxlength="2000" placeholder="Orientação ou motivo (opcional)" aria-label="Orientação ou motivo (opcional)"></textarea>
+        <div class="acoes"><button type="button" class="botao primario" data-decidir="1">Aprovar</button><button type="button" class="botao secundario" data-decidir="0">Negar</button></div>`;
+      el.append(c);
+    }
+  }
+  async function carregarAprovacoes(l) {
+    try { aguardando = (l || await R.lista()).filter((r) => r.estado === 'aguardando').slice().reverse(); } catch { aguardando = []; }
+    desenharAprovacoes();
+  }
+  if (R) {
+    R.aoMudar((l) => carregarAprovacoes(l));
+    carregarAprovacoes();
+    $('aprovacoes-chat').addEventListener('click', async (ev) => {
+      const b = ev.target.closest('[data-decidir]');
+      if (!b) return;
+      const c = b.closest('[data-aprovacao]');
+      c.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+      const r = await R.decidir(c.dataset.aprovacao, b.dataset.decidir === '1', c.querySelector('textarea').value);
+      if (r && r.erro) { c.querySelector('.acoes').insertAdjacentHTML('beforeend', `<span class="nota">${esc(r.erro)}</span>`); return; }
+      aguardando = aguardando.filter((x) => x.id !== c.dataset.aprovacao);
+      c.remove();
+      $('aprovacoes-chat').hidden = !$('aprovacoes-chat').children.length;
+    });
+  }
+
   if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
 })();
