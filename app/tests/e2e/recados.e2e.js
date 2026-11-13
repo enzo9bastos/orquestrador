@@ -34,13 +34,16 @@ test('recados', async (t) => {
 
   await t.test('a aba mostra os recados dos dois lados, do mais novo ao mais antigo', async () => {
     await app.avaliar("document.querySelector('[data-aba=\"aba-recados\"]').click()");
-    await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 6");
+    await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 4");
     const l = await itens();
-    assert.deepStrictEqual(l.map((x) => x.id), ['p2', 'p1', 'r4', 'r3', 'r2', 'r1']);
-    assert.deepStrictEqual([l[4].de, l[4].para], ['Orquestrador', 'Agente 1 (site)']);
-    assert.deepStrictEqual([l[1].de, l[1].para], ['Orquestrador', 'Codex avulso']);
-    assert.deepStrictEqual(l.map((x) => x.estado), ['espera você', 'espera você', 'recusado', 'segurado', 'entregue', 'entregue']);
-    assert.deepStrictEqual(l.map((x) => x.liberar), [false, false, false, true, false, false], 'só o segurado tem Liberar');
+    assert.deepStrictEqual(l.map((x) => x.id), ['r4', 'r3', 'r2', 'r1']);
+    assert.deepStrictEqual([l[2].de, l[2].para], ['Orquestrador', 'Agente 1 (site)']);
+    // Pedido de 2026-11-13: o que espera você fica em cima, em "Para aprovar".
+    assert.strictEqual(await app.avaliar("document.getElementById('recados-aprovar').hidden"), false);
+    assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado')].map((li) => li.dataset.id)"), ['p2', 'p1']);
+    assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado')].map((li) => [li.querySelector('.recado-para').textContent, li.querySelector('.recado-selo-estado').textContent])"), [['Claude avulso', 'espera você'], ['Codex avulso', 'espera você']]);
+    assert.deepStrictEqual(l.map((x) => x.estado), ['recusado', 'segurado', 'entregue', 'entregue']);
+    assert.deepStrictEqual(l.map((x) => x.liberar), [false, true, false, false], 'só o segurado tem Liberar');
   });
 
   await t.test('o segurado aparece no contador da aba e sai dele ao liberar', async () => {
@@ -84,6 +87,7 @@ test('recados', async (t) => {
     const p1 = await app.avaliar("document.querySelector('[data-id=\"p1\"]').innerText");
     assert.match(p1, /na fila[\s\S]*sua orientação: só PNG, 64x64/);
     assert.ok(await app.avaliar("document.getElementById('n-recados-atencao').hidden"));
+    assert.ok(await app.avaliar("document.getElementById('recados-aprovar').hidden"), 'sem nada esperando, a seção some');
   });
 
   await t.test('vezes passadas: aberta e pega, com o que falta e o que não funcionou', async () => {

@@ -130,6 +130,11 @@
               <button type="button" role="tab" data-rc-aba="vezes">Vezes passadas</button>
               <button type="button" role="tab" data-rc-aba="memoria">Memória do projeto</button>
             </div>
+            <section class="recados-aprovar" id="recados-aprovar" hidden>
+              <h4 class="recados-aprovar-titulo">Para aprovar</h4>
+              <ol class="recados-linha" id="recados-aprovar-linha"></ol>
+              <h4 class="recados-aprovar-titulo">Todos os recados</h4>
+            </section>
             <p class="nota recados-dica" id="recados-dica"></p>
             <ol class="recados-linha" id="recados-linha"></ol>
             <ol class="recados-linha" id="vezes-linha" hidden></ol>
@@ -423,6 +428,14 @@
             <div class="config-linha">
               <div><strong>Aprovar cada envio</strong><span>Nada sai deste computador sem você aprovar na aba Recados.</span></div>
               <input type="checkbox" data-cfg="canalAprovarEnvio">
+            </div>
+            <div class="config-linha">
+              <div><strong>Sem aprovar: ciente</strong><span>"Recebi", "ok, vou olhar" (até 300 caracteres) saem sozinhos.</span></div>
+              <input type="checkbox" data-cfg="canalSemAprovarCiente">
+            </div>
+            <div class="config-linha">
+              <div><strong>Sem aprovar: informação</strong><span>Fatos (onde está um arquivo, situação de algo) saem sozinhos. Pergunta, ou o que parece decisão, preferência, prazo ou compromisso seu, espera você.</span></div>
+              <input type="checkbox" data-cfg="canalSemAprovarInformacao">
             </div>
           </div>
           <div class="config-painel" role="tabpanel" id="config-sec-ias" data-secao="ias" aria-labelledby="config-aba-ias" tabindex="-1" hidden>

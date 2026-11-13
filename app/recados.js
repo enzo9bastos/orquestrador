@@ -395,15 +395,16 @@ function embrulhoExterno(r, corpo) {
   return `<orq-recado id="${semAspas(r.id)}" de="Usuário" tipo="${semAspas(r.tipo)}" canal="externo">\n${corpo}\n\n${responder}\n</orq-recado>`;
 }
 
-function pedirExterno({ contato, texto, titulo = null, aprovar = true }) {
+// segurar: null = sai sem aprovar; texto = o motivo de esperar o usuário.
+function pedirExterno({ contato, texto, titulo = null, classe = 'decisao', segurar = 'espera você aprovar' }) {
   const t = String(texto || '').trim();
   if (!t) throw new Error('recado vazio');
   if (!contato || !contato.caixa) throw new Error('contato desconhecido');
   const r = {
     id: novoId(), ts: Date.now(), canal: true,
     de: { tipo: 'orquestrador' }, para: { tipo: 'externo', nome: contato.nome, caixa: contato.caixa },
-    tipo: 'externo', texto: t, titulo: titulo ? String(titulo).trim().slice(0, 120) : null,
-    estado: aprovar ? 'aguardando' : 'na-fila', motivo: aprovar ? 'vai sair deste computador: espera você aprovar' : null,
+    tipo: 'externo', texto: t, titulo: titulo ? String(titulo).trim().slice(0, 120) : null, classe,
+    estado: segurar ? 'aguardando' : 'na-fila', motivo: segurar ? `vai sair deste computador; ${segurar}` : null, semAprovacao: !segurar,
   };
   acrescentar(r);
   return r;

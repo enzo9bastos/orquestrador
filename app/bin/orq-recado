@@ -16,9 +16,9 @@
 //   orq-recado lembrar <projeto> "título" "texto" [--tipo decisao|falhou|onde|aviso]
 //                                    grava uma nota na memória do projeto
 //   orq-recado instalar <projeto>    põe .orq/bin/orq-recado no projeto
-//   orq-recado externo <contato> "texto" [--titulo "assunto"]
-//                                    recado ao orquestrador de OUTRO computador (canal ntfy da
-//                                    configuração); sai só depois que o usuário aprovar na aba Recados
+//   orq-recado externo <contato> "texto" --tipo ciente|informacao|pedido|decisao [--titulo "assunto"]
+//                                    recado ao orquestrador de OUTRO computador (canal ntfy). Pedido e
+//                                    decisão esperam o usuário aprovar; ciente/informação podem sair sozinhos
 //   orq-recado contatos [--json]     contatos do canal externo e se ele está ligado
 //
 // Só fala com agentes que o app acompanha (painel do tmux com o Claude na pasta
@@ -115,10 +115,13 @@ try {
     if (!contato) sair(`contato não encontrado: ${quem}. Contatos: ${a.contatos.map((c) => `${c.nome} (${c.caixa})`).join(', ')}`);
     const problema = canal.problemaDoTexto(texto);
     if (problema) sair(`recusado: ${problema}`);
-    const r = recados.pedirExterno({ contato, texto, titulo: opc.titulo || null, aprovar: a.aprovarEnvio });
-    console.log(a.aprovarEnvio
-      ? `recado para ${contato.nome} esperando o usuário aprovar na aba Recados (${r.id}); a resposta dele, se vier, chega na sua conversa`
-      : `recado para ${contato.nome} na fila de envio (${r.id})`);
+    const classe = opc.tipo ? String(opc.tipo).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : 'decisao';
+    if (!canal.CLASSES.includes(classe)) sair(`tipo inválido: ${opc.tipo} (ciente|informacao|pedido|decisao)`);
+    const segurar = canal.precisaAprovar(a, { classe, texto });
+    const r = recados.pedirExterno({ contato, texto, titulo: opc.titulo || null, classe, segurar });
+    console.log(segurar
+      ? `recado para ${contato.nome} esperando o usuário aprovar na aba Recados (${r.id}): ${segurar}`
+      : `recado para ${contato.nome} sai sem aprovação (${canal.NOME_CLASSE[classe]}) (${r.id})`);
     if (!a.pronto) console.log(`atenção: o canal ainda não está pronto: ${a.falta}`);
   } else if (cmd === 'contatos') {
     const canal = require('../canal');

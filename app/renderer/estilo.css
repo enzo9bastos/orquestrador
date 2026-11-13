@@ -1478,3 +1478,7 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 /* Conversa conduzida pelo Codex: marca do autor e selo na lista. */
 .marca-claude.marca-codex { color: var(--fg-2); }
 .item-conversa .selo-motor { font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 6px; border: 1px solid var(--borda, currentColor); color: var(--fg-2); flex: none; }
+
+/* Aba Recados: o que espera o usuário fica em cima. */
+.recados-aprovar-titulo { margin: 4px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--fg-2); text-transform: uppercase; }
+.recados-aprovar .recados-linha { margin-bottom: 14px; }

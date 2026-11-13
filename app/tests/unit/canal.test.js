@@ -133,7 +133,7 @@ test('canal: recado de fora chega ao orquestrador como dado, uma vez só', () =>
 
 test('canal: envio espera o usuário; negar avisa o orquestrador com o motivo; aprovar põe na fila', () => {
   const a = ajustes();
-  const r1 = recados.pedirExterno({ contato: a.contatos[0], texto: 'terminei a parte de vocês', titulo: 'Pronto', aprovar: true });
+  const r1 = recados.pedirExterno({ contato: a.contatos[0], texto: 'terminei a parte de vocês', titulo: 'Pronto', classe: 'decisao', segurar: 'decisão: espera você aprovar' });
   assert.deepStrictEqual([r1.estado, r1.para.caixa], ['aguardando', 'para-bruno']);
   assert.ok(!recados.externosNaFila().some((x) => x.id === r1.id), 'nada sai antes de aprovar');
   recados.decidir(r1.id, false, 'espera o teste terminar');
@@ -142,7 +142,7 @@ test('canal: envio espera o usuário; negar avisa o orquestrador com o motivo; a
   assert.match(aviso.texto, /NÃO deixou sair o recado para Bruno/);
   assert.match(aviso.texto, /Motivo\/orientação: espera o teste terminar/);
   assert.match(recados.embrulho(aviso), /canal="externo"/);
-  const r2 = recados.pedirExterno({ contato: a.contatos[1], texto: 'oi', aprovar: true });
+  const r2 = recados.pedirExterno({ contato: a.contatos[1], texto: 'oi', segurar: 'decisão: espera você aprovar' });
   recados.decidir(r2.id, true, '');
   assert.ok(recados.externosNaFila().some((x) => x.id === r2.id));
   recados.concluirExterno(r2.id, { ok: false, erro: 'HTTP 403: sem permissão de escrever nessa caixa' });
@@ -156,11 +156,12 @@ test('canal: o comando do orquestrador recusa contato desconhecido e segredo; o 
   assert.match(r.stderr, /contato não encontrado: zeca/);
   r = rodar('externo', 'bruno', 'a senha: Abc12345!');
   assert.match(r.stderr, /recusado: .*senha, chave ou token/);
-  r = rodar('externo', 'bruno', 'pode', 'olhar', 'o', 'PR?', '--titulo', 'PR');
+  r = rodar('externo', 'bruno', 'pode', 'olhar', 'o', 'PR?', '--titulo', 'PR', '--tipo', 'pedido');
   assert.strictEqual(r.status, 0, r.stderr);
   assert.match(r.stdout, /esperando o usuário aprovar/);
   const ultimo = recados.ler().at(-1);
-  assert.deepStrictEqual([ultimo.texto, ultimo.titulo, ultimo.estado], ['pode olhar o PR?', 'PR', 'aguardando']);
+  assert.deepStrictEqual([ultimo.texto, ultimo.titulo, ultimo.estado, ultimo.classe], ['pode olhar o PR?', 'PR', 'aguardando', 'pedido']);
+  assert.match(rodar('externo', 'bruno', 'x', '--tipo', 'fofoca').stderr, /tipo inválido/);
   r = rodar('contatos', '--json');
   assert.deepStrictEqual(JSON.parse(r.stdout).contatos.map((c) => c.nome), ['Bruno', 'Carla']);
   assert.ok(!r.stdout.includes(TOKEN), 'o token nunca aparece');
@@ -177,4 +178,40 @@ test('canal: agente não manda para fora (o --para só acha agentes deste comput
   assert.strictEqual(novos[0].para.tipo, 'agente');
   assert.strictEqual(novos[0].estado, 'recusado');
   assert.ok(!recados.externosNaFila().some((x) => x.texto === 'oi de fora'));
+});
+
+// Pedido de 2026-11-13: o usuário escolhe o que sai sem aprovar (ciente,
+// informação); o app confere e, na dúvida, segura.
+test('canal: o que sai sem aprovar, e o que o app segura mesmo assim', () => {
+  const a = { aprovarEnvio: true, semAprovarCiente: true, semAprovarInformacao: true, meuNome: 'Ana' };
+  const decide = (classe, texto, aj = a) => canal.precisaAprovar(aj, { classe, texto });
+  assert.strictEqual(decide('ciente', 'recebi, vou olhar'), null);
+  assert.strictEqual(decide('informacao', 'Os arquivos estão em TI/Atividades em Curso/ana-799/. Conferi: sem senha.'), null, 'nome dentro de caminho não conta');
+  assert.match(decide('informacao', 'Sobre o M38: a preferência da Ana é apagar.'), /parece falar por você \(«preferência»\)/);
+  assert.match(decide('informacao', 'a Ana vê amanhã'), /cita você pelo nome/);
+  assert.match(decide('informacao', 'pode me mandar o arquivo?'), /tem pergunta/);
+  assert.match(decide('informacao', 'o prazo é sexta'), /«prazo»/);
+  assert.match(decide('ciente', 'x'.repeat(301)), /mais de 300 caracteres/);
+  assert.match(decide('pedido', 'manda o X'), /^pedido: espera você aprovar/);
+  assert.match(decide(undefined, 'oi'), /^decisão: espera você aprovar/, 'sem tipo conta como decisão');
+  assert.match(decide('informacao', 'fato', { ...a, semAprovarInformacao: false }), /^informação: espera você aprovar/);
+  assert.strictEqual(decide('decisao', 'qualquer', { ...a, aprovarEnvio: false }), null, 'com a aprovação desligada, tudo sai');
+});
+
+test('canal: pelo comando, informação liberada vai direto para a fila; a que fala por você espera', () => {
+  const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
+  const antes = fs.readFileSync(cfg, 'utf8');
+  fs.writeFileSync(cfg, JSON.stringify({ ...JSON.parse(antes), canalSemAprovarInformacao: true }));
+  try {
+    const rodar = (...x) => spawnSync(process.execPath, [CLI, ...x], { env: { ...process.env, HOME: casa }, encoding: 'utf8' });
+    let r = rodar('externo', 'bruno', 'o arquivo está em /srv/x/relatorio.md', '--tipo', 'informacao');
+    assert.match(r.stdout, /sai sem aprovação \(informação\)/);
+    let u = recados.ler().at(-1);
+    assert.deepStrictEqual([u.estado, u.classe, u.semAprovacao], ['na-fila', 'informacao', true]);
+    r = rodar('externo', 'bruno', 'a Ana decidiu apagar', '--tipo', 'informacao');
+    assert.match(r.stdout, /esperando o usuário aprovar.*«decidiu»/);
+    u = recados.ler().at(-1);
+    assert.deepStrictEqual([u.estado, u.semAprovacao], ['aguardando', false]);
+    assert.match(u.motivo, /«decidiu»/);
+  } finally { fs.writeFileSync(cfg, antes); }
 });

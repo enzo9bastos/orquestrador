@@ -45,7 +45,7 @@
     for (const el of document.querySelectorAll('#config [data-cfg]')) {
       if (el === document.activeElement) continue;
       const v = pegar(el.dataset.cfg);
-      if (el.type === 'checkbox') el.checked = v !== false;
+      if (el.type === 'checkbox') el.checked = /^canalSemAprovar/.test(el.dataset.cfg) ? v === true : v !== false;
       else if (el.dataset.cfg === 'ambiente') el.value = Object.entries(v || {}).map(([a, b]) => `${a}=${b}`).join('\n');
       else if (el.dataset.cfg === 'canalContatos') el.value = (v || []).map((c) => `${c.nome}: ${c.caixa}`).join('\n');
       else el.value = v == null ? '' : v;

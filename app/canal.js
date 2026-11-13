@@ -59,7 +59,8 @@ function ajustes(cfg) {
   else if (ativo && !/^https?:\/\//.test(host)) falta = 'o endereço do servidor precisa começar com http:// ou https://';
   else if (ativo && !cliente.token) falta = `falta o token (default-token em ${cfg.canalArquivoCliente || '~/.config/ntfy/client.yml'})`;
   return { ativo, pronto: ativo && !falta, falta, host, token: cliente.token, minhaCaixa, contatos,
-    meuNome: String(cfg.canalMeuNome || '').trim().slice(0, 60) || null, aprovarEnvio: cfg.canalAprovarEnvio !== false };
+    meuNome: String(cfg.canalMeuNome || '').trim().slice(0, 60) || null, aprovarEnvio: cfg.canalAprovarEnvio !== false,
+    semAprovarCiente: cfg.canalSemAprovarCiente === true, semAprovarInformacao: cfg.canalSemAprovarInformacao === true };
 }
 
 function acharContato(contatos, quem) {
@@ -95,6 +96,32 @@ function remetente(msg, contatos) {
   // Pelo nome do contato ("de-bruno") ou pela caixa dele sem o "para-" ("de-maestro" → para-maestro).
   const c = contatos.find((x) => etiqueta(x.nome) === tag) || contatos.find((x) => `de-${x.caixa.toLowerCase().replace(/^para-/, '')}` === tag);
   return c ? c.nome : tag.slice(3);
+}
+
+// --- o que sai sem o usuário aprovar ------------------------------------------
+// O orquestrador diz o tipo do envio; o usuário escolhe quais tipos saem
+// sozinhos (canalSemAprovarCiente, canalSemAprovarInformacao). Pedido e
+// decisão sempre esperam. O app confere por conta própria: pergunta, ou
+// palavra de decisão, preferência, aprovação, promessa, prazo ou compromisso,
+// segura o recado para o usuário (falar por ele é decisão dele).
+const CLASSES = ['ciente', 'informacao', 'pedido', 'decisao'];
+const NOME_CLASSE = { ciente: 'ciente', informacao: 'informação', pedido: 'pedido', decisao: 'decisão' };
+const LIMITE_CIENTE = 300;
+// Começo de palavra com acento contando como letra (\b do JavaScript não entende acento).
+const FALA_POR_ELE = /(?<![\p{L}])(?:(?:decid|decis|prefer|aprov|autoriz|promet|promess|comprom|garant|prazo|concord|combinad)\p{L}*|(?:fechad[oa]s?|pode seguir|pode apagar|pode subir|em nome d[oa])(?![\p{L}]))/iu;
+function precisaAprovar(a, { classe, texto }) {
+  if (!a.aprovarEnvio) return null;
+  const c = CLASSES.includes(classe) ? classe : 'decisao';
+  const livre = { ciente: a.semAprovarCiente, informacao: a.semAprovarInformacao }[c];
+  if (!livre) return `${NOME_CLASSE[c]}: espera você aprovar`;
+  const t = String(texto || '');
+  if (c === 'ciente' && t.length > LIMITE_CIENTE) return `marcado como ciente, mas tem mais de ${LIMITE_CIENTE} caracteres: espera você aprovar`;
+  if (/\?/.test(t)) return `marcado como ${NOME_CLASSE[c]}, mas tem pergunta (é pedido): espera você aprovar`;
+  const m = FALA_POR_ELE.exec(t);
+  if (m) return `marcado como ${NOME_CLASSE[c]}, mas parece falar por você («${m[0]}»): espera você aprovar`;
+  // O nome solto no texto ("o Enzo vai…"); dentro de caminho ou nome de arquivo (enzo-799/) não conta.
+  if (a.meuNome && new RegExp(`(?<![\\p{L}\\d/._-])${a.meuNome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\d/._-])`, 'iu').test(t)) return `marcado como ${NOME_CLASSE[c]}, mas cita você pelo nome: espera você aprovar`;
+  return null;
 }
 
 // --- rede ----------------------------------------------------------------------
@@ -173,4 +200,4 @@ function escutar(a, { aoChegar, aoEstado = () => {} }) {
   return { parar: () => { parado = true; if (controle) controle.abort(); } };
 }
 
-module.exports = { lerCliente, contatosDe, ajustes, acharContato, problemaDoTexto, remetente, etiqueta, publicar, escutar, LIMITE_BYTES, arquivoEstado };
+module.exports = { CLASSES, NOME_CLASSE, precisaAprovar, lerCliente, contatosDe, ajustes, acharContato, problemaDoTexto, remetente, etiqueta, publicar, escutar, LIMITE_BYTES, arquivoEstado };

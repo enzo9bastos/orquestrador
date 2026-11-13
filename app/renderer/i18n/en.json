@@ -1011,7 +1011,18 @@
     "🌐 Recado de fora:": "🌐 Message from outside:",
     "Recado de fora:": "Message from outside:",
     "🚫 Recado para fora que você não deixou sair": "🚫 Outgoing message you didn't let out",
-    "⚠ Recado para fora que não saiu": "⚠ Outgoing message that didn't go out"
+    "⚠ Recado para fora que não saiu": "⚠ Outgoing message that didn't go out",
+    "Para aprovar": "To approve",
+    "Todos os recados": "All messages",
+    "Sem aprovar: ciente": "No approval: acknowledgment",
+    "\"Recebi\", \"ok, vou olhar\" (até 300 caracteres) saem sozinhos.": "\"Got it\", \"ok, I'll look\" (up to 300 characters) go out on their own.",
+    "Sem aprovar: informação": "No approval: information",
+    "Fatos (onde está um arquivo, situação de algo) saem sozinhos. Pergunta, ou o que parece decisão, preferência, prazo ou compromisso seu, espera você.": "Facts (where a file is, the status of something) go out on their own. A question, or anything that looks like your decision, preference, deadline or commitment, waits for you.",
+    "Saiu sem aprovação, pela regra que você escolheu.": "Went out without approval, by the rule you chose.",
+    "ciente": "acknowledgment",
+    "informação": "information",
+    "decisão": "decision",
+    "pedido": "request"
   },
   "padroes": [
     [
@@ -1757,6 +1768,30 @@
     [
       "^Sai deste computador para (.+) \\(caixa (.+)\\) se você aprovar\\.$",
       "Leaves this computer for $1 (inbox $2) if you approve."
+    ],
+    [
+      "^vai sair deste computador; (.+)$",
+      "leaves this computer; $1"
+    ],
+    [
+      "^(ciente|informação|pedido|decisão): espera você aprovar$",
+      "$1: waits for your approval"
+    ],
+    [
+      "^marcado como (.+), mas tem pergunta \\(é pedido\\): espera você aprovar$",
+      "marked as $1, but has a question (it's a request): waits for your approval"
+    ],
+    [
+      "^marcado como (.+), mas parece falar por você \\(«(.+)»\\): espera você aprovar$",
+      "marked as $1, but seems to speak for you («$2»): waits for your approval"
+    ],
+    [
+      "^marcado como (.+), mas cita você pelo nome: espera você aprovar$",
+      "marked as $1, but names you: waits for your approval"
+    ],
+    [
+      "^marcado como ciente, mas tem mais de (\\d+) caracteres: espera você aprovar$",
+      "marked as acknowledgment, but longer than $1 characters: waits for your approval"
     ]
   ]
 }

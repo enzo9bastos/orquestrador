@@ -44,14 +44,24 @@
     ].join('') + (lista.length ? '' : '<p class="nota">Nenhum projeto com recado ou memória ainda.</p>');
   }
 
+  // O que espera o usuário fica em cima, em "Para aprovar" (de qualquer
+  // projeto, mesmo com filtro); embaixo, todos os outros.
   function desenharLinha() {
-    const lista = recados.filter((r) => !filtro || alvoDo(r) === filtro).slice().reverse();
-    $('recados-dica').textContent = lista.length ? ''
+    const aprovar = recados.filter((r) => r.estado === 'aguardando').slice().reverse();
+    const lista = recados.filter((r) => r.estado !== 'aguardando' && (!filtro || alvoDo(r) === filtro)).slice().reverse();
+    $('recados-aprovar').hidden = !aprovar.length;
+    $('recados-aprovar-linha').innerHTML = aprovar.map(itemRecado).join('');
+    $('recados-dica').textContent = lista.length || aprovar.length ? ''
       : 'Nenhum recado ainda. Os agentes do app falam com o orquestrador por .orq/bin/orq-recado enviar; o orquestrador responde com orq-recado para <projeto>.';
-    $('recados-linha').innerHTML = lista.map((r) => `<li class="recado recado-${esc(r.estado)} recado-tipo-${esc(r.tipo)}" data-id="${esc(r.id)}">
+    $('recados-linha').innerHTML = lista.map(itemRecado).join('');
+  }
+  const CLASSE = { ciente: 'ciente', informacao: 'informação', pedido: 'pedido', decisao: 'decisão' };
+  function itemRecado(r) {
+    return `<li class="recado recado-${esc(r.estado)} recado-tipo-${esc(r.tipo)}" data-id="${esc(r.id)}">
       <div class="recado-topo"><span class="recado-de" data-sem-traducao>${esc(quem(r.de))}</span><span class="recado-seta">→</span><span class="recado-para" data-sem-traducao>${esc(quem(r.para))}</span>
         <span class="recado-projeto" data-sem-traducao>${esc(alvoDo(r))}</span>
         <span class="selo recado-selo-tipo">${esc(TIPO[r.tipo] || r.tipo)}</span>
+        ${r.canal && r.classe ? `<span class="selo recado-selo-classe">${esc(CLASSE[r.classe] || r.classe)}</span>` : ''}
         <span class="selo recado-selo-estado">${esc(ESTADO[r.estado] || r.estado)}</span>
         <span class="recado-hora">${esc(hora(r.ts))}</span></div>
       ${r.canal && r.titulo ? `<div class="recado-titulo" data-sem-traducao><strong>${esc(r.titulo)}</strong></div>` : ''}
@@ -66,7 +76,8 @@
         <textarea class="campo-config" rows="2" maxlength="2000" data-rc-nota="${esc(r.id)}" placeholder="Orientação ou motivo (opcional): vai junto da sua resposta" aria-label="Orientação ou motivo (opcional)"></textarea>
         <div class="acoes"><button type="button" class="botao secundario" data-rc-decidir="${esc(r.id)}" data-aprovar="0">Negar</button>
         <button type="button" class="botao primario" data-rc-decidir="${esc(r.id)}" data-aprovar="1">Aprovar</button></div></div>` : ''}
-    </li>`).join('');
+      ${r.semAprovacao ? '<div class="nota recado-motivo">Saiu sem aprovação, pela regra que você escolheu.</div>' : ''}
+    </li>`;
   }
 
   function desenharVezes() {
@@ -103,6 +114,7 @@
     document.querySelectorAll('[data-rc-aba]').forEach((b) => b.classList.toggle('ativa', b.dataset.rcAba === vista));
     $('recados-linha').hidden = vista !== 'recados';
     $('recados-dica').hidden = vista !== 'recados';
+    if (vista !== 'recados') $('recados-aprovar').hidden = true;
     $('vezes-linha').hidden = vista !== 'vezes';
     $('recados-memoria').hidden = vista !== 'memoria';
     if (vista === 'recados') desenharLinha(); else if (vista === 'vezes') desenharVezes(); else desenharMemoria();
