@@ -7,6 +7,7 @@ const agora = Date.now();
 const log = [
   { id: 'e1', ts: agora - 9000, canal: true, canalId: 'n1', de: { tipo: 'externo', nome: 'Bruno' }, para: { tipo: 'orquestrador' }, tipo: 'externo', texto: 'o deploy de vocês pode ser hoje?', titulo: 'Deploy', estado: 'entregue', motivo: null },
   { id: 'e2', ts: agora - 5000, canal: true, de: { tipo: 'orquestrador' }, para: { tipo: 'externo', nome: 'Bruno', caixa: 'para-bruno' }, tipo: 'externo', texto: 'pode, às 17h', titulo: 'Re: Deploy', classe: 'decisao', estado: 'aguardando', motivo: 'vai sair deste computador: espera você aprovar' },
+  { id: 'e3', ts: agora - 4000, canal: true, de: { tipo: 'orquestrador' }, para: { tipo: 'externo', nome: 'Bruno', caixa: 'para-bruno' }, tipo: 'externo', texto: 'o Enzo topa sexta', classe: 'decisao', estado: 'aguardando', motivo: 'vai sair deste computador; decisão: espera você aprovar' },
 ].map((r) => JSON.stringify(r)).join('\n') + '\n';
 
 test('canal entre orquestradores', async (t) => {
@@ -19,25 +20,31 @@ test('canal entre orquestradores', async (t) => {
 
   await t.test('o envio para fora espera você, dizendo para quem sai', async () => {
     await app.avaliar("document.querySelector('[data-aba=\"aba-recados\"]').click()");
-    await app.esperar("document.querySelectorAll('#recados-aprovar-linha .recado, #recados-linha .recado').length === 2");
+    await app.esperar("document.querySelectorAll('#recados-aprovar-linha .recado, #recados-linha .recado').length === 3");
     const l = await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado, #recados-linha .recado')].map((li) => ({ id: li.dataset.id, de: li.querySelector('.recado-de').textContent, para: li.querySelector('.recado-para').textContent, tipo: li.querySelector('.recado-selo-tipo').textContent, decidir: !!li.querySelector('[data-rc-decidir]'), texto: li.innerText }))");
-    assert.deepStrictEqual(l.map((x) => [x.id, x.de, x.para, x.tipo, x.decidir]), [['e2', 'Orquestrador', 'Bruno', 'de outro computador', true], ['e1', 'Bruno', 'Orquestrador', 'de outro computador', false]]);
+    assert.deepStrictEqual(l.map((x) => [x.id, x.de, x.para, x.tipo, x.decidir]), [['e3', 'Orquestrador', 'Bruno', 'de outro computador', true], ['e2', 'Orquestrador', 'Bruno', 'de outro computador', true], ['e1', 'Bruno', 'Orquestrador', 'de outro computador', false]]);
+    l.shift();
     assert.match(l[0].texto, /Sai deste computador para Bruno \(caixa para-bruno\) se você aprovar/);
     assert.match(l[1].texto, /Deploy/);
-    assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '1');
-    assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado')].map((li) => li.dataset.id)"), ['e2'], 'o envio que espera você fica em Para aprovar');
+    assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '2');
+    assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado')].map((li) => li.dataset.id)"), ['e3', 'e2'], 'o envio que espera você fica em Para aprovar');
     assert.strictEqual(await app.avaliar("document.querySelector('[data-id=\"e2\"] .recado-selo-classe').textContent"), 'decisão');
   });
 
   // Pedido de 2026-11-13: o que espera aprovação aparece também na conversa
-  // do orquestrador, acima da caixa de texto.
-  await t.test('na conversa do orquestrador, o mesmo recado espera você acima da caixa de texto', async () => {
+  // do orquestrador, como um cartão igual ao de pergunta.
+  await t.test('na conversa do orquestrador, o recado vem como cartão de pergunta (Aprovar / Negar)', async () => {
     await app.avaliar("document.querySelector('[data-aba=\"aba-orquestrador\"]').click()");
-    await app.esperar("!document.getElementById('aprovacoes-chat').hidden", 10000);
-    const c = await app.avaliar("[...document.querySelectorAll('#aprovacoes-chat [data-aprovacao]')].map((x) => [x.dataset.aprovacao, x.innerText])");
-    assert.strictEqual(c.length, 1);
-    assert.strictEqual(c[0][0], 'e2');
-    assert.match(c[0][1], /Recado para Bruno[\s\S]*Re: Deploy[\s\S]*pode, às 17h[\s\S]*Aprovar[\s\S]*Negar/);
+    await app.esperar("!!document.querySelector('#mensagens .cartao-aprovacao[data-aprovacao=\"e2\"]')", 10000);
+    const c = await app.avaliar("(() => { const x = document.querySelector('#mensagens .cartao-aprovacao'); return { texto: x.innerText, opcoes: [...x.querySelectorAll('.opcao strong')].map((o) => o.textContent), pergunta: !!x.querySelector('fieldset.pergunta .etiqueta'), outra: !!x.querySelector('textarea.outra') }; })()");
+    assert.deepStrictEqual(c.opcoes, ['Aprovar', 'Negar']);
+    assert.ok(c.pergunta && c.outra, 'mesma estrutura do cartão de pergunta');
+    assert.match(c.texto, /Recado para Bruno — Re: Deploy[\s\S]*pode, às 17h[\s\S]*Sai agora para Bruno/);
+    // Negar no próprio cartão, com motivo: grava como na aba Recados.
+    await app.avaliar("(() => { const x = document.querySelector('#mensagens [data-aprovacao=\"e3\"]'); x.querySelector('textarea').value = 'não fala por mim'; x.querySelector('[data-decidir=\"0\"]').click(); })()");
+    await app.esperar("document.querySelector('#mensagens [data-aprovacao=\"e3\"]').classList.contains('respondido')", 10000);
+    assert.match(await app.avaliar("document.querySelector('#mensagens [data-aprovacao=\"e3\"]').textContent"), /Negado/);
+    assert.match(app.ler('.local/share/orq-app/recados/recados.jsonl'), /"id":"e3","mudanca":\{"estado":"negado","motivo":null,"nota":"não fala por mim"/);
     await app.avaliar("document.querySelector('[data-aba=\"aba-recados\"]').click()");
   });
 
@@ -46,7 +53,8 @@ test('canal entre orquestradores', async (t) => {
     await app.esperar("!document.querySelector('[data-rc-decidir=\"e2\"]')");
     await app.esperar("/canal sem configuração/.test((document.querySelector('[data-id=\"e2\"] .recado-motivo') || {}).textContent || '')", 15000);
     assert.strictEqual(await app.avaliar("document.querySelector('[data-id=\"e2\"] .recado-selo-estado').textContent"), 'na fila');
-    await app.esperar("document.getElementById('aprovacoes-chat').hidden", 10000);
+    await app.esperar("(document.querySelector('#mensagens [data-aprovacao=\"e2\"]') || {}).classList?.contains('respondido')", 10000);
+    assert.match(await app.avaliar("document.querySelector('#mensagens [data-aprovacao=\"e2\"]').textContent"), /Decidido na aba Recados/);
   });
 
   await t.test('Configurações mostra o que falta para o canal ligar', async () => {

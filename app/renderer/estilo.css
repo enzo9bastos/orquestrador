@@ -1483,9 +1483,5 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .recados-aprovar-titulo { margin: 4px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--fg-2); text-transform: uppercase; }
 .recados-aprovar .recados-linha { margin-bottom: 14px; }
 
-/* Conversa do orquestrador: o que espera aprovação, acima da caixa de texto. */
-.aprovacoes-chat { display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow: auto; margin-bottom: 8px; }
-.aprovacoes-chat .cartao-aprovacao { margin: 0; }
-.cartao-aprovacao .titulo-pedido .selo { margin-left: auto; }
-.cartao-aprovacao .texto-aprovacao { white-space: pre-wrap; font-size: 13px; line-height: 1.5; margin: 6px 0; max-height: 9em; overflow: auto; }
-.cartao-aprovacao textarea { width: 100%; box-sizing: border-box; }
+/* Conversa do orquestrador: o que espera aprovação, no mesmo jeito do cartão de pergunta. */
+.cartao-aprovacao .texto-aprovacao { white-space: pre-wrap; font-size: 13px; line-height: 1.5; color: var(--fg-2); }

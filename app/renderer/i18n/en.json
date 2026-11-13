@@ -1023,7 +1023,12 @@
     "informação": "information",
     "decisão": "decision",
     "pedido": "request",
-    "Esperando você aprovar": "Waiting for your approval"
+    "Esperando você aprovar": "Waiting for your approval",
+    "Não sai; o orquestrador recebe o seu motivo": "Doesn't go out; the orchestrator gets your reason",
+    "Roda com permissão de escrever": "Runs with permission to write",
+    "Orientação ou motivo (opcional; escreva antes de escolher)": "Guidance or reason (optional; write it before choosing)",
+    "Decidido na aba Recados": "Decided in the Messages tab",
+    "Aprovado": "Approved"
   },
   "padroes": [
     [
@@ -1793,6 +1798,10 @@
     [
       "^marcado como ciente, mas tem mais de (\\d+) caracteres: espera você aprovar$",
       "marked as acknowledgment, but longer than $1 characters: waits for your approval"
+    ],
+    [
+      "^Sai agora para (.+)$",
+      "Goes out now to $1"
     ]
   ]
 }

@@ -343,6 +343,8 @@
     const a = ev.target.closest('a[href]');
     if (a) { ev.preventDefault(); return; } // nada de navegar para fora do app
     if (ev.target.closest('[data-nova-rodada]')) { trocar('orquestrador'); return; }
+    const ap = ev.target.closest('.cartao-aprovacao:not(.respondido)');
+    if (ap) { const d = ev.target.closest('[data-decidir]'); if (d) decidirAprovacao(ap, d.dataset.decidir === '1'); return; }
     const cartao = ev.target.closest('.cartao-pedido');
     if (!cartao) return;
     const opcao = ev.target.closest('.opcao');
@@ -612,6 +614,7 @@
     r.eventos.forEach(desenharEvento);
     pedidos.clear();
     (r.pendentes || []).forEach((p) => { pedidos.set(p.id, p); cartaoPedido(p); });
+    try { desenharAprovacoes(); } catch { /* ainda carregando a tela */ }
     colado = true; rolar();
   }
 
@@ -1153,52 +1156,51 @@
   // Testes de tela: ganchos para injetar eventos e pedidos sem um Claude real.
   // Fica no fim do script: tudo o que ele expõe já existe aqui.
   // --- o que espera aprovação (aba Recados), também aqui na conversa ----------
-  // Recado para outro computador ou pedido avulso que pede escrita: um cartão
-  // acima da caixa de texto, na conversa do orquestrador. Decidir aqui ou na
-  // aba Recados é a mesma coisa.
+  // Recado para outro computador ou pedido avulso que pede escrita: entra na
+  // conversa do orquestrador como um cartão igual ao de pergunta (Aprovar /
+  // Negar, com motivo opcional). Decidir aqui ou na aba Recados é a mesma coisa.
   const R = window.orq.recados;
   let aguardando = [];
-  function desenharAprovacoes() {
-    const el = $('aprovacoes-chat');
-    const naDoOrquestrador = !!(listaConversas || []).find((c) => c.id === ativa && c.orquestrador);
-    const lista = naDoOrquestrador ? aguardando : [];
-    el.hidden = !lista.length;
-    // Não redesenha um cartão em que o usuário está escrevendo o motivo.
-    const vivos = new Set(lista.map((r) => r.id));
-    for (const c of [...el.querySelectorAll('[data-aprovacao]')]) if (!vivos.has(c.dataset.aprovacao)) c.remove();
-    for (const r of lista) {
-      if (el.querySelector(`[data-aprovacao="${CSS.escape(r.id)}"]`)) continue;
-      const c = document.createElement('div');
-      c.className = 'cartao-pedido cartao-aprovacao';
-      c.dataset.aprovacao = r.id;
-      const para = r.canal ? `Recado para ${r.para.nome}` : `Pedido ao ${r.para.nome}`;
-      c.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span><strong data-sem-traducao>${esc(para)}</strong>${r.titulo ? ` · <span data-sem-traducao>${esc(r.titulo)}</span>` : ''}<span class="selo">espera você</span></div>
+  const naDoOrquestrador = () => !!(listaConversas || []).find((c) => c.id === ativa && c.orquestrador);
+  function cartaoAprovacao(r) {
+    if (caixa.querySelector(`[data-aprovacao="${CSS.escape(r.id)}"]`)) return;
+    const el = document.createElement('div');
+    el.className = 'cartao-pedido cartao-aprovacao';
+    el.dataset.aprovacao = r.id;
+    const para = r.canal ? `Recado para ${r.para.nome}` : `Pedido ao ${r.para.nome}`;
+    el.innerHTML = `<fieldset class="pergunta" data-multi="0">
+        <legend><span class="etiqueta">Aprovar</span><span data-sem-traducao>${esc(para)}${r.titulo ? ` — ${esc(r.titulo)}` : ''}</span></legend>
         <div class="texto-aprovacao" data-sem-traducao>${esc(r.texto)}</div>
-        ${r.motivo ? `<div class="nota">${esc(r.motivo)}</div>` : ''}
-        <textarea class="outra" rows="1" maxlength="2000" placeholder="Orientação ou motivo (opcional)" aria-label="Orientação ou motivo (opcional)"></textarea>
-        <div class="acoes"><button type="button" class="botao primario" data-decidir="1">Aprovar</button><button type="button" class="botao secundario" data-decidir="0">Negar</button></div>`;
-      el.append(c);
+        <div class="opcoes">
+          <button type="button" class="opcao unica" data-decidir="1" role="radio" aria-checked="false"><strong>Aprovar</strong><span>${esc(r.canal ? `Sai agora para ${r.para.nome}` : 'Roda com permissão de escrever')}</span></button>
+          <button type="button" class="opcao unica" data-decidir="0" role="radio" aria-checked="false"><strong>Negar</strong><span>Não sai; o orquestrador recebe o seu motivo</span></button>
+        </div>
+        <textarea class="outra" rows="1" maxlength="2000" placeholder="Orientação ou motivo (opcional; escreva antes de escolher)"></textarea>
+      </fieldset>`;
+    grupo = null;
+    caixa.append(el);
+    rolar();
+  }
+  function desenharAprovacoes() {
+    const vivos = new Set(aguardando.map((r) => r.id));
+    // Decidido em outro lugar (aba Recados, bichinho): o cartão vira a linha de respondido.
+    for (const c of [...caixa.querySelectorAll('[data-aprovacao]:not(.respondido)')]) {
+      if (!vivos.has(c.dataset.aprovacao)) fecharPedido(c, 'Decidido na aba Recados');
     }
+    if (naDoOrquestrador()) aguardando.forEach(cartaoAprovacao);
   }
   async function carregarAprovacoes(l) {
-    try { aguardando = (l || await R.lista()).filter((r) => r.estado === 'aguardando').slice().reverse(); } catch { aguardando = []; }
+    try { aguardando = (l || await R.lista()).filter((r) => r.estado === 'aguardando'); } catch { aguardando = []; }
     desenharAprovacoes();
   }
-  if (R) {
-    R.aoMudar((l) => carregarAprovacoes(l));
-    carregarAprovacoes();
-    $('aprovacoes-chat').addEventListener('click', async (ev) => {
-      const b = ev.target.closest('[data-decidir]');
-      if (!b) return;
-      const c = b.closest('[data-aprovacao]');
-      c.querySelectorAll('button').forEach((x) => { x.disabled = true; });
-      const r = await R.decidir(c.dataset.aprovacao, b.dataset.decidir === '1', c.querySelector('textarea').value);
-      if (r && r.erro) { c.querySelector('.acoes').insertAdjacentHTML('beforeend', `<span class="nota">${esc(r.erro)}</span>`); return; }
-      aguardando = aguardando.filter((x) => x.id !== c.dataset.aprovacao);
-      c.remove();
-      $('aprovacoes-chat').hidden = !$('aprovacoes-chat').children.length;
-    });
+  async function decidirAprovacao(c, aprovar) {
+    c.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+    const r = await R.decidir(c.dataset.aprovacao, aprovar, c.querySelector('textarea').value);
+    if (r && r.erro) { c.querySelectorAll('button').forEach((x) => { x.disabled = false; }); c.querySelector('fieldset').insertAdjacentHTML('beforeend', `<span class="nota">${esc(r.erro)}</span>`); return; }
+    aguardando = aguardando.filter((x) => x.id !== c.dataset.aprovacao);
+    fecharPedido(c, aprovar ? 'Aprovado' : 'Negado');
   }
+  if (R) { R.aoMudar((l) => carregarAprovacoes(l)); carregarAprovacoes(); }
 
   if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
 })();

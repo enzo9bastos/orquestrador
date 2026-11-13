@@ -194,7 +194,11 @@ test('canal: o que sai sem aprovar, e o que o app segura mesmo assim', () => {
   assert.strictEqual(decide('ciente', 'recebi, vou olhar'), null);
   assert.strictEqual(decide('informacao', 'Os arquivos estão em TI/Atividades em Curso/ana-799/. Conferi: sem senha.'), null, 'nome dentro de caminho não conta');
   assert.match(decide('informacao', 'Sobre o M38: a preferência da Ana é apagar.'), /parece falar por você \(«preferência»\)/);
-  assert.match(decide('informacao', 'a Ana vê amanhã'), /cita você pelo nome/);
+  assert.match(decide('informacao', 'a Ana vai ver amanhã'), /parece falar por você \(«Ana vai»\)/);
+  assert.match(decide('informacao', 'a Ana não pode hoje'), /«Ana não pode»/);
+  // Pedido de 2026-11-13: apresentar-se ou citar algo do usuário é fato, não falar por ele.
+  assert.strictEqual(decide('informacao', 'Aqui é o orquestrador da Ana. M41 v2: o desenho com os 5 ajustes da revisão está em TI/colaborador-novo/LEIA-ME-v2.md. As perguntas que sobram estão na seção D. Sem senha nem dado pessoal.'), null);
+  assert.strictEqual(decide('informacao', 'A conta da Ana no cofre é Usuário na organização TI.'), null);
   assert.match(decide('informacao', 'pode me mandar o arquivo?'), /tem pergunta/);
   assert.match(decide('informacao', 'o prazo é sexta'), /«prazo»/);
   assert.match(decide('ciente', 'x'.repeat(301)), /mais de 300 caracteres/);

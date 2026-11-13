@@ -109,6 +109,11 @@ const NOME_CLASSE = { ciente: 'ciente', informacao: 'informação', pedido: 'ped
 const LIMITE_CIENTE = 300;
 // Começo de palavra com acento contando como letra (\b do JavaScript não entende acento).
 const FALA_POR_ELE = /(?<![\p{L}])(?:(?:decid|decis|prefer|aprov|autoriz|promet|promess|comprom|garant|prazo|concord|combinad)\p{L}*|(?:fechad[oa]s?|pode seguir|pode apagar|pode subir|em nome d[oa])(?![\p{L}]))/iu;
+const VERBOS_DELE = '(?:prefer|quer|vai|v[aã]o|acha|pens|decid|aprov|autoriz|concord|top|aceit|promet|garant|disse|falou|pediu|pode|consegu|dev|precis|gost|combin|fic)\\p{L}*';
+function falaPeloNome(nome) {
+  const n = nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\p{L}\\d/._-])${n}(?![\\p{L}\\d/._-])(?:\\s+(?:n[aã]o|j[aá]|tamb[eé]m|s[oó]|ainda))?\\s+${VERBOS_DELE}`, 'iu');
+}
 function precisaAprovar(a, { classe, texto }) {
   if (!a.aprovarEnvio) return null;
   const c = CLASSES.includes(classe) ? classe : 'decisao';
@@ -119,8 +124,11 @@ function precisaAprovar(a, { classe, texto }) {
   if (/\?/.test(t)) return `marcado como ${NOME_CLASSE[c]}, mas tem pergunta (é pedido): espera você aprovar`;
   const m = FALA_POR_ELE.exec(t);
   if (m) return `marcado como ${NOME_CLASSE[c]}, mas parece falar por você («${m[0]}»): espera você aprovar`;
-  // O nome solto no texto ("o Enzo vai…"); dentro de caminho ou nome de arquivo (enzo-799/) não conta.
-  if (a.meuNome && new RegExp(`(?<![\\p{L}\\d/._-])${a.meuNome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\d/._-])`, 'iu').test(t)) return `marcado como ${NOME_CLASSE[c]}, mas cita você pelo nome: espera você aprovar`;
+  // O nome do usuário com verbo de vontade, opinião ou compromisso ("o Enzo prefere",
+  // "a Ana vai…", "o Enzo topa"). Apresentar-se ("orquestrador do Enzo") ou citar
+  // algo dele ("a conta do Enzo", pasta enzo-799/) não segura.
+  const n = a.meuNome ? falaPeloNome(a.meuNome).exec(t) : null;
+  if (n) return `marcado como ${NOME_CLASSE[c]}, mas parece falar por você («${n[0]}»): espera você aprovar`;
   return null;
 }
 
