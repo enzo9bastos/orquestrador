@@ -542,7 +542,7 @@ function verPendencias(r) {
       item: { tipo: p.entrada?.questions ? 'pergunta' : 'permissao', quem: c.orquestrador ? 'O orquestrador' : c.titulo, reqId: p.id, perguntas: p.entrada?.questions || null, ferramenta: p.ferramenta, comando: p.entrada?.command || p.entrada?.file_path || null, descricao: p.entrada?.description || null },
     }))),
     // O que espera aprovação na aba Recados (recado para fora, pedido avulso
-    // que pede escrita): vem o pombo-correio, e dá para decidir ali mesmo.
+    // que pede escrita): o bichinho traz, e dá para decidir ali mesmo.
     ...recados.ler(1000).filter((r) => r.estado === 'aguardando').map((r) => ({
       id: `aprovar:${r.id}`,
       texto: r.canal ? `Recado para ${r.para.nome} espera você aprovar` : `Pedido ao ${r.para.nome} espera você aprovar`,

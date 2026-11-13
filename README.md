@@ -168,8 +168,8 @@ screen (the input box, attachments, agent cards).
   workspaces it walks in from the side you came from — only on the monitor that actually switched.
 - **Brings you what needs you.** When something new is pending and you are not looking at the app, it walks in
   with the question and its options (or the permission, with *Allow / Deny*) and you answer right there.
-  What waits for your **approval** (a message to another computer, a one-off request that wants to write) comes
-  with a **carrier pigeon** instead — the little bird holding a letter — with *Approve / Deny* and an optional reason.
+  What waits for your **approval** (a message to another computer, a one-off request that wants to write) comes the
+  same way, with *Approve / Deny* and an optional reason.
 - **Knows when the app is on screen.** Clicking the desktop takes the focus away but the app is still in front of
   you, so the helper stays inside it. Wayland doesn't let apps see other windows, so each desktop has its own way:
   | Desktop | How the app knows | Setup |

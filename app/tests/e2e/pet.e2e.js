@@ -228,10 +228,10 @@ test('ajudante fora do app: chegada e saída de cada espécie', { skip: !process
   });
 });
 
-// Pedido de 2026-11-13: o que espera aprovação vem num pombo-correio (o
-// passarinho com uma carta), diferente do bichinho de sempre, e dá para aprovar
-// ou negar ali mesmo, com motivo; quando ele vai embora, volta o visual escolhido.
-test('ajudante fora do app: o pombo-correio traz a aprovação', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
+// Pedido de 2026-11-13: o que espera aprovação vem com o bichinho de sempre
+// (o pombo-correio separado foi desfeito no mesmo dia) e dá para aprovar ou
+// negar ali mesmo, com motivo.
+test('ajudante fora do app: o bichinho traz a aprovação', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
   const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
   const recebidas = [];
   readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
@@ -242,20 +242,13 @@ test('ajudante fora do app: o pombo-correio traz a aprovação', { skip: !proces
   try {
     await espera((m) => m.t === 'iniciado', 20000);
     manda({ t: 'visual', visual: { especie: 'gatinho', cor: 'azul', itens: { mao: 'caneca' } }, tema: 'dark' });
-    manda({ t: 'pendencia', mensageiro: true, texto: 'Recado para Bruno espera você aprovar', total: 1, id: 'aprovar:e9',
+    manda({ t: 'pendencia', texto: 'Recado para Bruno espera você aprovar', total: 1, id: 'aprovar:e9',
       item: { tipo: 'aprovacao', recado: 'e9', canal: true, quem: 'Bruno', titulo: 'Deploy', texto: 'pode ser às 17h', motivo: 'vai sair deste computador; decisão: espera você aprovar' } });
-    const e = await estado();
-    assert.deepStrictEqual([e.especie, e.mensageiro], ['passarinho', true], 'vem o pombo, não o gatinho');
+    assert.strictEqual((await estado()).especie, 'gatinho', 'o bichinho de sempre');
     for (let i = 0; i < 80 && !(await js("!document.getElementById('pergunta').hidden")); i++) await new Promise((x) => setTimeout(x, 100));
     assert.match(await js("document.getElementById('pg-corpo').innerText"), /Recado para Bruno[\s\S]*Deploy[\s\S]*pode ser às 17h[\s\S]*espera você aprovar/);
-    assert.ok(await js("!!document.querySelector('.item-carta')"), 'com a carta na mão');
     await js("document.getElementById('pg-nota').value = 'ok, mas confirma com a Carla'; document.querySelector('[data-pg=permitir]').click()");
     const r = await espera((m) => m.t === 'responder');
     assert.deepStrictEqual({ id: r.id, permitir: r.permitir, nota: r.nota }, { id: 'aprovar:e9', permitir: true, nota: 'ok, mas confirma com a Carla' });
-    manda({ t: 'respondido', ok: true });
-    recebidas.length = 0;
-    await espera((m) => m.t === 'visivel' && !m.visivel, 15000);
-    const depois = await estado();
-    assert.deepStrictEqual([depois.especie, depois.mensageiro], ['gatinho', false], 'foi embora e voltou o de sempre');
   } finally { p.kill(); }
 });

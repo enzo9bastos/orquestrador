@@ -151,7 +151,7 @@
         <textarea id="pg-outra" rows="2" placeholder="Outra resposta… (Enter envia)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
       $('pg-acoes').innerHTML = `<button type="button" class="botao-texto" data-pg="app">Abrir no app</button>${q.multiSelect ? '<button type="button" class="botao primario" data-pg="confirmar">Confirmar</button>' : ''}`;
     } else if (it.tipo === 'aprovacao') {
-      // O pombo-correio: algo que só sai (ou só roda) com o seu sim.
+      // Algo que só sai (ou só roda) com o seu sim: decide aqui mesmo.
       $('pg-passo').textContent = 'espera você aprovar';
       $('pg-corpo').innerHTML = `<p class="pergunta">${it.canal ? `Recado para ${esc(it.quem)}` : `Pedido ao ${esc(it.quem)}`}</p>${it.titulo ? `<p><strong>${esc(it.titulo)}</strong></p>` : ''}<pre class="aj-comando aj-recado">${esc(it.texto)}</pre>${it.motivo ? `<p class="aj-motivo">${esc(it.motivo)}</p>` : ''}
         <textarea id="pg-nota" rows="2" placeholder="Orientação ou motivo (opcional)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;

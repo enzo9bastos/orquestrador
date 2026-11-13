@@ -244,8 +244,6 @@ async function confirmarAviso(ids, { reserva = false } = {}) {
   mostrando = new Set(ainda.map((p) => p.id));
   const texto = ainda.length === 1 ? ainda[0].texto : `${ainda.length} coisas esperando por você`;
   const msg = { t: 'pendencia', texto, total: atuais.size, conversa: ainda[0].conversa || null, id: ainda[0].id, item: ainda[0].item || null };
-  // Só aprovação na visita: vem o pombo-correio, não o bichinho de sempre.
-  if (ainda.every((p) => p.item && p.item.tipo === 'aprovacao')) msg.mensageiro = true;
   mandar(msg);
   return msg;
 }

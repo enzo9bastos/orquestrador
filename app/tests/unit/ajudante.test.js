@@ -193,17 +193,16 @@ test('pet: só o Clássico usa a cor escolhida; paleta sem cor repetida', () => 
 });
 
 // Pedido de 2026-11-13: aprovação (recado para fora, pedido avulso com escrita)
-// vem no pombo-correio e é decidida ali mesmo, com motivo opcional.
-test('pet: aprovação vira visita do pombo-correio e a decisão vai para a aba Recados', async () => {
+// vem com o bichinho de sempre (o pombo-correio separado foi desfeito no mesmo
+// dia, a pedido) e é decidida ali mesmo, com motivo opcional.
+test('pet: aprovação vem com o bichinho e a decisão vai para a aba Recados', async () => {
   const decisoes = [];
   ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => true }), decidir: (...a) => { decisoes.push(a); return true; }, conversa: null, enviarTela: () => {} });
   ajudante.pendencias([{ id: 'aprovar:e1', texto: 'Recado para Bruno espera você aprovar', item: { tipo: 'aprovacao', recado: 'e1', canal: true, quem: 'Bruno', texto: 'oi' } }]);
   const msg = await ajudante.confirmarAviso(['aprovar:e1']);
-  assert.strictEqual(msg.mensageiro, true);
+  assert.strictEqual(msg.item.tipo, 'aprovacao');
+  assert.strictEqual(msg.mensageiro, undefined, 'sem pombo: o bichinho de sempre traz');
   assert.ok(ajudante.responder({ id: 'aprovar:e1', permitir: false, nota: 'agora não' }));
   assert.deepStrictEqual(decisoes, [['e1', false, 'agora não']]);
-  // Junto com uma pergunta: vem o bichinho de sempre.
-  ajudante.pendencias([{ id: 'aprovar:e2', texto: 'x', item: { tipo: 'aprovacao', recado: 'e2', quem: 'Bruno', texto: 'y' } }, { id: 'conversa:o:r1', conversa: 'o', texto: 'pergunta' }]);
-  assert.strictEqual((await ajudante.confirmarAviso(['aprovar:e2', 'conversa:o:r1'])).mensageiro, undefined);
   ajudante.pendencias([]);
 });

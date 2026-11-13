@@ -237,7 +237,6 @@ function sumir() {
       if (minha !== saida) return;
       modo = 'escondido';
       win.hide();
-      voltarAoEscolhido();
       paraApp({ t: 'visivel', visivel: false });
     }, 480);
   }), 500);
@@ -294,27 +293,8 @@ async function passear() {
   }
 }
 
-// Pombo-correio: o que espera aprovação vem num passarinho com uma carta,
-// diferente do bichinho de sempre; ao ir embora, volta o visual escolhido.
-let visualEscolhido = null;
-let mensageiro = false;
-function virarMensageiro() {
-  if (mensageiro || modo !== 'escondido') return; // já na tela: o de sempre mesmo traz
-  mensageiro = true;
-  especie = 'passarinho'; jeito = esp().jeito;
-  paraTela({ t: 'visual', visual: { especie: 'passarinho', cor: 'padrao', itens: {}, carta: true } });
-}
-function voltarAoEscolhido() {
-  if (!mensageiro) return;
-  mensageiro = false;
-  especie = ESPECIES[visualEscolhido && visualEscolhido.especie] ? visualEscolhido.especie : 'bicho'; jeito = esp().jeito;
-  paraTela({ t: 'visual', visual: visualEscolhido || {} });
-}
-
 function receber(m) {
   if (m.t === 'visual') {
-    visualEscolhido = m.visual || null;
-    if (mensageiro) return; // vale quando o pombo for embora
     especie = ESPECIES[m.visual && m.visual.especie] ? m.visual.especie : 'bicho';
     jeito = esp().jeito;
     paraTela(m);
@@ -324,14 +304,14 @@ function receber(m) {
   else if (m.t === 'chamar' && conversaAberta && !m.capturar) sumir();
   else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); passear(); });
   else if (m.t === 'resolvida') { if (aviso) { aviso = false; paraTela({ t: 'falar', texto: 'Já foi resolvido! 👍' }); setTimeout(() => { if (!conversaAberta) sumir(); }, 1600); } }
-  else if (m.t === 'pendencia') { if (m.mensageiro) virarMensageiro(); aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total, conversa: m.conversa || null, id: m.id || null, item: m.item || null }); passear(); }); }
+  else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total, conversa: m.conversa || null, id: m.id || null, item: m.item || null }); passear(); }); }
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
   else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido') paraTela(m);
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') { win.showInactive(); win.setSkipTaskbar(true); win.setVisibleOnAllWorkspaces(true); } win.focus(); paraTela(m); }
   else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
   else if (m.t === 'js' && TESTE) win.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) }));
-  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, especie, mensageiro, floreio: ultimoFloreio, chao: Math.round(chao()), pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
+  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, especie, floreio: ultimoFloreio, chao: Math.round(chao()), pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
   else if (m.t === 'print-tela' && TESTE) win.webContents.capturePage().then((img) => paraApp({ t: 'print', png: img.toPNG().toString('base64') }));
 }
 
