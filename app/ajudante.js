@@ -218,6 +218,25 @@ async function appNaTela() {
   if (e) return !!(e.visivel && e.foco !== 'outro');
   return null;
 }
+// Pergunta ou permissão de uma conversa do app, como o bichinho traz.
+// c: o resumo da conversa (conversa.lista()); p: o pedido pendente.
+// Pergunta com resposta secreta (isSecret, do Codex) não vem para o bichinho:
+// ele só avisa, e a resposta é digitada no app, no campo de senha do cartão.
+function pendenciaDeConversa(c, p) {
+  const quem = c.orquestrador ? 'O orquestrador' : c.titulo;
+  const base = { id: `conversa:${c.id}:${p.id}`, conversa: c.id };
+  if ((p.entrada?.questions || []).some((q) => q && q.isSecret)) {
+    return { ...base, texto: c.orquestrador ? 'O orquestrador tem uma pergunta com resposta secreta: responda no app' : `"${c.titulo}" tem uma pergunta com resposta secreta: responda no app`, item: null };
+  }
+  return {
+    ...base,
+    texto: c.orquestrador ? 'O orquestrador tem uma pergunta para você' : `"${c.titulo}" tem uma pergunta para você`,
+    // A pergunta inteira (com as opções) ou o pedido de permissão: o
+    // ajudante mostra e o usuário responde ali mesmo.
+    item: { tipo: p.entrada?.questions ? 'pergunta' : 'permissao', quem, reqId: p.id, perguntas: p.entrada?.questions || null, ferramenta: p.ferramenta, comando: p.entrada?.command || p.entrada?.file_path || null, descricao: p.entrada?.description || null },
+  };
+}
+
 function pendencias(lista) {
   lista = [...lista.filter((p) => !p.id.startsWith('acao:')), ...acoes.values()];
   atuais = new Map(lista.map((p) => [p.id, p]));
@@ -313,4 +332,4 @@ function atualizarAparencia() { mandar({ t: 'visual', ...aparencia() }); }
 // O usuário escreveu ao orquestrador: o pedido de ação já foi visto.
 function limparAcoes(conversa) { for (const [id, p] of acoes) if (p.conversa === conversa) acoes.delete(id); }
 
-module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, pendenciaDeConversa, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };

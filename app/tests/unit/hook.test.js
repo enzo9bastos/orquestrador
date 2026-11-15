@@ -42,7 +42,9 @@ function pedir(p) {
       if (!pedido) return;
       clearInterval(vigia);
       fs.chmodSync(p.resp, 0o755);
-      fs.writeFileSync(path.join(p.resp, pedido.replace(/\.json$/, '.resposta')), 'permitir\n');
+      // Como o app responde desde a 0.A2: a decisão e o hash do pedido que ele mostrou.
+      const hash = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(p.raiz, '.orq', 'permissoes', pedido))).digest('hex');
+      fs.writeFileSync(path.join(p.resp, pedido.replace(/\.json$/, '.resposta')), `permitir ${hash}\n`);
       if (p.respostasSoLeitura) fs.chmodSync(p.resp, 0o555);
     }, 50);
     setTimeout(() => clearInterval(vigia), 6000);

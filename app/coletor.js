@@ -2,12 +2,14 @@
 // as pastas de projeto (config.js), painéis do tmux, git, e os eventos que o
 // hook orq-evento grava em <projeto>/.orq/. Só lê; a única escrita é o arquivo
 // de resposta de permissão e o sinal de vida (.orq/app-vivo).
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
 const config = require('./config');
+const pastaProjeto = require('./pasta-projeto');
 
 // Mesma interface do Claude que o `orq` usa para reconhecer um agente na tela.
 const TELA_CLAUDE = /│ >|esc to interrupt|Try "|╭─+╮|⏵⏵|⏸|bypass|auto mode/;
@@ -228,16 +230,44 @@ function git(dir) {
   return { ultimoEm: Number(ct) * 1000, assunto, commits20h: n };
 }
 
-function pendencias(emp, proj, dirProj) {
+// Pedidos de permissão dos agentes, congelados na 1ª leitura: o agente pode
+// reescrever o .json depois (a pasta é dele), e o cartão continua mostrando o
+// que foi lido primeiro. A resposta leva o hash desse conteúdo; o hook só
+// aceita se for o hash do pedido que ele fez (hooks/orq-evento.sh). O id é o
+// nome do arquivo, nunca o que está escrito dentro dele.
+const congelados = new Map(); // `${dir}\n${id}` → { hash, p }
+const chaveCongelado = (dir, id) => `${dir}\n${id}`;
+function permissoesDoProjeto(emp, proj, dirProj) {
   const lista = [];
-  const pPerm = path.join(dirProj, '.orq', 'permissoes');
-  for (const f of safeLs(pPerm)) {
+  let pasta;
+  try { pasta = pastaProjeto.caminho(dirProj, ['.orq', 'permissoes']); } catch { return lista; } // link: não lê
+  const vistos = new Set();
+  for (const f of safeLs(pasta.abs)) {
     if (!f.endsWith('.json')) continue;
-    try {
-      const p = JSON.parse(fs.readFileSync(path.join(pPerm, f), 'utf8'));
-      lista.push({ tipo: 'permissao', emp, proj, id: p.id, ferramenta: p.tool_name, entrada: p.tool_input, desde: p.ts });
-    } catch { /* arquivo sendo escrito */ }
+    const id = f.slice(0, -5);
+    if (!/^[\w.-]+$/.test(id)) continue;
+    const chave = chaveCongelado(dirProj, id);
+    vistos.add(chave);
+    let bruto;
+    try { bruto = pastaProjeto.ler(dirProj, ['.orq', 'permissoes', f], null); } catch { continue; } // link ou sumiu
+    const hash = crypto.createHash('sha256').update(bruto).digest('hex');
+    let c = congelados.get(chave);
+    if (!c) {
+      let p;
+      try { p = JSON.parse(bruto.toString('utf8')); } catch { continue; } // arquivo sendo escrito
+      if (!p || typeof p !== 'object') continue;
+      c = { hash, p };
+      congelados.set(chave, c);
+    }
+    lista.push({ tipo: 'permissao', emp, proj, id, ferramenta: c.p.tool_name, entrada: c.p.tool_input, desde: c.p.ts, ...(hash !== c.hash ? { alterado: true } : {}) });
   }
+  // Pedido que saiu da pasta (respondido, expirado): esquece.
+  for (const k of congelados.keys()) if (k.startsWith(`${dirProj}\n`) && !vistos.has(k)) congelados.delete(k);
+  return lista;
+}
+
+function pendencias(emp, proj, dirProj) {
+  const lista = permissoesDoProjeto(emp, proj, dirProj);
   const pPed = path.join(dirProj, '.orq', 'pedidos');
   for (const f of safeLs(pPed)) {
     if (!f.endsWith('.sh')) continue;
@@ -255,13 +285,19 @@ function safeLs(dir) {
 
 // Sinal de vida: só em projetos que já têm o hook (pasta .orq/eventos). Sem
 // isso, um projeto sem o hook ganharia uma pasta .orq que ninguém pediu.
+// Sem seguir link (o agente pode trocar .orq ou app-vivo por um link para
+// fora): o projeto com link fica sem sinal, e o motivo vai uma vez para o log.
+const avisadosSinal = new Set();
 function sinalDeVida() {
   for (const { dir } of projetos()) {
-    const dirOrq = path.join(dir, '.orq');
-    if (!fs.existsSync(path.join(dirOrq, 'eventos'))) continue;
-    const arq = path.join(dirOrq, 'app-vivo');
-    const agora = new Date();
-    try { fs.utimesSync(arq, agora, agora); } catch { fs.writeFileSync(arq, ''); }
+    try {
+      const eventos = pastaProjeto.caminho(dir, ['.orq', 'eventos']);
+      if (!eventos.existe || !eventos.st.isDirectory()) continue;
+      pastaProjeto.tocar(dir, ['.orq', 'app-vivo']);
+    } catch (e) {
+      if (!pastaProjeto.ehRecusa(e)) continue;
+      if (!avisadosSinal.has(dir + e.message)) { avisadosSinal.add(dir + e.message); console.error(`[coletor] ${dir}: ${e.message}`); }
+    }
   }
 }
 
@@ -329,13 +365,13 @@ function responder(emp, proj, id, decisao) {
   if (!['permitir', 'negar'].includes(decisao)) throw new Error('decisão inválida');
   const alvo = projetos().find((p) => p.emp === emp && p.proj === proj);
   if (!/^[\w.-]+$/.test(id) || !alvo) throw new Error('alvo inválido');
-  const pasta = path.join(alvo.dir, '.orq', 'permissoes');
-  if (!fs.existsSync(path.join(pasta, id + '.json'))) return false; // já respondido no terminal
+  if (!pastaProjeto.caminho(alvo.dir, ['.orq', 'permissoes', id + '.json']).existe) return false; // já respondido no terminal
+  // Só responde ao que o app mostrou (congelado), com o hash do que mostrou.
+  const c = congelados.get(chaveCongelado(alvo.dir, id));
+  if (!c) return false;
   // A resposta vai para .orq/respostas-perm, que o container monta só-leitura
   // (o agente lá dentro não consegue forjar um "permitir"); o app grava do host.
-  const respostas = path.join(alvo.dir, '.orq', 'respostas-perm');
-  fs.mkdirSync(respostas, { recursive: true });
-  fs.writeFileSync(path.join(respostas, id + '.resposta'), decisao + '\n');
+  pastaProjeto.gravar(alvo.dir, ['.orq', 'respostas-perm', id + '.resposta'], `${decisao} ${c.hash}\n`);
   return true;
 }
 
@@ -364,4 +400,4 @@ function lerNota(qual) {
   try { return fs.readFileSync(arq, 'utf8'); } catch { return null; }
 }
 
-module.exports = { lerStatus, estadoComStatus, estadoPelaTela, mexeu, ehAgente, motorDaTela, modeloDoCodex, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };
+module.exports = { _pendencias: pendencias, lerStatus, estadoComStatus, estadoPelaTela, mexeu, ehAgente, motorDaTela, modeloDoCodex, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };

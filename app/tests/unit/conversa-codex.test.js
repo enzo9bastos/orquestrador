@@ -36,7 +36,8 @@ test('codex: pergunta com opções vira o cartão do AskUserQuestion e a respost
   const params = { questions: [{ id: 'q1', header: 'Cor', question: 'Qual cor?', options: [{ label: 'Azul', description: 'a' }] }, { id: 'q2', header: 'X', question: 'Outra?', options: null }] };
   const p = t.pedidoDaTela('item/tool/requestUserInput', params);
   assert.strictEqual(p.ferramenta, 'AskUserQuestion');
-  assert.deepStrictEqual(p.entrada.questions[0], { question: 'Qual cor?', header: 'Cor', multiSelect: false, options: [{ label: 'Azul', description: 'a' }] });
+  // Desde a 0.A3 o cartão leva também o id, isSecret e isOther de cada pergunta.
+  assert.deepStrictEqual(p.entrada.questions[0], { id: 'q1', question: 'Qual cor?', header: 'Cor', multiSelect: false, isSecret: false, isOther: false, options: [{ label: 'Azul', description: 'a' }] });
   assert.deepStrictEqual(t.respostaAoServidor('item/tool/requestUserInput', params, { permitir: true, respostas: { 'Qual cor?': 'Azul' } }),
     { answers: { q1: { answers: ['Azul'] }, q2: { answers: [] } } });
   assert.deepStrictEqual(t.respostaAoServidor('item/tool/requestUserInput', params, { permitir: false }), { answers: { q1: { answers: [] }, q2: { answers: [] } } });

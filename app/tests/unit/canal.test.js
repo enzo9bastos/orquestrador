@@ -257,7 +257,8 @@ test('canal: envio autorizado pelo usuário: confere o trecho; bateu sai, não b
   recados.conferirAutorizacao(r2.id, false);
   const d2 = recados.ler().find((x) => x.id === r2.id);
   assert.strictEqual(d2.estado, 'aguardando');
-  assert.match(d2.motivo, /a autorização citada não está numa mensagem sua da última hora/);
+  // Desde a 0.A4 (M3): só a última mensagem dele vale, e o trecho tem de citar o contato.
+  assert.match(d2.motivo, /a autorização citada não está na sua última mensagem, ou não cita Bruno pelo nome ou pela caixa/);
   const r3 = recados.pedirExterno({ contato: a.contatos[0], texto: 'recebi', segurar: null, autorizadoPor: 'qualquer coisa aqui' });
   assert.strictEqual(r3.estado, 'na-fila', 'o que já sai sozinho não precisa conferir');
 });

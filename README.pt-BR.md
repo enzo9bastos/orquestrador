@@ -307,7 +307,7 @@ ler — seja qual for a IA em que ele roda. Tudo são arquivos locais; nada sai 
     no ajudante e num cartão na conversa (você pode dar uma orientação, ou um motivo quando nega). Mesmo marcado como
     informação, o app segura texto com pergunta ou que parece decisão, preferência, prazo ou compromisso seu;
   - quando foi você que mandou enviar, o orquestrador cita as suas palavras (`--autorizado "…"`) e o app confere se
-    estão numa mensagem que você digitou na conversa na última hora — aí sai sem pedir de novo;
+    estão na sua última mensagem da conversa, e se ela cita o contato — aí sai sem pedir de novo;
   - texto que parece senha, chave ou token, ou com mais de 4 KB, é recusado.
 
   Só o orquestrador usa o canal: os agentes continuam falando só com o orquestrador do mesmo computador. O agente de

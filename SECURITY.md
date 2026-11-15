@@ -12,6 +12,8 @@ of opening a public issue.
 | Part | Runs as | What it can do |
 |---|---|---|
 | Orchestrator conversation | `claude` in `--permission-mode auto`, from your home folder | Reads, writes and runs commands; Claude Code's auto-mode classifier is the only gate. Anything it reads (web pages, files, workflow output, agent requests) can try to steer it |
+| Orchestrator conversation on Codex | `codex app-server` **outside the Codex sandbox** (`sandbox: 'danger-full-access'`), approval policy `untrusted`, with Codex's automatic reviewer (`approvalsReviewer: 'auto_review'`) | The orchestrator needs `tmux` and `docker`, which the Codex sandbox blocks even for an approved command. Read-only commands run directly; the reviewer decides the rest by risk, and a denial shows up in the conversation |
+| Side request to Codex (`orq-recado pedir … --motor codex`) | `codex exec --dangerously-bypass-approvals-and-sandbox` **inside a throwaway container** | Codex's own sandbox does not work inside a container, so it runs without approvals or sandbox there. The limits come from Docker: the container is removed at the end (`--rm`), uses the dev container's firewall, and mounts the project read-only unless you approved writing |
 | Side conversations and terminals | your user | Same as above for conversations; terminals are plain shells |
 | Agents | Claude Code in tmux, ideally inside a dev container | Whatever their own permission settings allow |
 | Workflows | your user | `Command` steps run `bash -lc`; `Claude` steps run `claude -p`; folder triggers react to any file dropped in the watched folder |
@@ -31,6 +33,14 @@ of opening a public issue.
   (encrypts, splits, prints one character per line) can still leak it into the run history
   (`~/.cache/orq-app/workflows-execucoes.json`).
 
+## Flags that turn off approvals
+
+No flag that turns off approvals or the sandbox (`--dangerously-*`, `--yolo`, `--force`, `bypassPermissions`,
+`danger-full-access`, approval policy `never`) goes in silently. A test
+(`app/tests/unit/higiene-flags.test.js`) scans the code that builds the AI command lines and fails on any such
+flag outside a named list, where each exception says why. Today the list has the two rows above: the Codex
+orchestrator outside the sandbox with `auto_review`, and the Codex side request inside its container.
+
 ## Known limits
 
 - **Agent request bridge.** An agent can leave a script in `<project>/.orq/pedidos/` asking you to run it on
@@ -41,6 +51,13 @@ of opening a public issue.
   both read-only in the dev container, see the README); otherwise it ignores the app and the prompt stays in
   the terminal. This does not protect against an agent that can edit the project's `.claude/settings.json`:
   it could register a hook of its own that approves everything, app or no app. Mount that file read-only too.
+  The request file in `<project>/.orq/permissoes/` is writable by the agent, so the hook keeps the hash of the
+  request it made and the app answers with the hash of what it showed you (frozen at first read; the id comes from
+  the file name). If they differ, the hook decides nothing and the prompt stays in the terminal. Copy the hook
+  again after updating the app: an older copy does not check the hash.
+- **Symbolic links in `.orq/`.** The agent can replace anything in `<project>/.orq/` with a symbolic link. Every
+  write the app makes in a project folder stays inside the project's real path, refuses a link in any part of
+  the path and opens files with `O_NOFOLLOW`; a refused message shows the reason in the Messages tab.
 - **Live reload.** When a file in `app/renderer/` changes, the window reloads by itself **only if that folder
   matches the last git commit** (which is how a published update arrives). A file changed or dropped there
   without a commit does not run on its own; without git there is no automatic reload. Anyone who can commit

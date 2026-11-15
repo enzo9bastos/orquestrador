@@ -252,3 +252,33 @@ test('ajudante fora do app: o bichinho traz a aprovação', { skip: !process.env
     assert.deepStrictEqual({ id: r.id, permitir: r.permitir, nota: r.nota }, { id: 'aprovar:e9', permitir: true, nota: 'ok, mas confirma com a Carla' });
   } finally { p.kill(); }
 });
+
+// 0.A3 da Etapa 0: pergunta com resposta secreta (isSecret, do Codex) nunca é
+// digitada no bichinho. O app já não manda a pergunta para ele; se mandar (app
+// antigo), a janelinha mostra só o aviso e o botão para abrir o app.
+test('ajudante fora do app: pergunta com resposta secreta não tem campo no bichinho', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+  const recebidas = [];
+  readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
+  const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
+  const espera = async (fn, ms = 10000) => { for (let i = 0; i < ms / 50; i++) { const r = recebidas.find(fn); if (r) return r; await new Promise((x) => setTimeout(x, 50)); } throw new Error(`não chegou: ${fn}`); };
+  const js = async (codigo) => { recebidas.length = 0; manda({ t: 'js', codigo }); return (await espera((m) => m.t === 'js')).r; };
+  try {
+    await espera((m) => m.t === 'iniciado', 20000);
+    manda({ t: 'visual', visual: { cor: 'azul', itens: {} }, tema: 'dark' });
+    manda({ t: 'pendencia', texto: 'O orquestrador tem uma pergunta para você', total: 1, conversa: 'orquestrador', id: 'conversa:orquestrador:cx-99',
+      item: { tipo: 'pergunta', quem: 'O orquestrador', reqId: 'cx-99', perguntas: [{ id: 'qa', header: 'Acesso', question: 'Qual a senha?', isSecret: true, isOther: true, options: [] }] } });
+    for (let i = 0; i < 80 && !(await js("!document.getElementById('pergunta').hidden")); i++) await new Promise((x) => setTimeout(x, 100));
+    assert.match(await js("document.getElementById('pg-corpo').innerText"), /resposta secreta: responda no app/);
+    assert.strictEqual(await js("document.querySelectorAll('#pergunta textarea, #pergunta input').length"), 0, 'nenhum campo para digitar');
+    assert.strictEqual(await js("!!document.querySelector('[data-pg=app]')"), true, 'só o botão de abrir o app');
+    // Em inglês, o aviso também.
+    manda({ t: 'visual', idioma: 'en', visual: { cor: 'azul', itens: {} }, tema: 'dark' });
+    for (let i = 0; i < 50 && (await js('window.orqI18n.idioma()')) !== 'en'; i++) await new Promise((x) => setTimeout(x, 100));
+    await new Promise((x) => setTimeout(x, 500));
+    manda({ t: 'pendencia', texto: 'O orquestrador tem uma pergunta para você', total: 1, conversa: 'orquestrador', id: 'conversa:orquestrador:cx-100',
+      item: { tipo: 'pergunta', quem: 'O orquestrador', reqId: 'cx-100', perguntas: [{ id: 'qa', question: 'Qual a senha?', isSecret: true, options: [] }] } });
+    for (let i = 0; i < 50 && !/secret answer/.test(await js("document.getElementById('pg-corpo').innerText")); i++) await new Promise((x) => setTimeout(x, 100));
+    assert.match(await js("document.getElementById('pg-corpo').innerText"), /^Question with a secret answer: answer it in the app\.$/);
+  } finally { p.kill(); }
+});

@@ -63,6 +63,7 @@
       <div class="recado-topo"><span class="recado-de"${dado(r.de)}>${esc(quem(r.de))}</span><span class="recado-seta">→</span><span class="recado-para"${dado(r.para)}${r.para.caixa ? ` title="${esc(r.para.caixa)}"` : ''}>${esc(quem(r.para))}</span>
         <span class="recado-projeto" data-sem-traducao>${esc(alvoDo(r))}</span>
         <span class="selo recado-selo-tipo">${esc(TIPO[r.tipo] || r.tipo)}</span>
+        ${r.de.tipo === 'externo' ? '<span class="selo recado-selo-nao-verificado" title="O nome de quem mandou vem de uma etiqueta que qualquer um que escreve na sua caixa pode pôr: o app não confirma o remetente">não verificado</span>' : ''}
         ${r.canal && r.classe ? `<span class="selo recado-selo-classe">${esc(CLASSE[r.classe] || r.classe)}</span>` : ''}
         <span class="selo recado-selo-estado">${esc(ESTADO[r.estado] || r.estado)}</span>
         <span class="recado-hora">${esc(hora(r.ts))}</span></div>

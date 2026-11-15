@@ -32,6 +32,14 @@ test('canal entre orquestradores', async (t) => {
     assert.strictEqual(await app.avaliar("document.querySelector('[data-id=\"e2\"] .recado-selo-classe').textContent"), 'decisão');
   });
 
+  // 0.A4 (M2): quem mandou vem de uma etiqueta que qualquer um que escreve na
+  // caixa pode pôr: o recado de fora mostra o selo "não verificado".
+  await t.test('o recado de fora mostra o selo "não verificado"; o que sai daqui não', async () => {
+    assert.strictEqual(await app.avaliar("(document.querySelector('[data-id=\"e1\"] .recado-selo-nao-verificado') || {}).textContent"), 'não verificado');
+    assert.match(await app.avaliar("document.querySelector('[data-id=\"e1\"] .recado-selo-nao-verificado').title"), /qualquer um que escreve na sua caixa/);
+    assert.strictEqual(await app.avaliar("!!document.querySelector('[data-id=\"e2\"] .recado-selo-nao-verificado')"), false);
+  });
+
   // Pedido de 2026-11-13: o que espera aprovação aparece também na conversa
   // do orquestrador, como um cartão igual ao de pergunta.
   await t.test('na conversa do orquestrador, o recado vem como cartão de pergunta (Aprovar / Negar)', async () => {

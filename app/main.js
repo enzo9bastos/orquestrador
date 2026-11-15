@@ -484,9 +484,10 @@ function cicloCanal() {
       }
       enviar('canal:estado', situacaoCanal());
     }
-    // Envio que o usuário mandou fazer: o trecho citado tem de estar numa
-    // mensagem que ele digitou na conversa do orquestrador.
-    for (const r of recados.conferindoExternos()) recados.conferirAutorizacao(r.id, conversa.usuarioEscreveu(r.autorizadoPor));
+    // Envio que o usuário mandou fazer: o trecho citado tem de estar na
+    // última mensagem que ele digitou na conversa do orquestrador, citando o
+    // contato pelo nome ou pela caixa.
+    for (const r of recados.conferindoExternos()) recados.conferirAutorizacao(r.id, conversa.usuarioEscreveu(r.autorizadoPor, { contato: r.para }));
     const fila = recados.externosNaFila();
     // Recado esperando aprovação: quem avisa é o bichinho (pendências) e o
     // cartão na conversa; sem notificação do sistema (pedido de 2026-11-13).
@@ -534,14 +535,9 @@ function verPendencias(r) {
       // Permissão de agente: dá para responder direto no ajudante.
       item: p.tipo === 'permissao' ? { tipo: 'agente', quem: `Agente de ${p.proj}`, emp: p.emp, proj: p.proj, id: p.id, ferramenta: p.ferramenta, comando: p.entrada?.command || p.entrada?.file_path || null, descricao: p.entrada?.description || null } : null,
     })),
-    ...conversa.lista().filter((c) => c.pedidos > 0).flatMap((c) => conversa.pedidos(c.id).map((p) => ({
-      id: `conversa:${c.id}:${p.id}`,
-      conversa: c.id,
-      texto: c.orquestrador ? 'O orquestrador tem uma pergunta para você' : `"${c.titulo}" tem uma pergunta para você`,
-      // A pergunta inteira (com as opções) ou o pedido de permissão: o
-      // ajudante mostra e o usuário responde ali mesmo.
-      item: { tipo: p.entrada?.questions ? 'pergunta' : 'permissao', quem: c.orquestrador ? 'O orquestrador' : c.titulo, reqId: p.id, perguntas: p.entrada?.questions || null, ferramenta: p.ferramenta, comando: p.entrada?.command || p.entrada?.file_path || null, descricao: p.entrada?.description || null },
-    }))),
+    // A pergunta inteira (com as opções) ou o pedido de permissão; a de
+    // resposta secreta só avisa (ajudante.pendenciaDeConversa).
+    ...conversa.lista().filter((c) => c.pedidos > 0).flatMap((c) => conversa.pedidos(c.id).map((p) => ajudante.pendenciaDeConversa(c, p))),
     // O que espera aprovação na aba Recados (recado para fora, pedido avulso
     // que pede escrita): o bichinho traz, e dá para decidir ali mesmo.
     ...recados.ler(1000).filter((r) => r.estado === 'aguardando').map((r) => ({

@@ -59,8 +59,9 @@ try {
     const achou = recados.acharFrente(frentes, alvo);
     if (!achou.length) sair(`nenhum agente do app em "${alvo}". Agentes abertos: ${frentes.map((f) => `${f.nome} (${f.emp ? `${f.emp}/` : ''}${f.proj})`).join(', ') || 'nenhum'}`);
     if (achou.length > 1) sair(`"${alvo}" tem ${achou.length} agentes: ${achou.map((f) => f.nome).join(', ')}; use o nome do agente`);
-    const { recado, instalacao } = recados.mandarAoAgente(achou[0], texto, { tipo: opc.tipo || 'aviso' });
-    console.log(`recado entregue a ${recado.para.nome} (${recado.para.alvo})${instalacao === 'instalado' ? '; .orq/bin/orq-recado instalado no projeto' : ''}`);
+    const { recado, instalacao, esperando } = recados.mandarAoAgente(achou[0], texto, { tipo: opc.tipo || 'aviso' });
+    if (esperando) console.log(`recado NÃO digitado ainda: ${recado.motivo}. O app entrega sozinho quando a tela de ${recado.para.nome} estiver livre (veja na aba Recados).`);
+    else console.log(`recado entregue a ${recado.para.nome} (${recado.para.alvo})${instalacao === 'instalado' ? '; .orq/bin/orq-recado instalado no projeto' : ''}`);
   } else if (cmd === 'pedir') {
     const [alvo, ...txt] = resto;
     const texto = txt.join(' ');

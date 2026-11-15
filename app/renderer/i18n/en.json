@@ -351,6 +351,8 @@
     "Começar nova rodada agora": "Start a new round now",
     "Pergunta": "Question",
     "Outra resposta… (Enter responde · Shift+Enter quebra linha · Ctrl+V cola print)": "Other answer… (Enter answers · Shift+Enter new line · Ctrl+V pastes a screenshot)",
+    "Resposta secreta… (Enter responde)": "Secret answer… (Enter answers)",
+    "Resposta secreta: não aparece na tela nem no histórico do app. O Codex guarda o que você digitar no histórico dele (~/.codex/sessions/).": "Secret answer: it does not show on screen or in the app's history. Codex keeps what you type in its own history (~/.codex/sessions/).",
     "Responder": "Answer",
     "O orquestrador pede permissão:": "The Orchestrator asks for permission:",
     "Este caminho não existe (ou não está acessível daqui)": "This path doesn't exist (or isn't reachable from here)",
@@ -830,6 +832,8 @@
     "Ctrl+Alt+Espaço já está em uso por outro atalho do sistema.": "Ctrl+Alt+Space is already used by another system shortcut.",
     "Chamar o ajudante (App de Orquestração)": "Call the Helper (Orchestration App)",
     "O orquestrador tem uma pergunta para você": "The Orchestrator has a question for you",
+    "O orquestrador tem uma pergunta com resposta secreta: responda no app": "The Orchestrator has a question with a secret answer: answer it in the app",
+    "Pergunta com resposta secreta: responda no app.": "Question with a secret answer: answer it in the app.",
     "O orquestrador precisa de você": "The Orchestrator needs you",
     "O orquestrador respondeu": "The Orchestrator replied",
     "decisão inválida": "invalid decision",
@@ -1006,6 +1010,8 @@
     "Aprovar cada envio": "Approve each send",
     "Nada sai deste computador sem você aprovar na aba Recados.": "Nothing leaves this computer until you approve it in the Messages tab.",
     "de outro computador": "from another computer",
+    "não verificado": "unverified",
+    "O nome de quem mandou vem de uma etiqueta que qualquer um que escreve na sua caixa pode pôr: o app não confirma o remetente": "The sender's name comes from a tag that anyone who writes to your inbox can set: the app does not confirm the sender",
     "Você": "You",
     "O orquestrador quer mandar um recado para": "The orchestrator wants to send a message to",
     "🌐 Recado de fora:": "🌐 Message from outside:",
@@ -1655,6 +1661,42 @@
       "\"$1\" has a question for you"
     ],
     [
+      "^\"(.+)\" tem uma pergunta com resposta secreta: responda no app$",
+      "\"$1\" has a question with a secret answer: answer it in the app"
+    ],
+    [
+      "^Pedido não suportado: (.+) \\(o app recusou; a conversa segue sem ele\\)$",
+      "Unsupported request: $1 (the app refused it; the conversation goes on without it)"
+    ],
+    [
+      "^(.+) está com uma pergunta ou menu aberto na tela: o recado espera ela ser respondida \\(o app não digita às cegas num menu\\)$",
+      "$1 has a question or menu open on screen: the message waits until it is answered (the app doesn't type blindly into a menu)"
+    ],
+    [
+      "^(.+) é um link simbólico: o app não grava nem segue link dentro do projeto; os recados deste projeto ficam parados até a pasta voltar ao normal$",
+      "$1 is a symbolic link: the app does not write to or follow links inside the project; this project's messages are on hold until the folder is back to normal"
+    ],
+    [
+      "^(.+) é um link simbólico: o app não grava nem segue link dentro do projeto$",
+      "$1 is a symbolic link: the app does not write to or follow links inside the project"
+    ],
+    [
+      "^(.+) não é uma pasta; os recados deste projeto ficam parados até a pasta voltar ao normal$",
+      "$1 is not a folder; this project's messages are on hold until the folder is back to normal"
+    ],
+    [
+      "^(.+) não é uma pasta$",
+      "$1 is not a folder"
+    ],
+    [
+      "^(.+) existe e não é um arquivo comum$",
+      "$1 exists and is not a regular file"
+    ],
+    [
+      "^(.+) foi parar fora do projeto \\(uma pasta virou link no meio do caminho\\): nada foi gravado$",
+      "$1 ended up outside the project (a folder turned into a link midway): nothing was written"
+    ],
+    [
       "^Um agente \\((.+)\\) quer usar (.+)$",
       "An agent ($1) wants to use $2"
     ],
@@ -1805,6 +1847,10 @@
     [
       "^Sai deste computador para (.+) \\(caixa (.+)\\) se você aprovar\\.$",
       "Leaves this computer for $1 (inbox $2) if you approve."
+    ],
+    [
+      "^vai sair deste computador; (.+) \\(a autorização citada não está na sua última mensagem, ou não cita (.+) pelo nome ou pela caixa\\)$",
+      "leaves this computer; $1 (the quoted authorization isn't in your last message, or doesn't name $2 or their inbox)"
     ],
     [
       "^vai sair deste computador; (.+) \\(a autorização citada não está numa mensagem sua da última hora\\)$",

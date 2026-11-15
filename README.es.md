@@ -2,7 +2,7 @@
 
 <img src="docs/images/pet-hello.gif" alt="El ayudante en píxeles saludando" width="120">
 
-# Orquestrador
+# Orquestador
 
 [English](README.md) · [Português](README.pt-BR.md) · **Español**
 
@@ -28,7 +28,7 @@ automatiza tu computadora con workflows visuales — y conoce al pequeño ayudan
 
 ## Por qué
 
-Tener varios agentes de IA trabajando en paralelo se convierte rápido en una pared de terminales. Orquestrador deja
+Tener varios agentes de IA trabajando en paralelo se convierte rápido en una pared de terminales. Orquestador deja
 los agentes exactamente donde ya trabajan — sesiones de `tmux`, idealmente dentro de devcontainers — y pone encima
 una capa tranquila: un lugar para hablar con el orquestador, ver quién hace qué y actuar sobre lo que te está
 esperando. Cerrar la app nunca detiene a un agente.
@@ -319,7 +319,7 @@ posterior puede leer — sea cual sea la IA en la que corra. Todo son archivos l
     una orientación, o un motivo si lo niegas). Aunque esté marcado como información, la app retiene el texto con una
     pregunta, o que parezca una decisión, preferencia, plazo o compromiso tuyo;
   - cuando fuiste tú quien pidió enviarlo, el orquestador cita tus palabras (`--autorizado "…"`) y la app comprueba
-    que estén en un mensaje que escribiste en la conversación durante la última hora — entonces sale sin volver a
+    que estén en tu último mensaje de la conversación y que nombre al contacto — entonces sale sin volver a
     preguntar;
   - el texto que parezca una contraseña, clave o token, o de más de 4 KB, se rechaza.
 

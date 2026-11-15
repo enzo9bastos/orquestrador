@@ -42,7 +42,10 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
         nota('account/rateLimits/updated', { rateLimits: { primary: { usedPercent: 3.4, windowDurationMins: 43200 }, secondary: null } });
         nota('turn/completed', { threadId: 'th', turn: { id: 'tu1', status: 'completed', durationMs: 5 } });
       };
-      sai({ id: 99, method: 'item/tool/requestUserInput', params: { ...t, itemId: 'q', isBlocking: true, questions: [{ id: 'q1', header: 'Cor', question: 'Qual cor?', isOther: true, isSecret: false, options: [{ label: 'Azul', description: 'a' }, { label: 'Verde', description: 'v' }] }] } });
+      // CODEX_FALSO_PERGUNTAS (JSON): troca as perguntas do pedido (ex.: uma com isSecret).
+      const perguntas = process.env.CODEX_FALSO_PERGUNTAS ? JSON.parse(process.env.CODEX_FALSO_PERGUNTAS)
+        : [{ id: 'q1', header: 'Cor', question: 'Qual cor?', isOther: true, isSecret: false, options: [{ label: 'Azul', description: 'a' }, { label: 'Verde', description: 'v' }] }];
+      sai({ id: 99, method: 'item/tool/requestUserInput', params: { ...t, itemId: 'q', isBlocking: true, questions: perguntas } });
       return undefined;
     }
     default: return sai({ id: d.id, error: { code: -32601, message: 'desconhecido' } });

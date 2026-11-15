@@ -302,7 +302,19 @@ const mascarar = (t, valores) => valores.filter((v) => v && v.length >= 4).flatM
 
 // Mensagem de workflow ao orquestrador: vai embrulhada, para a tela (ao vivo
 // e no histórico) saber que não foi o usuário que escreveu.
-const marcarBastidor = (w, t) => `<orq-workflow nome="${String(w?.nome || 'workflow').replace(/["<>]/g, '')}">\n${t}\n</orq-workflow>`;
+// A saída de um passo não pode fechar (nem abrir outro) envelope: as tags saem
+// até não sobrar nenhuma (uma escondida dentro de outra reaparece no 1º corte).
+function semTagWorkflow(t) {
+  let a = String(t);
+  for (let i = 0; i < 50; i++) {
+    const b = a.replace(/<\/?orq-workflow[^>]*>/gi, '');
+    // O que sobrar parecido com tag ("</ orq-workflow>", sem o ">") tem o "<" escapado.
+    if (b === a) return b.replace(/<(?=\s*\/?\s*orq-)/gi, '&lt;');
+    a = b;
+  }
+  return a.replace(/</g, '&lt;');
+}
+const marcarBastidor = (w, t) => `<orq-workflow nome="${String(w?.nome || 'workflow').replace(/["<>]/g, '')}">\n${semTagWorkflow(t)}\n</orq-workflow>`;
 // {{entrada}} saída do passo anterior · {{data}} data e hora · {{data_arquivo}}
 // data boa para nome de arquivo · {{arquivo}} / {{nome_arquivo}} o arquivo
 // que disparou o workflow (gatilho "Arquivo novo na pasta").
@@ -685,4 +697,4 @@ const tiposCred = () => ({ tipos: TIPOS_CRED, camposBw: CAMPOS_BW });
 const lista = () => ler().map((w) => ({ ...w, rodando: rodando.has(w.id) }));
 
 module.exports = { ligar, desligar, lista, gravar, apagar, rodar, execucoes, todasExecucoes, tipos, vence, tique, olharPastas, casaPadrao, livre, TIPOS, ARQ,
-  credenciais, gravarCredencial, apagarCredencial, testarCredencial, tiposCred };
+  credenciais, gravarCredencial, apagarCredencial, testarCredencial, tiposCred, _marcarBastidor: marcarBastidor };

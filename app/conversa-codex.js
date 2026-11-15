@@ -96,12 +96,16 @@ function eventosDoHistorico(turns) {
 }
 
 // Pedido do servidor → cartão da tela ({ ferramenta, entrada, motivo }).
+// Cada pergunta leva o id (a resposta casa por ele, não pelo texto: duas
+// perguntas iguais não colidem), isSecret (campo de senha; a resposta nunca
+// aparece na tela, no histórico do app nem no bichinho) e isOther (texto livre).
 function pedidoDaTela(method, params) {
   if (method === 'item/tool/requestUserInput') {
     return {
       ferramenta: 'AskUserQuestion',
       entrada: { questions: (params.questions || []).map((q) => ({
-        question: q.question, header: q.header || '', multiSelect: false,
+        id: q.id, question: q.question, header: q.header || '', multiSelect: false,
+        isSecret: !!q.isSecret, isOther: !!q.isOther,
         options: (q.options || []).map((o) => ({ label: o.label, description: o.description || '' })),
       })) },
       motivo: null,
@@ -119,12 +123,14 @@ function pedidoDaTela(method, params) {
 }
 
 // Decisão do usuário → resposta JSON-RPC para o servidor.
-// decisao: { permitir, respostas?: { [texto da pergunta]: resposta } }
+// decisao: { permitir, respostas?: { [id da pergunta]: resposta } } (o texto
+// da pergunta como chave ainda vale, para quem responde pelo texto).
 function respostaAoServidor(method, params, decisao) {
   if (method === 'item/tool/requestUserInput') {
     const answers = {};
+    const rs = decisao.respostas || {};
     for (const q of params.questions || []) {
-      const r = decisao.respostas && decisao.respostas[q.question];
+      const r = Object.prototype.hasOwnProperty.call(rs, q.id) ? rs[q.id] : rs[q.question];
       answers[q.id] = { answers: decisao.permitir && r != null && r !== '' ? [String(r)] : [] };
     }
     return { answers };

@@ -143,7 +143,16 @@
     if (!pg) return;
     const it = pg.item;
     $('pg-quem').textContent = it.quem || 'Pergunta';
-    if (it.tipo === 'pergunta') {
+    if (it.tipo === 'pergunta' && it.perguntas.some((x) => x && x.isSecret)) {
+      // Resposta secreta nunca é digitada aqui (o app já não manda; isto é a
+      // segunda trava): só o aviso e o botão para abrir o app.
+      $('pg-passo').textContent = '';
+      // O #pg-corpo é área de conteúdo (o tradutor não mexe): o aviso, que é
+      // texto do app, já vai traduzido.
+      const aviso = 'Pergunta com resposta secreta: responda no app.';
+      $('pg-corpo').innerHTML = `<p class="pergunta">${esc(window.orqI18n ? window.orqI18n.t(aviso) : aviso)}</p>`;
+      $('pg-acoes').innerHTML = '<button type="button" class="botao primario" data-pg="app">Abrir no app</button>';
+    } else if (it.tipo === 'pergunta') {
       const q = it.perguntas[pg.i];
       $('pg-passo').textContent = [it.perguntas.length > 1 ? `pergunta ${pg.i + 1} de ${it.perguntas.length}` : '', q.multiSelect ? 'pode marcar mais de uma' : ''].filter(Boolean).join(' · ');
       $('pg-corpo').innerHTML = `${q.header ? `<p class="aj-cabeca">${esc(q.header)}</p>` : ''}<p class="pergunta">${esc(q.question)}</p>
@@ -170,7 +179,7 @@
   // Uma resposta por pergunta; na última, manda tudo.
   function proxima(resposta) {
     const q = pg.item.perguntas[pg.i];
-    pg.respostas[q.question] = resposta;
+    pg.respostas[q.id != null ? q.id : q.question] = resposta; // pelo id quando há (duas perguntas iguais não colidem)
     pg.marcadas = new Set();
     if (pg.i + 1 < pg.item.perguntas.length) { pg.i++; desenharPergunta(); return; }
     enviarResposta({ respostas: pg.respostas });

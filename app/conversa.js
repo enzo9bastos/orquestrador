@@ -375,7 +375,18 @@ class Conversa {
           const q = (p.entrada && p.entrada.questions && p.entrada.questions[0]) || null;
           avisar({ tipo: 'pedido', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador,
             texto: q ? `${q.header ? q.header + ': ' : ''}${q.question}` : `Quer usar ${p.ferramenta}${p.entrada && p.entrada.command ? `: ${p.entrada.command}` : ''}` });
+        } else {
+          // Pedido que o app não atende (ex.: elicitation de um MCP): sem
+          // resposta, o Claude esperaria para sempre. Erro na hora, e uma
+          // linha na conversa dizendo o quê.
+          const tipo = String((d.request && d.request.subtype) || 'sem tipo').slice(0, 60);
+          this.escrever({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: `o App de Orquestração não atende o pedido ${tipo}` } });
+          this.registrar({ tipo: 'aviso', texto: `Pedido não suportado: ${tipo} (o app recusou; a conversa segue sem ele)` });
         }
+        return;
+      case 'control_cancel_request':
+        // O Claude desistiu de um pedido (ex.: o turno foi interrompido): o cartão fecha.
+        if (this.pendentes.delete(d.request_id)) { this.enviar('conversa:respondido', d.request_id); avisarLista(); }
         return;
       default:
     }
@@ -385,6 +396,12 @@ class Conversa {
   // decide se avisa).
   fimDeTurno({ erro = false, duracao = null, texto = null } = {}) {
     this.info.ocupado = false;
+    // O turno acabou: pedido que ficou sem resposta não vale mais (o cartão fecha).
+    if (this.pendentes.size) {
+      for (const id of this.pendentes.keys()) this.enviar('conversa:respondido', id);
+      this.pendentes.clear();
+      avisarLista();
+    }
     this.avisarInfo();
     this.registrar({ tipo: 'resultado', erro, duracao, texto: erro ? texto : null });
     if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
@@ -544,18 +561,32 @@ function lista() { return [...conversas.values()].map((c) => c.resumo()); }
 // para o recado que ELE mandou enviar não pedir aprovação de novo. Só conta
 // mensagem digitada por ele: recado de fora, workflow (<orq-…>) e comando (/…)
 // não valem, então ninguém de fora consegue "autorizar" em nome dele.
+// E só a ÚLTIMA mensagem que ele digitou (uma ordem antiga não vale para um
+// envio novo). contato: { nome, caixa } — o trecho tem de citar o contato pelo
+// nome ou pela caixa (um trecho genérico não autoriza mandar a qualquer um).
 const normalizar = (t) => String(t || '').toLowerCase().normalize('NFC').replace(/[\s"'«»“”]+/g, ' ').trim();
-function usuarioEscreveu(trecho, { janelaMs = 60 * 60 * 1000, agora = Date.now() } = {}) {
+const citaPalavra = (texto, palavra) => {
+  const p = normalizar(palavra).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return !!p && new RegExp(`(?<![\\p{L}\\p{N}])${p}(?![\\p{L}\\p{N}])`, 'u').test(texto);
+};
+function usuarioEscreveu(trecho, { janelaMs = 60 * 60 * 1000, agora = Date.now(), contato = null } = {}) {
   const alvo = normalizar(trecho);
   if (alvo.length < 15) return false;
+  // O contato pelo nome inteiro, pelo primeiro nome (o usuário escreve "Bruno"
+  // para o contato "Bruno Lima") ou pela caixa.
+  const primeiro = contato && String(contato.nome || '').trim().split(/\s+/)[0];
+  if (contato && ![contato.nome, primeiro && primeiro.length >= 3 ? primeiro : null, contato.caixa].some((x) => x && citaPalavra(alvo, x))) return false;
   const o = [...conversas.values()].find((c) => c.orquestrador);
   if (!o) return false;
-  return o.eventos.some((e) => {
-    if (e.tipo !== 'user' || e.sub || !e.message || (e.ts || 0) < agora - janelaMs) return false;
+  let ultima = null; // a mais recente digitada por ele
+  for (const e of o.eventos) {
+    if (e.tipo !== 'user' || e.sub || !e.message) continue;
     const t = textoDoPrompt(e.message.content);
-    if (t == null || /^\s*[</]/.test(t)) return false;
-    return normalizar(t).includes(alvo);
-  });
+    if (t == null || /^\s*[</]/.test(t)) continue;
+    if (!ultima || (e.ts || 0) >= ultima.ts) ultima = { ts: e.ts || 0, t };
+  }
+  if (!ultima || ultima.ts < agora - janelaMs) return false;
+  return normalizar(ultima.t).includes(alvo);
 }
 
 function pegar(id) {

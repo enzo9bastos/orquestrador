@@ -50,18 +50,31 @@ if [ -w "$0" ] || [ ! -d "$respostas" ] || [ -w "$respostas" ]; then exit 0; fi
 
 id="$sessao-$ts"
 mkdir -p "$dir/permissoes"
-jq -c --arg id "$id" --argjson ts "$ts" \
-   '{id: $id, ts: $ts, sessao: .session_id, tool_name, tool_input}' \
-   <<<"$entrada" > "$dir/permissoes/$id.json"
+# O pedido fica congelado aqui, na memória do hook, com o hash dele. O agente
+# pode reescrever o .json depois (a pasta é dele); por isso o app responde
+# "permitir <hash do que mostrou>" e o hook só aceita se o hash for o deste
+# pedido. Não bateu: o app mostrou outra coisa, e o hook não decide nada.
+pedido=$(jq -c --arg id "$id" --argjson ts "$ts" \
+   '{id: $id, ts: $ts, sessao: .session_id, tool_name, tool_input}' <<<"$entrada")
+hash=$(printf '%s\n' "$pedido" | sha256sum 2>/dev/null | cut -d' ' -f1)
+[ -n "$hash" ] || exit 0
+printf '%s\n' "$pedido" > "$dir/permissoes/$id.json"
 resp="$respostas/$id.resposta"
 
 limite=$(( $(date +%s) + ${ORQ_ESPERA_SEGUNDOS:-300} ))
 while [ "$(date +%s)" -lt "$limite" ]; do
     if [ -f "$resp" ]; then
-        case "$(head -c 16 "$resp")" in
-            permitir*) jq -n '{hookSpecificOutput: {hookEventName: "PermissionRequest",
+        decisao=""; hash_resp=""
+        read -r decisao hash_resp < "$resp"
+        if [ "$hash_resp" != "$hash" ]; then
+            # O app decidiu sobre um pedido diferente deste: a pergunta volta ao terminal.
+            mv "$dir/permissoes/$id.json" "$dir/permissoes/$id.divergente" 2>/dev/null
+            exit 0
+        fi
+        case "$decisao" in
+            permitir) jq -n '{hookSpecificOutput: {hookEventName: "PermissionRequest",
                                decision: {behavior: "allow"}}}' ;;
-            negar*)    jq -n '{hookSpecificOutput: {hookEventName: "PermissionRequest",
+            negar)    jq -n '{hookSpecificOutput: {hookEventName: "PermissionRequest",
                                decision: {behavior: "deny", message: "Negado pelo usuário no app de orquestração."}}}' ;;
         esac
         mv "$dir/permissoes/$id.json" "$dir/permissoes/$id.respondida" 2>/dev/null

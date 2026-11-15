@@ -300,7 +300,7 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
     reason when you deny). Even when marked as information, the app holds text with a question, or that looks like
     your decision, preference, deadline or commitment;
   - when you told it to send, the orchestrator quotes your words (`--autorizado "…"`) and the app checks them against
-    a message you typed in the chat in the last hour — then it goes out without asking again;
+    your last message in the chat, which has to name the contact — then it goes out without asking again;
   - text that looks like a password, key or token, or over 4 KB, is refused.
 
   Only the orchestrator uses the channel: agents keep talking only to the orchestrator on the same computer. Anyone

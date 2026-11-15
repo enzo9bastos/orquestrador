@@ -284,7 +284,7 @@
       el.innerHTML = `<strong>Rodada encerrada</strong><span>O orquestrador saiu. Na próxima vez que abrir o app, começa uma rodada nova.</span>
         <button type="button" class="botao primario" data-nova-rodada>Começar nova rodada agora</button>`;
       caixa.append(el);
-    } else if (ev.tipo === 'fim' || ev.tipo === 'erro') {
+    } else if (ev.tipo === 'fim' || ev.tipo === 'erro' || ev.tipo === 'aviso') {
       limparRascunho();
       aviso(ev.texto, ev.tipo === 'erro' ? 'erro' : '');
     }
@@ -297,6 +297,14 @@
     el.className = 'cartao-pedido';
     el.dataset.pedido = p.id;
     if (p.ferramenta === 'AskUserQuestion') {
+      // Resposta secreta (isSecret, do Codex): campo de senha, sem print, e a
+      // resposta nunca volta à tela. Texto livre: sempre, a não ser que o
+      // Codex diga que a pergunta só aceita as opções (isOther false).
+      const campoLivre = (q) => (q.isSecret
+        ? '<input type="password" class="outra secreta" autocomplete="off" spellcheck="false" placeholder="Resposta secreta…  (Enter responde)">'
+          + '<p class="nota aviso-secreta">Resposta secreta: não aparece na tela nem no histórico do app. O Codex guarda o que você digitar no histórico dele (~/.codex/sessions/).</p>'
+        : q.isOther === false && (q.options || []).length ? ''
+          : '<textarea class="outra" rows="1" placeholder="Outra resposta…  (Enter responde · Shift+Enter quebra linha · Ctrl+V cola print)"></textarea>');
       el.innerHTML = (p.entrada.questions || []).map((q, i) => `
         <fieldset class="pergunta" data-i="${i}" data-multi="${q.multiSelect ? 1 : 0}">
           <legend><span class="etiqueta">${esc(q.header || 'Pergunta')}</span>${esc(q.question)}${q.multiSelect ? '<span class="dica-multi">Pode marcar mais de uma</span>' : ''}</legend>
@@ -304,7 +312,7 @@
             <button type="button" class="opcao ${q.multiSelect ? 'multi' : 'unica'}" data-rotulo="${esc(o.label)}" role="${q.multiSelect ? 'checkbox' : 'radio'}" aria-checked="false">
               <strong>${esc(o.label)}</strong>${o.description ? `<span>${esc(o.description)}</span>` : ''}${o.preview ? `<pre class="previa">${esc(o.preview)}</pre>` : ''}</button>`).join('')}
           </div>
-          <textarea class="outra" rows="1" placeholder="Outra resposta…  (Enter responde · Shift+Enter quebra linha · Ctrl+V cola print)"></textarea>
+          ${campoLivre(q)}
           <div class="anexos anexos-pergunta" hidden></div>
         </fieldset>`).join('') +
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
@@ -355,7 +363,7 @@
       fs.querySelectorAll('.opcao').forEach((o) => o.setAttribute('aria-checked', o.classList.contains('marcada') ? 'true' : 'false'));
       // Escolha única: o texto de "Outra resposta" deixa de valer. Múltipla:
       // as marcas e o texto valem juntos.
-      if (fs.dataset.multi !== '1') fs.querySelector('.outra').value = '';
+      if (fs.dataset.multi !== '1' && fs.querySelector('.outra')) fs.querySelector('.outra').value = '';
       // Uma pergunta só, de escolha única: o clique já responde.
       if (fs.dataset.multi !== '1' && cartao.querySelectorAll('.pergunta').length === 1) enviarRespostas(cartao);
       return;
@@ -374,8 +382,10 @@
     const outra = ev.target.closest('.outra');
     if (!outra) return;
     // Cresce para baixo conforme o texto, até um limite; dali em diante rola.
-    outra.style.height = 'auto';
-    outra.style.height = Math.min(outra.scrollHeight + 2, 240) + 'px';
+    if (outra.tagName === 'TEXTAREA') {
+      outra.style.height = 'auto';
+      outra.style.height = Math.min(outra.scrollHeight + 2, 240) + 'px';
+    }
     if (!outra.value.trim()) return;
     if (outra.closest('.pergunta').dataset.multi === '1') return; // múltipla: marcas + texto valem juntos
     outra.closest('.pergunta').querySelectorAll('.opcao.marcada').forEach((o) => o.classList.remove('marcada'));
@@ -395,15 +405,18 @@
       aviso('Este app foi aberto antes da versão que manda imagens: feche e abra o app. Nada foi enviado.', 'erro');
       return;
     }
+    // A resposta de cada pergunta vai pela chave dela: o id (Codex), ou o
+    // texto da pergunta (Claude), para duas perguntas iguais não colidirem.
+    const chave = (q) => (q.id != null ? q.id : q.question);
     for (const fs of cartao.querySelectorAll('.pergunta')) {
       const q = p.entrada.questions[fs.dataset.i];
-      const outra = fs.querySelector('.outra').value.trim();
+      const outra = (fs.querySelector('.outra')?.value || '').trim();
       const marcadas = [...fs.querySelectorAll('.opcao.marcada')].map((o) => o.dataset.rotulo);
       // Múltipla escolha: as marcadas e o texto de "Outra resposta" vão juntos.
       let r = fs.dataset.multi === '1' && marcadas.length && outra ? `${marcadas.join(', ')}; ${outra}` : (outra || marcadas.join(', '));
       if (!r && !prints.length) { fs.classList.add('falta'); return; }
-      if (prints.length && fs === cartao.querySelector('.pergunta')) r = `${r ? `${r} ` : ''}(a print segue na próxima mensagem)`;
-      respostas[q.question] = r;
+      if (prints.length && fs === cartao.querySelector('.pergunta') && !q.isSecret) r = `${r ? `${r} ` : ''}(a print segue na próxima mensagem)`;
+      respostas[chave(q)] = r;
     }
     await C.responder(ativa, cartao.dataset.pedido, { permitir: true, respostas });
     if (prints.length) {
@@ -411,12 +424,13 @@
       await C.mandar(ativa, `Print da minha resposta à pergunta "${q0.header || q0.question}".`, prints);
     }
     // Respondido: cada pergunta com a sua resposta embaixo, uma por bloco.
+    // A secreta aparece só como •••.
     cartao.classList.add('respondido', 'respondido-perguntas');
     cartao.innerHTML = `<div class="titulo-respondido"><span class="ponto trabalhando"></span>Respondido</div>` +
       p.entrada.questions.map((q) => `<div class="resposta-dada">
         <span class="etiqueta">${esc(q.header || 'Pergunta')}</span>
         <strong>${esc(q.question)}</strong>
-        <p>${esc(respostas[q.question] || '')}</p></div>`).join('');
+        <p>${q.isSecret ? '•••' : esc(respostas[chave(q)] || '')}</p></div>`).join('');
   }
 
   function fecharPedido(cartao, texto) {
@@ -715,7 +729,7 @@
   // Paleta Ctrl+K: conversas (com pergunta pendente = esperando você) e comandos.
   window.orqPaleta?.registrar(() => [
     ...listaConversas.map((c) => ({ grupo: 'Conversas', titulo: c.titulo, sub: c.pedidos ? 'pergunta esperando você' : c.ocupado ? 'trabalhando' : '', atencao: c.pedidos > 0, faz: () => trocar(c.id) })),
-    ...COMANDOS_CLAUDE.concat(comandosPor.get(ativa) || []).filter((c, i, l) => l.findIndex((x) => x.nome === c.nome) === i)
+    ...comandosBase().concat(comandosPor.get(ativa) || []).filter((c, i, l) => l.findIndex((x) => x.nome === c.nome) === i)
       .map((c) => ({ grupo: 'Comandos', titulo: `/${c.nome}`, sub: c.descricao, faz: () => { trocar(ativa); entrada.value = `/${c.nome} `; entrada.focus(); } })),
   ]);
   // Clique numa notificação do sistema: abre a conversa que precisa de você.
@@ -796,7 +810,7 @@
   }
   caixa.addEventListener('paste', (ev) => {
     const outra = ev.target.closest('.outra');
-    if (!outra) return;
+    if (!outra || outra.classList.contains('secreta')) return; // resposta secreta não leva print
     const imgs = [...(ev.clipboardData?.items || [])].filter((i) => i.kind === 'file' && i.type.startsWith('image/'));
     if (!imgs.length) return;
     ev.preventDefault();
@@ -860,9 +874,10 @@
   // navegam, Tab ou Enter completam, Esc fecha.
   const comandosPor = new Map(); // conversa → [{nome, descricao, dica}]
   // O Claude, por trás, só anuncia as skills; os comandos próprios dele vêm
-  // daqui. /exit é tratado pelo app (fecha a janela).
+  // daqui. /exit é tratado pelo app (fecha a janela): fica sempre por último e
+  // nunca é completado pelo Enter ("/" + Enter fechava o app).
   const COMANDOS_CLAUDE = [
-    ['exit', 'Fecha o app e encerra as conversas'], ['restart', 'Reinicia o Claude desta conversa e continua do mesmo ponto'], ['model', 'Mostra ou troca o modelo', '[modelo]'],
+    ['restart', 'Reinicia o Claude desta conversa e continua do mesmo ponto'], ['model', 'Mostra ou troca o modelo', '[modelo]'],
     ['effort', 'Troca o esforço', '<low|medium|high|xhigh|max>'], ['usage', 'Uso do plano: janelas de 5 h e 7 dias'],
     ['context', 'Quanto do contexto está em uso'], ['cost', 'Custo e tokens da sessão'],
     ['compact', 'Resume a conversa para liberar contexto', '[instruções]'], ['clear', 'Limpa o histórico da conversa'],
@@ -871,12 +886,18 @@
     ['security-review', 'Revisão de segurança das mudanças'], ['todos', 'Lista de tarefas da sessão'],
     ['mcp', 'Servidores MCP'], ['agents', 'Subagentes configurados'], ['hooks', 'Hooks configurados'],
     ['permissions', 'Regras de permissão'], ['doctor', 'Diagnóstico da instalação'],
-    ['release-notes', 'Novidades da versão'], ['help', 'Ajuda'],
+    ['release-notes', 'Novidades da versão'], ['help', 'Ajuda'], ['exit', 'Fecha o app e encerra as conversas'],
   ].map(([nome, descricao, dica = '']) => ({ nome, descricao, dica }));
+  // Numa conversa Codex só valem os que o próprio app trata; o resto é do Claude.
+  const COMANDOS_DO_APP = new Set(['restart', 'model', 'effort', 'exit']);
+  const ehCodex = () => ((listaConversas.find((c) => c.id === ativa) || {}).motor || infoAtual.motor) === 'codex';
+  const comandosBase = () => (ehCodex() ? COMANDOS_CLAUDE.filter((c) => COMANDOS_DO_APP.has(c.nome)) : COMANDOS_CLAUDE);
+  const ehExit = (x) => x && (x.inserir === '/exit' || x.titulo === '/exit');
   // (sem o app reaberto, a ponte antiga ainda não tem aoComandos)
   if (C.aoComandos) C.aoComandos((id, l) => comandosPor.set(id, l));
   let sugestoes = [];
   let escolhida = 0;
+  let navegou = false; // o usuário escolheu com as setas (aí a seleção é dele)
   function fecharSugestoes() { $('sugestoes').hidden = true; sugestoes = []; }
   // Repertório (skills de todas as ferramentas + atalhos), carregado ao abrir
   // a lista "//" e recarregado a cada 30 s.
@@ -898,9 +919,10 @@
     const recebidos = comandosPor.get(ativa) || [];
     // Junta a lista do Claude com a nossa: a descrição nossa preenche os que
     // vieram sem descrição; os do app (/exit, /restart) entram sempre.
-    const nossos = new Map(COMANDOS_CLAUDE.map((c) => [c.nome, c]));
+    const base = comandosBase();
+    const nossos = new Map(base.map((c) => [c.nome, c]));
     const nomes = new Set(recebidos.map((c) => c.nome));
-    const todos = [...COMANDOS_CLAUDE.filter((c) => !nomes.has(c.nome)),
+    const todos = [...base.filter((c) => !nomes.has(c.nome)),
       ...recebidos.map((c) => (c.descricao || !nossos.has(c.nome) ? c : { ...c, descricao: nossos.get(c.nome).descricao, dica: c.dica || nossos.get(c.nome).dica }))];
     return todos.map((c) => ({ rotulo: `/${c.nome}`, dica: c.dica, desc: c.descricao, inserir: `/${c.nome}`, chave: c.nome }));
   }
@@ -939,9 +961,14 @@
     const b = busca.toLowerCase();
     const comeca = itens.filter((x) => x.chave.toLowerCase().startsWith(b));
     const contem = itens.filter((x) => !x.chave.toLowerCase().startsWith(b) && (x.chave + ' ' + (x.desc || '')).toLowerCase().includes(b));
-    sugestoes = [...comeca, ...contem].slice(0, 60);
+    // /exit sempre por último (e nunca cortado da lista).
+    const achados = [...comeca, ...contem];
+    const sair = achados.filter(ehExit);
+    sugestoes = [...achados.filter((x) => !ehExit(x)).slice(0, 60 - sair.length), ...sair];
     if (!sugestoes.length) return fecharSugestoes();
-    escolhida = Math.min(escolhida, sugestoes.length - 1);
+    // Sem o usuário ter andado com as setas, a seleção é a primeira que não
+    // é o /exit (só o /exit na lista: nada selecionado).
+    escolhida = navegou ? Math.min(escolhida, sugestoes.length - 1) : sugestoes.findIndex((x) => !ehExit(x));
     $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
       <span class="nome-comando">${esc(c.rotulo)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
       <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
@@ -958,7 +985,7 @@
     entrada.setSelectionRange(pos, pos);
     fecharSugestoes();
     entrada.focus();
-    if (c.continuar) { escolhida = 0; atualizarSugestoes(); }
+    if (c.continuar) { escolhida = 0; navegou = false; atualizarSugestoes(); }
   }
 
   // Na hora de enviar: //atalho vira o texto dele; //skill do Claude vira
@@ -1014,17 +1041,24 @@
     document.querySelector('[data-aba="aba-orquestrador"]')?.click();
     if (a.enviar) { colado = true; window.orqConversa.mandar(a.texto); } else window.orqConversa.inserir(a.texto);
   });
-  entrada.addEventListener('input', () => { escolhida = 0; atualizarSugestoes(); });
+  entrada.addEventListener('input', () => { escolhida = 0; navegou = false; atualizarSugestoes(); });
   entrada.addEventListener('keydown', (ev) => {
     if ($('sugestoes').hidden) return;
     if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
       ev.preventDefault();
-      escolhida = (escolhida + (ev.key === 'ArrowDown' ? 1 : -1) + sugestoes.length) % sugestoes.length;
+      navegou = true;
+      escolhida = escolhida < 0 ? (ev.key === 'ArrowDown' ? 0 : sugestoes.length - 1)
+        : (escolhida + (ev.key === 'ArrowDown' ? 1 : -1) + sugestoes.length) % sugestoes.length;
       atualizarSugestoes();
     } else if (ev.key === 'Tab' || (ev.key === 'Enter' && !ev.shiftKey)) {
-      // Enter com o comando já digitado inteiro manda direto.
-      if (ev.key === 'Enter' && sugestoes[escolhida] && entrada.value.trim() === sugestoes[escolhida].inserir) { fecharSugestoes(); return; }
+      const c = sugestoes[escolhida];
+      // Enter com o comando já digitado inteiro manda direto (o /exit
+      // digitado inteiro também: aí é escolha clara).
+      if (ev.key === 'Enter' && c && entrada.value.trim() === c.inserir) { fecharSugestoes(); return; }
+      if (ev.key === 'Enter' && !c && sugestoes.some((s) => entrada.value.trim() === s.inserir)) { fecharSugestoes(); return; }
       ev.preventDefault(); ev.stopImmediatePropagation();
+      // Nada selecionado, ou o /exit selecionado: o Enter não completa.
+      if (!c || (ev.key === 'Enter' && ehExit(c))) return;
       completar(escolhida);
     } else if (ev.key === 'Escape') {
       fecharSugestoes();
