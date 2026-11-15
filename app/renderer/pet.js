@@ -70,6 +70,9 @@
       this.ligarMouse();
       this.ligarReacoes();
       new ResizeObserver(() => this.encaixar()).observe(document.body);
+      // A faixa "Pensando… Parar" aparece e some: o chão sobe e desce junto, na hora.
+      const comp = document.getElementById('compositor');
+      if (comp) new ResizeObserver(() => this.encaixar()).observe(comp);
       // Trocar de aba esconde/mostra a sala do centro: confere de tempos em tempos.
       setInterval(() => { if (!this.arrastando && !this.noAr) this.encaixar(); }, 700);
       this.loopLivre();
@@ -82,7 +85,22 @@
       const r = el.getBoundingClientRect();
       if (r.width < LARG + 20 || r.height < ALT + 20) return null; // sala escondida
       const barra = nome === 'centro' ? 14 : 0; // não ficar em cima da barra de rolagem
-      return { x0: r.left + 6, x1: r.right - LARG - 6 - barra, teto: r.top, chao: r.bottom - ALT - 4 };
+      let chao = r.bottom - ALT - 4;
+      // Na conversa, o chão é o topo do que está à vista no compositor: a
+      // faixa "Pensando… Parar" quando aparece, senão a caixa de escrever. Ele
+      // pisa em cima e nunca fica sobre o botão Parar. (A lista do "/" fica
+      // por cima do compositor e já é plataforma.)
+      const comp = nome === 'centro' && document.getElementById('compositor');
+      if (comp) {
+        let topo = Infinity;
+        for (const el of comp.children) {
+          if (el.hidden || el.id === 'sugestoes') continue;
+          const rc = el.getBoundingClientRect();
+          if (rc.height) topo = Math.min(topo, rc.top);
+        }
+        if (topo < Infinity && topo > r.top + ALT + 20) chao = Math.min(chao, topo - ALT);
+      }
+      return { x0: r.left + 6, x1: r.right - LARG - 6 - barra, teto: r.top, chao };
     }
     sala() { return this.medir(this.salaNome); }
     chao() { return this.chaoEm(this.x, this.y + ALT); }

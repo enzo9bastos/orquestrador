@@ -19,6 +19,8 @@ const sai = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 log({ args: process.argv.slice(2) });
 
 const SESSAO = 'S-falso';
+// Lista do init: ['compact'], ou a de $CLAUDE_FALSO_COMANDOS (JSON).
+const COMANDOS = (() => { try { return JSON.parse(process.env.CLAUDE_FALSO_COMANDOS || 'null') || ['compact']; } catch { return ['compact']; } })();
 const esperando = new Map(); // request_id → o que fazer quando a resposta chegar
 const texto = (t) => sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: t }] } });
 const fim = () => sai({ type: 'result', subtype: 'success', is_error: false, duration_ms: 5, result: 'ok', session_id: SESSAO });
@@ -35,7 +37,7 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
   }
   if (d.type !== 'user') return;
   const t = typeof d.message.content === 'string' ? d.message.content : (d.message.content.find((b) => b.type === 'text') || {}).text || '';
-  sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: 'claude-falso-1-0', cwd: process.cwd(), slash_commands: ['compact'] });
+  sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: 'claude-falso-1-0', cwd: process.cwd(), slash_commands: COMANDOS });
   if (t === 'pede elicitation') {
     esperando.set('el-1', (r) => { texto(r.subtype === 'error' ? 'seguiu sem a elicitação' : 'recebeu a elicitação'); fim(); });
     sai({ type: 'control_request', request_id: 'el-1', request: { subtype: 'elicitation', mcp_server_name: 'falso', message: 'Digite o token' } });

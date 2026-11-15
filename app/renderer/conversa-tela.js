@@ -147,6 +147,19 @@
     }
   }
 
+  // O mesmo resumo, no tempo do pedido (ainda não aconteceu).
+  function pedidoFerramenta(nome, e = {}) {
+    const curtoNome = nome.startsWith('mcp__') ? nome.split('__').slice(2).join(' ') : nome;
+    // Bash: o comando em si, não a descrição que o próprio modelo escreveu.
+    const alvo = nome === 'Bash' ? curto(e.command) : resumoFerramenta(nome, e)[1];
+    const verbo = {
+      Bash: 'quer rodar', Read: 'quer ler', Edit: 'quer editar', MultiEdit: 'quer editar', Write: 'quer escrever',
+      Grep: 'quer buscar', Glob: 'quer procurar arquivos', Skill: 'quer usar a skill', Agent: 'quer chamar um agente',
+      Task: 'quer chamar um agente', WebFetch: 'quer abrir', WebSearch: 'quer pesquisar',
+    }[curtoNome];
+    return verbo ? [verbo, alvo] : ['quer usar', `${curtoNome}${alvo ? ` ${alvo}` : ''}`];
+  }
+
   function linhaFerramenta(bloco) {
     const [verbo, alvo] = resumoFerramenta(bloco.name, bloco.input);
     const el = document.createElement('details');
@@ -239,6 +252,18 @@
     caixa.append(el);
   }
 
+  // Aviso sobre um comando que não foi enviado: o comando fica como código
+  // (não se traduz) e cada frase é um pedaço próprio (traduzível).
+  function avisoComando(cmd, frase, depois = '') {
+    grupo = null;
+    const el = document.createElement('div');
+    el.className = 'aviso-conversa aviso-comando';
+    el.innerHTML = `<code>${esc(cmd)}</code> <span>${esc(frase)}</span>${depois ? ` — <span>${esc(depois)}</span>` : ''}`;
+    caixa.append(el);
+    colado = true; rolar();
+  }
+  const conversaCodex = () => ((listaConversas.find((c) => c.id === ativa) || {}).motor || infoAtual.motor) === 'codex';
+
   function limparRascunho() {
     if (rascunho) rascunho.remove();
     rascunho = null; rascunhoTexto = '';
@@ -290,6 +315,76 @@
     }
   }
 
+  // --- links na conversa -------------------------------------------------------
+  // Ctrl+clique abre no navegador do sistema (pelo processo principal, que só
+  // aceita http/https). Ao passar o mouse, a dica mostra o endereço de verdade
+  // (em punycode: "раураl.com" aparece como xn--…). Link com usuário e senha
+  // embutidos nunca abre; texto que parece outro endereço pede confirmação.
+  const linksAbertos = []; // para os testes de tela
+  function analisarLink(a) {
+    let u;
+    try { u = new URL(a.getAttribute('href') || '', location.href); } catch { return { erro: 'Endereço inválido: o app não abre' }; }
+    if (!['http:', 'https:'].includes(u.protocol)) return { erro: 'Só links http e https abrem' };
+    if (u.username || u.password) return { erro: 'Link com usuário e senha embutidos: o app não abre' };
+    return { url: u.href, host: u.host, hostTexto: hostDoTexto(a.textContent) };
+  }
+  // O texto do link parece um endereço? Devolve o host dele (em punycode).
+  function hostDoTexto(t) {
+    const m = String(t || '').trim().match(/^(?:[a-z][a-z0-9+.-]*:\/\/)?(?:[^\s/@]+@)?([^\s/:?#@]+\.[^\s/:?#@]*[^\s/:?#@.\d][^\s/:?#@.]*)(?::\d+)?(?:[/?#]\S*)?$/i);
+    // Nome de arquivo ("README.md", "app.js") não é endereço.
+    if (!m || (!/:\/\/|^www\./i.test(t.trim()) && ARQUIVO_NAO_HOST.test(m[1]))) return null;
+    try { return new URL(`http://${m[1]}`).hostname; } catch { return null; }
+  }
+  const ARQUIVO_NAO_HOST = /\.(md|js|ts|mjs|cjs|json|txt|py|sh|html?|css|png|jpe?g|gif|svg|pdf|ya?ml|toml|lock|log|csv|xml|zip)$/i;
+  const semWww = (h) => String(h || '').toLowerCase().replace(/^www\./, '');
+  function mesmoLugar(hostTexto, host) {
+    const a = semWww(hostTexto), b = semWww(String(host).replace(/:\d+$/, ''));
+    return a === b || b.endsWith(`.${a}`) || a.endsWith(`.${b}`);
+  }
+  async function abrirLink(url) {
+    const r = window.orq.abrirLink ? await window.orq.abrirLink(url) : false;
+    if (r) linksAbertos.push(url); else aviso('O app não abriu este link.', 'erro');
+  }
+  function ctrlCliqueLink(a) {
+    const l = analisarLink(a);
+    if (l.erro) { aviso(`${l.erro}.`, 'erro'); return; }
+    if (l.hostTexto && !mesmoLugar(l.hostTexto, l.host)) { confirmarLink(l); return; }
+    abrirLink(l.url);
+  }
+  // Confirmação dentro do app (nada de confirm() do navegador).
+  function confirmarLink(l) {
+    abrirPopup('Link para outro endereço', `<div class="confirmar-link">
+      <p><span>O texto do link mostra</span> <code>${esc(l.hostTexto)}</code><span>, mas ele leva a</span> <code>${esc(l.host)}</code>.</p>
+      <p class="popup-nota"><span>Endereço completo:</span> <code>${esc(l.url)}</code></p>
+      <div class="perm-acoes"><button type="button" class="botao secundario" data-link-cancelar>Cancelar</button>
+        <button type="button" class="botao primario" data-link-abrir>Abrir mesmo assim</button></div></div>`);
+    const corpo = $('popup-corpo');
+    corpo.querySelector('[data-link-cancelar]').addEventListener('click', fecharPopup);
+    corpo.querySelector('[data-link-abrir]').addEventListener('click', () => { fecharPopup(); abrirLink(l.url); });
+    corpo.querySelector('[data-link-cancelar]').focus();
+  }
+  // Dica ao passar o mouse: "Ctrl+clique para abrir · host".
+  const dicaLink = document.createElement('div');
+  dicaLink.className = 'dica-link';
+  dicaLink.hidden = true;
+  dicaLink.setAttribute('role', 'tooltip');
+  document.body.append(dicaLink);
+  caixa.addEventListener('mouseover', (ev) => {
+    const a = ev.target.closest('a[href]');
+    if (!a) return;
+    const l = analisarLink(a);
+    dicaLink.classList.toggle('recusado', !!l.erro);
+    dicaLink.innerHTML = l.erro ? `<span>${esc(l.erro)}</span>`
+      : `<span>Ctrl+clique para abrir</span> <code class="host-link">${esc(l.host)}</code>`;
+    dicaLink.hidden = false;
+    const r = a.getBoundingClientRect();
+    const larg = dicaLink.offsetWidth;
+    dicaLink.style.left = `${Math.max(8, Math.min(r.left, innerWidth - larg - 8))}px`;
+    dicaLink.style.top = `${r.top - dicaLink.offsetHeight - 6 < 8 ? r.bottom + 6 : r.top - dicaLink.offsetHeight - 6}px`;
+  });
+  caixa.addEventListener('mouseout', (ev) => { if (ev.target.closest('a[href]')) dicaLink.hidden = true; });
+  caixa.addEventListener('scroll', () => { dicaLink.hidden = true; });
+
   // --- perguntas e permissões --------------------------------------------
   function cartaoPedido(p) {
     if (document.querySelector(`[data-pedido="${CSS.escape(p.id)}"]`)) return;
@@ -317,9 +412,14 @@
         </fieldset>`).join('') +
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
     } else {
-      const [verbo, alvo] = resumoFerramenta(p.ferramenta, p.entrada);
+      // Quem pede é a conversa onde o pedido apareceu, no tempo certo: "Ana
+      // quer rodar: git push" (e não "O orquestrador pede permissão: Rodou").
+      const [verbo, alvo] = pedidoFerramenta(p.ferramenta, p.entrada);
       const corpo = p.ferramenta === 'Bash' ? p.entrada.command : JSON.stringify(p.entrada, null, 2);
-      el.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span>O orquestrador pede permissão: <strong>${esc(verbo)}</strong> ${esc(alvo)}</div>
+      const conv = listaConversas.find((c) => c.id === ativa);
+      // O nome sai igual ao da lista da lateral (lá "Conversa 2" também vira "Conversation 2" em inglês).
+      const quem = `<span class="quem-pede">${!conv || conv.orquestrador ? 'O orquestrador' : esc(conv.titulo)}</span>`;
+      el.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span>${quem} <span class="verbo-pedido">${esc(verbo)}:</span> <strong>${esc(alvo)}</strong></div>
         <pre class="entrada-ferramenta">${esc(curto(corpo, 3000))}</pre>
         <div class="acoes"><button type="button" class="botao primario" data-permitir="1">Permitir</button>
           <button type="button" class="botao secundario" data-permitir="0">Negar</button></div>`;
@@ -349,7 +449,7 @@
       return;
     }
     const a = ev.target.closest('a[href]');
-    if (a) { ev.preventDefault(); return; } // nada de navegar para fora do app
+    if (a) { ev.preventDefault(); if (ev.ctrlKey || ev.metaKey) ctrlCliqueLink(a); return; } // nada de navegar dentro do app
     if (ev.target.closest('[data-nova-rodada]')) { trocar('orquestrador'); return; }
     const ap = ev.target.closest('.cartao-aprovacao:not(.respondido)');
     if (ap) { const d = ev.target.closest('[data-decidir]'); if (d) decidirAprovacao(ap, d.dataset.decidir === '1'); return; }
@@ -618,6 +718,7 @@
   function redesenharTudo(r) {
     if (r.comandos && r.comandos.length) comandosPor.set(r.id || ativa, r.comandos);
     caixa.innerHTML = '';
+    dicaLink.hidden = true;
     grupo = null; ferramentas.clear(); limparRascunho();
     if (!r.eventos.length) {
       const atual = listaConversas.find((c) => c.id === ativa);
@@ -729,7 +830,7 @@
   // Paleta Ctrl+K: conversas (com pergunta pendente = esperando você) e comandos.
   window.orqPaleta?.registrar(() => [
     ...listaConversas.map((c) => ({ grupo: 'Conversas', titulo: c.titulo, sub: c.pedidos ? 'pergunta esperando você' : c.ocupado ? 'trabalhando' : '', atencao: c.pedidos > 0, faz: () => trocar(c.id) })),
-    ...comandosBase().concat(comandosPor.get(ativa) || []).filter((c, i, l) => l.findIndex((x) => x.nome === c.nome) === i)
+    ...(comandosPor.get(ativa) || []).filter((c) => !c.bloqueado)
       .map((c) => ({ grupo: 'Comandos', titulo: `/${c.nome}`, sub: c.descricao, faz: () => { trocar(ativa); entrada.value = `/${c.nome} `; entrada.focus(); } })),
   ]);
   // Clique numa notificação do sistema: abre a conversa que precisa de você.
@@ -872,26 +973,13 @@
   // --- autocompletar de comandos (/…) ---------------------------------------
   // Como no terminal: digitou "/" no começo, aparece a lista filtrada; setas
   // navegam, Tab ou Enter completam, Esc fecha.
-  const comandosPor = new Map(); // conversa → [{nome, descricao, dica}]
-  // O Claude, por trás, só anuncia as skills; os comandos próprios dele vêm
-  // daqui. /exit é tratado pelo app (fecha a janela): fica sempre por último e
-  // nunca é completado pelo Enter ("/" + Enter fechava o app).
-  const COMANDOS_CLAUDE = [
-    ['restart', 'Reinicia o Claude desta conversa e continua do mesmo ponto'], ['model', 'Mostra ou troca o modelo', '[modelo]'],
-    ['effort', 'Troca o esforço', '<low|medium|high|xhigh|max>'], ['usage', 'Uso do plano: janelas de 5 h e 7 dias'],
-    ['context', 'Quanto do contexto está em uso'], ['cost', 'Custo e tokens da sessão'],
-    ['compact', 'Resume a conversa para liberar contexto', '[instruções]'], ['clear', 'Limpa o histórico da conversa'],
-    ['status', 'Versão, conta e configuração'], ['memory', 'Arquivos de memória (CLAUDE.md)'],
-    ['init', 'Cria um CLAUDE.md para o projeto'], ['review', 'Revisa um pull request'],
-    ['security-review', 'Revisão de segurança das mudanças'], ['todos', 'Lista de tarefas da sessão'],
-    ['mcp', 'Servidores MCP'], ['agents', 'Subagentes configurados'], ['hooks', 'Hooks configurados'],
-    ['permissions', 'Regras de permissão'], ['doctor', 'Diagnóstico da instalação'],
-    ['release-notes', 'Novidades da versão'], ['help', 'Ajuda'], ['exit', 'Fecha o app e encerra as conversas'],
-  ].map(([nome, descricao, dica = '']) => ({ nome, descricao, dica }));
-  // Numa conversa Codex só valem os que o próprio app trata; o resto é do Claude.
-  const COMANDOS_DO_APP = new Set(['restart', 'model', 'effort', 'exit']);
-  const ehCodex = () => ((listaConversas.find((c) => c.id === ativa) || {}).motor || infoAtual.motor) === 'codex';
-  const comandosBase = () => (ehCodex() ? COMANDOS_CLAUDE.filter((c) => COMANDOS_DO_APP.has(c.nome)) : COMANDOS_CLAUDE);
+  // A lista de cada conversa vem pronta do processo principal (comandos.js,
+  // a fonte única): o que o app trata + o que o motor anuncia, já filtrado
+  // pelo motor da conversa. Os da lista negra vêm com bloqueado = "use X":
+  // aparecem cinza e não são enviados. /exit é tratado pelo app (fecha a
+  // janela): fica sempre por último e nunca é completado pelo Enter.
+  const comandosPor = new Map(); // conversa → [{nome, descricao, dica, bloqueado?}]
+  const bloqueadoDe = (nome) => ((comandosPor.get(ativa) || []).find((c) => c.nome === nome && c.bloqueado) || null);
   const ehExit = (x) => x && (x.inserir === '/exit' || x.titulo === '/exit');
   // (sem o app reaberto, a ponte antiga ainda não tem aoComandos)
   if (C.aoComandos) C.aoComandos((id, l) => comandosPor.set(id, l));
@@ -915,16 +1003,8 @@
   //   "/x" no começo   → comandos e skills do Claude desta conversa
   //   "//x"            → repertório inteiro (skills de todas as ferramentas + atalhos)
   //   "@" / "@nota:x" / "@workflow:x" → menções
-  function comandosDaConversa(busca) {
-    const recebidos = comandosPor.get(ativa) || [];
-    // Junta a lista do Claude com a nossa: a descrição nossa preenche os que
-    // vieram sem descrição; os do app (/exit, /restart) entram sempre.
-    const base = comandosBase();
-    const nossos = new Map(base.map((c) => [c.nome, c]));
-    const nomes = new Set(recebidos.map((c) => c.nome));
-    const todos = [...base.filter((c) => !nomes.has(c.nome)),
-      ...recebidos.map((c) => (c.descricao || !nossos.has(c.nome) ? c : { ...c, descricao: nossos.get(c.nome).descricao, dica: c.dica || nossos.get(c.nome).dica }))];
-    return todos.map((c) => ({ rotulo: `/${c.nome}`, dica: c.dica, desc: c.descricao, inserir: `/${c.nome}`, chave: c.nome }));
+  function comandosDaConversa() {
+    return (comandosPor.get(ativa) || []).map((c) => ({ rotulo: `/${c.nome}`, dica: c.dica, desc: c.descricao, inserir: `/${c.nome}`, chave: c.nome, bloqueado: c.bloqueado || '' }));
   }
   function itensRepertorio() {
     return [
@@ -964,20 +1044,22 @@
     // /exit sempre por último (e nunca cortado da lista).
     const achados = [...comeca, ...contem];
     const sair = achados.filter(ehExit);
-    sugestoes = [...achados.filter((x) => !ehExit(x)).slice(0, 60 - sair.length), ...sair];
+    const bons = achados.filter((x) => !ehExit(x) && !x.bloqueado), bloq = achados.filter((x) => x.bloqueado);
+    sugestoes = [...[...bons, ...bloq].slice(0, 60 - sair.length), ...sair];
     if (!sugestoes.length) return fecharSugestoes();
     // Sem o usuário ter andado com as setas, a seleção é a primeira que não
     // é o /exit (só o /exit na lista: nada selecionado).
-    escolhida = navegou ? Math.min(escolhida, sugestoes.length - 1) : sugestoes.findIndex((x) => !ehExit(x));
-    $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
+    // Os da lista negra também nunca ficam pré-selecionados.
+    escolhida = navegou ? Math.min(escolhida, sugestoes.length - 1) : sugestoes.findIndex((x) => !ehExit(x) && !x.bloqueado);
+    $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}"${c.bloqueado ? ' class="bloqueado" aria-disabled="true"' : ''}>
       <span class="nome-comando">${esc(c.rotulo)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
-      <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
+      <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${c.bloqueado ? `<span class="dica-bloqueado">${esc(c.bloqueado)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
     $('sugestoes').hidden = false;
     $('sugestoes').querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }
   function completar(i) {
     const c = sugestoes[i];
-    if (!c || !faixaToken) return;
+    if (!c || !faixaToken || c.bloqueado) return; // lista negra: só mostra o que usar no lugar
     const [ini, fim] = faixaToken;
     const novo = c.inserir + (c.continuar ? '' : ' ');
     entrada.value = entrada.value.slice(0, ini) + novo + entrada.value.slice(fim);
@@ -1057,8 +1139,8 @@
       if (ev.key === 'Enter' && c && entrada.value.trim() === c.inserir) { fecharSugestoes(); return; }
       if (ev.key === 'Enter' && !c && sugestoes.some((s) => entrada.value.trim() === s.inserir)) { fecharSugestoes(); return; }
       ev.preventDefault(); ev.stopImmediatePropagation();
-      // Nada selecionado, ou o /exit selecionado: o Enter não completa.
-      if (!c || (ev.key === 'Enter' && ehExit(c))) return;
+      // Nada selecionado, o /exit selecionado (Enter) ou um da lista negra: não completa.
+      if (!c || c.bloqueado || (ev.key === 'Enter' && ehExit(c))) return;
       completar(escolhida);
     } else if (ev.key === 'Escape') {
       fecharSugestoes();
@@ -1088,10 +1170,24 @@
     if (t === '/exit' || t === '/quit') { (window.orq.janela ? window.orq.janela.fechar() : window.close()); return; }
     // Comandos que no terminal abrem uma janelinha de escolha: aqui também.
     if (t === '/model' || t === '/effort') { $('botao-modelo').click(); return; }
+    // Comando da lista negra (anunciado pelo Claude, mas não serve por trás
+    // do app): não vai; o texto fica na caixa e o aviso diz o que usar.
+    const bloq = bloqueadoDe((t.match(/^\/(\S+)/) || [])[1]);
+    if (bloq) { avisoComando(`/${bloq.nome}`, bloq.descricao, bloq.bloqueado); return; }
+    // /config e /permissions são do Claude (gravam o settings dele): numa
+    // conversa Codex, só o aviso. Nada vai ao Codex como texto.
+    if (conversaCodex() && ['/config', '/permissions', '/allowed-tools'].includes(t)) {
+      avisoComando(t, 'ainda não disponível no Codex', 'as configurações do Codex ficam em ~/.codex/config.toml');
+      return;
+    }
     if (t === '/config') { abrirPopupConfig(); return; }
     if (t === '/permissions' || t === '/allowed-tools') { abrirPopupPermissoes(); return; }
-    // /restart: o app reinicia o Claude por trás (--resume), como no terminal.
-    if (t === '/restart') { if (C.reiniciar) { await C.reiniciar(ativa); aviso('Claude reiniciado; a conversa continua do mesmo ponto.'); } return; }
+    // /restart: o app reinicia o motor por trás (--resume no Claude,
+    // thread/resume no Codex), como no terminal.
+    if (t === '/restart') {
+      if (C.reiniciar) { await C.reiniciar(ativa); aviso(conversaCodex() ? 'Codex reiniciado; a conversa continua do mesmo ponto.' : 'Claude reiniciado; a conversa continua do mesmo ponto.'); }
+      return;
+    }
     entrada.value = ''; ajustarAltura();
     if (t) { enviados.push(t); if (enviados.length > 50) enviados.shift(); }
     posHistorico = -1;
@@ -1236,5 +1332,23 @@
   }
   if (R) { R.aoMudar((l) => carregarAprovacoes(l)); carregarAprovacoes(); }
 
-  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, expandir: (t) => expandir(t) };
+  // Barra da conversa cheia: em vez de cortar o último botão, encolhe por
+  // etapas (estilo.css: .apertada, .muito-apertada). Mede de novo quando a
+  // janela muda ou quando um chip aparece, some ou muda de texto.
+  const barra = document.querySelector('.conversa-barra');
+  let ajusteAgendado = false;
+  function ajustarBarra() {
+    ajusteAgendado = false;
+    barra.classList.remove('apertada', 'muito-apertada');
+    if (barra.scrollWidth <= barra.clientWidth + 1) return;
+    barra.classList.add('apertada');
+    if (barra.scrollWidth > barra.clientWidth + 1) barra.classList.add('muito-apertada');
+  }
+  const agendarAjuste = () => { if (!ajusteAgendado) { ajusteAgendado = true; setTimeout(ajustarBarra, 16); } };
+  if (barra) {
+    new ResizeObserver(agendarAjuste).observe(barra);
+    new MutationObserver(agendarAjuste).observe(barra, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
+  }
+
+  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, expandir: (t) => expandir(t) };
 })();

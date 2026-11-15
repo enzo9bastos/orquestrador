@@ -15,6 +15,7 @@ const { spawn } = require('child_process');
 const config = require('./config');
 const ias = require('./ias');
 const codex = require('./conversa-codex');
+const listaComandos = require('./comandos');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
 const TESTE = process.env.ORQ_APP_TESTE === '1';
@@ -147,25 +148,11 @@ function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
   return { ate: p.antes, texto: p.texto };
 }
 
-// Antes do Claude subir (ele só manda a lista quando recebe a primeira
-// mensagem), o autocompletar usa os comandos mais comuns e as skills locais.
-const COMANDOS_BASE = [
-  ['compact', 'Resume a conversa para liberar contexto'], ['context', 'Mostra o uso do contexto'],
-  ['effort', 'Troca o esforço: low, medium, high, xhigh, max'], ['model', 'Troca o modelo'],
-  ['cost', 'Mostra custo e uso da sessão'], ['clear', 'Limpa a conversa'], ['help', 'Ajuda'],
-];
+// Lista de comandos (/…) do autocompletar: fonte única em comandos.js. Antes
+// do Claude subir (ele só manda a lista quando recebe a primeira mensagem),
+// vale a lista de antes do init com as skills locais.
 function comandosLocais() {
-  const lista = COMANDOS_BASE.map(([nome, descricao]) => ({ nome, descricao, dica: '' }));
-  const pasta = path.join(os.homedir(), '.claude', 'skills');
-  let skills = [];
-  try { skills = fs.readdirSync(pasta); } catch { /* sem skills */ }
-  for (const nome of skills) {
-    let txt = '';
-    try { txt = fs.readFileSync(path.join(pasta, nome, 'SKILL.md'), 'utf8').slice(0, 3000); } catch { continue; }
-    const m = txt.match(/^description:\s*(.+)$/m);
-    lista.push({ nome, descricao: m ? m[1].replace(/^["']|["']$/g, '') : '', dica: '' });
-  }
-  return lista;
+  return listaComandos.montar({ motor: 'claude', skills: listaComandos.skillsLocais() });
 }
 
 class Conversa {
@@ -413,8 +400,7 @@ class Conversa {
   juntarComandos() {
     const desc = this.descComandos || new Map();
     const nomes = new Set([...(this.nomesComandos || []), ...desc.keys()]);
-    this.comandos = [...nomes].filter((n) => !n.startsWith('__')).sort()
-      .map((nome) => ({ nome, descricao: (desc.get(nome) || {}).descricao || '', dica: (desc.get(nome) || {}).dica || '' }));
+    this.comandos = listaComandos.montar({ motor: 'claude', anunciados: [...nomes], descricoes: desc });
     this.enviar('conversa:comandos', this.comandos);
   }
 
@@ -525,7 +511,7 @@ class Conversa {
   }
 
   estado() {
-    const comandos = this.motor === 'codex' ? codex.comandosDoCodex() : this.comandos || comandosLocais();
+    const comandos = this.motor === 'codex' ? listaComandos.montar({ motor: 'codex', skills: codex.comandosDoCodex() }) : this.comandos || comandosLocais();
     return { id: this.id, comandos, eventos: this.eventos, pendentes: [...this.pendentes.values()], info: this.info, vivo: !!this.proc };
   }
 
