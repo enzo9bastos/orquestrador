@@ -26,6 +26,8 @@ const POLITICA = { approvalPolicy: 'untrusted', approvalsReviewer: 'auto_review'
 const ARGS = ['app-server', '--enable', 'default_mode_request_user_input', '-c', 'suppress_unstable_features_warning=true'];
 // Esforços que o Codex aceita; o "Máximo" do app vira o maior dele.
 const ESFORCO = { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'xhigh' };
+// Erro do Codex que quer dizer "essa conversa não existe mais".
+const NAO_ACHOU = /no rollout found|thread not found|invalid thread id|not found/i;
 
 // --- tradução (funções puras, testadas em unidade) ---------------------------
 
@@ -231,7 +233,9 @@ function iniciar(c, { comando, cwd, env, ctx }) {
     for (const { falha } of rpc.espera.values()) falha(new Error('o Codex saiu'));
     rpc.espera.clear();
     if (proc.reiniciando || proc.encerrando) return;
-    if (codigo && retomando && !rpc.pronto) { c.sessao = null; ctx.gravarLista(); }
+    // Cair antes de retomar não quer dizer que a conversa sumiu (isso vem como
+    // erro do thread/resume): só zera quando o próprio Codex diz que não achou.
+    if (codigo && retomando && !rpc.pronto && NAO_ACHOU.test(erroTexto)) { c.sessao = null; ctx.gravarLista(); }
     c.info.ocupado = false;
     c.pendentes.clear();
     c.avisarInfo();
@@ -259,8 +263,10 @@ function iniciar(c, { comando, cwd, env, ctx }) {
       const base = { cwd, ...POLITICA };
       let r;
       if (retomando) {
-        try { r = await pedir('thread/resume', { threadId: c.sessao, ...base }); } catch {
-          // Conversa guardada que o Codex não acha mais: começa uma nova.
+        try { r = await pedir('thread/resume', { threadId: c.sessao, ...base }); } catch (e) {
+          // Só a conversa que o Codex não acha mais começa outra; se ele caiu
+          // ou deu outro erro, a guardada fica como está.
+          if (!NAO_ACHOU.test(e.message)) throw e;
           c.anteriores = [...(c.anteriores || []), c.sessao].slice(-20);
           c.sessao = null;
         }
@@ -367,14 +373,28 @@ function pedidoDoServidor(c, rpc, d, ctx) {
 }
 
 // --- ações da conversa ------------------------------------------------------
+// Com um turno em andamento, a mensagem corrige o rumo dele (turn/steer, com
+// o id do turno esperado); recusado (o turno acabou no meio do caminho), vira
+// um turno novo. Se nada aceitar, o texto volta para a caixa (devolver) e o
+// "trabalhando" só sai se não houver turno ativo.
 function mandar(c, texto, imagens) {
   const rpc = c.proc && c.proc.rpc;
   if (!rpc) return false;
   const envia = () => {
-    const params = { threadId: c.sessao, input: entradaDoTexto(texto, imagens) };
-    if (c.esforco) params.effort = ESFORCO[c.esforco] || null;
-    rpc.pedir('turn/start', params).then((r) => { if (r && r.turn) rpc.turno = r.turn.id; })
-      .catch((e) => { c.info.ocupado = false; c.avisarInfo(); c.registrar({ tipo: 'erro', texto: `O Codex não aceitou a mensagem: ${e.message}` }); });
+    const input = entradaDoTexto(texto, imagens);
+    const comecar = () => {
+      const params = { threadId: c.sessao, input };
+      if (c.esforco) params.effort = ESFORCO[c.esforco] || null;
+      return rpc.pedir('turn/start', params).then((r) => { if (r && r.turn) rpc.turno = r.turn.id; });
+    };
+    const falhou = (e) => {
+      if (!rpc.turno) { c.info.ocupado = false; c.avisarInfo(); }
+      c.registrar({ tipo: 'erro', texto: `O Codex não aceitou a mensagem: ${e.message}`, devolver: texto });
+    };
+    if (rpc.turno) {
+      rpc.pedir('turn/steer', { threadId: c.sessao, input, expectedTurnId: rpc.turno })
+        .catch(() => comecar()).catch(falhou);
+    } else comecar().catch(falhou);
   };
   if (rpc.pronto) envia(); else rpc.fila.push(envia);
   return true;

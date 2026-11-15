@@ -7,8 +7,14 @@ const log = (o) => fs.appendFileSync(process.env.CODEX_FALSO_LOG, JSON.stringify
 const sai = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 const nota = (method, params) => sai({ method, params });
 log({ args: process.argv.slice(2) });
+// $CODEX_FALSO_SAI: escreve o texto no stderr e sai com código 1 antes de
+// responder qualquer coisa (o Codex que cai ao retomar).
+if (process.env.CODEX_FALSO_SAI) { process.stderr.write(process.env.CODEX_FALSO_SAI + '\n'); process.exit(1); }
+// $CODEX_FALSO_RECUSA: com um turno ativo, recusa o turn/steer e o turn/start.
+const RECUSA = !!process.env.CODEX_FALSO_RECUSA;
 
 let esperandoResposta = null;
+let turnoAtivo = null; // turno começado e ainda não terminado (segurado pela pergunta)
 readline.createInterface({ input: process.stdin }).on('line', (l) => {
   const d = JSON.parse(l);
   log(d);
@@ -26,7 +32,12 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
         { type: 'agentMessage', id: 'a0', text: 'resposta antiga' },
       ] }] }, model: 'gpt-falso', cwd: '/casa' });
     case 'turn/interrupt': return ok({});
+    case 'turn/steer':
+      if (RECUSA || !turnoAtivo || d.params.expectedTurnId !== turnoAtivo) return sai({ id: d.id, error: { code: -32600, message: 'no active turn to steer' } });
+      return ok({ turnId: turnoAtivo });
     case 'turn/start': {
+      if (RECUSA && turnoAtivo) return sai({ id: d.id, error: { code: -32600, message: 'turn already in progress' } });
+      turnoAtivo = 'tu1';
       ok({ turn: { id: 'tu1', status: 'inProgress' } });
       const t = { threadId: 'th', turnId: 'tu1' };
       nota('turn/started', { ...t, turn: { id: 'tu1' } });
@@ -40,6 +51,7 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
         nota('item/autoApprovalReview/completed', { ...t, review: { status: 'denied', riskLevel: 'high', rationale: 'apagaria arquivos' }, action: {} });
         nota('thread/tokenUsage/updated', { ...t, tokenUsage: { last: { inputTokens: 1234 }, total: {}, modelContextWindow: 200000 } });
         nota('account/rateLimits/updated', { rateLimits: { primary: { usedPercent: 3.4, windowDurationMins: 43200 }, secondary: null } });
+        turnoAtivo = null;
         nota('turn/completed', { threadId: 'th', turn: { id: 'tu1', status: 'completed', durationMs: 5 } });
       };
       // CODEX_FALSO_PERGUNTAS (JSON): troca as perguntas do pedido (ex.: uma com isSecret).

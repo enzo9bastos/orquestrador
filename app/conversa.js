@@ -62,6 +62,18 @@ let avisar = () => {};
 // Modelos e esforços que o botão da barra oferece.
 const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-1' };
 const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// Modo de permissão com que o app sobe o Claude. Num reinício, vale o modo
+// vivo da conversa (init ou system/status) quando ele é mais restritivo que o
+// do app (a lista abaixo); qualquer outro, mais solto ou desconhecido, volta
+// ao do app.
+const MODO_APP = 'auto';
+const MODOS_MAIS_RESTRITOS = ['plan', 'dontAsk', 'default', 'acceptEdits'];
+const modoDeSubida = (vivo) => (MODOS_MAIS_RESTRITOS.includes(vivo) ? vivo : MODO_APP);
+// Esforços que o Claude aceita ao vivo, só para a sessão (apply_flag_settings
+// { effortLevel }). Os outros ("Máximo" e o padrão) só valem ao subir (--effort).
+// Nunca "/effort": no modo -p ele grava o nível como padrão no settings.json.
+const ESFORCOS_AO_VIVO = ['low', 'medium', 'high', 'xhigh'];
+const AVISO_REINICIO = 'Para trocar o esforço a conversa reinicia: o que estiver rodando em segundo plano (tarefas, Monitor, subagentes) é encerrado.';
 // Esforço que vale quando nada foi escolhido: o do settings.json do Claude.
 // Modelo que vale quando nada foi escolhido: o "model" do settings.json.
 function modeloPadrao() {
@@ -169,7 +181,7 @@ function comandosLocais() {
 }
 
 class Conversa {
-  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {} }) {
+  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null }) {
     // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
     // orquestrador segue a "IA do orquestrador" da configuração; trocar de
     // motor guarda a conversa do anterior em sessoesMotor e retoma a do novo.
@@ -181,6 +193,11 @@ class Conversa {
     this.volta = volta && volta.de ? volta : null;
     this.modeloEscolhido = modelo; // null = o padrão do Claude
     this.esforco = esforco;
+    // Modo de permissão vivo (o que o Claude disse no init ou no system/status).
+    this.modo = typeof modo === 'string' && /^\w+$/.test(modo) ? modo : null;
+    this.pedidoModelo = null;  // set_model enviado e ainda sem resposta: { id, chave, ts }
+    this.modeloDepois = undefined; // troca pedida enquanto outra esperava resposta
+    this.pedidosEsforco = new Set(); // apply_flag_settings ainda sem resposta
     this.id = id;
     this.titulo = titulo;
     this.sessao = sessao;
@@ -218,7 +235,7 @@ class Conversa {
 
   argumentos() {
     const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
-      '--include-partial-messages', '--permission-prompt-tool', 'stdio', '--permission-mode', 'auto'];
+      '--include-partial-messages', '--permission-prompt-tool', 'stdio', '--permission-mode', modoDeSubida(this.modo)];
     if (this.modeloEscolhido) args.push('--model', MODELOS[this.modeloEscolhido]);
     if (this.esforco) args.push('--effort', this.esforco);
     // Voltar: abre a sessão original cortada naquele ponto, numa sessão nova
@@ -273,24 +290,33 @@ class Conversa {
     // executável; senão 'claude' do PATH.
     const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
+    // Pedidos pendentes eram do processo anterior.
+    this.pedidoModelo = null; this.modeloDepois = undefined; this.pedidosEsforco = new Set();
     let iniciou = false;
     proc.on('error', (e) => this.registrar({ tipo: 'erro', texto: `Não consegui abrir o Claude: ${e.message}` }));
     let erroTexto = '';
     proc.stderr.on('data', (d) => { erroTexto = (erroTexto + d).slice(-4000); });
     proc.on('exit', (codigo) => {
       if (this.proc === proc) this.proc = null;
-      if (proc.reiniciando) return; // troca de modelo/esforço: já subiu outro
+      let expirou = false;
+      if (proc.reiniciando) return; // /restart ou voltar: já subiu outro
       if (proc.encerrando) return;  // rodada desligada: encerrar() já avisou
       // Sessão guardada que o Claude não acha mais: a próxima começa do zero.
       if (codigo && this.volta && !iniciou) {
         // A volta não abriu: desiste dela e continua na sessão original.
         this.volta = null; gravarLista();
         this.registrar({ tipo: 'erro', texto: 'Não consegui voltar a conversa; ela continua como estava.' });
-      } else if (codigo && retomando && !iniciou) { this.sessao = null; gravarLista(); }
+      } else if (codigo && retomando && !iniciou && /No conversation found/i.test(erroTexto)) {
+        // Só a sessão que o Claude não acha mais começa do zero. Outro erro
+        // (rede, versão, permissão) mostra a mensagem e mantém a sessão.
+        this.sessao = null; gravarLista();
+        expirou = true;
+      }
       this.info.ocupado = false;
       this.pendentes.clear();
       this.avisarInfo();
       this.registrar({ tipo: 'fim', texto: codigo ? `O Claude parou (código ${codigo}). ${erroTexto.trim().split('\n').slice(-3).join(' ')}` : 'A conversa foi pausada.' });
+      if (expirou) this.registrar({ tipo: 'aviso', texto: 'Esta conversa expirou no Claude; a próxima mensagem começa uma conversa nova.' });
     });
     readline.createInterface({ input: proc.stdout }).on('line', (l) => {
       let d;
@@ -318,11 +344,46 @@ class Conversa {
         }
         if (d.subtype === 'init') {
           info.modelo = d.model; info.pasta = d.cwd;
+          // Quem manda no modelo é o Claude: se o init diz outro dos modelos
+          // do botão (ex.: /model digitado), a escolha guardada acompanha.
+          if (this.modeloEscolhido && MODELOS[this.modeloEscolhido] !== d.model) {
+            const k = Object.keys(MODELOS).find((x) => MODELOS[x] === d.model);
+            if (k) { this.modeloEscolhido = k; gravarLista(); }
+          }
+          if (d.permissionMode) this.guardarModo(d.permissionMode);
           if (this.volta) this.sessaoDaVolta = d.session_id;
-          else if (this.sessao !== d.session_id) { this.sessao = d.session_id; gravarLista(); }
+          else if (this.sessao !== d.session_id) {
+            // Sessão nova no mesmo processo (ex.: /clear): a velha vai para
+            // anteriores (o id é o do init; o new_conversation_id do
+            // conversation_reset não é o da sessão).
+            if (this.sessao) this.anteriores = [...(this.anteriores || []).filter((s) => s !== this.sessao), this.sessao].slice(-20);
+            this.sessao = d.session_id; gravarLista();
+          }
           this.avisarInfo();
         }
+        if (d.subtype === 'status' && d.permissionMode) this.guardarModo(d.permissionMode);
+        if (d.subtype === 'session_title_changed' && typeof d.title === 'string' && d.title.trim() && !this.orquestrador) {
+          // O nome da sessão (/rename) vira o título; o orquestrador mantém o dele.
+          this.titulo = d.title.replace(/\s+/g, ' ').trim().slice(0, 200);
+          gravarLista(); avisarLista();
+        }
         return;
+      case 'conversation_reset':
+        // /clear (e afins): a conversa recomeça no mesmo processo. A tela
+        // limpa e fica a divisória; a sessão nova chega pelo init.
+        this.eventos = [];
+        this.pendentes.clear();
+        this.registrar({ tipo: 'limpa' });
+        this.enviar('conversa:tudo', this.estado());
+        avisarLista();
+        return;
+      case 'control_response': {
+        // Resposta do Claude a um pedido do app (set_model, apply_flag_settings).
+        const r = d.response || {};
+        if (this.pedidoModelo && r.request_id === this.pedidoModelo.id) this.modeloRespondido(r);
+        if (this.pedidosEsforco.delete(r.request_id) && r.subtype !== 'success') this.esforcoPorReinicio();
+        return;
+      }
       case 'stream_event': {
         const e = d.event || {};
         if (d.parent_tool_use_id) return;
@@ -407,7 +468,7 @@ class Conversa {
     if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
     this.ultimoTexto = '';
     if (this.desligando) { this.desligando = false; this.encerrar(); return; }
-    if (this.reiniciarDepois) { this.reiniciarDepois = false; this.reiniciar(); }
+    if (this.reiniciarDepois) { const porque = this.reiniciarDepois; this.reiniciarDepois = false; this.reiniciar(); if (porque === 'esforco') this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO }); }
   }
 
   juntarComandos() {
@@ -436,7 +497,8 @@ class Conversa {
     this.bastidor = /^<orq-(workflow|topico|recado) /.test(texto);
     if (!this.proc) this.iniciar();
     // Conversa avulsa ganha o nome da primeira coisa escrita nela.
-    if (!this.orquestrador && /^Conversa \d+$/.test(this.titulo)) {
+    // Comando ("/model", "/rename x") não é assunto: o título espera a próxima.
+    if (!this.orquestrador && /^Conversa \d+$/.test(this.titulo) && !texto.trim().startsWith('/')) {
       this.titulo = texto.replace(/\s+/g, ' ').trim().slice(0, 40);
       gravarLista();
     }
@@ -471,9 +533,13 @@ class Conversa {
     return true;
   }
 
-  // Troca modelo e/ou esforço. O Claude só aceita isso ao subir, então a
-  // conversa reinicia com --resume (mesma conversa, histórico intacto). No meio
-  // de um turno, espera o turno acabar.
+  // Troca modelo e/ou esforço SEM reiniciar o Claude (reiniciar mataria as
+  // tarefas em segundo plano, o Monitor e os subagentes). Modelo: set_model ao
+  // vivo, e a tela só muda quando o Claude confirma. Esforço: apply_flag_settings
+  // { effortLevel }, que vale só para a sessão (sem balão, sem ocupado, sem
+  // título). O que ele não aceita ("Máximo", o padrão, ou um Claude que recusa)
+  // reinicia com --effort, avisando antes. Com o Claude parado, só guarda para
+  // a próxima subida.
   configurar({ modelo, esforco }) {
     if (this.motor === 'codex') {
       // O Codex usa o modelo da configuração dele; o esforço vai a cada turno
@@ -485,15 +551,70 @@ class Conversa {
       this.avisarInfo();
       return true;
     }
-    if (modelo !== undefined) { if (modelo && !MODELOS[modelo]) return false; this.modeloEscolhido = modelo || null; }
-    if (esforco !== undefined) { if (esforco && !ESFORCOS.includes(esforco)) return false; this.esforco = esforco || null; }
-    if (this.modeloEscolhido) this.info.modelo = MODELOS[this.modeloEscolhido];
-    this.info.esforco = this.esforco || esforcoPadrao();
+    if (modelo !== undefined && modelo && !MODELOS[modelo]) return false;
+    if (esforco !== undefined && esforco && !ESFORCOS.includes(esforco)) return false;
+    if (modelo !== undefined) {
+      if (this.proc) this.pedirModelo(modelo || null);
+      else { this.modeloEscolhido = modelo || null; this.info.modelo = this.modeloEscolhido ? MODELOS[this.modeloEscolhido] : modeloPadrao(); }
+    }
+    if (esforco !== undefined) {
+      this.esforco = esforco || null;
+      this.info.esforco = this.esforco || esforcoPadrao();
+      if (this.proc) { if (ESFORCOS_AO_VIVO.includes(this.esforco)) this.pedirEsforco(); else this.esforcoPorReinicio(); }
+    }
     gravarLista();
     this.avisarInfo();
-    if (!this.proc) return true;
-    if (this.info.ocupado) this.reiniciarDepois = true; else this.reiniciar();
     return true;
+  }
+
+  // set_model ao vivo, um pedido por vez: o que for pedido enquanto um espera
+  // resposta vai depois dele (vale o último). Pedido sem resposta em 10 s não
+  // segura os próximos.
+  pedirModelo(chave) {
+    if (this.pedidoModelo && Date.now() - this.pedidoModelo.ts < 10000) { this.modeloDepois = chave; return; }
+    const id = `modelo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    this.pedidoModelo = { id, chave, ts: Date.now() };
+    this.modeloDepois = undefined;
+    const request = { subtype: 'set_model' };
+    if (chave) request.model = MODELOS[chave];
+    this.escrever({ type: 'control_request', request_id: id, request });
+  }
+  modeloRespondido(r) {
+    const { chave } = this.pedidoModelo;
+    this.pedidoModelo = null;
+    if (r.subtype === 'success') {
+      this.modeloEscolhido = chave;
+      this.info.modelo = (r.response && r.response.model) || (chave ? MODELOS[chave] : modeloPadrao()) || this.info.modelo;
+      gravarLista();
+      this.avisarInfo();
+    } else {
+      this.registrar({ tipo: 'erro', texto: `O Claude não trocou o modelo: ${r.error || 'sem detalhe'}` });
+    }
+    if (this.modeloDepois !== undefined) { const m = this.modeloDepois; this.modeloDepois = undefined; if (m !== this.modeloEscolhido) this.pedirModelo(m); }
+  }
+
+  // Esforço ao vivo, só da sessão: não grava nada no settings.json do usuário.
+  pedirEsforco() {
+    const id = `esforco-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    this.pedidosEsforco.add(id);
+    this.escrever({ type: 'control_request', request_id: id, request: { subtype: 'apply_flag_settings', settings: { effortLevel: this.esforco } } });
+  }
+  // Caminho antigo (só da sessão): reinicia com --effort. O app não acompanha
+  // as tarefas em segundo plano, então o aviso é genérico e vem sempre (o menu
+  // já diz isso do "Máximo" antes do clique). No meio de um turno, avisa já e
+  // reinicia quando ele acabar. O reinício redesenha a conversa; o aviso é
+  // registrado de novo depois dele para continuar à vista.
+  esforcoPorReinicio() {
+    if (!this.proc) return;
+    if (this.info.ocupado) { this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO }); this.reiniciarDepois = 'esforco'; return; }
+    this.reiniciar();
+    this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO });
+  }
+
+  guardarModo(m) {
+    if (typeof m !== 'string' || !/^\w+$/.test(m) || m === this.modo) return;
+    this.modo = m;
+    gravarLista();
   }
 
   // Fim da rodada: o Claude sai, e o id da sessão deixa de ser o atual. Na
@@ -537,7 +658,7 @@ class Conversa {
 // --- lista guardada -----------------------------------------------------
 function gravarLista() {
   fs.mkdirSync(CACHE, { recursive: true });
-  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined }));
+  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined, modo: c.modo && c.modo !== MODO_APP ? c.modo : undefined }));
   fs.writeFileSync(ARQ_LISTA, JSON.stringify(lista, null, 2) + '\n');
 }
 
