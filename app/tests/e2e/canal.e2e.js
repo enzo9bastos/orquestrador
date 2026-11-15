@@ -24,7 +24,8 @@ test('canal entre orquestradores', async (t) => {
     const l = await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado, #recados-linha .recado')].map((li) => ({ id: li.dataset.id, de: li.querySelector('.recado-de').textContent, para: li.querySelector('.recado-para').textContent, tipo: li.querySelector('.recado-selo-tipo').textContent, decidir: !!li.querySelector('[data-rc-decidir]'), texto: li.innerText }))");
     assert.deepStrictEqual(l.map((x) => [x.id, x.de, x.para, x.tipo, x.decidir]), [['e3', 'Orquestrador', 'Bruno', 'de outro computador', true], ['e2', 'Orquestrador', 'Bruno', 'de outro computador', true], ['e1', 'Bruno', 'Orquestrador', 'de outro computador', false]]);
     l.shift();
-    assert.match(l[0].texto, /Sai deste computador para Bruno \(caixa para-bruno\) se você aprovar/);
+    assert.match(l[0].texto, /vai sair deste computador[\s\S]*espera você aprovar/);
+    assert.strictEqual(await app.avaliar("document.querySelector('[data-id=\"e2\"] .recado-para').title"), 'para-bruno', 'a caixa fica na dica do nome');
     assert.match(l[1].texto, /Deploy/);
     assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '2');
     assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado')].map((li) => li.dataset.id)"), ['e3', 'e2'], 'o envio que espera você fica em Para aprovar');
@@ -74,4 +75,25 @@ test('canal entre orquestradores', async (t) => {
   });
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
+});
+
+// Regressão 2026-11-15: com a interface em inglês, o cartão de aprovação na
+// conversa dizia "Recado para Bruno" (a linha inteira estava fora da tradução).
+test('canal entre orquestradores: o cartão de aprovação em inglês', async (t) => {
+  const app = await abrirApp({ config: { idioma: 'en', canalContatos: [{ nome: 'Bruno', caixa: 'para-bruno' }] }, arquivos: { '.local/share/orq-app/recados/recados.jsonl': log } });
+  t.after(() => app.fechar());
+  await app.esperar("window.orqI18n && window.orqI18n.idioma() === 'en'", 15000);
+  await app.esperar("!!document.querySelector('#mensagens .cartao-aprovacao[data-aprovacao=\"e2\"] legend')", 15000);
+  await app.esperar("/Message to Bruno — Re: Deploy/.test(document.querySelector('#mensagens [data-aprovacao=\"e2\"] legend').textContent)", 10000);
+  assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#mensagens [data-aprovacao=\"e2\"] .opcao strong')].map((o) => o.textContent)"), ['Approve', 'Deny']);
+  assert.match(await app.avaliar("document.querySelector('#mensagens [data-aprovacao=\"e2\"] .opcao span').textContent"), /^Goes out now to Bruno$/);
+  // A aba Messages também em inglês: rótulos traduzidos, nomes como estão.
+  await app.avaliar("document.querySelector('[data-aba=\"aba-recados\"]').click()");
+  await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 1", 10000);
+  const e1 = await app.avaliar("(() => { const li = document.querySelector('[data-id=\"e1\"]'); return [li.querySelector('.recado-de').textContent, li.querySelector('.recado-para').textContent, li.querySelector('.recado-selo-tipo').textContent, li.querySelector('.recado-selo-estado').textContent]; })()");
+  assert.deepStrictEqual(e1, ['Bruno', 'Orchestrator', 'from another computer', 'delivered']);
+  // E o motivo de o canal não estar pronto, em Settings.
+  await app.avaliar("document.getElementById('abrir-config').click()");
+  await app.avaliar("document.getElementById('config-aba-orquestracao').click()");
+  await app.esperar("/^Needs setup: the server address is missing/.test(document.getElementById('config-canal-estado').textContent)", 10000);
 });

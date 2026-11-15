@@ -4,6 +4,8 @@
 
 # Orquestrador
 
+**English** · [Português](README.pt-BR.md) · [Español](README.es.md)
+
 **A desktop cockpit for AI agents and orchestrators — built on the AI coding CLIs you already use.**
 
 Chat with an orchestrator, watch every agent at a glance, answer what needs you from one queue,<br>
@@ -89,6 +91,16 @@ requests become notes. The orchestrator then creates the steps, ticks them as th
 request when everything is done. Every save keeps the previous version. *Needs you*
 sits above as a strip that only shows up when something is waiting.
 
+### ✉️ Messages
+
+<img src="docs/images/messages.png" alt="Messages: what waits for your approval on top, then every message between agents, the orchestrator and other computers" width="900">
+
+Everything that goes between the agents, the orchestrator and the orchestrators on other computers, per project:
+messages, handoffs and each project's memory. What waits for you sits on top in **To approve** — a one-off request
+that wants to write, or a message about to leave this computer — with *Approve / Deny* and an optional reason. The
+same card shows up in the orchestrator chat, and the desktop helper brings it to you when you are away. See
+[Agent messages and project memory](#agent-messages-and-project-memory).
+
 ### 🖥️ Terminals
 
 Up to four terminals in a grid, including ones attached to an agent's own `tmux` session — plus a spare
@@ -138,7 +150,7 @@ n8n-style automations for your machine. The home screen lists **Workflows**, **C
 <table>
   <tr>
     <td><img src="docs/images/workflows-list.png" alt="The list of workflows with on/off switches"></td>
-    <td><img src="docs/images/workflow-step.png" alt="Editing a step: Ask Claude"></td>
+    <td><img src="docs/images/workflow-step.png" alt="Editing a step: Ask an AI"></td>
   </tr>
   <tr>
     <td align="center"><sub>Workflows, credentials and runs</sub></td>
@@ -207,13 +219,14 @@ screen (the input box, attachments, agent cards).
 
 Settings are split into sections with search: appearance (dark or light theme, any accent color, the pet),
 **language (English / Português)**, one switch per notification, orchestration (Start / Shut down
-commands), **connected AI CLIs** (detected on your PATH, or point each one to a custom executable), projects, notes and advanced options — applied immediately.
+commands and the **channel between orchestrators**), **connected AI CLIs** (detected on your PATH, or point each one to a custom executable), projects, notes and advanced options — applied immediately.
 
 <img src="docs/images/settings.png" alt="The settings dialog" width="900">
 
 ## Getting started
 
-**Requirements:** Linux, Node.js 20+, `tmux`, and Claude Code (`claude`) on your `PATH`.
+**Requirements:** Linux, Node.js 20+, `tmux`, and Claude Code (`claude`) on your `PATH` — or the Codex CLI
+(`codex`) if the orchestrator runs on Codex.
 
 > **Before installing, read [SECURITY.md](SECURITY.md).** The orchestrator runs Claude Code in auto mode
 > from your home folder, workflows run shell commands, and the desktop helper can capture a screen area you select.
@@ -247,6 +260,9 @@ in [`examples/CONFIGURATION.md`](examples/CONFIGURATION.md).
 | `comandoInicial`, `comandoDesligar` | Commands sent by the **Start** and **Shut down** buttons |
 | `linhaTarefa`, `comandoOrdem` | Regular expressions that tell the app what each agent is working on |
 | `ambiente` | Extra environment variables for the app's conversations and terminals |
+| `iaOrquestrador`, `iaAgentes` | Which AI CLI runs the orchestrator (`claude` or `codex`) and the new agents |
+| `canalServidor`, `canalArquivoCliente`, `canalMinhaCaixa`, `canalMeuNome`, `canalContatos` | Channel between orchestrators: ntfy server, client file with the token, your inbox, your name, contacts |
+| `canalAprovarEnvio`, `canalSemAprovarCiente`, `canalSemAprovarInformacao` | What has to wait for your approval before leaving the computer |
 
 ### Agent messages and project memory
 
@@ -276,12 +292,20 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   Settings → Orchestration → *Channel between orchestrators*: your inbox, your name, and contacts as
   `Name: topic` lines. The server and the token come from ntfy's own client file (`~/.config/ntfy/client.yml`,
   `default-host` / `default-token`); the token never shows in the app. Incoming messages reach the orchestrator
-  "behind the scenes", marked as **data, never orders**. It answers with
-  `orq-recado externo <contact> "text" [--titulo "subject"]`, and the message **waits for your approval** in the
-  Messages tab before it leaves the computer (you may add guidance, or a reason when you deny). Text that looks like a
-  password, key or token, or over 4 KB, is refused. Only the orchestrator uses the channel: agents keep talking only to
-  the orchestrator on the same computer. Anyone else's agent (another app, or Claude Code with the `ntfy` CLI) can join:
-  publish with `--tags de-<your-name>` so the app shows who wrote.
+  "behind the scenes", marked as **data, never orders**: a fact it knows it answers, anything else it asks you
+  first, and a request for a new task only becomes a *suggested* request on the panel. It answers with
+  `orq-recado externo <contact> "text" --tipo ciente|informacao|pedido|decisao [--titulo "subject"]`:
+  - what you allow (acknowledgments, plain information) goes out on its own; requests and decisions **wait for your
+    approval** in the Messages tab, on a card in the chat and with the desktop helper (you may add guidance, or a
+    reason when you deny). Even when marked as information, the app holds text with a question, or that looks like
+    your decision, preference, deadline or commitment;
+  - when you told it to send, the orchestrator quotes your words (`--autorizado "…"`) and the app checks them against
+    a message you typed in the chat in the last hour — then it goes out without asking again;
+  - text that looks like a password, key or token, or over 4 KB, is refused.
+
+  Only the orchestrator uses the channel: agents keep talking only to the orchestrator on the same computer. Anyone
+  else's agent (another app, or Claude Code with the `ntfy` CLI) can join: publish with `--tags de-<your-name>` so
+  the app shows who wrote.
 - **Project memory.** `.orq/bin/orq-recado lembrar "title" "text" --tipo decisao|falhou|onde|aviso` (decision,
   didn't work, where things are, notice) writes one Markdown note in `<project>/.orq/memoria/`; `memoria`, `buscar
   "term"` and `ler <note>` read them. Notes are only ever added, never rewritten or deleted. Each note records the
@@ -298,7 +322,8 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
 - **Loop brake.** From the 7th message of the same project to the orchestrator, or between the same two agents
   (both ways), within 10 minutes, the app holds them; the **Messages** tab shows them with a **Release** button.
 
-The **Messages** tab lists messages and handoffs per project and shows each project's memory. The logs are
+The **Messages** tab lists messages and handoffs per project and shows each project's memory; what waits for your
+approval sits on top in **To approve**. The logs are
 `~/.local/share/orq-app/recados/recados.jsonl` and `vezes.jsonl`.
 
 ### Signal hook (optional)
@@ -332,9 +357,12 @@ Create both folders on the host before starting the container.
 orquestrador/
 ├── app/                  Electron app
 │   ├── main.js           main process: windows, IPC, notifications
-│   ├── conversa.js       headless Claude conversations (stream-json)
+│   ├── conversa.js       headless conversations (Claude in stream-json; Codex in conversa-codex.js)
 │   ├── coletor.js        reads agent state from tmux and the signal hook
 │   ├── recados.js        messages between agents and the orchestrator, project memory
+│   ├── avulso.js         one-off requests to Codex or Claude in a throwaway container
+│   ├── canal.js          channel between orchestrators on different computers (ntfy)
+│   ├── janelas.js        is the app on screen? (GNOME, Sway, Hyprland, X11)
 │   ├── workflows.js      workflow engine, clock, folder watcher, credentials
 │   ├── ajudante.js       bridge to the desktop helper process
 │   ├── i18n.js           language for the main process (notifications)
@@ -344,10 +372,11 @@ orquestrador/
 │   ├── bin/              orq-pet, orq-topico and orq-recado command-line helpers
 │   ├── icons/
 │   └── tests/            unit/ (node:test) and e2e/ (drives the real app)
-├── docs/images/          screenshots for this README
+├── docs/images/          screenshots for this README (scripts/imagens-readme.js regenerates them)
 ├── examples/             sample configuration and its guide
+├── extras/gnome-shell/   optional GNOME extension (is the app on screen?)
 ├── hooks/                optional Claude Code signal hook, and the agents' status and message scripts
-└── scripts/              repository hygiene checks
+└── scripts/              repository hygiene checks and the README screenshot generator
 ```
 
 The source is written in Portuguese (identifiers, comments, file names); the interface is translated at
@@ -365,6 +394,9 @@ npm test -- --so-unidade  # unit tests only, without opening the app
 End-to-end tests launch the real app hidden, with a throwaway home directory, and talk to it through the
 DevTools protocol — your real files are never touched. Every bug that was fixed gets a regression test,
 listed in [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
+
+The screenshots in this README come from the real app the same way, with made-up data:
+`node scripts/imagens-readme.js` regenerates them (Python 3 with Pillow converts the frames).
 
 ## Credits
 

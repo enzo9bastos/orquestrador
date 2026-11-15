@@ -76,10 +76,12 @@
   function desenharCanal(e) {
     if (!e) return;
     const el = $('config-canal-estado');
+    // O motivo e o erro vêm do processo principal em português: traduz cada um.
+    const tr = (x) => (window.orqI18n && window.orqI18n.t ? window.orqI18n.t(x) : x);
     el.classList.toggle('erro', !!(e.ativo && (!e.pronto || e.erro)));
     el.textContent = !e.ativo ? 'Desligado: sem caixa nem contatos.'
-      : !e.pronto ? `Falta configurar: ${e.falta}`
-      : e.erro ? `Sem conexão: ${e.erro}`
+      : !e.pronto ? `Falta configurar: ${tr(e.falta)}`
+      : e.erro ? `Sem conexão: ${tr(e.erro)}`
       : e.conectado ? `Ligado: escutando a caixa ${e.minhaCaixa} em ${e.servidor}.`
       : e.minhaCaixa ? `Conectando a ${e.servidor}…` : `Pronto para enviar por ${e.servidor} (sem caixa para receber).`;
   }

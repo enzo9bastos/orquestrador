@@ -1167,9 +1167,9 @@
     const el = document.createElement('div');
     el.className = 'cartao-pedido cartao-aprovacao';
     el.dataset.aprovacao = r.id;
-    const para = r.canal ? `Recado para ${r.para.nome}` : `Pedido ao ${r.para.nome}`;
+    // "Recado para" é traduzido; o nome e o assunto ficam como estão.
     el.innerHTML = `<fieldset class="pergunta" data-multi="0">
-        <legend><span class="etiqueta">Aprovar</span><span data-sem-traducao>${esc(para)}${r.titulo ? ` — ${esc(r.titulo)}` : ''}</span></legend>
+        <legend><span class="etiqueta">Aprovar</span><span><span>${r.canal ? 'Recado para' : 'Pedido ao'}</span> <span data-sem-traducao>${esc(r.para.nome)}${r.titulo ? ` — ${esc(r.titulo)}` : ''}</span></span></legend>
         <div class="texto-aprovacao" data-sem-traducao>${esc(r.texto)}</div>
         <div class="opcoes">
           <button type="button" class="opcao unica" data-decidir="1" role="radio" aria-checked="false"><strong>Aprovar</strong><span>${esc(r.canal ? `Sai agora para ${r.para.nome}` : 'Roda com permissão de escrever')}</span></button>

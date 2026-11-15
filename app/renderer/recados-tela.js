@@ -26,6 +26,8 @@
   };
   const alvoDo = (r) => r.de.alvo || r.para.alvo || '';
   const quem = (x) => (x.tipo === 'orquestrador' ? 'Orquestrador' : x.tipo === 'usuario' ? 'Você' : x.nome || x.alvo || x.caixa);
+  // Orquestrador e Você são rótulos (traduzidos); nome de agente ou contato é dado.
+  const dado = (x) => (x.tipo === 'orquestrador' || x.tipo === 'usuario' ? '' : ' data-sem-traducao');
 
   function desenharContador() {
     const n = recados.filter((r) => r.estado === 'segurado' || r.estado === 'aguardando').length;
@@ -58,7 +60,7 @@
   const CLASSE = { ciente: 'ciente', informacao: 'informação', pedido: 'pedido', decisao: 'decisão' };
   function itemRecado(r) {
     return `<li class="recado recado-${esc(r.estado)} recado-tipo-${esc(r.tipo)}" data-id="${esc(r.id)}">
-      <div class="recado-topo"><span class="recado-de" data-sem-traducao>${esc(quem(r.de))}</span><span class="recado-seta">→</span><span class="recado-para" data-sem-traducao>${esc(quem(r.para))}</span>
+      <div class="recado-topo"><span class="recado-de"${dado(r.de)}>${esc(quem(r.de))}</span><span class="recado-seta">→</span><span class="recado-para"${dado(r.para)}${r.para.caixa ? ` title="${esc(r.para.caixa)}"` : ''}>${esc(quem(r.para))}</span>
         <span class="recado-projeto" data-sem-traducao>${esc(alvoDo(r))}</span>
         <span class="selo recado-selo-tipo">${esc(TIPO[r.tipo] || r.tipo)}</span>
         ${r.canal && r.classe ? `<span class="selo recado-selo-classe">${esc(CLASSE[r.classe] || r.classe)}</span>` : ''}
@@ -66,7 +68,6 @@
         <span class="recado-hora">${esc(hora(r.ts))}</span></div>
       ${r.canal && r.titulo ? `<div class="recado-titulo" data-sem-traducao><strong>${esc(r.titulo)}</strong></div>` : ''}
       <div class="recado-texto" data-sem-traducao>${esc(r.texto)}</div>
-      ${r.canal && r.para.tipo === 'externo' && r.estado === 'aguardando' ? `<div class="nota recado-motivo">Sai deste computador para ${esc(r.para.nome)} (caixa <code data-sem-traducao>${esc(r.para.caixa)}</code>) se você aprovar.</div>` : ''}
       ${r.motivo ? `<div class="nota recado-motivo">${esc(r.motivo)}</div>` : ''}
       ${r.tipo === 'pedido' ? `<div class="nota recado-motivo">${r.escrever ? 'Pode escrever na pasta do projeto' : 'Só leitura'}${r.modelo ? ` · modelo ${esc(r.modelo)}` : ''}${r.nota ? ` · sua orientação: <span data-sem-traducao>${esc(r.nota)}</span>` : ''}</div>` : ''}
       ${r.tipo === 'pedido' && r.arquivos && r.arquivos.length ? `<div class="recado-texto pedido-arquivos"><strong>Arquivos:</strong> <span data-sem-traducao>${r.arquivos.map(esc).join(', ')}</span></div>` : ''}

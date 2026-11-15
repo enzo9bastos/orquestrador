@@ -1028,7 +1028,38 @@
     "Roda com permissão de escrever": "Runs with permission to write",
     "Orientação ou motivo (opcional; escreva antes de escolher)": "Guidance or reason (optional; write it before choosing)",
     "Decidido na aba Recados": "Decided in the Messages tab",
-    "Aprovado": "Approved"
+    "Aprovado": "Approved",
+    "Recado para": "Message to",
+    "Pedido ao": "Request to",
+    "esperando o orquestrador": "waiting for the orchestrator",
+    "entregue": "delivered",
+    "segurado": "held",
+    "recusado": "refused",
+    "conferindo": "checking",
+    "na fila": "queued",
+    "pronto": "done",
+    "falhou": "failed",
+    "negado": "denied",
+    "aviso": "notice",
+    "terminou": "finished",
+    "travado": "stuck",
+    "passou a vez": "handoff",
+    "pedido avulso": "one-off request",
+    "resposta": "answer",
+    "não deu certo": "didn't work",
+    "aberta": "open",
+    "pega": "taken",
+    "recusada": "refused",
+    "não funcionou": "didn't work",
+    "onde está": "where it is",
+    "qualquer agente": "any agent",
+    "servidor fora do alcance (rede privada desligada?)": "server out of reach (private network off?)",
+    "token recusado pelo servidor": "token refused by the server",
+    "sem permissão de ler essa caixa": "no permission to read this inbox",
+    "o servidor fechou a conexão": "the server closed the connection",
+    "https://ntfy.exemplo.com": "https://ntfy.example.com",
+    "para-ana": "to-ana",
+    "Bruno: para-bruno": "Bruno: to-bruno"
   },
   "padroes": [
     [
@@ -1776,6 +1807,10 @@
       "Leaves this computer for $1 (inbox $2) if you approve."
     ],
     [
+      "^vai sair deste computador; (.+) \\(a autorização citada não está numa mensagem sua da última hora\\)$",
+      "leaves this computer; $1 (the quoted authorization isn't in a message of yours from the last hour)"
+    ],
+    [
       "^vai sair deste computador; (.+)$",
       "leaves this computer; $1"
     ],
@@ -1802,6 +1837,42 @@
     [
       "^Sai agora para (.+)$",
       "Goes out now to $1"
+    ],
+    [
+      "^Recado para (.+) espera você aprovar$",
+      "Message to $1 waits for your approval"
+    ],
+    [
+      "^Pedido ao (.+) espera você aprovar$",
+      "Request to $1 waits for your approval"
+    ],
+    [
+      "^Recado para (.+)$",
+      "Message to $1"
+    ],
+    [
+      "^Pedido ao (.+)$",
+      "Request to $1"
+    ],
+    [
+      "^falta o endereço do servidor \\(canalServidor ou default-host do client\\.yml\\)$",
+      "the server address is missing (canalServidor or default-host in client.yml)"
+    ],
+    [
+      "^o endereço do servidor precisa começar com http:// ou https://$",
+      "the server address must start with http:// or https://"
+    ],
+    [
+      "^falta o token \\(default-token em (.+)\\)$",
+      "the token is missing (default-token in $1)"
+    ],
+    [
+      "^autorizado por você na conversa: «(.+)»$",
+      "authorized by you in the chat: «$1»"
+    ],
+    [
+      "^conferindo a sua autorização na conversa$",
+      "checking your authorization in the chat"
     ]
   ]
 }

@@ -1,0 +1,433 @@
+<div align="center">
+
+<img src="docs/images/pet-hello.gif" alt="El ayudante en píxeles saludando" width="120">
+
+# Orquestrador
+
+[English](README.md) · [Português](README.pt-BR.md) · **Español**
+
+**Una cabina de mando de escritorio para agentes y orquestadores de IA — construida sobre las CLI de IA para programar que ya usas.**
+
+Conversa con un orquestador, mira todos los agentes de un vistazo, responde en una sola cola lo que te necesita,<br>
+automatiza tu computadora con workflows visuales — y conoce al pequeño ayudante en píxeles que vive en tu escritorio.
+
+![Electron](https://img.shields.io/badge/Electron-45-47848F?logo=electron&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)
+![AI CLIs](https://img.shields.io/badge/AI%20CLIs-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Gemini%20%C2%B7%20OpenCode-D97757)
+![Languages](https://img.shields.io/badge/UI-English%20%7C%20Portugu%C3%AAs-3b82f6)
+![License](https://img.shields.io/badge/license-MIT-22a06b)
+
+<img src="docs/images/conversation.png" alt="La conversación con el orquestador, con los agentes a la izquierda, la cola a la derecha y el ayudante en píxeles en la esquina" width="900">
+
+[Por qué](#por-qué) · [Recorrido](#un-recorrido-por-la-app) · [Primeros pasos](#primeros-pasos) · [Configuración](#configuración) · [Estructura](#estructura-del-proyecto) · [Pruebas](#pruebas)
+
+</div>
+
+> La interfaz de la app está en **inglés y portugués** (todavía no en español). En este documento los nombres de
+> pantallas y botones aparecen como en la versión en inglés.
+
+## Por qué
+
+Tener varios agentes de IA trabajando en paralelo se convierte rápido en una pared de terminales. Orquestrador deja
+los agentes exactamente donde ya trabajan — sesiones de `tmux`, idealmente dentro de devcontainers — y pone encima
+una capa tranquila: un lugar para hablar con el orquestador, ver quién hace qué y actuar sobre lo que te está
+esperando. Cerrar la app nunca detiene a un agente.
+
+**Maneja las IA a través de sus propias herramientas de línea de comandos** — sin pegar claves de API, sin cuentas
+extra: la CLI en la que ya iniciaste sesión hace el trabajo. Settings → *Connected AIs (CLI)* muestra cuáles están
+instaladas. El orquestador corre en [Claude Code](https://claude.com/claude-code) o en el **Codex CLI**
+(Settings → *Orchestrator AI*; cada uno guarda su propia conversación cuando cambias). Los agentes pueden correr en
+cualquiera de los dos (la app reconoce cada uno en una terminal y muestra cuál es, con su modelo), y un orquestador
+puede pasar tareas sueltas a cualquiera de ellos (`orq-recado pedir`). El orquestador Codex habla con
+`codex app-server`: sus preguntas con opciones y sus pedidos de aprobación se convierten en las mismas tarjetas que
+las de Claude. Corre fuera del sandbox de Codex (los comandos `orq` necesitan tmux y docker), con la política de
+aprobación `untrusted` y el revisor `auto_review` del propio Codex decidiendo cada comando que no sea solo de
+lectura; un rechazo aparece en la conversación con el motivo del revisor. El comando de inicio (por ejemplo
+`/orquestrar-app`) se envía como la skill de Codex del mismo nombre, en `~/.codex/skills`. Gemini CLI, OpenCode y
+otros están en los planes — ver [`docs/MULTI-LLM-PLAN.md`](docs/MULTI-LLM-PLAN.md). Las ideas para más adelante
+están en [`docs/IDEAS.md`](docs/IDEAS.md). La Library y los workflows ya funcionan con cualquiera de ellos.
+
+La app habla **inglés y portugués** — cámbialo en ⚙ Settings → *App language*.
+
+## Un recorrido por la app
+
+La ventana tiene tres columnas: **conversaciones y agentes** a la izquierda, la **pestaña actual** en el centro y
+**Needs you** (la cola) junto con los detalles del agente elegido a la derecha.
+
+### 💬 Orchestrator
+
+La conversación con el orquestador — Claude corriendo sin terminal (`stream-json`, el protocolo del Agent SDK), así
+que no hay ninguna terminal que vigilar.
+
+- Respuestas en Markdown, llamadas a herramientas plegables (*Ran …*, *Read …*), tarjetas de pregunta con opciones
+  clicables, **Allow / Deny** en los pedidos de permiso, autocompletado de `/comando`.
+- Cambio de modelo y de esfuerzo, medidores de contexto y de uso (ventanas de 5 horas y de 7 días) en la barra
+  superior; cada respuesta muestra la hora junto al nombre de Claude (con la fecha cuando es de otro día).
+- **Start** envía tu comando de apertura de la ronda (por ejemplo, una skill tuya); **Shut down** cierra la ronda de
+  forma segura.
+- Pega, arrastra o adjunta (📎) capturas y archivos — las imágenes van como imágenes, los demás archivos por su
+  ruta; clic derecho en una palabra mal escrita para ver sugerencias (portugués e inglés); `//skill` usa cualquier
+  cosa de la Library; `@note:` y `@workflow:` adjuntan una nota o un workflow; los bloques de código tienen *Copy* y
+  *▶ Terminal*.
+- **¿Enviaste algo mal?** Pasa el mouse sobre tu mensaje y haz clic en ✎ para **retroceder**: ese mensaje y todo lo
+  que vino después salen del contexto de Claude (la conversación anterior se guarda) y el texto vuelve a la caja para
+  corregirlo. Con la caja vacía, ↑ / ↓ traen de vuelta lo que enviaste.
+- **New conversation** abre conversaciones paralelas al lado del orquestador.
+
+### 🧭 Agentes y *Needs you*
+
+Cada agente aparece en la columna izquierda con su estado (trabajando, esperándote, pidiendo permiso), su tarea
+actual, una barra de progreso y su modelo. Haz clic en uno para ver su última respuesta y su línea de tiempo a la
+derecha, o abre su terminal. **Needs you** reúne en una sola cola, con botones, todos los pedidos de permiso y
+preguntas pendientes de todos los agentes.
+
+### 📌 Requests
+
+La columna derecha mantiene una tarjeta compacta por cada pedido (*request*) en curso: título, estado, código del
+ticket, los agentes que trabajan en él y una barra de progreso. **Cada request aprobado es una nota en Markdown** en
+`Notes › <tu primera carpeta de notas> › Demandas/` — haz clic en la tarjeta y se abre en la pestaña Notes, donde
+están el resumen, la lista de pasos y tus propias *Anotações* (notas libres que la app nunca toca). Marca un paso o
+cambia la línea `Estado:` de la nota y la tarjeta la sigue; los requests terminados quedan en la carpeta como
+"Título - Concluída.md".
+La flecha de una tarjeta lista los pasos que faltan sin salir del panel. Pasa el mouse sobre una tarjeta para ver la
+papelera: tras un segundo clic el request sale del panel y su nota va a la papelera del sistema.
+
+A medida que llega trabajo, el **orquestador sugiere un request** (título, resumen y pasos previstos) con
+`orq-topico sugerir`; tú lo **apruebas o rechazas** en la tarjeta — corrigiendo antes el título si quieres. Solo los
+requests aprobados se convierten en notas. Después el orquestador crea los pasos, los marca a medida que avanza el
+trabajo y cierra el request cuando todo está hecho. Cada guardado conserva la versión anterior. *Needs you* queda
+arriba, en una franja que solo aparece cuando hay algo esperando.
+
+### ✉️ Messages
+
+<img src="docs/images/messages.png" alt="Messages: arriba lo que espera tu aprobación, abajo todos los mensajes entre agentes, orquestador y otras computadoras" width="900">
+
+Todo lo que pasa entre los agentes, el orquestador y los orquestadores de otras computadoras, por proyecto:
+mensajes, relevos (*handoffs*) y la memoria de cada proyecto. Lo que te espera queda arriba, en **To approve** — un
+pedido suelto que quiere escribir, o un mensaje a punto de salir de esta computadora — con *Approve / Deny* y un
+motivo opcional. La misma tarjeta aparece en la conversación del orquestador, y el ayudante del escritorio te la
+lleva cuando no estás mirando. Ver [Mensajes de los agentes y memoria del proyecto](#mensajes-de-los-agentes-y-memoria-del-proyecto).
+
+### 🖥️ Terminals
+
+Hasta cuatro terminales en cuadrícula, incluso conectadas a la sesión `tmux` de un agente — más una shell de reserva
+en la pestaña **Terminal**, a la derecha.
+
+### 📝 Notes
+
+<img src="docs/images/notes.png" alt="Notes: un editor de Markdown al estilo Notion" width="900">
+
+Un editor de Markdown al estilo Notion sobre las carpetas que elijas: bloques, menú `/`, listas de tareas, tablas,
+destacados, imágenes. Guarda solo y conserva todas las versiones anteriores; borrar una nota la manda a la papelera
+del sistema. Clic derecho en una carpeta para **ocultarla de Notes** (no se borra nada; tráela de vuelta desde el menú
+del espacio vacío › *Hidden folders*) o para **mandarla a la papelera**, tras una confirmación que dice cuántas notas
+y archivos van con ella.
+
+### 📚 Library
+
+<img src="docs/images/library.png" alt="Library: skills, comandos y subagentes encontrados en las herramientas de IA" width="900">
+
+Encuentra lo que creaste en cada herramienta de IA — skills, comandos, subagentes, prompts y workflows de Claude
+Code, Codex, Gemini CLI, OpenCode, Windsurf y Cursor — y te deja crear tus propios atajos (opcionalmente con
+<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1…9</kbd>). Escribe `//nombre` en cualquier conversación para usar uno; las skills
+de otras herramientas se envían con sus instrucciones, para que cualquier modelo pueda seguirlas.
+
+### ⚡ Workflows
+
+<img src="docs/images/workflow-editor.png" alt="Editor de workflow: un disparador de carpeta que alimenta un comando, una IA y pasos de archivo y de notificación" width="900">
+
+Automatizaciones al estilo de n8n para tu computadora. La pantalla inicial lista **Workflows**, **Credentials** y
+**Runs**; abrir un workflow muestra un lienzo a pantalla completa.
+
+- **Disparadores:** un reloj (cada N minutos — opcionalmente solo dentro del horario laboral, como 08:00–18:00 — o a
+  diario a una hora; solo días hábiles si quieres; una ejecución diaria perdida con la computadora apagada puede
+  correr al abrir la app), un botón manual, o **un archivo nuevo en una carpeta** (por ejemplo `*.pdf` en
+  `~/Downloads`).
+- **Pasos:** enviar un mensaje al orquestador (por detrás — nunca como si lo hubieras escrito tú), **preguntar a una
+  IA** — con tu suscripción (Claude Code o Codex CLI, sin costo extra, ideal para tareas livianas) o por una API —
+  Anthropic, o **cualquier API compatible con OpenAI** (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, o un
+  Ollama / LM Studio local, sin clave) —, llamar a cualquier API con una **petición HTTP** (las credenciales entran
+  como `$VARIABLE` y quedan enmascaradas en la salida), correr un comando de shell, leer / mover / copiar / escribir
+  archivos, decidir según una condición, mostrar una notificación de escritorio. Los workflows solo corren con la app
+  abierta: son para tu horario de trabajo, no un servidor 24/7. La salida de un paso es la entrada del siguiente
+  (`{{entrada}}`); `{{arquivo}}` y `{{nome_arquivo}}` son el archivo que disparó el workflow.
+- **Lienzo como en n8n / Maestri:** arrastra con el botón del medio para moverte, <kbd>Ctrl</kbd>+rueda para el
+  zoom, selección por rectángulo, menús con clic derecho, <kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>Ctrl</kbd>+<kbd>D</kbd> /
+  <kbd>Delete</kbd>, doble clic en un paso para editarlo.
+- **Cuidadoso con tus archivos:** los pasos de archivo nunca sobrescriben — un nombre que ya existe recibe `-2`,
+  `-3`…
+- Cada ejecución queda guardada, con la salida de cada paso.
+
+<table>
+  <tr>
+    <td><img src="docs/images/workflows-list.png" alt="La lista de workflows con interruptores de encendido"></td>
+    <td><img src="docs/images/workflow-step.png" alt="Editando un paso: preguntar a una IA"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Workflows, credenciales y ejecuciones</sub></td>
+    <td align="center"><sub>Doble clic en un paso para editarlo</sub></td>
+  </tr>
+</table>
+
+**Credenciales solo por referencia.** La app guarda *dónde* está un secreto — un ítem de Bitwarden, un archivo o una
+variable de entorno — nunca su valor. Se lee al momento de correr, se entrega al comando como variable de entorno y
+se enmascara como `••••` en cualquier salida guardada. *Test* solo te dice cuántos caracteres leyó.
+La sesión del gestor (`BW_SESSION`) y las variables registradas como credencial se quitan de toda conversación,
+terminal y paso de workflow: solo el paso que eligió una credencial la recibe.
+
+<img src="docs/images/credentials.png" alt="Una credencial: solo se guarda la referencia" width="900">
+
+### 👾 El ayudante de escritorio
+
+<p align="center"><img src="docs/images/pet-asks.gif" alt="El ayudante entra al escritorio con una pregunta y sus opciones" width="760"></p>
+
+El orquestador en persona: una mascota en píxeles que piensa, escribe, da órdenes a los agentes, duerme la siesta
+cuando estás inactivo, baila, sigue tu mouse con la mirada y se puede lanzar por el aire. Se para sobre las cosas de
+la pantalla (la caja de texto, los adjuntos, las tarjetas de los agentes).
+
+- **Sale de la app y pasea por tu escritorio** (una ventana X11 transparente, así se mueve libremente incluso en
+  Wayland). Vive en todos los espacios de trabajo, queda fuera de la vista general y del Alt+Tab, y cuando cambias de
+  espacio de trabajo entra por el lado del que viniste — solo en el monitor que de verdad cambió.
+- **Te trae lo que te necesita.** Cuando aparece algo pendiente y no estás mirando la app, llega con la pregunta y sus
+  opciones (o el permiso, con *Allow / Deny*) y respondes ahí mismo. Lo que espera tu **aprobación** (un mensaje a otra
+  computadora, un pedido suelto que quiere escribir) llega igual, con *Approve / Deny* y un motivo opcional.
+- **Sabe cuándo la app está en pantalla.** Hacer clic en el escritorio le quita el foco, pero la app sigue frente a ti,
+  así que el ayudante se queda dentro de ella. Wayland no deja que una app vea las otras ventanas, así que cada
+  escritorio tiene su manera:
+  | Escritorio | Cómo lo sabe la app | Preparación |
+  |---|---|---|
+  | GNOME (Wayland o X11) | una pequeña extensión de GNOME Shell, solo de lectura, [`extras/gnome-shell`](extras/gnome-shell) — responde solo sobre las ventanas de la propia app | `extras/gnome-shell/instalar.sh`, luego cerrar sesión y volver a entrar |
+  | Sway | `swaymsg -t get_tree` | ninguna |
+  | Hyprland | `hyprctl` | ninguna |
+  | cualquier otro escritorio X11 (Xfce, MATE, Cinnamon…) | `xprop` / `xwininfo` | ninguna |
+  | el resto (por ejemplo KDE Plasma en Wayland, por ahora) | reserva: minimizada → sale; si no, espera 2 min y sale si lo pendiente sigue ahí | ninguna |
+- **Llámalo desde cualquier lugar** con <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Espacio</kbd> (`orq-pet`): conversa ahí
+  mismo, o **📷 recorta un trozo de la pantalla** y pregunta sobre él (`gnome-screenshot` por defecto; elige tu propio
+  programa de captura con `capturaTela`, ver [la referencia de configuración](examples/CONFIGURATION.md)).
+- **Elige un amigo y vístelo.** Nueve especies, cada una con su forma de moverse:
+  - el **bichito clásico** (el predeterminado) camina, y es el único que puedes pintar — 16 colores más el color de
+    acento de la app;
+  - el **gatito**, el **pingüino** y el **hongo** caminan; el **pajarito** vuela;
+  - la **ranita** y el **slime** transparente se mueven a saltos;
+  - el **fantasma** translúcido vuela de verdad — dentro de la app y por tu escritorio;
+  - la **nube** también vuela, y pasa del blanco al gris según su humor (llueve cuando algo sale mal).
+  - en el escritorio cada uno llega y se va a su manera: los que caminan entran por el borde, los que vuelan llegan en
+    un vuelo ondulado y hacen una pirueta antes de quedar flotando (y se van hacia arriba), los que saltan entran y
+    salen saltando.
+
+  Todas las especies, salvo la clásica, tienen colores propios. Todas usan los mismos 30 accesorios en 6 partes del
+  cuerpo (sombreros, lentes, bigotes, corbatas, capas, una taza de café…). Clic derecho en la mascota para abrir el
+  guardarropa.
+
+<table>
+  <tr>
+    <td><img src="docs/images/pet-wardrobe.gif" alt="Un desfile de especies y atuendos"></td>
+    <td><img src="docs/images/wardrobe.png" alt="La ventana del guardarropa"></td>
+  </tr>
+</table>
+
+### ⚙️ Settings, temas y colores
+
+<img src="docs/images/themes.gif" alt="Temas oscuro y claro con distintos colores de acento" width="900">
+
+La configuración está dividida en secciones, con búsqueda: apariencia (tema oscuro o claro, cualquier color de acento,
+la mascota), **idioma (English / Português)**, un interruptor por notificación, orquestación (comandos de Start /
+Shut down y el **canal entre orquestadores**), **CLI de IA conectadas** (detectadas en tu PATH, o apunta cada una a
+un ejecutable propio), proyectos, notas y opciones avanzadas — todo se aplica al instante.
+
+<img src="docs/images/settings.png" alt="La ventana de configuración" width="900">
+
+## Primeros pasos
+
+**Requisitos:** Linux, Node.js 20+, `tmux` y Claude Code (`claude`) en tu `PATH` — o el Codex CLI (`codex`) si el
+orquestador corre en Codex.
+
+> **Antes de instalar, lee [SECURITY.md](SECURITY.md).** El orquestador corre Claude Code en modo automático desde tu
+> carpeta personal, los workflows corren comandos de shell y el ayudante de escritorio puede capturar una zona de la
+> pantalla que tú elijas.
+
+```bash
+git clone https://github.com/enzo9bastos/orquestrador.git
+cd orquestrador/app
+npm install
+npm run rebuild     # recompila node-pty para Electron
+npm start
+```
+
+Los comandos de terminal opcionales están en `app/bin/` — enlázalos en alguna carpeta de tu `PATH`:
+
+| Comando | Qué hace |
+|---|---|
+| `orq-pet` | Llama al ayudante de escritorio: `orq-pet chamar`, `print`, `passear`, `voltar`. Asígnalo a una tecla — el guardarropa puede crear el atajo de GNOME por ti. |
+| `orq-recado` | Mensajes del orquestador a los agentes de la app y la memoria de cada proyecto: `orq-recado para <proyecto> "texto"`, `listar`, `memoria <proyecto> [término]`, `lembrar <proyecto> "título" "texto"`, `vezes`. Ver [Mensajes de los agentes y memoria del proyecto](#mensajes-de-los-agentes-y-memoria-del-proyecto). |
+
+## Configuración
+
+Todo es opcional y vive en `~/.config/orq-app/config.json` (casi todo está también en el menú del engranaje). Empieza
+por [`examples/config.example.json`](examples/config.example.json); cada clave se explica en
+[`examples/CONFIGURATION.md`](examples/CONFIGURATION.md).
+
+| Clave | Para qué |
+|---|---|
+| `idioma` | `"en"` o `"pt-BR"` |
+| `raizProjetos`, `niveis` | Dónde están tus proyectos: `<raíz>/<proyecto>` o `<raíz>/<grupo>/<proyecto>` |
+| `pastasNotas` | Carpetas que abre el editor de notas |
+| `comandoInicial`, `comandoDesligar` | Comandos que envían los botones **Start** y **Shut down** |
+| `linhaTarefa`, `comandoOrdem` | Expresiones regulares que le dicen a la app en qué trabaja cada agente |
+| `ambiente` | Variables de entorno extra para las conversaciones y terminales de la app |
+| `iaOrquestrador`, `iaAgentes` | Qué CLI de IA corre el orquestador (`claude` o `codex`) y los agentes nuevos |
+| `canalServidor`, `canalArquivoCliente`, `canalMinhaCaixa`, `canalMeuNome`, `canalContatos` | Canal entre orquestadores: servidor ntfy, archivo del cliente con el token, tu buzón, tu nombre, los contactos |
+| `canalAprovarEnvio`, `canalSemAprovarCiente`, `canalSemAprovarInformacao` | Qué tiene que esperar tu aprobación antes de salir de la computadora |
+
+### Mensajes de los agentes y memoria del proyecto
+
+Los agentes y el orquestador pueden hablar entre sí, y cada proyecto guarda una memoria que cualquier agente
+posterior puede leer — sea cual sea la IA en la que corra. Todo son archivos locales; nada sale de la máquina.
+
+- **Agente → orquestador.** El agente corre `.orq/bin/orq-recado enviar "texto" --tipo pergunta|aviso|pronto|travado`
+  (pregunta, aviso, listo, trabado). La app lo recoge de `<proyecto>/.orq/recados/saida/` y lo entrega a la
+  conversación del orquestador como un mensaje por detrás, con la forma de responder.
+- **Orquestador → agente.** `orq-recado para <proyecto|agente> "texto"` escribe el mensaje en el panel de ese agente,
+  en una línea, con la forma de responder. También instala `.orq/bin/orq-recado` en el proyecto cuando falta.
+- **Agente → agente.** `.orq/bin/orq-recado enviar "texto" --para <agente|proyecto>` llega a otro agente de la app,
+  escrito en su panel con la forma de responder. `.orq/bin/orq-recado agentes` lista quién está abierto (la app guarda
+  esa lista en `<proyecto>/.orq/recados/agentes.json`). Un mensaje a un agente que no está abierto espera hasta que
+  se abra.
+- **Relevos.** `.orq/bin/orq-recado passar "dónde me quedé" --falta "…" --falhou "…" [--para <agente|proyecto>]` deja
+  el trabajo para otro (lo que falta, lo que no funcionó). `vezes` lista los que este agente puede tomar y
+  `pegar <id>` toma uno: la app decide quién lo tomó, así que **cada relevo lo toma un solo agente, una sola vez**. El
+  orquestador se entera de cada relevo; `orq-recado vezes` los lista en el host.
+- **Pedidos sueltos a otra IA.** `orq-recado pedir <proyecto> "tarea" --motor codex|claude [--escrever]` pasa una sola
+  tarea a un Codex o Claude que no es agente de nadie (por ejemplo, el orquestador Claude le pide una imagen a Codex).
+  Corre en un contenedor desechable hecho con la imagen del devcontainer del proyecto, con el mismo firewall y los
+  inicios de sesión compartidos; la carpeta del proyecto se monta **solo lectura**, a menos que el pedido quiera
+  escribir — entonces espera tu aprobación en la pestaña **Messages** (puedes dar una orientación, o un motivo si lo
+  niegas). La respuesta, con los archivos creados o cambiados, vuelve al orquestador como mensaje. Hasta dos a la vez;
+  20 minutos cada uno.
+- **Orquestador ↔ orquestador en otra computadora.** A través de un servidor [ntfy](https://ntfy.sh) (idealmente
+  tuyo, en una red privada). Cada persona tiene un buzón (tópico) que solo ella lee; los demás escriben en él.
+  Configúralo en Settings → Orchestration → *Channel between orchestrators*: tu buzón, tu nombre y los contactos en
+  líneas `Nombre: tópico`. El servidor y el token vienen del propio archivo del cliente ntfy
+  (`~/.config/ntfy/client.yml`, `default-host` / `default-token`); el token nunca aparece en la app. Los mensajes que
+  llegan entran a la conversación del orquestador "por detrás", marcados como **datos, nunca órdenes**: un hecho que
+  conoce lo responde, lo demás te lo pregunta primero, y un pedido de tarea nueva solo se convierte en un request
+  *sugerido* en el panel. Responde con
+  `orq-recado externo <contacto> "texto" --tipo ciente|informacao|pedido|decisao [--titulo "asunto"]`:
+  - lo que tú permitas (acuses de recibo, información) sale solo; los pedidos y las decisiones **esperan tu
+    aprobación** en la pestaña Messages, en una tarjeta en la conversación y con el ayudante de escritorio (puedes dar
+    una orientación, o un motivo si lo niegas). Aunque esté marcado como información, la app retiene el texto con una
+    pregunta, o que parezca una decisión, preferencia, plazo o compromiso tuyo;
+  - cuando fuiste tú quien pidió enviarlo, el orquestador cita tus palabras (`--autorizado "…"`) y la app comprueba
+    que estén en un mensaje que escribiste en la conversación durante la última hora — entonces sale sin volver a
+    preguntar;
+  - el texto que parezca una contraseña, clave o token, o de más de 4 KB, se rechaza.
+
+  Solo el orquestador usa el canal: los agentes siguen hablando solo con el orquestador de la misma computadora. El
+  agente de cualquier otra persona (otra app, o Claude Code con la CLI `ntfy`) puede sumarse: publica con
+  `--tags de-<tu-nombre>` para que la app muestre quién escribió.
+- **Memoria del proyecto.** `.orq/bin/orq-recado lembrar "título" "texto" --tipo decisao|falhou|onde|aviso` (decisión,
+  no funcionó, dónde está, aviso) escribe una nota en Markdown en `<proyecto>/.orq/memoria/`; `memoria`,
+  `buscar "término"` y `ler <nota>` las leen. Las notas solo se agregan, nunca se reescriben ni se borran. Cada nota
+  registra la carpeta de la que vino.
+- **Compartida entre copias de un proyecto.** Los worktrees del mismo repositorio git comparten una memoria: cada 15 s
+  la app copia a cada copia las notas que le faltan (nunca sobrescribe, nunca borra), así un agente en un worktree lee
+  lo que aprendió un agente en otro. Otras carpetas se pueden unir con la configuración `memoriaGrupos`.
+- **Instalado por ti.** La app pone `.orq/bin/orq-recado` en cada proyecto que tenga un agente abierto (un archivo con
+  ese nombre que no puso la app se deja como está).
+- **Solo los agentes de la app.** Un mensaje cuenta solo cuando el proyecto tiene un agente que la app sigue (un panel
+  de tmux corriendo Claude en esa carpeta) y, con el hook de señales activo, solo desde la sesión de ese agente. Una
+  CLI abierta en una terminal fuera de la app queda afuera. Esto separa "de la app" de "de afuera"; no es una defensa
+  contra un agente hostil, que puede escribir en la carpeta de su propio proyecto.
+- **Freno contra bucles.** A partir del 7.º mensaje del mismo proyecto al orquestador, o entre los mismos dos agentes
+  (en ambos sentidos), en 10 minutos, la app los retiene; la pestaña **Messages** los muestra con un botón
+  **Release**.
+
+La pestaña **Messages** lista mensajes y relevos por proyecto y muestra la memoria de cada proyecto; lo que espera tu
+aprobación queda arriba, en **To approve**. Los registros son `~/.local/share/orq-app/recados/recados.jsonl` y
+`vezes.jsonl`.
+
+### Hook de señales (opcional)
+
+[`hooks/orq-evento.sh`](hooks/orq-evento.sh) es un hook de Claude Code que registra los eventos de un agente en
+`<proyecto>/.orq/eventos/` y, con la app abierta, lleva los pedidos de permiso a los botones de la app (con la app
+cerrada, el pedido queda en la terminal, como siempre). Para activarlo en un proyecto, cópialo a
+`<proyecto>/.orq/bin/` y registra `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Notification`, `Stop`,
+`SessionEnd` (timeout 10) y `PermissionRequest` (timeout 330) en el `.claude/settings.json` del proyecto con el comando
+`"$CLAUDE_PROJECT_DIR"/.orq/bin/orq-evento.sh`. Agrega `.orq/` al `.gitignore`.
+
+La app responde a un pedido de permiso escribiendo en `<proyecto>/.orq/respostas-perm/`. El hook solo confía en esa
+respuesta cuando **el agente no puede falsificarla**: la carpeta de respuestas y el propio hook deben ser de solo
+lectura dentro del contenedor. Si alguno se puede escribir, el hook ignora la app y el pedido queda en la terminal.
+En `devcontainer.json`:
+
+```jsonc
+"mounts": [
+  "source=${localWorkspaceFolder}/.orq/bin,target=${containerWorkspaceFolder}/.orq/bin,type=bind,readonly",
+  "source=${localWorkspaceFolder}/.orq/respostas-perm,target=${containerWorkspaceFolder}/.orq/respostas-perm,type=bind,readonly",
+  "source=${localWorkspaceFolder}/.claude/settings.json,target=${containerWorkspaceFolder}/.claude/settings.json,type=bind,readonly"
+]
+```
+
+Crea las dos carpetas en el host antes de levantar el contenedor.
+
+## Estructura del proyecto
+
+```text
+orquestrador/
+├── app/                  app Electron
+│   ├── main.js           proceso principal: ventanas, IPC, notificaciones
+│   ├── conversa.js       conversaciones sin terminal (Claude en stream-json; Codex en conversa-codex.js)
+│   ├── coletor.js        lee el estado de los agentes en tmux y en el hook de señales
+│   ├── recados.js        mensajes entre agentes y orquestador, memoria del proyecto
+│   ├── avulso.js         pedidos sueltos a Codex o Claude en un contenedor desechable
+│   ├── canal.js          canal entre orquestadores de computadoras distintas (ntfy)
+│   ├── janelas.js        ¿la app está en pantalla? (GNOME, Sway, Hyprland, X11)
+│   ├── workflows.js      motor de workflows, reloj, vigía de carpetas, credenciales
+│   ├── ajudante.js       puente con el proceso del ayudante de escritorio
+│   ├── i18n.js           idioma del proceso principal (notificaciones)
+│   ├── renderer/         la interfaz de la app (HTML, CSS, un script por pestaña)
+│   │   └── i18n/         catálogo de traducción (portugués → inglés)
+│   ├── pet/              la ventana propia del ayudante de escritorio (proceso X11 aparte)
+│   ├── bin/              comandos de terminal orq-pet, orq-topico y orq-recado
+│   ├── icons/
+│   └── tests/            unit/ (node:test) y e2e/ (maneja la app de verdad)
+├── docs/images/          imágenes de este README (scripts/imagens-readme.js las regenera)
+├── examples/             configuración de ejemplo y su guía
+├── extras/gnome-shell/   extensión opcional de GNOME (¿la app está en pantalla?)
+├── hooks/                hook de señales opcional de Claude Code, y los scripts de estado y mensajes de los agentes
+└── scripts/              controles de higiene del repositorio y el generador de imágenes del README
+```
+
+El código fuente está escrito en portugués (identificadores, comentarios, nombres de archivo); la interfaz se traduce
+en tiempo de ejecución desde `app/renderer/i18n/en.json`, así que agregar un idioma es agregar un catálogo.
+
+## Pruebas
+
+```bash
+cd app
+npm test                  # todo: unitarias + de punta a punta
+npm test -- workflows     # solo un área (cada archivo de prueba declara su área)
+npm test -- --so-unidade  # solo las unitarias, sin abrir la app
+```
+
+Las pruebas de punta a punta abren la app de verdad, oculta, con una carpeta personal desechable, y hablan con ella
+por el protocolo de DevTools — tus archivos reales nunca se tocan. Cada error corregido recibe una prueba de
+regresión, listada en [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
+
+Las imágenes de este README salen de la app real de la misma forma, con datos inventados:
+`node scripts/imagens-readme.js` las regenera (Python 3 con Pillow convierte los cuadros).
+
+## Créditos
+
+- Colores inspirados en la guía de marca pública de [Alethe](https://github.com/Kc1t/alethe-agents) (solo los valores
+  de color; nada de código).
+- Hecho con Electron, xterm.js, node-pty, marked, Tiptap y ProseMirror (MIT — el editor de notas va empaquetado en
+  `app/renderer/editor.bundle.js`; sus licencias están en [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)),
+  DOMPurify (Apache 2.0 / MPL 2.0) y la fuente Inter (OFL).
+- Claude y Claude Code son marcas de Anthropic. Este proyecto no está afiliado a Anthropic ni respaldado por ella. El
+  bichito clásico en píxeles es un homenaje de fan a la mascota de Claude Code; las otras especies son dibujos
+  originales.
+
+## Licencia
+
+[MIT](LICENSE) © 2026 Enzo Bastos
