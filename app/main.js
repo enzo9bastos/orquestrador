@@ -622,9 +622,16 @@ ipcMain.handle('abrir-caminho', (_e, p, onde = {}) => {
   }
   return false;
 });
-// Link de nota (Ctrl+clique): só http/https, no navegador do sistema.
+// Link de nota ou da conversa (Ctrl+clique): só http/https, no navegador do
+// sistema. Link com usuário e senha embutidos (https://a:b@host) nunca abre.
+// Nos testes de tela não abre o navegador de verdade.
 ipcMain.handle('abrir-link', (_e, url) => {
-  try { const u = new URL(String(url)); if (!['http:', 'https:'].includes(u.protocol)) return false; shell.openExternal(u.toString()); return true; } catch { return false; }
+  try {
+    const u = new URL(String(url));
+    if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password) return false;
+    if (!process.env.ORQ_APP_E2E) shell.openExternal(u.toString());
+    return true;
+  } catch { return false; }
 });
 ipcMain.handle('abrir-pasta', (_e, dir) => dir.startsWith(coletor.raiz()) && shell.openPath(dir));
 

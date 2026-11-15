@@ -1488,3 +1488,30 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 
 /* Conversa do orquestrador: o que espera aprovação, no mesmo jeito do cartão de pergunta. */
 .cartao-aprovacao .texto-aprovacao { white-space: pre-wrap; font-size: 13px; line-height: 1.5; color: var(--fg-2); }
+
+/* --- P0 tela (0.B7, 0.B8, 0.B10, 0.B11) ------------------------------------ */
+/* Lista do "/": comando da lista negra aparece cinza, com o que usar no lugar. */
+.sugestoes li.bloqueado { cursor: default; opacity: .55; }
+.sugestoes li.bloqueado:hover { background: none; }
+.sugestoes li.bloqueado .nome-comando { color: var(--fg-4); text-decoration: line-through; text-decoration-thickness: 1px; }
+.dica-bloqueado { margin-right: 8px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--borda); color: var(--fg-2); font-size: 11px; }
+/* Aviso de comando que não foi (lista negra, ou do Claude numa conversa Codex). */
+.aviso-comando code { font: 11.5px var(--mono); color: var(--fg-2); }
+/* Link na conversa: dica com o endereço de verdade e confirmação de domínio. */
+.mensagens a[href] { cursor: pointer; }
+.dica-link { position: fixed; z-index: 60; max-width: min(520px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; pointer-events: none;
+  background: var(--bg-elevado); border: 1px solid var(--borda-forte); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); font-size: 12px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dica-link[hidden] { display: none; }
+.dica-link .host-link { font: 500 12px var(--mono); color: var(--fg); }
+.dica-link.recusado { color: var(--perigo); }
+.confirmar-link { padding: 14px 18px 4px; }
+.confirmar-link p { margin: 0 0 10px; line-height: 1.55; }
+.confirmar-link code { font: 12px var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+.confirmar-link .perm-acoes { display: flex; gap: 8px; justify-content: flex-end; }
+/* Barra da conversa que não cabe (ex.: janela de 1480 px com a barra cheia):
+   primeiro os medidores ficam só com o número; se ainda não couber, os botões
+   ficam só com ícone (o nome continua na dica). conversa-tela.js mede e põe a
+   classe. A reorganização da barra é o passo 1.1. */
+.conversa-barra.apertada .barra-uso { display: none; }
+.conversa-barra.muito-apertada .rotulo-botao { display: none; }
+.conversa-barra.muito-apertada .so-icone { display: block; }
