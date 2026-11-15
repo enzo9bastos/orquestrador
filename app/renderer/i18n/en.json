@@ -1067,7 +1067,8 @@
     "para-ana": "to-ana",
     "Bruno: para-bruno": "Bruno: to-bruno",
     "Conversa limpa": "Conversation cleared",
-    "Troca sem reiniciar: o que roda em segundo plano continua. No meio de uma resposta, o esforço vale quando ela terminar.": "Switches without restarting: what runs in the background keeps going. In the middle of a reply, the effort applies once it finishes.",
+    "Troca sem reiniciar: o que roda em segundo plano continua. No Claude, só o esforço Máximo reinicia a conversa e encerra o que estiver em segundo plano.": "Switches without restarting: what runs in the background keeps going. In Claude, only the Max effort restarts the conversation and ends whatever is running in the background.",
+    "Para trocar o esforço a conversa reinicia: o que estiver rodando em segundo plano (tarefas, Monitor, subagentes) é encerrado.": "To switch the effort the conversation restarts: whatever is running in the background (tasks, Monitor, subagents) is ended.",
     "Esta conversa expirou no Claude; a próxima mensagem começa uma conversa nova.": "This conversation expired in Claude; the next message starts a new conversation."
   },
   "padroes": [

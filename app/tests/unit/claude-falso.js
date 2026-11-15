@@ -20,6 +20,8 @@
 //   qualquer outra coisa       responde "ok" e termina o turno
 // Pedidos de controle do app: set_model (o próximo init traz o modelo novo),
 // set_permission_mode e interrupt recebem control_response de sucesso.
+// apply_flag_settings (esforço só da sessão) também; com $CLAUDE_FALSO_RECUSA_ESFORCO
+// ele é recusado com esse texto de erro.
 // $CLAUDE_FALSO_RECUSA_MODELO: o set_model é recusado com esse texto de erro.
 // $CLAUDE_FALSO_FALHA_RESUME: com --resume, escreve esse texto no stderr e sai
 // com código 1 antes do init (sessão que o Claude não abriu).
@@ -67,6 +69,10 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
       modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: modelo });
     }
     if (r.subtype === 'set_permission_mode') { modo = r.mode; responde(d, { mode: modo }); return sai({ type: 'system', subtype: 'status', status: null, permissionMode: modo, session_id: SESSAO }); }
+    if (r.subtype === 'apply_flag_settings') {
+      if (process.env.CLAUDE_FALSO_RECUSA_ESFORCO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_ESFORCO } });
+      return responde(d);
+    }
     if (r.subtype === 'interrupt') return responde(d);
     return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: `pedido desconhecido: ${r.subtype}` } });
   }

@@ -1,7 +1,8 @@
 // Área: conversa (motor da conversa na tela: modelo, esforço e /clear; 0.B1 e 0.B5)
 // Com o Claude falso de tests/unit/claude-falso.js: trocar modelo e esforço
 // pelo menu não reinicia o Claude (o log mostra uma única subida), o modelo
-// novo aparece quando o Claude confirma, o esforço vai calado (sem balão) e o
+// novo aparece quando o Claude confirma, o esforço vai por apply_flag_settings
+// (sem balão; nunca "/effort") e o
 // /clear deixa só a divisória "Conversa limpa". Casa temporária, nada real.
 const test = require('node:test');
 const assert = require('node:assert');
@@ -37,6 +38,7 @@ test('motor da conversa na tela', async (t) => {
     const nota = await app.avaliar("document.querySelector('#menu-modelo .menu-nota').textContent");
     assert.doesNotMatch(nota, /conversa reinicia/);
     assert.match(nota, /sem reiniciar/);
+    assert.match(nota, /só o esforço Máximo reinicia/, 'avisa antes do clique que o Máximo reinicia');
     await app.avaliar("document.body.click()");
   });
 
@@ -49,12 +51,14 @@ test('motor da conversa na tela', async (t) => {
     assert.doesNotThrow(() => process.kill(tarefa, 0), 'a tarefa de fundo continua viva');
   });
 
-  await t.test('trocar o esforço pelo menu: "/effort" calado, sem balão e sem reinício', async () => {
+  await t.test('trocar o esforço pelo menu: apply_flag_settings (nunca "/effort"), sem balão e sem reinício', async () => {
     const antes = await baloes();
     await app.avaliar("document.getElementById('botao-modelo').click()");
     await app.avaliar("document.querySelector('#opcoes-esforco [data-esforco=high]').click()");
-    for (let i = 0; i < 50 && !linhas().some((x) => x.type === 'user' && x.message.content === '/effort high'); i++) await app.espera(100);
-    assert.ok(linhas().some((x) => x.type === 'user' && x.message.content === '/effort high'), 'o log tem o /effort');
+    const pedido = () => linhas().find((x) => x.type === 'control_request' && x.request.subtype === 'apply_flag_settings');
+    for (let i = 0; i < 50 && !pedido(); i++) await app.espera(100);
+    assert.deepStrictEqual(pedido().request.settings, { effortLevel: 'high' });
+    assert.ok(!linhas().some((x) => x.type === 'user' && /^\/effort/.test(x.message.content)), 'nunca manda /effort');
     await app.espera(400);
     assert.strictEqual(await baloes(), antes, 'nenhum balão novo');
     assert.strictEqual(await app.avaliar("document.querySelectorAll('#mensagens .saida-comando').length"), 0, 'nem a saída do comando');

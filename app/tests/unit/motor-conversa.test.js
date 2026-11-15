@@ -1,7 +1,8 @@
 // Área: conversa (motor da conversa: modelo, esforço, modo, sessão, /clear e título)
 // Itens 0.B1–0.B6 da Etapa 0, com o Claude falso e o Codex falso:
 //  - B1: trocar modelo ou esforço não reinicia o Claude (a tarefa de fundo
-//    sobrevive): modelo por set_model ao vivo, esforço por "/effort x" calado;
+//    sobrevive): modelo por set_model ao vivo, esforço por apply_flag_settings
+//    (só da sessão; nunca "/effort", que grava no settings.json do usuário);
 //  - B2: o modo de permissão vivo sobrevive a um reinício (o mais restritivo);
 //  - B3: --resume que cai antes do init só zera a sessão quando ela não existe;
 //  - B4: mensagem no meio de um turno do Codex vai por turn/steer;
@@ -90,35 +91,80 @@ test('B1: modelo recusado pelo Claude fica o antigo e aparece um aviso', async (
   assert.strictEqual(c.proc.pid, pid);
 });
 
-test('B1: trocar o esforço manda "/effort x" calado: sem balão, sem ocupado, sem título, sem aviso; mesmo PID', async (t) => {
+test('B1: trocar o esforço vai por apply_flag_settings (só da sessão): sem balão, sem ocupado, sem título, sem reinício', async (t) => {
   const id = conversa.nova();
   const c = conversa._pegar(id);
   t.after(() => conversa.fechar(id));
-  const titulo = c.titulo;
-  c.iniciar();
-  c.configurar({ esforco: 'low' }); // processo vivo, ainda sem nenhuma mensagem
-  await ate(() => recebidos().some((x) => x.type === 'user' && x.message.content === '/effort low'));
+  c.mandar('começa tarefa de fundo');
+  await ate(() => turnos(c) === 1);
   const pid = c.proc.pid;
-  assert.strictEqual(c.info.ocupado, false, 'não marca ocupado');
+  const tarefa = recebidos().find((x) => x.tarefa).tarefa;
+  const eventos = c.eventos.length;
+  const avisosAntes = avisos.length;
+  c.configurar({ esforco: 'low' });
+  await ate(() => recebidos().some((x) => x.type === 'control_request' && x.request.subtype === 'apply_flag_settings'));
+  const pedido = recebidos().find((x) => x.type === 'control_request' && x.request.subtype === 'apply_flag_settings');
+  assert.deepStrictEqual(pedido.request.settings, { effortLevel: 'low' });
   await espera(300);
-  assert.strictEqual(c.titulo, titulo, 'o /effort não vira título');
-  assert.ok(!c.eventos.some((e) => e.tipo === 'user'), 'nenhum balão nem saída do comando');
-  assert.strictEqual(turnos(c), 0, 'o fim do comando não vira fim de turno');
-  assert.ok(!avisos.some((a) => a.id === id), 'nenhuma notificação');
-  assert.strictEqual(c.esforco, 'low');
-  assert.strictEqual(c.info.esforco, 'low');
-  assert.strictEqual(c.proc.pid, pid);
-  assert.strictEqual(recebidos().filter((x) => x.args).length, 1, 'o Claude subiu uma vez só');
-
-  // Com um turno em andamento, o /effort espera o fim dele.
+  assert.strictEqual(c.info.ocupado, false, 'não marca ocupado');
+  assert.strictEqual(c.eventos.length, eventos, 'nenhum balão, linha ou aviso na conversa');
+  assert.strictEqual(avisos.length, avisosAntes, 'nenhuma notificação');
+  assert.strictEqual([c.esforco, c.info.esforco].join(), 'low,low');
+  assert.strictEqual(c.proc.pid, pid, 'mesmo PID: nada de reinício');
+  assert.strictEqual(recebidos().filter((x) => x.args).length, 1);
+  assert.ok(vivo(tarefa), 'a tarefa de fundo continua viva');
+  // No meio de um turno também vai na hora, sem mexer no turno.
   c.mandar('primeira de verdade');
   c.configurar({ esforco: 'high' });
-  assert.ok(!recebidos().some((x) => x.type === 'user' && x.message.content === '/effort high'), 'não manda no meio do turno');
-  await ate(() => recebidos().some((x) => x.type === 'user' && x.message.content === '/effort high'));
+  await ate(() => recebidos().some((x) => x.type === 'control_request' && x.request.subtype === 'apply_flag_settings' && x.request.settings.effortLevel === 'high'));
+  await ate(() => turnos(c) === 2);
+  assert.strictEqual(c.titulo, 'começa tarefa de fundo', 'o esforço não vira título');
+  assert.strictEqual(c.proc.pid, pid);
+});
+
+test('B1: o app nunca manda "/effort" (ele grava o esforço como padrão no settings.json do usuário)', async (t) => {
+  const c = new conversa._Conversa({ id: 'b1n', titulo: 'Conversa 9' });
+  t.after(() => c.parar());
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  for (const e of ['low', 'medium', 'high', 'xhigh', 'max', null]) {
+    c.configurar({ esforco: e });
+    await espera(150);
+    await ate(() => !!c.proc && !c.info.ocupado);
+  }
   await espera(300);
-  assert.strictEqual(turnos(c), 1, 'só o turno da mensagem conta');
-  assert.strictEqual(c.titulo, 'primeira de verdade');
-  assert.strictEqual(c.proc.pid, pid, 'nenhum reinício');
+  const mandados = recebidos().filter((x) => x.type === 'user').map((x) => (typeof x.message.content === 'string' ? x.message.content : JSON.stringify(x.message.content)));
+  assert.ok(!mandados.some((m) => /^\s*\/effort\b/.test(m)), `mandou /effort: ${mandados.join(' | ')}`);
+});
+
+test('B1: esforço recusado ao vivo: aviso antes e reinício com --effort (só da sessão)', async (t) => {
+  process.env.CLAUDE_FALSO_RECUSA_ESFORCO = 'unsupported_request';
+  t.after(() => { delete process.env.CLAUDE_FALSO_RECUSA_ESFORCO; });
+  const c = new conversa._Conversa({ id: 'b1x', titulo: 'Conversa 10' });
+  t.after(() => c.parar());
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  c.configurar({ esforco: 'high' });
+  await ate(() => recebidos().filter((x) => x.args).length === 2);
+  const aviso = c.eventos.find((e) => e.tipo === 'aviso' && /reinicia/.test(e.texto));
+  assert.ok(aviso, 'avisa que a conversa reinicia');
+  assert.match(aviso.texto, /segundo plano/);
+  const args = recebidos().filter((x) => x.args).pop().args;
+  assert.deepStrictEqual(args.slice(args.indexOf('--effort'), args.indexOf('--effort') + 2), ['--effort', 'high']);
+  assert.ok(!recebidos().some((x) => x.type === 'user' && /^\/effort/.test(x.message.content)));
+});
+
+test('B1: "Máximo" não existe no apply_flag_settings: aviso antes e reinício com --effort max', async (t) => {
+  const c = new conversa._Conversa({ id: 'b1max', titulo: 'Conversa 11' });
+  t.after(() => c.parar());
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  c.configurar({ esforco: 'max' });
+  await ate(() => recebidos().filter((x) => x.args).length === 2);
+  assert.ok(c.eventos.some((e) => e.tipo === 'aviso' && /reinicia/.test(e.texto)), 'avisa antes de reiniciar');
+  const args = recebidos().filter((x) => x.args).pop().args;
+  assert.deepStrictEqual(args.slice(args.indexOf('--effort'), args.indexOf('--effort') + 2), ['--effort', 'max']);
+  assert.ok(!recebidos().some((x) => x.type === 'control_request' && x.request.subtype === 'apply_flag_settings'), 'não tenta o apply_flag_settings');
 });
 
 test('B2: o modo vivo (status) sobrevive ao /restart; reinício nunca sobe mais solto que auto', async (t) => {

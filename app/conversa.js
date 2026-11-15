@@ -69,10 +69,11 @@ const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const MODO_APP = 'auto';
 const MODOS_MAIS_RESTRITOS = ['plan', 'dontAsk', 'default', 'acceptEdits'];
 const modoDeSubida = (vivo) => (MODOS_MAIS_RESTRITOS.includes(vivo) ? vivo : MODO_APP);
-// Saída do "/effort x" que o app manda calado (ver mandarCalado): reconhece a
-// resposta para ela não virar fim de turno nem linha na conversa.
-const SAIDA_ESFORCO = /^(Set effort level|Effort level|Effort '|Failed to set effort|Not applied: CLAUDE_CODE_EFFORT_LEVEL|CLAUDE_CODE_EFFORT_LEVEL=|Cleared effort|Current effort level)/;
-const esforcoAplicado = (t) => /^(Set effort level to|Effort level set to)/.test(t);
+// Esforços que o Claude aceita ao vivo, só para a sessão (apply_flag_settings
+// { effortLevel }). Os outros ("Máximo" e o padrão) só valem ao subir (--effort).
+// Nunca "/effort": no modo -p ele grava o nível como padrão no settings.json.
+const ESFORCOS_AO_VIVO = ['low', 'medium', 'high', 'xhigh'];
+const AVISO_REINICIO = 'Para trocar o esforço a conversa reinicia: o que estiver rodando em segundo plano (tarefas, Monitor, subagentes) é encerrado.';
 // Esforço que vale quando nada foi escolhido: o do settings.json do Claude.
 // Modelo que vale quando nada foi escolhido: o "model" do settings.json.
 function modeloPadrao() {
@@ -179,14 +180,6 @@ function comandosLocais() {
   return lista;
 }
 
-// Texto de uma saída de comando local (<local-command-stdout>…), ou null.
-function saidaLocal(message) {
-  const c = message && message.content;
-  const t = typeof c === 'string' ? c : Array.isArray(c) ? c.filter((b) => b && b.type === 'text').map((b) => b.text).join('\n') : '';
-  const m = /<local-command-(?:stdout|stderr)>([\s\S]*?)<\/local-command-(?:stdout|stderr)>/.exec(t);
-  return m ? m[1].trim() : null;
-}
-
 class Conversa {
   constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null }) {
     // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
@@ -204,8 +197,7 @@ class Conversa {
     this.modo = typeof modo === 'string' && /^\w+$/.test(modo) ? modo : null;
     this.pedidoModelo = null;  // set_model enviado e ainda sem resposta: { id, chave, ts }
     this.modeloDepois = undefined; // troca pedida enquanto outra esperava resposta
-    this.esforcoDepois = false; // "/effort" que espera o turno acabar
-    this.calados = 0;           // "/effort" mandados calados e ainda sem resposta
+    this.pedidosEsforco = new Set(); // apply_flag_settings ainda sem resposta
     this.id = id;
     this.titulo = titulo;
     this.sessao = sessao;
@@ -299,7 +291,7 @@ class Conversa {
     const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
     // Pedidos pendentes eram do processo anterior.
-    this.pedidoModelo = null; this.modeloDepois = undefined; this.esforcoDepois = false; this.calados = 0;
+    this.pedidoModelo = null; this.modeloDepois = undefined; this.pedidosEsforco = new Set();
     let iniciou = false;
     proc.on('error', (e) => this.registrar({ tipo: 'erro', texto: `Não consegui abrir o Claude: ${e.message}` }));
     let erroTexto = '';
@@ -386,9 +378,10 @@ class Conversa {
         avisarLista();
         return;
       case 'control_response': {
-        // Resposta do Claude a um pedido do app (set_model).
+        // Resposta do Claude a um pedido do app (set_model, apply_flag_settings).
         const r = d.response || {};
         if (this.pedidoModelo && r.request_id === this.pedidoModelo.id) this.modeloRespondido(r);
+        if (this.pedidosEsforco.delete(r.request_id) && r.subtype !== 'success') this.esforcoPorReinicio();
         return;
       }
       case 'stream_event': {
@@ -411,16 +404,9 @@ class Conversa {
         this.registrar({ tipo: 'assistant', message: d.message, sub: d.parent_tool_use_id || null });
         return;
       }
-      case 'user': {
-        // Saída do "/effort" mandado calado: some; se não aplicou, vira aviso.
-        const t = this.calados && !d.parent_tool_use_id ? saidaLocal(d.message) : null;
-        if (t != null && SAIDA_ESFORCO.test(t)) {
-          if (!esforcoAplicado(t)) this.registrar({ tipo: 'aviso', texto: t });
-          return;
-        }
+      case 'user':
         this.registrar({ tipo: 'user', message: d.message, sub: d.parent_tool_use_id || null });
         return;
-      }
       case 'rate_limit_event': {
         const w = (d.rate_limit_info || {}).unifiedWindows || {};
         if (w.five_hour) info.uso5h = Math.round(w.five_hour.utilization * 100);
@@ -429,11 +415,6 @@ class Conversa {
         return;
       }
       case 'result': {
-        // Fim do "/effort" calado: não é fim de turno (sem linha, sem aviso).
-        if (this.calados && (SAIDA_ESFORCO.test(String(d.result || '')) || !info.ocupado)) {
-          this.calados--;
-          return;
-        }
         // 1ª resposta depois de voltar: a sessão nova já está gravada.
         if (this.volta && this.sessaoDaVolta) {
           this.anteriores = [...(this.anteriores || []), this.volta.de].slice(-20);
@@ -487,7 +468,7 @@ class Conversa {
     if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
     this.ultimoTexto = '';
     if (this.desligando) { this.desligando = false; this.encerrar(); return; }
-    if (this.esforcoDepois) this.mandarEsforco();
+    if (this.reiniciarDepois) { const porque = this.reiniciarDepois; this.reiniciarDepois = false; this.reiniciar(); if (porque === 'esforco') this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO }); }
   }
 
   juntarComandos() {
@@ -554,9 +535,11 @@ class Conversa {
 
   // Troca modelo e/ou esforço SEM reiniciar o Claude (reiniciar mataria as
   // tarefas em segundo plano, o Monitor e os subagentes). Modelo: set_model ao
-  // vivo, e a tela só muda quando o Claude confirma. Esforço: "/effort x"
-  // mandado calado (sem balão, sem ocupado, sem título); no meio de um turno,
-  // espera ele acabar. Com o Claude parado, só guarda para a próxima subida.
+  // vivo, e a tela só muda quando o Claude confirma. Esforço: apply_flag_settings
+  // { effortLevel }, que vale só para a sessão (sem balão, sem ocupado, sem
+  // título). O que ele não aceita ("Máximo", o padrão, ou um Claude que recusa)
+  // reinicia com --effort, avisando antes. Com o Claude parado, só guarda para
+  // a próxima subida.
   configurar({ modelo, esforco }) {
     if (this.motor === 'codex') {
       // O Codex usa o modelo da configuração dele; o esforço vai a cada turno
@@ -577,7 +560,7 @@ class Conversa {
     if (esforco !== undefined) {
       this.esforco = esforco || null;
       this.info.esforco = this.esforco || esforcoPadrao();
-      if (this.proc) { if (this.info.ocupado) this.esforcoDepois = true; else this.mandarEsforco(); }
+      if (this.proc) { if (ESFORCOS_AO_VIVO.includes(this.esforco)) this.pedirEsforco(); else this.esforcoPorReinicio(); }
     }
     gravarLista();
     this.avisarInfo();
@@ -610,14 +593,22 @@ class Conversa {
     if (this.modeloDepois !== undefined) { const m = this.modeloDepois; this.modeloDepois = undefined; if (m !== this.modeloEscolhido) this.pedirModelo(m); }
   }
 
-  // "/effort x" calado: vai ao Claude como mensagem, mas não vira balão, não
-  // marca ocupado, não dá título e a resposta não vira fim de turno.
-  mandarEsforco() {
-    this.esforcoDepois = false;
-    if (this.mandarCalado(`/effort ${this.esforco || 'auto'}`)) this.calados++;
+  // Esforço ao vivo, só da sessão: não grava nada no settings.json do usuário.
+  pedirEsforco() {
+    const id = `esforco-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    this.pedidosEsforco.add(id);
+    this.escrever({ type: 'control_request', request_id: id, request: { subtype: 'apply_flag_settings', settings: { effortLevel: this.esforco } } });
   }
-  mandarCalado(texto) {
-    return this.escrever({ type: 'user', message: { role: 'user', content: texto } });
+  // Caminho antigo (só da sessão): reinicia com --effort. O app não acompanha
+  // as tarefas em segundo plano, então o aviso é genérico e vem sempre (o menu
+  // já diz isso do "Máximo" antes do clique). No meio de um turno, avisa já e
+  // reinicia quando ele acabar. O reinício redesenha a conversa; o aviso é
+  // registrado de novo depois dele para continuar à vista.
+  esforcoPorReinicio() {
+    if (!this.proc) return;
+    if (this.info.ocupado) { this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO }); this.reiniciarDepois = 'esforco'; return; }
+    this.reiniciar();
+    this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO });
   }
 
   guardarModo(m) {
