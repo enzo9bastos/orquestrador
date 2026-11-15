@@ -29,9 +29,11 @@ const ESTADO = {
     { chave: 'w/api:%1', emp: 'work', proj: 'api-server', dir: '/x/api', pane: '%1', sessaoTmux: 'api', nome: 'orders API', estado: 'trabalhando', fonte: 'sinal', desde: agora - 240000, tarefa: 'Paginate the /orders endpoint', modeloAgente: 'Sonnet 5.5', statusAgente: { texto: 'writing tests', estado: 'trabalhando', progresso: '3/5', ts: agora }, ultimaResposta: 'Endpoint done; writing the tests now.', git: { commits20h: 3 }, linhaDoTempo: [] },
     { chave: 'w/web:%2', emp: 'work', proj: 'web-app', dir: '/x/web', pane: '%2', sessaoTmux: 'web', nome: 'dark mode', estado: 'esperando', fonte: 'sinal', desde: agora - 480000, tarefa: 'Dark mode for the settings page', modeloAgente: 'Sonnet 5.5', statusAgente: { texto: 'ready for review', estado: 'pronto', ts: agora }, ultimaResposta: 'Done: tests passing, PR ready for review.', git: { commits20h: 5 }, linhaDoTempo: [] },
     { chave: 'w/game:%4', emp: 'work', proj: 'game', dir: '/x/game', pane: '%4', sessaoTmux: 'game', nome: 'sprites', estado: 'trabalhando', fonte: 'tela', motor: 'codex', desde: agora - 300000, tarefa: 'Hero sprite sheet, 64x64', modeloAgente: 'GPT-6', ultimaResposta: 'Walking cycle done; jumping next.', git: {}, linhaDoTempo: [] },
-    { chave: 'w/docs:%3', emp: 'work', proj: 'docs', dir: '/x/docs', pane: '%3', sessaoTmux: 'docs', nome: 'install guide', estado: 'permissao', fonte: 'tela', desde: agora - 720000, tarefa: 'Update the install guide', modeloAgente: 'Sonnet 5.5', ultimaResposta: null, git: {}, linhaDoTempo: [] },
+    { chave: 'w/docs:%3', emp: 'work', proj: 'docs', dir: '/x/docs', pane: '%3', sessaoTmux: 'docs', nome: 'install guide', estado: 'esperando', fonte: 'tela', desde: agora - 720000, tarefa: 'Update the install guide', modeloAgente: 'Sonnet 5.5', statusAgente: { texto: 'waiting for the new screenshots', estado: 'esperando', ts: agora }, ultimaResposta: 'Linux section rewritten; waiting for the new screenshots.', git: {}, linhaDoTempo: [] },
   ],
-  fila: [{ tipo: 'permissao', emp: 'work', proj: 'docs', id: 'perm-1', ferramenta: 'Bash', entrada: { command: 'npm run build', description: 'Build the docs site' }, desde: agora - 60000 }],
+  // Sem pedido de permissão na fila: a faixa "Precisa de você" só aparece
+  // quando um agente pede permissão pelo hook de sinais, o que é raro.
+  fila: [],
 };
 const DEMANDAS = { topicos: [
   { id: '1', titulo: 'Orders API v2', codigo: 'API-42', agentes: ['Agent 1'], estado: 'aberto', resumo: 'Paginated orders endpoint for the new mobile app.', itens: [{ id: 'i1', texto: 'Design the cursor format', feito: true }, { id: 'i2', texto: 'Endpoint and tests', feito: true }, { id: 'i3', texto: 'Update the API docs', feito: false }, { id: 'i4', texto: 'Load test', feito: false }], criado: agora - 864e5, atualizado: agora },
@@ -42,7 +44,7 @@ const CONVERSA = [
   { tipo: 'user', local: true, message: { role: 'user', content: 'How are the agents doing? And tell Bruno the release is ready for him to test.' } },
   { tipo: 'assistant', ts: agora, message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'orq peek all', description: 'Check every agent screen' } }] } },
   { tipo: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] } },
-  { tipo: 'assistant', ts: agora, message: { content: [{ type: 'text', text: '**Agent 1** (api-server) is writing tests for the paginated `/orders` endpoint — 3 of 5 done.\n\n**Agent 2** (web-app) finished dark mode and is **ready for review**.\n\n**Agent 3** runs on **Codex**: the walking cycle of the hero sprite is done.\n\n**Agent 4** (docs) is asking permission to run `npm run build` — it is in the queue on the right.\n\nThe note to Bruno is below, waiting for your approval.' }] } },
+  { tipo: 'assistant', ts: agora, message: { content: [{ type: 'text', text: '**Agent 1** (api-server) is writing tests for the paginated `/orders` endpoint — 3 of 5 done.\n\n**Agent 2** (web-app) finished dark mode and is **ready for review**.\n\n**Agent 3** runs on **Codex**: the walking cycle of the hero sprite is done.\n\n**Agent 4** (docs) rewrote the Linux section and is waiting for the new screenshots.\n\nThe note to Bruno is below, waiting for your approval.' }] } },
 ];
 const RECADOS = [
   { id: 'r1', ts: agora - 900000, de: { tipo: 'agente', alvo: 'work/api-server', nome: 'orders API' }, para: { tipo: 'orquestrador' }, tipo: 'pergunta', texto: 'Cursor or offset pagination? The mobile app only scrolls forward.', estado: 'entregue', motivo: null },

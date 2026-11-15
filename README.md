@@ -8,7 +8,7 @@
 
 **A desktop cockpit for AI agents and orchestrators — built on the AI coding CLIs you already use.**
 
-Chat with an orchestrator, watch every agent at a glance, answer what needs you from one queue,<br>
+Chat with an orchestrator, watch every agent at a glance, answer what needs you right in the chat,<br>
 automate your machine with visual workflows — and meet the little pixel helper that lives on your desktop.
 
 ![Electron](https://img.shields.io/badge/Electron-45-47848F?logo=electron&logoColor=white)
@@ -17,7 +17,7 @@ automate your machine with visual workflows — and meet the little pixel helper
 ![Languages](https://img.shields.io/badge/UI-English%20%7C%20Portugu%C3%AAs-3b82f6)
 ![License](https://img.shields.io/badge/license-MIT-22a06b)
 
-<img src="docs/images/conversation.png" alt="The orchestrator conversation, with agents on the left, the queue on the right and the pixel helper in the corner" width="900">
+<img src="docs/images/conversation.png" alt="The orchestrator conversation, with agents on the left, requests on the right, an approval card and the pixel helper in the corner" width="900">
 
 [Why](#why) · [Tour](#a-tour-of-the-app) · [Getting started](#getting-started) · [Configuration](#configuration) · [Project structure](#project-structure) · [Tests](#tests)
 
@@ -48,7 +48,7 @@ The app speaks **English and Portuguese** — switch in ⚙ Settings → *App la
 ## A tour of the app
 
 The window has three columns: **conversations and agents** on the left, the **current tab** in the
-middle, and **Needs you** (the queue) plus the selected agent's details on the right.
+middle, and the **requests** plus the selected agent's details on the right.
 
 ### 💬 Orchestrator
 
@@ -68,12 +68,13 @@ protocol), so there is no terminal to babysit.
   empty, ↑ / ↓ bring back what you sent.
 - **New conversation** opens side conversations next to the orchestrator.
 
-### 🧭 Agents and *Needs you*
+### 🧭 Agents
 
 Every agent appears in the left column with its state (working, waiting for you, asking permission),
 its current task, a progress bar and its model. Click one to see its last reply and timeline on the
-right, or open its terminal. **Needs you** gathers every permission request and pending question from
-all agents into one queue with buttons.
+right, or open its terminal. Questions and approvals come to you as cards in the orchestrator chat (and with the
+desktop helper when you are away). If an agent uses the optional [signal hook](#signal-hook-optional), its
+permission prompts show up in a *Needs you* strip on top of the right column, with *Allow / Deny*.
 
 ### 📌 Requests
 
@@ -88,8 +89,7 @@ second click the request leaves the panel and its note goes to the system trash.
 As work comes in, the **orchestrator suggests a request** (title, summary and planned steps) with
 `orq-topico sugerir`; you **approve or reject** it on the card — fixing the title first if you want. Only approved
 requests become notes. The orchestrator then creates the steps, ticks them as the work gets done and finishes the
-request when everything is done. Every save keeps the previous version. *Needs you*
-sits above as a strip that only shows up when something is waiting.
+request when everything is done. Every save keeps the previous version.
 
 ### ✉️ Messages
 

@@ -8,7 +8,7 @@
 
 **Uma cabine de comando no desktop para agentes e orquestradores de IA — feita sobre as CLIs de IA para programação que você já usa.**
 
-Converse com um orquestrador, veja todos os agentes de relance, responda numa fila só o que precisa de você,<br>
+Converse com um orquestrador, veja todos os agentes de relance, responda na própria conversa o que precisa de você,<br>
 automatize o seu computador com workflows visuais — e conheça o pequeno ajudante em pixel que mora no seu desktop.
 
 ![Electron](https://img.shields.io/badge/Electron-45-47848F?logo=electron&logoColor=white)
@@ -17,7 +17,7 @@ automatize o seu computador com workflows visuais — e conheça o pequeno ajuda
 ![Languages](https://img.shields.io/badge/UI-English%20%7C%20Portugu%C3%AAs-3b82f6)
 ![License](https://img.shields.io/badge/license-MIT-22a06b)
 
-<img src="docs/images/conversation.png" alt="A conversa do orquestrador, com os agentes à esquerda, a fila à direita e o ajudante em pixel no canto" width="900">
+<img src="docs/images/conversation.png" alt="A conversa do orquestrador, com os agentes à esquerda, as demandas à direita, um cartão de aprovação e o ajudante em pixel no canto" width="900">
 
 [Por que](#por-que) · [Passeio](#um-passeio-pelo-app) · [Primeiros passos](#primeiros-passos) · [Configuração](#configuração) · [Estrutura](#estrutura-do-projeto) · [Testes](#testes)
 
@@ -48,8 +48,8 @@ O app fala **inglês e português** — troque em ⚙ Configurações → *Idiom
 
 ## Um passeio pelo app
 
-A janela tem três colunas: **conversas e agentes** à esquerda, a **aba atual** no meio e **Precisa de você**
-(a fila) mais os detalhes do agente escolhido à direita.
+A janela tem três colunas: **conversas e agentes** à esquerda, a **aba atual** no meio e as **demandas** mais os
+detalhes do agente escolhido à direita.
 
 ### 💬 Orquestrador
 
@@ -70,12 +70,14 @@ há terminal para vigiar.
   Com a caixa vazia, ↑ / ↓ trazem de volta o que você mandou.
 - **Nova conversa** abre conversas paralelas ao lado do orquestrador.
 
-### 🧭 Agentes e *Precisa de você*
+### 🧭 Agentes
 
 Cada agente aparece na coluna da esquerda com o estado (trabalhando, esperando você, pedindo permissão), a tarefa
 atual, uma barra de progresso e o modelo. Clique em um para ver a última resposta e a linha do tempo à direita, ou
-abra o terminal dele. **Precisa de você** junta numa fila só, com botões, todos os pedidos de permissão e perguntas
-pendentes de todos os agentes.
+abra o terminal dele. Perguntas e aprovações chegam a você como cartões na conversa do orquestrador (e com o
+ajudante do desktop quando você está longe). Se um agente usa o [hook de sinais](#hook-de-sinais-opcional) opcional,
+os pedidos de permissão dele aparecem numa faixa *Precisa de você* no topo da coluna da direita, com *Permitir /
+Negar*.
 
 ### 📌 Demandas
 
@@ -90,8 +92,7 @@ um segundo clique a demanda sai do painel e a nota vai para a lixeira do sistema
 Conforme o trabalho chega, o **orquestrador sugere uma demanda** (título, resumo e etapas previstas) com
 `orq-topico sugerir`; você **aprova ou recusa** no cartão — se quiser, corrigindo o título antes. Só demandas aprovadas
 viram nota. Depois o orquestrador cria as etapas, marca conforme o trabalho anda e conclui a demanda quando tudo
-termina. Cada gravação guarda a versão anterior. *Precisa de você* fica em cima, numa faixa que só aparece quando há
-algo esperando.
+termina. Cada gravação guarda a versão anterior.
 
 ### ✉️ Recados
 

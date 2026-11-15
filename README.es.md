@@ -8,7 +8,7 @@
 
 **Una cabina de mando de escritorio para agentes y orquestadores de IA — construida sobre las CLI de IA para programar que ya usas.**
 
-Conversa con un orquestador, mira todos los agentes de un vistazo, responde en una sola cola lo que te necesita,<br>
+Conversa con un orquestador, mira todos los agentes de un vistazo, responde en la propia conversación lo que te necesita,<br>
 automatiza tu computadora con workflows visuales — y conoce al pequeño ayudante en píxeles que vive en tu escritorio.
 
 ![Electron](https://img.shields.io/badge/Electron-45-47848F?logo=electron&logoColor=white)
@@ -17,7 +17,7 @@ automatiza tu computadora con workflows visuales — y conoce al pequeño ayudan
 ![Languages](https://img.shields.io/badge/UI-English%20%7C%20Portugu%C3%AAs-3b82f6)
 ![License](https://img.shields.io/badge/license-MIT-22a06b)
 
-<img src="docs/images/conversation.png" alt="La conversación con el orquestador, con los agentes a la izquierda, la cola a la derecha y el ayudante en píxeles en la esquina" width="900">
+<img src="docs/images/conversation.png" alt="La conversación con el orquestador, con los agentes a la izquierda, los requests a la derecha, una tarjeta de aprobación y el ayudante en píxeles en la esquina" width="900">
 
 [Por qué](#por-qué) · [Recorrido](#un-recorrido-por-la-app) · [Primeros pasos](#primeros-pasos) · [Configuración](#configuración) · [Estructura](#estructura-del-proyecto) · [Pruebas](#pruebas)
 
@@ -52,7 +52,7 @@ La app habla **inglés y portugués** — cámbialo en ⚙ Settings → *App lan
 ## Un recorrido por la app
 
 La ventana tiene tres columnas: **conversaciones y agentes** a la izquierda, la **pestaña actual** en el centro y
-**Needs you** (la cola) junto con los detalles del agente elegido a la derecha.
+los **requests** junto con los detalles del agente elegido a la derecha.
 
 ### 💬 Orchestrator
 
@@ -74,12 +74,14 @@ que no hay ninguna terminal que vigilar.
   corregirlo. Con la caja vacía, ↑ / ↓ traen de vuelta lo que enviaste.
 - **New conversation** abre conversaciones paralelas al lado del orquestador.
 
-### 🧭 Agentes y *Needs you*
+### 🧭 Agentes
 
 Cada agente aparece en la columna izquierda con su estado (trabajando, esperándote, pidiendo permiso), su tarea
 actual, una barra de progreso y su modelo. Haz clic en uno para ver su última respuesta y su línea de tiempo a la
-derecha, o abre su terminal. **Needs you** reúne en una sola cola, con botones, todos los pedidos de permiso y
-preguntas pendientes de todos los agentes.
+derecha, o abre su terminal. Las preguntas y aprobaciones te llegan como tarjetas en la conversación del
+orquestador (y con el ayudante de escritorio cuando no estás mirando). Si un agente usa el
+[hook de señales](#hook-de-señales-opcional) opcional, sus pedidos de permiso aparecen en una franja *Needs you*
+arriba de la columna derecha, con *Allow / Deny*.
 
 ### 📌 Requests
 
@@ -95,8 +97,7 @@ papelera: tras un segundo clic el request sale del panel y su nota va a la papel
 A medida que llega trabajo, el **orquestador sugiere un request** (título, resumen y pasos previstos) con
 `orq-topico sugerir`; tú lo **apruebas o rechazas** en la tarjeta — corrigiendo antes el título si quieres. Solo los
 requests aprobados se convierten en notas. Después el orquestador crea los pasos, los marca a medida que avanza el
-trabajo y cierra el request cuando todo está hecho. Cada guardado conserva la versión anterior. *Needs you* queda
-arriba, en una franja que solo aparece cuando hay algo esperando.
+trabajo y cierra el request cuando todo está hecho. Cada guardado conserva la versión anterior.
 
 ### ✉️ Messages
 
