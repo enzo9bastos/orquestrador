@@ -287,6 +287,14 @@
     } else if (ev.tipo === 'fim' || ev.tipo === 'erro' || ev.tipo === 'aviso') {
       limparRascunho();
       aviso(ev.texto, ev.tipo === 'erro' ? 'erro' : '');
+    } else if (ev.tipo === 'limpa') {
+      // /clear: o que veio antes saiu da tela; fica a divisória.
+      limparRascunho(); grupo = null;
+      const el = document.createElement('div');
+      el.className = 'conversa-limpa';
+      el.setAttribute('role', 'separator');
+      el.innerHTML = '<span>Conversa limpa</span>';
+      caixa.append(el);
     }
   }
 
@@ -671,6 +679,8 @@
     if (id !== ativa) return;
     caixa.querySelector('.boas-vindas')?.remove();
     desenharEvento(ev); rolar();
+    // Mensagem que o motor não aceitou: o texto volta para a caixa vazia.
+    if (ev.devolver && !entrada.value.trim()) porNaCaixa(ev.devolver);
     if (id === 'orquestrador' && !ev.sub) petReage(ev);
   });
   let agendado = false;

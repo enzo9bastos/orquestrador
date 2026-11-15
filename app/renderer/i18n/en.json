@@ -1065,7 +1065,10 @@
     "o servidor fechou a conexão": "the server closed the connection",
     "https://ntfy.exemplo.com": "https://ntfy.example.com",
     "para-ana": "to-ana",
-    "Bruno: para-bruno": "Bruno: to-bruno"
+    "Bruno: para-bruno": "Bruno: to-bruno",
+    "Conversa limpa": "Conversation cleared",
+    "Troca sem reiniciar: o que roda em segundo plano continua. No meio de uma resposta, o esforço vale quando ela terminar.": "Switches without restarting: what runs in the background keeps going. In the middle of a reply, the effort applies once it finishes.",
+    "Esta conversa expirou no Claude; a próxima mensagem começa uma conversa nova.": "This conversation expired in Claude; the next message starts a new conversation."
   },
   "padroes": [
     [
@@ -1919,6 +1922,10 @@
     [
       "^conferindo a sua autorização na conversa$",
       "checking your authorization in the chat"
+    ],
+    [
+      "^O Claude não trocou o modelo: (.*)$",
+      "Claude didn't switch the model: $1"
     ]
   ]
 }

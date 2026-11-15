@@ -576,6 +576,9 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .rodada-encerrada { align-self: center; display: grid; justify-items: center; gap: 6px; text-align: center; padding: 18px 22px; border: 1px solid var(--borda); border-radius: 12px; background: var(--bg-elevado); }
 .rodada-encerrada strong { color: var(--fg); font-size: 14px; }
 .rodada-encerrada span { color: var(--fg-3); font-size: 12.5px; margin-bottom: 6px; }
+/* /clear: divisória "Conversa limpa" no lugar do que saiu da tela. */
+.conversa-limpa { display: flex; align-items: center; gap: 10px; color: var(--fg-3); font-size: 12px; margin: 6px 0; }
+.conversa-limpa::before, .conversa-limpa::after { content: ''; flex: 1; border-top: 1px dashed var(--borda); }
 
 /* --- autocompletar de comandos ------------------------------------------- */
 .compositor { position: relative; }
