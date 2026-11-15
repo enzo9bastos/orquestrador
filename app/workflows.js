@@ -595,6 +595,7 @@ async function rodar(id, { motivo = 'manual', gatilhos, arquivo = null } = {}) {
     e.fim = Date.now();
     guardarExecucao(e);
     aviso();
+    if (filas.has(id)) setImmediate(() => despachar(id)); // arquivo que chegou enquanto rodava
   }
   return { ok: e.ok, execucao: e };
 }
@@ -646,7 +647,26 @@ function tique(agora = Date.now()) {
 // Gatilho "Arquivo novo na pasta": a cada 3 s olha as pastas dos workflows
 // ligados. Arquivo que já estava lá quando começou a olhar não dispara; um
 // arquivo novo dispara quando o tamanho para de mudar (terminou de copiar).
-const vigias = new Map(); // "wf:no:pasta:padrao" → { conhecidos: Map(nome → tamanho), prontos: Set }
+// Cada workflow tem uma fila: arquivos que ficam prontos juntos (ou enquanto
+// ele já roda) esperam a vez, um por execução. Só vira "conhecido" quando é
+// despachado; a fila anda sozinha, sem reler a pasta.
+const vigias = new Map(); // "wf:no:pasta:padrao" → { conhecidos: Map(nome → tamanho), vistos: Map(nome → tamanho), naFila: Set }
+const filas = new Map(); // wf → [{ chave, no, pasta, nome }]
+function despachar(id) {
+  const fila = filas.get(id);
+  while (fila && fila.length && !rodando.has(id)) {
+    const { chave, no, pasta, nome } = fila.shift();
+    const v = vigias.get(chave);
+    if (!v || !v.naFila.has(nome)) continue; // gatilho desligado ou mudado enquanto esperava
+    v.naFila.delete(nome);
+    const arquivo = path.join(pasta, nome);
+    let t;
+    try { t = fs.statSync(arquivo).size; } catch { continue; } // saiu da pasta antes da vez: se voltar, é novo
+    v.conhecidos.set(nome, t);
+    rodar(id, { motivo: `arquivo novo: ${nome}`, gatilhos: [no], arquivo }).catch(() => despachar(id));
+  }
+  if (fila && !fila.length) filas.delete(id);
+}
 const casaPadrao = (padrao) => {
   const l = String(padrao || '').split(/[,;]/).map((p) => p.trim()).filter(Boolean);
   if (!l.length) return () => true;
@@ -666,13 +686,14 @@ function olharPastas() {
       const casaNome = casaPadrao(n.config.padrao);
       const tam = (nome) => { try { return fs.statSync(path.join(pasta, nome)).size; } catch { return -1; } };
       let v = vigias.get(chave);
-      if (!v) { v = { conhecidos: new Map(itens.map((d) => [d.name, -2])), vistos: new Map() }; vigias.set(chave, v); continue; }
+      if (!v) { v = { conhecidos: new Map(itens.map((d) => [d.name, -2])), vistos: new Map(), naFila: new Set() }; vigias.set(chave, v); continue; }
       for (const d of itens) {
-        if (v.conhecidos.has(d.name) || !casaNome(d.name)) continue;
+        if (v.conhecidos.has(d.name) || v.naFila.has(d.name) || !casaNome(d.name)) continue;
         const t = tam(d.name);
         if (v.vistos.get(d.name) === t && t >= 0) {
-          v.conhecidos.set(d.name, t); v.vistos.delete(d.name);
-          rodar(w.id, { motivo: `arquivo novo: ${d.name}`, gatilhos: [n.id], arquivo: path.join(pasta, d.name) }).catch(() => {});
+          v.vistos.delete(d.name); v.naFila.add(d.name);
+          if (!filas.has(w.id)) filas.set(w.id, []);
+          filas.get(w.id).push({ chave, no: n.id, pasta, nome: d.name });
         } else v.vistos.set(d.name, t);
       }
       const nomes = new Set(itens.map((d) => d.name));
@@ -680,6 +701,7 @@ function olharPastas() {
     }
   }
   for (const k of vigias.keys()) if (!ativos.has(k)) vigias.delete(k);
+  for (const id of [...filas.keys()]) despachar(id);
 }
 let vigiaTimer = null;
 

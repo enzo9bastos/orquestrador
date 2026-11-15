@@ -36,6 +36,7 @@ const topicos = require('./topicos');
 const recados = require('./recados');
 const canal = require('./canal');
 const avulso = require('./avulso');
+const terminalExterno = require('./terminal-externo');
 const { t } = require('./i18n');
 
 // Aba "Terminal": um shell de reserva. O orquestrador agora é a conversa
@@ -165,9 +166,19 @@ ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
     novo.historico = (novo.historico + d).slice(-200000);
     enviar('pty:dados', id, d);
   });
-  p.onExit(() => { terminais.delete(id); enviar('pty:saiu', id); });
+  // "Abrir terminal" de agente que não anexou (sem tmux no PATH, sessão que já
+  // acabou): sai na hora com erro. A tela avisa com o motivo, em vez de o
+  // painel sumir calado como se nada tivesse sido pedido.
+  const inicio = Date.now();
+  p.onExit(({ exitCode } = {}) => {
+    terminais.delete(id);
+    const falhou = !!sessao && exitCode !== 0 && Date.now() - inicio < 5000;
+    enviar('pty:saiu', id, falhou ? { falhou: true, motivo: ultimaLinha(novo.historico) } : null);
+  });
   return true;
 });
+// Última linha com texto da saída do terminal, sem as cores (o motivo do erro).
+const ultimaLinha = (t) => (String(t).replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07/g, '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop() || '').slice(0, 200);
 ipcMain.on('pty:escrever', (_e, id, d) => { const t = terminais.get(id); if (t) t.pty.write(d); });
 ipcMain.on('pty:tamanho', (_e, id, c, r) => { try { terminais.get(id).pty.resize(c, r); } catch { /* fechou */ } });
 ipcMain.handle('pty:fechar', (_e, id) => { const t = terminais.get(id); if (t) t.pty.kill(); return true; });
@@ -575,20 +586,9 @@ ipcMain.handle('anotacoes', () => coletor.anotacoes());
 ipcMain.handle('ler-nota', (_e, qual) => coletor.lerNota(qual));
 ipcMain.handle('responder', (_e, emp, proj, id, decisao) => coletor.responder(emp, proj, id, decisao));
 
-// Abre o terminal de verdade de uma frente numa janela do sistema, como o
-// `orq tv` faz. ignore-size: anexar não encolhe as janelas que já estão abertas.
-ipcMain.handle('abrir-terminal', (_e, sessao) => {
-  if (!/^[\w.-]+$/.test(sessao)) return false;
-  for (const t of ['gnome-terminal', 'kgx', 'x-terminal-emulator', 'xterm']) {
-    try {
-      const p = spawn(t, ['--', 'tmux', 'attach', '-f', 'ignore-size', '-t', sessao], { detached: true, stdio: 'ignore' });
-      p.on('error', () => {});
-      p.unref();
-      return true;
-    } catch { /* tenta o próximo */ }
-  }
-  return false;
-});
+// Abre o terminal de verdade de uma frente numa janela do sistema; true só
+// quando um terminal abriu de fato (terminal-externo.js).
+ipcMain.handle('abrir-terminal', (_e, sessao) => terminalExterno.abrir(sessao));
 // Caminho clicado na conversa: pasta abre no explorador; arquivo aparece
 // selecionado na pasta dele (nunca é aberto nem executado).
 // Nome sem caminho completo é procurado, nesta ordem: pasta da conversa,

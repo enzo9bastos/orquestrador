@@ -1065,7 +1065,8 @@
     "o servidor fechou a conexão": "the server closed the connection",
     "https://ntfy.exemplo.com": "https://ntfy.example.com",
     "para-ana": "to-ana",
-    "Bruno: para-bruno": "Bruno: to-bruno"
+    "Bruno: para-bruno": "Bruno: to-bruno",
+    "Esta nota tem Markdown que o editor não consegue montar (aninhado fundo demais): aberta só para leitura, como texto puro, para nada se perder.": "This note has Markdown the editor can't render (nested too deep): opened read-only, as plain text, so nothing is lost."
   },
   "padroes": [
     [
@@ -1919,6 +1920,10 @@
     [
       "^conferindo a sua autorização na conversa$",
       "checking your authorization in the chat"
+    ],
+    [
+      "^Não consegui abrir o terminal de (.+)\\.$",
+      "Couldn't open the terminal for $1."
     ]
   ]
 }

@@ -450,6 +450,40 @@
   });
 
   // --- abrir e salvar -------------------------------------------------------------
+  // Markdown que o editor não consegue montar (ex.: milhares de ">" aninhados
+  // estouram a pilha): em vez de travar com o editor meio carregado, onde o que
+  // se digitava se perdia, a nota abre só para leitura, como texto puro.
+  const AVISO_SEM_MONTAR = 'Esta nota tem Markdown que o editor não consegue montar (aninhado fundo demais): aberta só para leitura, como texto puro, para nada se perder.';
+  // Antes de montar: citação ou lista aninhada fundo demais nem vai ao editor
+  // (o parser leva segundos até estourar, com a tela parada).
+  function fundoDemais(md) {
+    for (const [p] of String(md || '').matchAll(/^[ \t>]{100,}/gm)) {
+      if ((p.match(/>/g) || []).length > 100 || p.length > 400) return true;
+    }
+    return false;
+  }
+  function definirSeguro(md) {
+    if (fundoDemais(md)) { editor.definir(''); return false; }
+    try { editor.definir(md); return true; } catch {
+      try { editor.definir(''); } catch { /* fica como está; a nota abre só leitura */ }
+      return false;
+    }
+  }
+  function mostrarCru(md) {
+    let c = document.querySelector('.nota-crua');
+    if (md == null) { if (c) c.remove(); $('editor-nota').hidden = false; return; }
+    if (!c) {
+      c = document.createElement('textarea');
+      c.className = 'editor-md-puro nota-crua';
+      c.readOnly = true; c.spellcheck = false;
+      // Sem ligaduras: a fonte mono junta ">>>" e, com milhares deles, montar a linha levava segundos.
+      c.style.fontVariantLigatures = 'none';
+      $('editor-nota').after(c);
+    }
+    c.value = md;
+    $('editor-nota').hidden = true;
+  }
+
   async function abrir(i, rel, { manterRolagem = false } = {}) {
     if (sujo) { clearTimeout(timer); await salvar(); }
     const r = await N.ler(i, rel);
@@ -459,7 +493,9 @@
     const folha = $('folha-nota'), rolagem = folha.scrollTop;
     vazio(false);
     editor.contexto(i, rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '');
-    editor.definir(r.conteudo);
+    const montou = definirSeguro(r.conteudo);
+    if (!montou) soLeitura = true;
+    mostrarCru(montou ? null : r.conteudo);
     aplicarEstilo();
     editor.editavel(!soLeitura);
     if (manterRolagem) folha.scrollTop = rolagem; else folha.scrollTop = 0;
@@ -468,7 +504,7 @@
     $('caminho-nota').textContent = `${pastas[i].nome} / ${rel.replace(/\.md$/i, '').split('/').join(' / ')}`;
     if (ativa !== i) { ativa = i; gravarPref('notas-pasta-ativa', ativa); }
     estado(soLeitura ? 'Só leitura' : 'Salvo');
-    aviso(soLeitura ? `Arquivo grande (${(r.bytes / 1024 / 1024).toFixed(1)} MB): aberto só para leitura, porque editar deixaria tudo lento.
+    aviso(!montou ? AVISO_SEM_MONTAR : soLeitura ? `Arquivo grande (${(r.bytes / 1024 / 1024).toFixed(1)} MB): aberto só para leitura, porque editar deixaria tudo lento.
       <button type="button" class="botao-texto" data-editar-mesmo>Editar mesmo assim</button>` : '');
     gravarPref('nota-aberta', { i, rel });
     N.vigiar(i, rel);
@@ -493,7 +529,7 @@
       const g = await N.gravar(aberta.i, aberta.rel, junto, r.mtime);
       if (!g.conflito) {
         aberta.mtime = g.mtime; aberta.base = junto; sujo = false;
-        editor.definir(junto);
+        if (!definirSeguro(junto)) { soLeitura = true; mostrarCru(junto); editor.editavel(false); estado('Só leitura'); aviso(AVISO_SEM_MONTAR); return; }
         estado('Salvo');
         aviso('Alguém acrescentou texto no fim desta nota enquanto você editava; juntei as duas coisas.');
         setTimeout(() => aviso(''), 6000);
@@ -524,7 +560,7 @@
       // A sua edição não some: vai para as versões antes de trocar o texto.
       await N.guardarCopia(aberta.i, aberta.rel, editor.markdown());
       aberta.mtime = fora.mtime; aberta.base = fora.conteudo; sujo = false;
-      editor.definir(fora.conteudo);
+      if (!definirSeguro(fora.conteudo)) { soLeitura = true; mostrarCru(fora.conteudo); editor.editavel(false); estado('Só leitura'); delete aberta.conflito; aviso(AVISO_SEM_MONTAR); return; }
       estado('Salvo');
     }
     delete aberta.conflito;

@@ -150,6 +150,6 @@ contextBridge.exposeInMainWorld('orq', {
     tamanho: (id, c, r) => ipcRenderer.send('pty:tamanho', id, c, r),
     fechar: (id) => ipcRenderer.invoke('pty:fechar', id),
     aoReceber: (fn) => ipcRenderer.on('pty:dados', (_e, id, d) => fn(id, d)),
-    aoSair: (fn) => ipcRenderer.on('pty:saiu', (_e, id) => fn(id)),
+    aoSair: (fn) => ipcRenderer.on('pty:saiu', (_e, id, info) => fn(id, info)),
   },
 });

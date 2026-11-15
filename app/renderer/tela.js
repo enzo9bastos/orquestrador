@@ -140,6 +140,7 @@ function ligarCopiarColar(term, id, painel) {
 
 async function criarTerminal(id, sessao) {
   if (terminais.size >= MAX_TERMINAIS) return false;
+  if ($('aviso-terminal')) $('aviso-terminal').hidden = true;
   id = id || `t${proximoTerminal}`;
   proximoTerminal = Math.max(proximoTerminal, Number(id.slice(1)) + 1);
   const painel = document.createElement('div');
@@ -179,7 +180,26 @@ function tirarTerminal(id) {
 }
 
 window.orq.pty.aoReceber((id, d) => { const t = terminais.get(id); if (t) t.term.write(d); });
-window.orq.pty.aoSair((id) => tirarTerminal(id));
+window.orq.pty.aoSair((id, info) => {
+  const sessao = terminais.get(id)?.sessao;
+  tirarTerminal(id);
+  if (info && info.falhou && sessao) avisarTerminal(sessao, info.motivo);
+});
+
+// Aviso honesto quando o "Abrir terminal" de um agente não abriu: diz qual e o
+// motivo (a última linha que o terminal escreveu antes de sair).
+function avisarTerminal(sessao, motivo) {
+  let a = $('aviso-terminal');
+  if (!a) {
+    a = document.createElement('span');
+    a.id = 'aviso-terminal';
+    a.className = 'aviso-conversa erro';
+    a.setAttribute('role', 'alert');
+    $('n-terminais').after(a);
+  }
+  a.hidden = false;
+  a.innerHTML = `<span>Não consegui abrir o terminal de ${esc(sessao)}.</span>${motivo ? ` <code>${esc(motivo)}</code>` : ''}`;
+}
 
 let terminaisIniciados = false;
 async function abrirTerminal() {

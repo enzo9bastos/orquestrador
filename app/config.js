@@ -103,6 +103,8 @@ const PADRAO = {
 };
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
+// "~/n/" vale "~/n": a barra no fim quebrava a comparação de caminhos das notas.
+const semBarraNoFim = (p) => (typeof p === 'string' && p.length > 1 ? p.replace(/(.)\/+$/, '$1') : p);
 
 // Arquivo que não existe vale como vazio. Arquivo que existe e não é JSON
 // válido é marcado: quem grava guarda o original ao lado antes de escrever,
@@ -120,7 +122,7 @@ function lerArquivo() {
 function ler() {
   const c = { ...PADRAO, ...lerArquivo() };
   c.raizProjetos = casa(process.env.ORQ_APP_DEV || c.raizProjetos);
-  c.pastaNotas = casa(c.pastaNotas);
+  c.pastaNotas = semBarraNoFim(casa(c.pastaNotas));
   c.iasCaminhos = caminhosIas(c.iasCaminhos) || {};
   return c;
 }
@@ -148,20 +150,22 @@ const regexOk = (r) => { if (r == null || r === '') return true; try { new RegEx
 const texto = (v) => (typeof v === 'string' ? v.trim() : '');
 // Valida o que a tela de configurações manda; chave desconhecida ou valor
 // inválido é ignorado (devolve a lista do que não foi aceito).
+// O valor que precisa de conta vai como função: só é calculado depois que a
+// condição passou (null num campo de objeto derrubava tudo com TypeError).
 function validar(m) {
   const ok = {}, recusado = [];
-  const aceitar = (k, cond, v) => { if (cond) ok[k] = v; else recusado.push(k); };
+  const aceitar = (k, cond, v) => { if (cond) ok[k] = typeof v === 'function' ? v() : v; else recusado.push(k); };
   for (const [k, v] of Object.entries(m || {})) {
     switch (k) {
       case 'tema': aceitar(k, ['dark', 'light'].includes(v), v); break;
       case 'idioma': aceitar(k, ['pt-BR', 'en'].includes(v), v); break;
       case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
-      case 'notificacoes': aceitar(k, v && typeof v === 'object', { pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false }); break;
+      case 'notificacoes': aceitar(k, !!v && typeof v === 'object', () => ({ pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false })); break;
       case 'comandoInicial': case 'comandoDesligar':
         aceitar(k, !texto(v) || /^\/\S+/.test(texto(v)), texto(v) || null); break;
       case 'raizProjetos': aceitar(k, !!texto(v), texto(v)); break;
-      case 'pastaNotas': aceitar(k, true, texto(v) || null); break;
+      case 'pastaNotas': aceitar(k, true, semBarraNoFim(texto(v)) || null); break;
       case 'niveis': aceitar(k, v === 1 || v === 2, v); break;
       case 'ignorar': aceitar(k, !!texto(v) && regexOk(v), texto(v)); break;
       case 'linhaTarefa': case 'comandoOrdem': aceitar(k, regexOk(v), texto(v) || null); break;
@@ -177,8 +181,8 @@ function validar(m) {
       case 'canalMeuNome': aceitar(k, true, texto(v).slice(0, 60) || null); break;
       case 'canalContatos': { const c = require('./canal').contatosDe(v); aceitar(k, Array.isArray(v) || typeof v === 'string', c); break; }
       case 'canalAprovarEnvio': case 'canalSemAprovarCiente': case 'canalSemAprovarInformacao': aceitar(k, typeof v === 'boolean', v); break;
-      case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
-      case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;
+      case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), () => v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
+      case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), () => v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;
       default: recusado.push(k);
     }
   }

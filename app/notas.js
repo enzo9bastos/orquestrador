@@ -14,6 +14,9 @@ const config = require('./config');
 const VERSOES = path.join(os.homedir(), '.local', 'share', 'orq-app', 'versoes');
 const MAX_ARQUIVOS = 3000;
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
+// Caminho de pasta configurada, absoluto e sem barra no fim ("~/n/" = "~/n"):
+// com a barra, toda nota caía em "fora da pasta".
+const absoluto = (p) => (typeof p === 'string' && p ? path.resolve(casa(p)) : p);
 
 // Lista de pastas: config.pastasNotas ([{nome, caminho}]); sem ela, a
 // pastaNotas da orquestração.
@@ -25,7 +28,7 @@ function listaConfigurada() {
 }
 function pastas() {
   const lista = listaConfigurada();
-  return lista.map((p) => ({ nome: p.nome || path.basename(casa(p.caminho)), caminho: casa(p.caminho) }))
+  return lista.map((p) => ({ nome: p.nome || path.basename(absoluto(p.caminho)), caminho: absoluto(p.caminho) }))
     .filter((p) => p.caminho && fs.existsSync(p.caminho));
 }
 
@@ -242,15 +245,15 @@ function salvarImagem(i, relNota, base64, tipo) {
 // Acrescentar/tirar pasta só mexe na lista da configuração; nada no disco.
 function adicionarPasta(caminho) {
   const lista = listaConfigurada().map((p) => ({ ...p }));
-  if (lista.some((p) => casa(p.caminho) === caminho)) return pastas().findIndex((p) => p.caminho === caminho);
+  if (lista.some((p) => absoluto(p.caminho) === absoluto(caminho))) return pastas().findIndex((p) => p.caminho === absoluto(caminho));
   lista.push({ nome: path.basename(caminho), caminho });
   config.gravar({ pastasNotas: lista });
-  return pastas().findIndex((p) => p.caminho === caminho);
+  return pastas().findIndex((p) => p.caminho === absoluto(caminho));
 }
 function removerPasta(i) {
   const alvo = pastas()[i];
   if (!alvo) return false;
-  const lista = listaConfigurada().filter((p) => casa(p.caminho) !== alvo.caminho);
+  const lista = listaConfigurada().filter((p) => absoluto(p.caminho) !== alvo.caminho);
   config.gravar({ pastasNotas: lista });
   return true;
 }
