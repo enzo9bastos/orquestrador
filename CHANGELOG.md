@@ -4,6 +4,22 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.3.0 (2026-11-16)
+
+- Channel between orchestrators: images and PDFs can go as attachments
+  (`orq-recado externo <contact> "text" --anexo file`, up to three; png, jpg,
+  webp or pdf, checked by content). A message with an attachment always waits
+  for the user's approval, with a thumbnail and a warning that the link stays
+  open for a few days; approval is available in the Messages tab, in the
+  conversation card and in the desktop helper. Image metadata (EXIF, GPS,
+  text) is removed before sending, and the sending copy is deleted once the
+  server confirms.
+- Attachments that arrive are downloaded only from the channel's own server,
+  checked by content and size, kept in a private folder and shown from the
+  local file; the orchestrator receives only the local path, marked as data.
+- Versions: the app now has a version number, a changelog, tags and releases;
+  Settings shows the installed version and commit.
+
 ## 0.2.1 (2026-11-16)
 
 - The screen only reloads by itself when the main-process code is unchanged
