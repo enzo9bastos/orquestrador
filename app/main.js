@@ -25,6 +25,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 const pty = require('node-pty');
 const coletor = require('./coletor');
+const medidor = require('./medidor');
 const conversa = require('./conversa');
 const notas = require('./notas');
 const permissoes = require('./permissoes');
@@ -503,18 +504,18 @@ let pararTopicos = null;
 // registro muda (inclusive pelo bin/orq-recado).
 let marcaRecados = 0;
 let ultimoQuadro = 0;
-let ultimoRetrato = null;
-function cicloRecados() {
+let cicloRecadosRodando = false;
+let cicloRecadosDeNovo = false; // pediram de novo enquanto rodava (ex.: acabou de decidir um recado)
+async function cicloRecados() {
+  if (cicloRecadosRodando) { cicloRecadosDeNovo = true; return; }
+  cicloRecadosRodando = true;
   try {
     const ps = coletor.projetos();
     const esperando = ps.some((p) => { try { return fs.readdirSync(path.join(p.dir, '.orq', 'recados', 'saida')).some((f) => f.endsWith('.json')); } catch { return false; } });
-    // Agentes abertos: do último retrato da tela se tiver menos de 10 s
-    // (o coletor é caro); senão, um retrato novo, só quando for preciso.
-    let frentes = null;
-    const obterFrentes = () => {
-      if (!frentes) frentes = (Date.now() - ultimoEstado < 10000 && ultimoRetrato) ? ultimoRetrato.frentes : coletor.estado().frentes;
-      return frentes;
-    };
+    // Agentes abertos: do último retrato se tiver menos de 10 s; senão, um
+    // novo (o coletor divide a leitura em voo com a tela e com o laço de 5 s).
+    const { frentes } = await medidor.medir('estado', () => coletor.estado({ maxIdade: 10000 }));
+    const obterFrentes = () => frentes;
     if (esperando) recados.recolher(ps, obterFrentes());
     recados.entregar(conversa, obterFrentes);
     // Quadro de quem está aberto e das vezes abertas, a cada 15 s.
@@ -530,7 +531,7 @@ function cicloRecados() {
     try { m = fs.statSync(recados.arquivoLog()).mtimeMs; } catch { /* ainda sem recado */ }
     try { m += fs.statSync(recados.arquivoVezes()).mtimeMs; } catch { /* ainda sem vez passada */ }
     if (m !== marcaRecados) { marcaRecados = m; enviar('recados:mudou', recados.ler()); }
-  } catch (e) { console.error('[recados]', e.message); }
+  } catch (e) { console.error('[recados]', e.message); } finally { cicloRecadosRodando = false; if (cicloRecadosDeNovo) { cicloRecadosDeNovo = false; cicloRecados(); } }
 }
 setInterval(cicloRecados, 3000);
 
@@ -652,17 +653,21 @@ function verPendencias(r) {
   ajudante.pendencias(lista);
 }
 let ultimoEstado = 0;
-ipcMain.handle('estado', () => {
-  const r = coletor.estado();
+medidor.iniciar();
+// Só nos testes de tela: o teste de desempenho lê e zera o medidor.
+if (process.env.ORQ_APP_E2E === '1') {
+  ipcMain.handle('diag:laco', (_e, zerar) => { if (zerar) medidor.reiniciar(); return medidor.fotografia(); });
+}
+ipcMain.handle('estado', async () => {
+  const r = await medidor.medir('estado', () => coletor.estado());
   ultimoEstado = Date.now();
-  ultimoRetrato = r;
   avisarNovidades(r);
   verPendencias(r);
   return r;
 });
 // Com a janela minimizada a tela quase não pergunta o estado: aí o processo
 // principal confere sozinho, para o ajudante não perder pendência.
-setInterval(() => { if (Date.now() - ultimoEstado > 8000) { try { verPendencias(coletor.estado()); } catch { /* tenta de novo */ } } }, 5000);
+setInterval(async () => { if (Date.now() - ultimoEstado > 8000) { try { verPendencias(await medidor.medir('estado', () => coletor.estado())); } catch { /* tenta de novo */ } } }, 5000);
 
 // Ajudante (bichinho fora do app).
 ipcMain.handle('pet:prefs', () => ({ ...ajudante.ler(), fora: ajudante.estaFora() }));
