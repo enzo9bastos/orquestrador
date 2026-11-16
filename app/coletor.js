@@ -10,6 +10,7 @@ const { execFileSync } = require('child_process');
 
 const config = require('./config');
 const pastaProjeto = require('./pasta-projeto');
+const jsonl = require('./jsonl');
 
 // Mesma interface do Claude que o `orq` usa para reconhecer um agente na tela.
 const TELA_CLAUDE = /│ >|esc to interrupt|Try "|╭─+╮|⏵⏵|⏸|bypass|auto mode/;
@@ -143,7 +144,8 @@ function lerEventos(dirProj, limite = 60) {
     return null;
   }
   if (!arquivos.length) return null;
-  const linhas = fs.readFileSync(path.join(pasta, arquivos[0].f), 'utf8').trim().split('\n').slice(-limite);
+  // Só o fim do arquivo (linhas inteiras): o log de eventos cresce o dia todo.
+  const linhas = jsonl.lerFim(path.join(pasta, arquivos[0].f), 256 * 1024).linhas.slice(-limite);
   const eventos = [];
   for (const l of linhas) {
     try { eventos.push(JSON.parse(l)); } catch { /* linha cortada no meio da escrita */ }
