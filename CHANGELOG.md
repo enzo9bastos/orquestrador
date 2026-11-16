@@ -4,6 +4,18 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.4.1 (2026-11-16)
+
+- Desktop helper: when it walks out with a question and the user goes
+  straight to the app instead of answering it, it now leaves on its own. It
+  stays if an answer had already been started there (text typed, an option
+  marked, one of several questions answered) or if the user is chatting with
+  it.
+- Notes: the ✕ on a folder tab only closes the tab. The folder stays in the
+  app and on disk, the tab stays closed after a restart, and it reopens from
+  "+ Folder", from the empty screen or when one of its notes is opened.
+  Removing a folder from the app stays in Settings.
+
 ## 0.4.0 (2026-11-16)
 
 - Clean screen: the agents column (left) and the requests column (right)
