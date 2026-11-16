@@ -271,6 +271,24 @@ conversa.ligar((canal, dado) => enviar(canal, dado));
 // do Claude). Clicar traz a janela e abre a conversa certa.
 const config = require('./config');
 const avisosAbertos = new Map(); // conversa → notificação na tela (uma por vez)
+// Toda notificação do sistema passa por aqui. O app aberto pelos testes de tela
+// (ORQ_APP_E2E) não notifica: a janela de teste fica escondida e cada resposta
+// viraria aviso na tela do usuário. Em teste, o aviso vai para um arquivo da
+// casa temporária, onde o teste confere que ele teria saído.
+function notificar(opcoes) {
+  if (process.env.ORQ_APP_E2E) {
+    try {
+      const arq = path.join(os.homedir(), '.cache', 'orq-app', 'notificacoes-teste.jsonl');
+      fs.mkdirSync(path.dirname(arq), { recursive: true });
+      fs.appendFileSync(arq, JSON.stringify({ title: opcoes.title, body: opcoes.body }) + '\n');
+    } catch { /* teste sem casa gravável: só não anota */ }
+    return null;
+  }
+  if (!Notification.isSupported()) return null;
+  const n = new Notification(opcoes);
+  n.show();
+  return n;
+}
 conversa.ligarAvisos((a) => {
   if (ajudante.aviso(a)) return; // a conversa do ajudante responde no balão do bichinho
   const n = config.ler().notificacoes || {};
@@ -280,12 +298,12 @@ conversa.ligarAvisos((a) => {
   // Turno que terminou deixando recado para aprovar: quem avisa é o bichinho
   // (pedido de 2026-11-13), sem notificação do sistema por cima.
   if (a.tipo === 'resposta' && a.orquestrador && recados.aprovacaoRecente()) return;
-  if (!Notification.isSupported()) return;
   const quem = a.orquestrador ? 'O orquestrador' : `"${a.titulo}"`;
   const titulo = t(a.tipo === 'pedido' ? `${quem} precisa de você` : `${quem} respondeu`);
   const corpo = String(a.texto || '').replace(/\s+/g, ' ').slice(0, 220);
   if (avisosAbertos.has(a.id)) avisosAbertos.get(a.id).close();
-  const aviso = new Notification({ title: titulo, body: corpo, urgency: a.tipo === 'pedido' ? 'critical' : 'normal' });
+  const aviso = notificar({ title: titulo, body: corpo, urgency: a.tipo === 'pedido' ? 'critical' : 'normal' });
+  if (!aviso) return;
   aviso.on('click', () => {
     if (!janela) return;
     // Só pede foco: "mostrar" no Wayland pode puxar o app para a área de
@@ -294,7 +312,6 @@ conversa.ligarAvisos((a) => {
     janela.focus();
     enviar('conversa:focar', a.id);
   });
-  aviso.show();
   avisosAbertos.set(a.id, aviso);
 });
 ipcMain.handle('conversa:lista', () => conversa.lista());
@@ -721,7 +738,7 @@ function avisarNovidades(r) {
     const corpo = p.tipo === 'permissao'
       ? `${p.proj} quer usar ${p.ferramenta}`
       : `${p.proj} deixou um pedido ao servidor`;
-    if (Notification.isSupported()) new Notification({ title: t('Precisa de você'), body: corpo, urgency: 'critical' }).show();
+    notificar({ title: t('Precisa de você'), body: corpo, urgency: 'critical' });
   }
 }
 
@@ -742,7 +759,7 @@ app.whenReady().then(() => {
   workflows.ligar({
     conversa,
     enviarTela: (canal, dado) => enviar(canal, dado),
-    avisar: (titulo, corpo) => { if (Notification.isSupported()) new Notification({ title: titulo, body: corpo }).show(); },
+    avisar: (titulo, corpo) => { notificar({ title: titulo, body: corpo }); },
   });
   // Tópicos: o orq-topico grava o arquivo; a tela recebe a lista nova na hora.
   // Demandas viram notas .md (pasta Demandas da 1ª pasta de notas): cria o
