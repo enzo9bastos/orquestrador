@@ -193,8 +193,10 @@ screen (the input box, attachments, agent cards).
   What waits for your **approval** (a message to another computer, a one-off request that wants to write) comes the
   same way, with *Approve / Deny* and an optional reason. If you go straight to the app instead of answering it, it
   leaves on its own (unless you had already started an answer there).
-- **Knows when the app is on screen.** Clicking the desktop takes the focus away but the app is still in front of
-  you, so the helper stays inside it. Wayland doesn't let apps see other windows, so each desktop has its own way:
+- **Knows when the app is on screen.** What counts is what you can see, not where the keyboard is: with the app in
+  view the helper stays inside it, even if you are typing in another window or on another monitor, and if it had
+  already walked out it leaves once the app comes into view. Wayland doesn't let apps see other windows, so each
+  desktop has its own way:
   | Desktop | How the app knows | Setup |
   |---|---|---|
   | GNOME (Wayland or X11) | a tiny read-only GNOME Shell extension, [`extras/gnome-shell`](extras/gnome-shell) — it answers only about the app's own windows | `extras/gnome-shell/instalar.sh`, then log out and back in |

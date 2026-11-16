@@ -202,8 +202,9 @@ la pantalla (la caja de texto, los adjuntos, las tarjetas de los agentes).
   opciones (o el permiso, con *Allow / Deny*) y respondes ahí mismo. Lo que espera tu **aprobación** (un mensaje a otra
   computadora, un pedido suelto que quiere escribir) llega igual, con *Approve / Deny* y un motivo opcional. Si vas
   directo a la app en vez de responderle, se va solo (salvo que ya hubieras empezado una respuesta ahí).
-- **Sabe cuándo la app está en pantalla.** Hacer clic en el escritorio le quita el foco, pero la app sigue frente a ti,
-  así que el ayudante se queda dentro de ella. Wayland no deja que una app vea las otras ventanas, así que cada
+- **Sabe cuándo la app está en pantalla.** Cuenta lo que ves, no dónde está el teclado: con la app a la vista el
+  ayudante se queda dentro de ella, aunque estés escribiendo en otra ventana o en otro monitor, y si ya había salido
+  se va cuando la app vuelve a estar a la vista. Wayland no deja que una app vea las otras ventanas, así que cada
   escritorio tiene su manera:
   | Escritorio | Cómo lo sabe la app | Preparación |
   |---|---|---|
