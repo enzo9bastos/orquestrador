@@ -85,14 +85,19 @@ test('pet: só vai avisar se a pendência ainda existe e o app está fora de foc
 });
 
 // Pedido de 2026-11-13: clicar fora (na área de trabalho) com o app à vista
-// não faz o bichinho sair do app.
-test('pet: app à vista sem nada mais em foco: o aviso fica no app; coberto ou outra janela em foco: vai', async () => {
+// não faz o bichinho sair do app. Decisão de 2026-11-16: vale o que o usuário
+// enxerga, não onde está o teclado. Com o app à vista, o aviso fica no app
+// mesmo com outra janela em foco (o usuário via o app num monitor e digitava em
+// outra janela; o bichinho saía por cima do app).
+test('pet: app à vista: o aviso fica no app, mesmo com o teclado em outra janela; coberto ou em outra área: vai', async () => {
   let presenca = { foco: 'nenhum', visivel: true };
   ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => false }), presenca: async () => presenca, conversa: null, enviarTela: () => {} });
   ajudante.pendencias([{ id: 'v1', texto: 'Pergunta', conversa: 'orquestrador' }]);
   assert.strictEqual(await ajudante.confirmarAviso(['v1']), null, 'clicou na área de trabalho: fica no app');
   presenca = { foco: 'outro', visivel: true };
-  assert.strictEqual((await ajudante.confirmarAviso(['v1'])).id, 'v1', 'outra janela em foco: vai');
+  assert.strictEqual(await ajudante.confirmarAviso(['v1']), null, 'outra janela em foco, mas o app à vista: fica no app');
+  presenca = { foco: 'outro', visivel: false };
+  assert.strictEqual((await ajudante.confirmarAviso(['v1'])).id, 'v1', 'outra janela em foco e o app coberto: vai');
   ajudante.pendencias([]);
   ajudante.pendencias([{ id: 'v2', texto: 'Outra', conversa: 'orquestrador' }]);
   presenca = { foco: 'nenhum', visivel: false };
@@ -221,4 +226,24 @@ test('pet: com o aviso lá fora, o usuário ir ao app manda o bichinho embora; s
   assert.deepStrictEqual(ajudante.appEmFoco(), { t: 'noApp' }, 'o usuário foi ao app: o aviso sai');
   ajudante.pendencias([]); // respondida no app
   assert.strictEqual(ajudante.appEmFoco(), null, 'pendência resolvida: nada a mandar');
+});
+
+// Decisão de 2026-11-16: o bichinho já saiu com o aviso e o app passa a ficar à
+// vista (o usuário trocou de área de trabalho, tirou a janela de cima), mesmo
+// sem ganhar o teclado: o aviso sai de cena.
+test('pet: com o aviso lá fora, o app voltar a ficar à vista manda o bichinho embora, mesmo sem o foco', async () => {
+  let presenca = { foco: 'outro', visivel: false };
+  ajudante.ligar({ janela: () => ({ isFocused: () => false, isMinimized: () => false }), presenca: async () => presenca, conversa: null, enviarTela: () => {} });
+  ajudante.pendencias([]);
+  assert.strictEqual(await ajudante.conferirAVista(), null, 'nada lá fora: não manda nada');
+  ajudante.pendencias([{ id: 'a1', texto: 'Pergunta', conversa: 'orquestrador' }]);
+  assert.strictEqual((await ajudante.confirmarAviso(['a1'])).id, 'a1', 'app coberto: ele sai com a pergunta');
+  assert.strictEqual(await ajudante.conferirAVista(), null, 'o app continua coberto: ele fica lá fora');
+  presenca = { foco: 'outro', visivel: true };
+  assert.deepStrictEqual(await ajudante.conferirAVista(), { t: 'noApp' }, 'o app ficou à vista (teclado em outra janela): o aviso sai');
+  presenca = null;
+  assert.strictEqual(await ajudante.conferirAVista(), null, 'sem como saber o que está na tela: não mexe');
+  ajudante.pendencias([]); // respondida
+  presenca = { foco: 'app', visivel: true };
+  assert.strictEqual(await ajudante.conferirAVista(), null, 'pendência resolvida: nada a mandar');
 });

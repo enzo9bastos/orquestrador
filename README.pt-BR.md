@@ -196,8 +196,10 @@ texto, os anexos, os cartões dos agentes).
   (um recado para outro computador, um pedido avulso que quer gravar) vem do mesmo jeito, com *Aprovar / Negar* e um
   motivo opcional. Se você for direto ao app em vez de responder nele, ele vai embora sozinho (a não ser que você já
   tenha começado uma resposta ali).
-- **Sabe quando o app está na tela.** Clicar na área de trabalho tira o foco, mas o app continua na sua frente, então
-  o ajudante fica dentro dele. O Wayland não deixa um app ver as outras janelas, então cada ambiente tem o seu jeito:
+- **Sabe quando o app está na tela.** Vale o que você enxerga, não onde está o teclado: com o app à vista o ajudante
+  fica dentro dele, mesmo que você esteja digitando em outra janela ou em outro monitor, e se ele já tinha saído vai
+  embora quando o app volta a ficar à vista. O Wayland não deixa um app ver as outras janelas, então cada ambiente
+  tem o seu jeito:
   | Ambiente | Como o app sabe | Preparação |
   |---|---|---|
   | GNOME (Wayland ou X11) | uma extensão pequena do GNOME Shell, só leitura, [`extras/gnome-shell`](extras/gnome-shell) — ela responde só sobre as janelas do próprio app | `extras/gnome-shell/instalar.sh`, depois sair e entrar na sessão |
