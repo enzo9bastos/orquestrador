@@ -102,3 +102,31 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-11-15 | "Abrir terminal" (janela do sistema) dizia que abriu sem nenhum terminal no PATH: o ENOENT do spawn chega depois | `unit/terminal-externo.test.js` › terminal externo: sem nenhum terminal no PATH → false (não diz que abriu) |
 | 2026-11-15 | "Abrir terminal" de um agente sem tmux: o painel sumia calado, sem dizer que não abriu | `e2e/terminal-honesto.e2e.js` › o aviso aparece com o motivo, e não fica painel vazio |
 | 2026-11-15 | Nota com 10 000 ">" aninhados estourava a pilha do editor (10 s de tela parada) e o editor ficava com a nota anterior, perdendo o que se digitava | `e2e/notas-patologica.e2e.js` › a nota funda abre só para leitura, com o texto puro e o aviso |
+| 2026-11-16 | A lista do "/" tirava /status, /memory, /hooks, /help, /release-notes e /todos e deixava cinza /agents, /fast, /heapdump e /workflow-launch-exec | `unit/comandos.test.js` › comandos: Claude depois do init — nada some, nada cinza |
+| 2026-11-16 | O init não anunciava um comando e ele sumia da lista (ex.: /context, /status) | `unit/comandos.test.js` › comandos: o init não manda tirar o que ele não anunciou |
+| 2026-11-16 | Alias digitado (/cost, /quit) não achava o comando | `unit/comandos.test.js` › comandos: aliases ficam no comando (cost e stats no /usage) e o busca acha |
+| 2026-11-16 | Conversa Codex só tinha as skills: nenhum comando do Codex (/compact, /review, /resume…) | `unit/comandos.test.js` › comandos: conversa Codex tem os comandos do Codex, nenhum só do Claude |
+| 2026-11-16 | A paleta (Ctrl+K) cortava a lista em 80 itens: comandos sumiam dela | `e2e/p0-tela.e2e.js` › a paleta (Ctrl+K) oferece os mesmos comandos, sem cortar nenhum |
+| 2026-11-16 | /agents digitado mostrava "use a aba Repertório" e não fazia nada | `e2e/p0-tela.e2e.js` › /agents digitado inteiro abre o popup dos subagentes e não vai ao Claude como texto |
+| 2026-11-16 | /config e /permissions numa conversa Codex só avisavam "ainda não disponível" | `e2e/p0-tela.e2e.js` › /config: o Codex com a conversa vai para o terminal do app, sem popup e sem turn/start |
+| 2026-11-16 | /heapdump não ia (cinza); agora vai, com confirmação antes (o arquivo pode ter credenciais) | `e2e/comandos-app.e2e.js` › (a) /heapdump pede confirmação antes; confirmado, vai e a saída aparece |
+| 2026-11-16 | /status respondia "isn't available in this environment" | `e2e/comandos-app.e2e.js` › (b) /status mostra as seções do get_status |
+| 2026-11-16 | /status com um Claude que não conhece o get_status ficava sem nada | `e2e/comandos-app.e2e.js` › o popup diz que o Claude não respondeu e mostra versão, modelo e MCP do init |
+| 2026-11-16 | /btw respondia "isn't available" | `e2e/comandos-app.e2e.js` › (b) /btw: pergunta de lado vira cartão com a resposta, sem entrar na conversa |
+| 2026-11-16 | /skills e /skill-doctor respondiam "isn't available" | `e2e/comandos-app.e2e.js` › (b) /skill-doctor ordena as skills pelo custo em tokens |
+| 2026-11-16 | /plan respondia "isn't available" | `e2e/comandos-app.e2e.js` › (b) /plan liga o modo plano por set_permission_mode; /plan open mostra o plano |
+| 2026-11-16 | /tasks respondia "isn't available": tarefa de fundo sem ver saída nem parar | `e2e/comandos-app.e2e.js` › (b) /tasks mostra a tarefa de fundo, a saída e o Parar |
+| 2026-11-16 | /memory não existia no app | `e2e/comandos-app.e2e.js` › (c) /memory abre o CLAUDE.md do usuário, grava e guarda a versão anterior |
+| 2026-11-16 | /hooks não existia no app | `e2e/comandos-app.e2e.js` › (c) /hooks: tirar um hook mostra o custo; confirmado, grava só o bloco hooks |
+| 2026-11-16 | /agents não criava nem apagava subagente | `e2e/comandos-app.e2e.js` › (c) /agents cria um subagente e apaga outro com o custo e a cópia |
+| 2026-11-16 | /todos ia ao modelo como texto | `e2e/comandos-app.e2e.js` › (c) /todos mostra a última lista do TodoWrite do transcript |
+| 2026-11-16 | /release-notes não existia no app | `e2e/comandos-app.e2e.js` › (c) /release-notes mostra a seção da versão instalada |
+| 2026-11-16 | /help não existia no app | `e2e/comandos-app.e2e.js` › (c) /help lista todos os comandos com o jeito de cada um |
+| 2026-11-16 | /fast respondia "not available in the Agent SDK" | `e2e/comandos-app.e2e.js` › (d) /fast liga o modo rápido ao vivo (apply_flag_settings fastMode) e /fast off desliga |
+| 2026-11-16 | /add-dir respondia "isn't available" | `e2e/comandos-app.e2e.js` › (d) /add-dir reinicia o Claude com --add-dir, avisando antes |
+| 2026-11-16 | /exit fechava o app direto, sem confirmação | `e2e/comandos-app.e2e.js` › (e) /exit pede confirmação e não fecha sozinho |
+| 2026-11-16 | Comando que só existe na tela do terminal (/login, /plugin…) respondia "isn't available" sem caminho | `e2e/comandos-app.e2e.js` › (t) /login cola no terminal do app o Claude com uma cópia da conversa e o comando |
+| 2026-11-16 | /compact, /review, /status, /resume e /init numa conversa Codex iam ao modelo como texto | `e2e/comandos-app.e2e.js` › comandos do Codex: os do app-server funcionam pelo método dele |
+| 2026-11-16 | Os comandos de arquivo podiam ler ou gravar qualquer arquivo pedido pela tela | `unit/comandos-app.test.js` › arquivos: só os que os comandos editam (nada de ler ou gravar arquivo qualquer) |
+| 2026-11-16 | Tirar hook ou apagar subagente sem confirmação e sem cópia | `unit/comandos-app.test.js` › /hooks: tirar hook devolve o custo e só grava com confirmação; o resto do settings fica |
+| 2026-11-16 | A lista do "/" mostrava 9–10 comandos de uma vez (e o print parecia uma lista gigante); agora 6 à vista, como o terminal, o resto se acha digitando ou rolando | `e2e/p0-tela.e2e.js` › a lista mostra só uns 6 de cada vez |

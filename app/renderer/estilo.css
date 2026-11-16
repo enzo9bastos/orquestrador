@@ -731,7 +731,8 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .resposta-dada { display: grid; gap: 3px; padding-left: 12px; border-left: 2px solid var(--claude); }
 .resposta-dada strong { color: var(--fg-2); font-weight: 500; font-size: 13px; line-height: 1.45; }
 .resposta-dada p { margin: 2px 0 0; color: var(--fg); font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
-.sugestoes { max-height: 320px; overflow-y: auto; }
+/* Uns 6 comandos de cada vez, como o terminal: o resto se acha digitando ou rolando. */
+.sugestoes { max-height: 214px; overflow-y: auto; }
 
 /* --- notas: explorador estilo IDE + abas de pasta -------------------------- */
 .explorador-topo { display: flex; align-items: center; gap: 2px; height: 34px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--borda); flex: none; }

@@ -40,6 +40,29 @@ test('0.B7: a lista do "/" vem de uma fonte só e tem TODOS os comandos: nada so
     assert.ok(l[0].nome !== '/exit' && l[0].selecionada);
   });
 
+  await t.test('a lista mostra só uns 6 de cada vez (como o terminal); o resto rola, e a seleção pelas setas acompanha', async () => {
+    await digitar(app, '/');
+    await app.esperar("!document.getElementById('sugestoes').hidden");
+    const m = await app.avaliar(`(() => {
+      const s = document.getElementById('sugestoes');
+      const r = s.getBoundingClientRect();
+      const li = [...s.querySelectorAll('li')];
+      const vis = li.filter((x) => { const b = x.getBoundingClientRect(); return b.top >= r.top - 1 && b.bottom <= r.bottom + 1; }).length;
+      return { total: li.length, vis, rola: s.scrollHeight > s.clientHeight };
+    })()`);
+    assert.ok(m.total > 20, `lista curta demais para o teste: ${m.total}`);
+    assert.ok(m.vis >= 5 && m.vis <= 6, `${m.vis} itens inteiros à vista (o esperado é 5 ou 6)`);
+    assert.ok(m.rola, 'a lista não rola');
+    for (let i = 0; i < 10; i++) await app.tecla('ArrowDown', 'ArrowDown', 40);
+    const sel = await app.avaliar(`(() => {
+      const s = document.getElementById('sugestoes'); const r = s.getBoundingClientRect();
+      const b = s.querySelector('[aria-selected="true"]').getBoundingClientRect();
+      return b.top >= r.top - 1 && b.bottom <= r.bottom + 1;
+    })()`);
+    assert.ok(sel, 'o item selecionado pelas setas ficou fora da vista');
+    await app.tecla('Escape', 'Escape', 27);
+  });
+
   await t.test('"/cos" acha o /usage pelo alias /cost', async () => {
     await digitar(app, '/cos');
     await app.esperar("!document.getElementById('sugestoes').hidden");
