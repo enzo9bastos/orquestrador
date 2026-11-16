@@ -1,4 +1,9 @@
-// Área: conversa
+// Área: conversa [sozinho]
+// [sozinho] desde 16/11: com outros apps de teste rodando ao mesmo tempo, a lista do
+// "/" às vezes não abre em 5 s depois do pedido de controle desconhecido (0.A5):
+// 7 de 10 rodadas paralelas com o claude de verdade subindo nos testes, 1 de 5
+// depois de trocá-lo pelo falso. Não é o limite de inotify (medido). Causa ainda
+// não achada; não é repetição.
 // Etapa 0.A (segurança), testador independente: a vizinhança na tela, com um
 // Claude falso (anota tudo o que recebe e manda o que cada teste precisa).
 // Nada de Claude real: o app roda numa casa temporária.
