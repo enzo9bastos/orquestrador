@@ -27,7 +27,7 @@
     const q = normal(campo.value.trim());
     const so = filtro.getAttribute('aria-pressed') === 'true';
     vistos = itens.filter((i) => (!so || i.atencao) && (!q || normal(`${i.titulo} ${i.sub || ''} ${i.grupo}`).includes(q)))
-      .sort((a, b) => (b.atencao ? 1 : 0) - (a.atencao ? 1 : 0)).slice(0, 80);
+      .sort((a, b) => (b.atencao ? 1 : 0) - (a.atencao ? 1 : 0)).slice(0, 400); // rola; os comandos do "/" são mais de 100
     escolhido = Math.min(escolhido, Math.max(0, vistos.length - 1));
     let grupo = '';
     lista.innerHTML = vistos.map((i, k) => {

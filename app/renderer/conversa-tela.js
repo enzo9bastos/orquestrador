@@ -840,7 +840,7 @@
   // Paleta Ctrl+K: conversas (com pergunta pendente = esperando você) e comandos.
   window.orqPaleta?.registrar(() => [
     ...listaConversas.map((c) => ({ grupo: 'Conversas', titulo: c.titulo, sub: c.pedidos ? 'pergunta esperando você' : c.ocupado ? 'trabalhando' : '', atencao: c.pedidos > 0, faz: () => trocar(c.id) })),
-    ...(comandosPor.get(ativa) || []).filter((c) => !c.bloqueado)
+    ...(comandosPor.get(ativa) || [])
       .map((c) => ({ grupo: 'Comandos', titulo: `/${c.nome}`, sub: c.descricao, faz: () => { trocar(ativa); entrada.value = `/${c.nome} `; entrada.focus(); } })),
   ]);
   // Clique numa notificação do sistema: abre a conversa que precisa de você.
@@ -984,13 +984,17 @@
   // Como no terminal: digitou "/" no começo, aparece a lista filtrada; setas
   // navegam, Tab ou Enter completam, Esc fecha.
   // A lista de cada conversa vem pronta do processo principal (comandos.js,
-  // a fonte única): o que o app trata + o que o motor anuncia, já filtrado
-  // pelo motor da conversa. Os da lista negra vêm com bloqueado = "use X":
-  // aparecem cinza e não são enviados. /exit é tratado pelo app (fecha a
-  // janela): fica sempre por último e nunca é completado pelo Enter.
-  const comandosPor = new Map(); // conversa → [{nome, descricao, dica, bloqueado?}]
-  const bloqueadoDe = (nome) => ((comandosPor.get(ativa) || []).find((c) => c.nome === nome && c.bloqueado) || null);
+  // a fonte única): todos os comandos do motor da conversa, cada um com o
+  // jeito de funcionar aqui (texto, app ou terminal; comandos-tela.js faz os
+  // do app). Nada cinza, nada some. /exit pede confirmação: fica sempre por
+  // último e nunca é completado pelo Enter.
+  const comandosPor = new Map(); // conversa → [{nome, descricao, dica, como, acao?, aliases?}]
   const ehExit = (x) => x && (x.inserir === '/exit' || x.titulo === '/exit');
+  // O comando digitado, pelo nome ou por um alias ("/cost" é o /usage).
+  function acharComando(nome) {
+    const l = comandosPor.get(ativa) || [];
+    return l.find((c) => c.nome === nome) || l.find((c) => (c.aliases || []).includes(nome)) || null;
+  }
   // (sem o app reaberto, a ponte antiga ainda não tem aoComandos)
   if (C.aoComandos) C.aoComandos((id, l) => comandosPor.set(id, l));
   let sugestoes = [];
@@ -1014,7 +1018,8 @@
   //   "//x"            → repertório inteiro (skills de todas as ferramentas + atalhos)
   //   "@" / "@nota:x" / "@workflow:x" → menções
   function comandosDaConversa() {
-    return (comandosPor.get(ativa) || []).map((c) => ({ rotulo: `/${c.nome}`, dica: c.dica, desc: c.descricao, inserir: `/${c.nome}`, chave: c.nome, bloqueado: c.bloqueado || '' }));
+    return (comandosPor.get(ativa) || []).map((c) => ({ rotulo: `/${c.nome}`, dica: [c.aliases && c.aliases.length ? `(${c.aliases.join(', ')})` : '', c.dica].filter(Boolean).join(' '),
+      desc: c.descricao, inserir: `/${c.nome}`, chave: c.nome, aliases: c.aliases || [], origem: c.como === 'terminal' ? 'abre no terminal' : '' }));
   }
   function itensRepertorio() {
     return [
@@ -1049,27 +1054,27 @@
       busca = c[1]; itens = comandosDaConversa();
     }
     const b = busca.toLowerCase();
-    const comeca = itens.filter((x) => x.chave.toLowerCase().startsWith(b));
-    const contem = itens.filter((x) => !x.chave.toLowerCase().startsWith(b) && (x.chave + ' ' + (x.desc || '')).toLowerCase().includes(b));
+    const comecaCom = (x) => x.chave.toLowerCase().startsWith(b) || (x.aliases || []).some((a) => a.toLowerCase().startsWith(b));
+    const comeca = itens.filter(comecaCom);
+    const contem = itens.filter((x) => !comecaCom(x) && (x.chave + ' ' + (x.desc || '')).toLowerCase().includes(b));
     // /exit sempre por último (e nunca cortado da lista).
     const achados = [...comeca, ...contem];
     const sair = achados.filter(ehExit);
-    const bons = achados.filter((x) => !ehExit(x) && !x.bloqueado), bloq = achados.filter((x) => x.bloqueado);
-    sugestoes = [...[...bons, ...bloq].slice(0, 60 - sair.length), ...sair];
+    const bons = achados.filter((x) => !ehExit(x));
+    sugestoes = [...bons.slice(0, 400 - sair.length), ...sair];
     if (!sugestoes.length) return fecharSugestoes();
     // Sem o usuário ter andado com as setas, a seleção é a primeira que não
     // é o /exit (só o /exit na lista: nada selecionado).
-    // Os da lista negra também nunca ficam pré-selecionados.
-    escolhida = navegou ? Math.min(escolhida, sugestoes.length - 1) : sugestoes.findIndex((x) => !ehExit(x) && !x.bloqueado);
-    $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}"${c.bloqueado ? ' class="bloqueado" aria-disabled="true"' : ''}>
+    escolhida = navegou ? Math.min(escolhida, sugestoes.length - 1) : sugestoes.findIndex((x) => !ehExit(x));
+    $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
       <span class="nome-comando">${esc(c.rotulo)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
-      <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${c.bloqueado ? `<span class="dica-bloqueado">${esc(c.bloqueado)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
+      <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
     $('sugestoes').hidden = false;
     $('sugestoes').querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }
   function completar(i) {
     const c = sugestoes[i];
-    if (!c || !faixaToken || c.bloqueado) return; // lista negra: só mostra o que usar no lugar
+    if (!c || !faixaToken) return;
     const [ini, fim] = faixaToken;
     const novo = c.inserir + (c.continuar ? '' : ' ');
     entrada.value = entrada.value.slice(0, ini) + novo + entrada.value.slice(fim);
@@ -1122,6 +1127,38 @@
   window.orqConversa = {
     inserir: (texto) => { entrada.value = entrada.value ? `${entrada.value} ${texto}` : texto; entrada.focus(); ajustarAltura(); },
     mandar: async (texto) => { const e = await expandir(texto); return C.mandar(ativa, e.enviar, [], e.exibir); },
+    // Para os comandos do "/" (comandos-tela.js).
+    ativa: () => ativa,
+    motor: () => (conversaCodex() ? 'codex' : 'claude'),
+    info: () => infoAtual,
+    comandos: () => comandosPor.get(ativa) || [],
+    aviso: (texto, tipo) => { aviso(texto, tipo); colado = true; rolar(); },
+    avisoComando,
+    abrirPopup, fecharPopup,
+    abrirPopupConfig: () => abrirPopupConfig(),
+    abrirPopupPermissoes: () => abrirPopupPermissoes(),
+    abrirMenuModelo: () => $('botao-modelo').click(),
+    anexarArquivo: () => $('anexar').click(),
+    trocar: (id) => trocar(id),
+    // Um cartão na conversa (resposta de /btw, por exemplo): fica na tela, não no histórico.
+    cartao: (html, classe = '') => {
+      grupo = null;
+      const el = document.createElement('div');
+      el.className = `cartao-comando ${classe}`.trim();
+      el.innerHTML = html;
+      caixa.append(el);
+      colado = true; rolar();
+      return el;
+    },
+    // As suas mensagens (balões), da mais antiga para a mais nova (o /rewind).
+    mensagens: () => [...caixa.querySelectorAll('.msg-voce[data-texto]')].map((m) => m.dataset.texto),
+    voltarPara: (i) => { const b = [...caixa.querySelectorAll('.msg-voce[data-texto]')][i]; return b ? voltarPara(b) : null; },
+    // Texto da última resposta (n = 1) ou da n-ésima de trás para frente (o /copy).
+    resposta: (n = 1) => {
+      const grupos = [...caixa.querySelectorAll('.msg-claude')].filter((g) => g.querySelector('.texto-claude:not(.rascunho)'));
+      const g = grupos[grupos.length - Math.max(1, Number(n) || 1)];
+      return g ? [...g.querySelectorAll('.texto-claude:not(.rascunho)')].map((x) => x.innerText.trim()).join('\n\n') : null;
+    },
   };
   // Atalhos com tecla (Ctrl+Alt+1..9): enviam direto ou só escrevem na caixa.
   document.addEventListener('keydown', async (ev) => {
@@ -1146,11 +1183,14 @@
       const c = sugestoes[escolhida];
       // Enter com o comando já digitado inteiro manda direto (o /exit
       // digitado inteiro também: aí é escolha clara).
-      if (ev.key === 'Enter' && c && entrada.value.trim() === c.inserir) { fecharSugestoes(); return; }
-      if (ev.key === 'Enter' && !c && sugestoes.some((s) => entrada.value.trim() === s.inserir)) { fecharSugestoes(); return; }
+      // Um alias digitado inteiro ("/cost") também manda direto.
+      const digitado = entrada.value.trim();
+      const inteiro = (x) => x && (digitado === x.inserir || (x.aliases || []).some((a) => digitado === `/${a}`));
+      if (ev.key === 'Enter' && c && inteiro(c)) { fecharSugestoes(); return; }
+      if (ev.key === 'Enter' && !c && sugestoes.some(inteiro)) { fecharSugestoes(); return; }
       ev.preventDefault(); ev.stopImmediatePropagation();
-      // Nada selecionado, o /exit selecionado (Enter) ou um da lista negra: não completa.
-      if (!c || c.bloqueado || (ev.key === 'Enter' && ehExit(c))) return;
+      // Nada selecionado ou o /exit selecionado (Enter): não completa.
+      if (!c || (ev.key === 'Enter' && ehExit(c))) return;
       completar(escolhida);
     } else if (ev.key === 'Escape') {
       fecharSugestoes();
@@ -1176,27 +1216,20 @@
       aviso('Este app foi aberto antes da versão que manda imagens: feche e abra o app. Nada foi enviado; as imagens continuam na caixa.', 'erro');
       return;
     }
-    // /exit fecha o app, como o X do topo.
-    if (t === '/exit' || t === '/quit') { (window.orq.janela ? window.orq.janela.fechar() : window.close()); return; }
-    // Comandos que no terminal abrem uma janelinha de escolha: aqui também.
-    if (t === '/model' || t === '/effort') { $('botao-modelo').click(); return; }
-    // Comando da lista negra (anunciado pelo Claude, mas não serve por trás
-    // do app): não vai; o texto fica na caixa e o aviso diz o que usar.
-    const bloq = bloqueadoDe((t.match(/^\/(\S+)/) || [])[1]);
-    if (bloq) { avisoComando(`/${bloq.nome}`, bloq.descricao, bloq.bloqueado); return; }
-    // /config e /permissions são do Claude (gravam o settings dele): numa
-    // conversa Codex, só o aviso. Nada vai ao Codex como texto.
-    if (conversaCodex() && ['/config', '/permissions', '/allowed-tools'].includes(t)) {
-      avisoComando(t, 'ainda não disponível no Codex', 'as configurações do Codex ficam em ~/.codex/config.toml');
-      return;
-    }
-    if (t === '/config') { abrirPopupConfig(); return; }
-    if (t === '/permissions' || t === '/allowed-tools') { abrirPopupPermissoes(); return; }
-    // /restart: o app reinicia o motor por trás (--resume no Claude,
-    // thread/resume no Codex), como no terminal.
-    if (t === '/restart') {
-      if (C.reiniciar) { await C.reiniciar(ativa); aviso(conversaCodex() ? 'Codex reiniciado; a conversa continua do mesmo ponto.' : 'Claude reiniciado; a conversa continua do mesmo ponto.'); }
-      return;
+    // Comando do "/": o jeito de cada um vem da lista (comandos.js). Os que o
+    // app faz (popup, pedido de controle, arquivo, terminal) não vão ao motor
+    // como texto; comandos-tela.js faz cada um. Os outros seguem abaixo.
+    const cmd = t.match(/^\/(\S+)(?:\s+([\s\S]*))?$/);
+    const item = cmd && !anexos.length && !arquivosAnexos.length ? acharComando(cmd[1]) : null;
+    if (item && window.orqComandos) {
+      const r = await window.orqComandos.executar(item, (cmd[2] || '').trim(), t);
+      if (r && r.feito) {
+        if (!r.manterTexto) { entrada.value = ''; ajustarAltura(); fecharSugestoes(); }
+        enviados.push(t); if (enviados.length > 50) enviados.shift();
+        posHistorico = -1;
+        return;
+      }
+      if (r && r.cancelado) return;
     }
     entrada.value = ''; ajustarAltura();
     if (t) { enviados.push(t); if (enviados.length > 50) enviados.shift(); }

@@ -32,6 +32,20 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
         { type: 'agentMessage', id: 'a0', text: 'resposta antiga' },
       ] }] }, model: 'gpt-falso', cwd: '/casa' });
     case 'turn/interrupt': return ok({});
+    // Métodos dos comandos do "/" que o app faz numa conversa Codex.
+    case 'thread/compact/start': return ok({});
+    case 'review/start': return ok({ turn: { id: 'tu-rev', status: 'inProgress' }, reviewThreadId: d.params.threadId });
+    case 'thread/name/set': return ok({});
+    case 'thread/archive': return ok({});
+    case 'thread/fork': return ok({ thread: { id: 'th-velho', turns: [] }, model: 'gpt-falso', cwd: '/casa' });
+    case 'thread/list': return ok({ data: [{ id: 'th-velho', preview: 'oi antigo', updatedAt: 1700000000 }], nextCursor: null });
+    case 'account/rateLimits/read': return ok({ rateLimits: { primary: { usedPercent: 12, windowDurationMins: 300 }, secondary: { usedPercent: 40, windowDurationMins: 10080 } } });
+    case 'mcpServerStatus/list': return ok({ data: [{ name: 'falso-mcp', status: 'ready' }], nextCursor: null });
+    case 'skills/list': return ok({ data: [{ cwd: '/casa', skills: [{ name: 'rodada-x' }] }] });
+    case 'hooks/list': return ok({ data: [] });
+    case 'config/read': return ok({ config: { model: 'gpt-falso' } });
+    case 'thread/backgroundTerminals/list': return ok({ data: [] });
+    case 'thread/backgroundTerminals/clean': return ok({});
     case 'turn/steer':
       if (RECUSA || !turnoAtivo || d.params.expectedTurnId !== turnoAtivo) return sai({ id: d.id, error: { code: -32600, message: 'no active turn to steer' } });
       return ok({ turnId: turnoAtivo });

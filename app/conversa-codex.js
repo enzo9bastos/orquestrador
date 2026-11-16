@@ -26,6 +26,45 @@ const POLITICA = { approvalPolicy: 'untrusted', approvalsReviewer: 'auto_review'
 const ARGS = ['app-server', '--enable', 'default_mode_request_user_input', '-c', 'suppress_unstable_features_warning=true'];
 // Esforços que o Codex aceita; o "Máximo" do app vira o maior dele.
 const ESFORCO = { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'xhigh' };
+// /init do Codex: o app-server não entende "/init"; a TUI manda este pedido
+// (texto do próprio Codex 0.167.1, conferido no binário; Apache-2.0).
+const PROMPT_INIT = `Generate a file named AGENTS.md that serves as a contributor guide for this repository.
+Before writing, check whether AGENTS.md already exists in the current working directory. If it does, do not overwrite or modify it.
+Your goal is to produce a clear, concise, and well-structured document with descriptive headings and actionable explanations for each section.
+Follow the outline below, but adapt as needed — add sections if relevant, and omit those that do not apply to this project.
+
+Document Requirements
+
+- Title the document "Repository Guidelines".
+- Use Markdown headings (#, ##, etc.) for structure.
+- Keep the document concise. 200-400 words is optimal.
+- Keep explanations short, direct, and specific to this repository.
+- Provide examples where helpful (commands, directory paths, naming patterns).
+- Maintain a professional, instructional tone.
+
+Recommended Sections
+
+Project Structure & Module Organization
+- Outline the project structure, including where the source code, tests, and assets are located.
+
+Build, Test, and Development Commands
+- List key commands for building, testing, and running locally (e.g., npm test, make build).
+- Briefly explain what each command does.
+
+Coding Style & Naming Conventions
+- Specify indentation rules, language-specific style preferences, and naming patterns.
+- Include any formatting or linting tools used.
+
+Testing Guidelines
+- Identify testing frameworks and coverage requirements.
+- State test naming conventions and how to run tests.
+
+Commit & Pull Request Guidelines
+- Summarize commit message conventions found in the project's Git history.
+- Outline pull request requirements (descriptions, linked issues, screenshots, etc.).
+
+(Optional) Add other sections if relevant, such as Security & Configuration Tips, Architecture Overview, or Agent-Specific Instructions.`;
+
 // Erro do Codex que quer dizer "essa conversa não existe mais".
 const NAO_ACHOU = /no rollout found|thread not found|invalid thread id|not found/i;
 
@@ -380,6 +419,8 @@ function pedidoDoServidor(c, rpc, d, ctx) {
 function mandar(c, texto, imagens) {
   const rpc = c.proc && c.proc.rpc;
   if (!rpc) return false;
+  // /init (sem uma skill "init" do usuário): o pedido que a TUI do Codex manda.
+  if (/^\/init\s*$/.test(texto || '') && !skillDoCodex('init')) texto = PROMPT_INIT;
   const envia = () => {
     const input = entradaDoTexto(texto, imagens);
     const comecar = () => {
@@ -414,6 +455,6 @@ function interromper(c) {
 }
 
 module.exports = {
-  iniciar, mandar, responder, interromper, comandosDoCodex, POLITICA, ARGS, ESFORCO,
+  iniciar, mandar, responder, interromper, comandosDoCodex, POLITICA, ARGS, ESFORCO, PROMPT_INIT,
   _t: { comandoLimpo, usoDeFerramenta, resultadoDeFerramenta, eventosDoHistorico, pedidoDaTela, respostaAoServidor, contextoDoUso, cotaDaConta, entradaDoTexto, skillDoCodex },
 };

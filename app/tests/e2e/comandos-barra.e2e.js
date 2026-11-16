@@ -82,22 +82,23 @@ test('autocompletar dos comandos numa conversa Codex: sem os comandos próprios 
   await app.esperar('!!window.__orqTeste');
   await app.esperar("(document.getElementById('entrada').placeholder || '').length > 0");
 
-  await t.test('"/" mostra as skills do Codex e os comandos do app, nada do Claude', async () => {
+  await t.test('"/" mostra os comandos do Codex e as skills dele, nada só do Claude', async () => {
     await digitar(app, '/');
     const lista = await app.avaliar(sugestoes);
-    for (const doClaude of ['/compact', '/context', '/cost', '/clear', '/mcp', '/memory', '/hooks', '/help', '/init', '/review', '/doctor', '/usage']) {
+    for (const doClaude of ['/context', '/cost', '/memory', '/release-notes', '/doctor', '/add-dir', '/security-review', '/heapdump']) {
       assert.ok(!lista.includes(doClaude), `${doClaude} não é do Codex`);
     }
+    for (const doCodex of ['/compact', '/review', '/new', '/resume', '/fork', '/init', '/diff', '/status', '/mcp']) assert.ok(lista.includes(doCodex), `${doCodex} é do Codex e sumiu`);
     assert.ok(lista.includes('/rodada-x'), 'a skill do Codex aparece');
     assert.ok(lista.includes('/exit'), 'o /exit do app continua');
     assert.notStrictEqual(lista[0], '/exit');
   });
 
-  await t.test('a paleta (Ctrl+K) também não oferece os comandos do Claude', async () => {
+  await t.test('a paleta (Ctrl+K) também não oferece os comandos só do Claude', async () => {
     await app.avaliar("window.orqPaleta.abrir()");
     const titulos = await app.avaliar("[...document.querySelectorAll('.paleta-lista .paleta-item .titulo')].map((x) => x.textContent)");
-    assert.ok(titulos.includes('/exit'));
-    assert.ok(!titulos.includes('/compact') && !titulos.includes('/context'), 'nada do Claude na paleta da conversa Codex');
+    assert.ok(titulos.includes('/exit') && titulos.includes('/compact'));
+    assert.ok(!titulos.includes('/context') && !titulos.includes('/memory'), 'nada só do Claude na paleta da conversa Codex');
     await app.tecla('Escape', 'Escape', 27);
   });
 

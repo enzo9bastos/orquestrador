@@ -75,6 +75,8 @@ const modoDeSubida = (vivo) => (MODOS_MAIS_RESTRITOS.includes(vivo) ? vivo : MOD
 // Nunca "/effort": no modo -p ele grava o nível como padrão no settings.json.
 const ESFORCOS_AO_VIVO = ['low', 'medium', 'high', 'xhigh'];
 const AVISO_REINICIO = 'Para trocar o esforço a conversa reinicia: o que estiver rodando em segundo plano (tarefas, Monitor, subagentes) é encerrado.';
+// Reinício por outro motivo (/add-dir, /fast recusado ao vivo).
+const AVISO_FUNDO = 'O que estiver rodando em segundo plano (tarefas, Monitor, subagentes) é encerrado.';
 // Esforço que vale quando nada foi escolhido: o do settings.json do Claude.
 // Modelo que vale quando nada foi escolhido: o "model" do settings.json.
 function modeloPadrao() {
@@ -168,7 +170,7 @@ function comandosLocais() {
 }
 
 class Conversa {
-  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null }) {
+  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null }) {
     // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
     // orquestrador segue a "IA do orquestrador" da configuração; trocar de
     // motor guarda a conversa do anterior em sessoesMotor e retoma a do novo.
@@ -185,6 +187,16 @@ class Conversa {
     this.pedidoModelo = null;  // set_model enviado e ainda sem resposta: { id, chave, ts }
     this.modeloDepois = undefined; // troca pedida enquanto outra esperava resposta
     this.pedidosEsforco = new Set(); // apply_flag_settings ainda sem resposta
+    // Comandos do "/" que o app faz por pedido de controle: request_id → { ok, falha, timer }.
+    this.controles = new Map();
+    // Modo rápido (/fast): true/false escolhido aqui; null = o padrão do Claude.
+    this.rapido = typeof rapido === 'boolean' ? rapido : null;
+    // Pastas extras de trabalho (/add-dir), passadas em toda subida.
+    this.pastasExtras = Array.isArray(pastasExtras) ? pastasExtras.filter((p) => typeof p === 'string' && path.isAbsolute(p)) : [];
+    // Ramo (/branch, /fork): a 1ª subida abre esta sessão com --fork-session.
+    this.forkDe = typeof forkDe === 'string' && forkDe ? forkDe : null;
+    this.initInfo = null; // o último init (versão, MCP, ferramentas…), para o /status
+    this.tarefas = new Map(); // task_id → { id, descricao, status, tipo } (o /tasks)
     this.id = id;
     this.titulo = titulo;
     this.sessao = sessao;
@@ -225,10 +237,14 @@ class Conversa {
       '--include-partial-messages', '--permission-prompt-tool', 'stdio', '--permission-mode', modoDeSubida(this.modo)];
     if (this.modeloEscolhido) args.push('--model', MODELOS[this.modeloEscolhido]);
     if (this.esforco) args.push('--effort', this.esforco);
+    // Modo rápido: no modo -p o Claude só libera com o fastMode nas flags.
+    if (this.rapido !== null) args.push('--settings', JSON.stringify({ fastMode: this.rapido }));
+    for (const p of this.pastasExtras) args.push('--add-dir', p);
     // Voltar: abre a sessão original cortada naquele ponto, numa sessão nova
     // (--fork-session); a original fica como estava.
     if (this.volta) args.push('--resume', this.volta.de, '--resume-session-at', this.volta.ate, '--fork-session');
     else if (this.sessao) args.push('--resume', this.sessao);
+    else if (this.forkDe) args.push('--resume', this.forkDe, '--fork-session');
     return args;
   }
 
@@ -269,8 +285,8 @@ class Conversa {
       return;
     }
     const args = this.argumentos();
-    const retomando = !!(this.volta || this.sessao);
-    this.eventos = this.volta ? historicoDoTranscript(this.volta.de, this.volta.ate) : retomando ? historicoDoTranscript(this.sessao) : [];
+    const retomando = !!(this.volta || this.sessao || this.forkDe);
+    this.eventos = this.volta ? historicoDoTranscript(this.volta.de, this.volta.ate) : this.sessao ? historicoDoTranscript(this.sessao) : this.forkDe ? historicoDoTranscript(this.forkDe) : [];
     this.enviar('conversa:tudo', this.estado());
 
     // O caminho escolhido na engrenagem (IAs conectadas), se houver e for
@@ -279,12 +295,13 @@ class Conversa {
     this.proc = proc;
     // Pedidos pendentes eram do processo anterior.
     this.pedidoModelo = null; this.modeloDepois = undefined; this.pedidosEsforco = new Set();
+    this.recusarControles('o Claude reiniciou');
     let iniciou = false;
     proc.on('error', (e) => this.registrar({ tipo: 'erro', texto: `Não consegui abrir o Claude: ${e.message}` }));
     let erroTexto = '';
     proc.stderr.on('data', (d) => { erroTexto = (erroTexto + d).slice(-4000); });
     proc.on('exit', (codigo) => {
-      if (this.proc === proc) this.proc = null;
+      if (this.proc === proc) { this.proc = null; this.recusarControles('o Claude saiu'); }
       let expirou = false;
       if (proc.reiniciando) return; // /restart ou voltar: já subiu outro
       if (proc.encerrando) return;  // rodada desligada: encerrar() já avisou
@@ -331,6 +348,10 @@ class Conversa {
         }
         if (d.subtype === 'init') {
           info.modelo = d.model; info.pasta = d.cwd;
+          this.initInfo = { versao: d.claude_code_version || null, modelo: d.model, pasta: d.cwd, modo: d.permissionMode || null,
+            mcp: Array.isArray(d.mcp_servers) ? d.mcp_servers : [], ferramentas: Array.isArray(d.tools) ? d.tools.length : null,
+            estilo: d.output_style || null, chave: d.apiKeySource || null, sessao: d.session_id || null };
+          if (this.forkDe && !this.volta) { this.forkDe = null; }
           // Quem manda no modelo é o Claude: se o init diz outro dos modelos
           // do botão (ex.: /model digitado), a escolha guardada acompanha.
           if (this.modeloEscolhido && MODELOS[this.modeloEscolhido] !== d.model) {
@@ -349,6 +370,15 @@ class Conversa {
           this.avisarInfo();
         }
         if (d.subtype === 'status' && d.permissionMode) this.guardarModo(d.permissionMode);
+        // Tarefas em segundo plano (o /tasks do app).
+        if (d.subtype === 'task_started' && d.task_id) this.tarefas.set(d.task_id, { id: d.task_id, descricao: d.description || '', tipo: d.subagent_type || d.task_type || '', status: 'running', inicio: Date.now() });
+        if ((d.subtype === 'task_notification' || d.subtype === 'task_updated') && d.task_id) {
+          const t = this.tarefas.get(d.task_id) || { id: d.task_id, descricao: d.summary || '', tipo: '', inicio: Date.now() };
+          if (d.status) t.status = d.status;
+          if (d.summary) t.resumo = d.summary;
+          this.tarefas.set(d.task_id, t);
+          while (this.tarefas.size > 50) this.tarefas.delete(this.tarefas.keys().next().value);
+        }
         if (d.subtype === 'session_title_changed' && typeof d.title === 'string' && d.title.trim() && !this.orquestrador) {
           // O nome da sessão (/rename) vira o título; o orquestrador mantém o dele.
           this.titulo = d.title.replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -367,6 +397,12 @@ class Conversa {
       case 'control_response': {
         // Resposta do Claude a um pedido do app (set_model, apply_flag_settings).
         const r = d.response || {};
+        const ctl = this.controles.get(r.request_id);
+        if (ctl) {
+          this.controles.delete(r.request_id); clearTimeout(ctl.timer);
+          if (r.subtype === 'success') ctl.ok(r.response || {}); else ctl.falha(new Error(r.error || 'o Claude recusou o pedido'));
+          return;
+        }
         if (this.pedidoModelo && r.request_id === this.pedidoModelo.id) this.modeloRespondido(r);
         if (this.pedidosEsforco.delete(r.request_id) && r.subtype !== 'success') this.esforcoPorReinicio();
         return;
@@ -455,7 +491,7 @@ class Conversa {
     if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
     this.ultimoTexto = '';
     if (this.desligando) { this.desligando = false; this.encerrar(); return; }
-    if (this.reiniciarDepois) { const porque = this.reiniciarDepois; this.reiniciarDepois = false; this.reiniciar(); if (porque === 'esforco') this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO }); }
+    if (this.reiniciarDepois) { const porque = this.reiniciarDepois; this.reiniciarDepois = false; this.reiniciar(); if (porque) this.registrar({ tipo: 'aviso', texto: porque === 'esforco' ? AVISO_REINICIO : `A conversa reiniciou. ${AVISO_FUNDO}` }); }
   }
 
   juntarComandos() {
@@ -597,6 +633,92 @@ class Conversa {
     this.registrar({ tipo: 'aviso', texto: AVISO_REINICIO });
   }
 
+  // --- comandos do "/" que o app faz (comandos.js, renderer/comandos-tela.js) ---
+  // Pedido de controle ao Claude, com a resposta como promessa. Sem o Claude
+  // aberto, sobe ele antes (o pedido não precisa de mensagem). Sem resposta em
+  // ms, desiste (o Claude antigo que não conhece o pedido responde erro; um
+  // travado não segura a tela).
+  controle(subtype, extra = {}, ms = 20000) {
+    if (this.motor === 'codex') return Promise.reject(new Error('pedido do Claude numa conversa Codex'));
+    if (!this.proc) this.iniciar();
+    return new Promise((ok, falha) => {
+      const id = `cmd-${subtype}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const timer = setTimeout(() => { if (this.controles.delete(id)) falha(new Error(`o Claude não respondeu ao ${subtype}`)); }, ms);
+      this.controles.set(id, { ok, falha, timer });
+      if (!this.escrever({ type: 'control_request', request_id: id, request: { subtype, ...extra } })) {
+        this.controles.delete(id); clearTimeout(timer); falha(new Error('o Claude não está aberto'));
+      }
+    });
+  }
+  recusarControles(motivo) {
+    for (const [id, c] of this.controles) { clearTimeout(c.timer); c.falha(new Error(motivo)); this.controles.delete(id); }
+  }
+  // Pedido ao app-server do Codex (os comandos do Codex que o app faz).
+  async codex(metodo, params = {}) {
+    if (this.motor !== 'codex') throw new Error('pedido do Codex numa conversa Claude');
+    if (!this.proc) this.iniciar();
+    const rpc = this.proc && this.proc.rpc;
+    if (!rpc) throw new Error('o Codex não está aberto');
+    if (!rpc.pronto) await new Promise((ok) => rpc.fila.push(ok));
+    return rpc.pedir(metodo, { threadId: this.sessao, ...params });
+  }
+
+  // /fast: liga ou desliga o modo rápido só desta conversa. Ao vivo pelo
+  // apply_flag_settings (o -p só libera o rápido com o fastMode nas flags); o
+  // Claude recusando, reinicia com --settings, avisando antes. A escolha fica
+  // guardada e vale em toda subida.
+  async rapidoLigar(ligar) {
+    this.rapido = !!ligar;
+    gravarLista();
+    const frase = ligar ? 'Modo rápido ligado nesta conversa.' : 'Modo rápido desligado nesta conversa.';
+    if (!this.proc) { this.registrar({ tipo: 'aviso', texto: `${frase} Vale a partir da próxima mensagem.` }); return { ok: true, aoVivo: false }; }
+    try {
+      await this.controle('apply_flag_settings', { settings: { fastMode: this.rapido } }, 10000);
+      this.registrar({ tipo: 'aviso', texto: frase });
+      return { ok: true, aoVivo: true };
+    } catch (e) {
+      // O reinício redesenha a conversa: o aviso vem depois dele para ficar à vista.
+      if (this.info.ocupado) this.reiniciarDepois = 'rapido'; else this.reiniciar();
+      this.registrar({ tipo: 'aviso', texto: `${frase} O Claude não trocou ao vivo (${e.message}): a conversa reinicia com a escolha. ${AVISO_FUNDO}` });
+      return { ok: true, aoVivo: false };
+    }
+  }
+
+  // /add-dir: a pasta passa a valer em toda subida (--add-dir). Reinicia,
+  // avisando antes (o que roda em segundo plano é encerrado).
+  pastaExtra(p) {
+    const abs = path.resolve(String(p || '').replace(/^~(?=\/|$)/, os.homedir()));
+    let st = null;
+    try { st = fs.statSync(abs); } catch { /* não existe */ }
+    if (!st || !st.isDirectory()) throw new Error(`a pasta não existe: ${abs}`);
+    if (!this.pastasExtras.includes(abs)) this.pastasExtras.push(abs);
+    gravarLista();
+    const vivo = !!this.proc;
+    // O reinício redesenha a conversa: o aviso vem depois dele para ficar à vista.
+    if (vivo) { if (this.info.ocupado) this.reiniciarDepois = 'pasta'; else this.reiniciar(); }
+    this.registrar({ tipo: 'aviso', texto: `Pasta adicionada: ${abs}. ${vivo ? `A conversa reinicia para o Claude passar a trabalhar nela. ${AVISO_FUNDO}` : 'Vale a partir da próxima mensagem.'}` });
+    return abs;
+  }
+
+  // O que a tela precisa saber para os comandos do app.
+  estadoComando() {
+    return { motor: this.motor, sessao: this.sessao, titulo: this.titulo, orquestrador: this.orquestrador, init: this.initInfo,
+      info: this.info, rapido: this.rapido, pastasExtras: this.pastasExtras, vivo: !!this.proc, tarefas: [...this.tarefas.values()] };
+  }
+
+  // /new, /clear e /archive no Codex: thread nova na mesma conversa do app; a
+  // anterior vai para "anteriores" (continua no histórico do Codex).
+  threadNova() {
+    if (this.sessao) this.anteriores = [...(this.anteriores || []), this.sessao].slice(-20);
+    this.sessao = null;
+    gravarLista();
+    if (this.proc) { this.proc.reiniciando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
+    this.pendentes.clear();
+    this.info.ocupado = false;
+    this.iniciar();
+    this.registrar({ tipo: 'limpa' });
+  }
+
   guardarModo(m) {
     if (typeof m !== 'string' || !/^\w+$/.test(m) || m === this.modo) return;
     this.modo = m;
@@ -644,7 +766,8 @@ class Conversa {
 // --- lista guardada -----------------------------------------------------
 function gravarLista() {
   fs.mkdirSync(CACHE, { recursive: true });
-  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined, modo: c.modo && c.modo !== MODO_APP ? c.modo : undefined }));
+  const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined, modo: c.modo && c.modo !== MODO_APP ? c.modo : undefined,
+    rapido: c.rapido !== null ? c.rapido : undefined, pastasExtras: c.pastasExtras.length ? c.pastasExtras : undefined, forkDe: c.forkDe || undefined }));
   fs.writeFileSync(ARQ_LISTA, JSON.stringify(lista, null, 2) + '\n');
 }
 
@@ -743,6 +866,44 @@ function fechar(id) {
   return true;
 }
 
+// /branch e /fork: uma conversa nova do app com a conversa inteira copiada
+// (Claude: --resume <sessão> --fork-session; Codex: thread/fork). A original
+// fica como está. primeira: mensagem que vai logo para a conversa nova.
+async function ramificar(id, primeira = '') {
+  const c = pegar(id);
+  const titulo = `${c.orquestrador ? 'Orquestrador' : c.titulo} (ramo)`.slice(0, 60);
+  let nova;
+  if (c.motor === 'codex') {
+    if (!c.sessao) throw new Error('esta conversa ainda não começou: não há o que copiar');
+    const r = await c.codex('thread/fork', {});
+    const tid = (r && r.thread && r.thread.id) || (r && r.threadId);
+    if (!tid) throw new Error('o Codex não devolveu a conversa nova');
+    nova = new Conversa({ id: `c${Date.now().toString(36)}`, titulo, motor: 'codex', sessao: tid });
+  } else {
+    const de = c.sessao || (c.volta && c.volta.de);
+    if (!de) throw new Error('esta conversa ainda não começou: não há o que copiar');
+    nova = new Conversa({ id: `c${Date.now().toString(36)}`, titulo, forkDe: de, modelo: c.modeloEscolhido, esforco: c.esforco });
+  }
+  conversas.set(nova.id, nova);
+  gravarLista();
+  avisarLista();
+  if (primeira && String(primeira).trim()) { nova.iniciar(); nova.mandar(String(primeira).trim()); }
+  return nova.id;
+}
+
+// /resume: abre uma conversa antiga numa conversa nova do app. Se ela já está
+// aberta numa conversa, volta essa.
+function retomar(sessao, motor = 'claude', titulo = '') {
+  if (!/^[\w-]{6,80}$/.test(String(sessao || ''))) throw new Error('sessão inválida');
+  const ja = [...conversas.values()].find((c) => c.sessao === sessao);
+  if (ja) return ja.id;
+  const c = new Conversa({ id: `c${Date.now().toString(36)}`, titulo: String(titulo || 'Conversa retomada').replace(/\s+/g, ' ').trim().slice(0, 40), sessao, motor: MOTORES.includes(motor) ? motor : 'claude' });
+  conversas.set(c.id, c);
+  gravarLista();
+  avisarLista();
+  return c.id;
+}
+
 function pararTodas() { for (const c of conversas.values()) c.parar(); }
 
 // Sair do app (X ou /exit), como o /exit do terminal: encerra todas as
@@ -771,4 +932,15 @@ module.exports = {
   voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),
   configurar: (id, o) => pegar(id).configurar(o || {}),
   reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },
+  // Comandos do "/" feitos pelo app.
+  controle: (id, subtype, extra, ms) => pegar(id).controle(subtype, extra, ms),
+  codexPedir: (id, metodo, params) => pegar(id).codex(metodo, params),
+  estadoComando: (id) => pegar(id).estadoComando(),
+  rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),
+  pastaExtra: (id, p) => pegar(id).pastaExtra(p),
+  threadNova: (id) => { pegar(id).threadNova(); return true; },
+  // /stop: o processo sai (a linha "A conversa foi pausada." vem da saída dele);
+  // sem processo, só o aviso. A próxima mensagem retoma do mesmo ponto.
+  pausar: (id) => { const c = pegar(id); if (c.proc) c.parar(); else c.registrar({ tipo: 'aviso', texto: 'Conversa pausada. A próxima mensagem retoma do mesmo ponto.' }); return true; },
+  ramificar, retomar, arqTranscript, PASTA,
 };

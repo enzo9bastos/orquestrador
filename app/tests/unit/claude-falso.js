@@ -23,6 +23,12 @@
 // apply_flag_settings (esforço só da sessão) também; com $CLAUDE_FALSO_RECUSA_ESFORCO
 // ele é recusado com esse texto de erro.
 // $CLAUDE_FALSO_RECUSA_MODELO: o set_model é recusado com esse texto de erro.
+// Pedidos dos comandos do "/" que o app faz (respostas no formato do 2.1.325):
+// get_status, get_memory_dialog, get_skills_dialog, get_hooks_listing,
+// export_conversation, get_plan, get_workspace_diff, side_question,
+// submit_feedback, background_tasks, get_task_output e stop_task. "/heapdump"
+// responde como o de verdade (<local-command-stdout>). $CLAUDE_FALSO_SEM_CONTROLES:
+// esses pedidos respondem erro (Claude antigo que não os conhece).
 // $CLAUDE_FALSO_FALHA_RESUME: com --resume, escreve esse texto no stderr e sai
 // com código 1 antes do init (sessão que o Claude não abriu).
 const fs = require('fs');
@@ -50,7 +56,28 @@ const COMANDOS = (() => { try { return JSON.parse(process.env.CLAUDE_FALSO_COMAN
 const esperando = new Map(); // request_id → o que fazer quando a resposta chegar
 const texto = (t) => sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: t }] } });
 const fim = (result = 'ok') => sai({ type: 'result', subtype: 'success', is_error: false, duration_ms: 5, result, session_id: SESSAO });
-const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: modelo, permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS });
+const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: modelo, permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS, claude_code_version: '9.9.9', tools: ['Bash', 'Read'], mcp_servers: [{ name: 'falso-mcp', status: 'connected' }] });
+const HOME = require('os').homedir();
+// Respostas dos pedidos de controle dos comandos do "/".
+const CONTROLES = {
+  get_status: () => ({ sections: [{ title: 'Sessão', rows: [{ label: 'Versão', value: '9.9.9' }, { label: 'Modelo', value: modelo }, { label: 'Pasta', value: process.cwd() }] },
+    { title: 'Conta', rows: [{ label: 'Login', value: 'ana@exemplo.com' }] }] }),
+  get_memory_dialog: () => ({ files: [
+    { kind: 'user', path: require('path').join(HOME, '.claude', 'CLAUDE.md'), label: 'User memory', description: 'Saved in ~/.claude/CLAUDE.md', exists: require('fs').existsSync(require('path').join(HOME, '.claude', 'CLAUDE.md')) },
+    { kind: 'project', path: require('path').join(process.cwd(), 'CLAUDE.md'), label: 'Project memory', description: 'Saved in ./CLAUDE.md', exists: false }],
+    folders: [], auto_memory: { enabled: false, toggleable: true, status: 'off' }, auto_dream: { shown: false, enabled: false, toggleable: false, status: '', detail: '' } }),
+  get_skills_dialog: () => ({ skills: [{ name: 'rodada', display_name: 'rodada', description: 'Faz a rodada', source: 'user', tokens: 120, state: 'on', advertised: true },
+    { name: 'pesada', display_name: 'pesada', description: 'Skill grande', source: 'user', tokens: 4000, state: 'on', advertised: true }] }),
+  get_hooks_listing: () => ({ events: [], hooks: [{ event: 'Stop', matcher: '', source: 'pluginHook', sourceLabel: 'Plugin falso', type: 'command', displayText: 'echo fim' }] }),
+  export_conversation: () => ({ text: 'Você: oi\n\nClaude: ok\n', default_filename: '2026-11-16-oi.txt' }),
+  get_plan: () => ({ exists: true, content: '# Plano falso\n\n1. Ler\n2. Fazer', path: '/tmp/plano.md' }),
+  get_workspace_diff: () => ({ diff: { stats: { filesCount: 1, linesAdded: 3, linesRemoved: 1 }, perFileStats: [{ path: 'app/x.js', added: 3, removed: 1, isBinary: false, isUntracked: false }], hunks: [] } }),
+  side_question: (r) => ({ response: `resposta de lado para: ${r.question}` }),
+  submit_feedback: () => ({ feedback_id: 'fb-falso-1' }),
+  background_tasks: () => ({}),
+  get_task_output: (r) => ({ output: `saída da tarefa ${r.task_id}` }),
+  stop_task: () => ({}),
+};
 const saidaLocal = (t) => { sai({ type: 'user', message: { role: 'user', content: `<local-command-stdout>${t}</local-command-stdout>` }, session_id: SESSAO }); fim(t); };
 const responde = (d, response = {}) => sai({ type: 'control_response', response: { subtype: 'success', request_id: d.request_id, response } });
 
@@ -76,6 +103,10 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
       return responde(d);
     }
     if (r.subtype === 'interrupt') return responde(d);
+    if (CONTROLES[r.subtype]) {
+      if (process.env.CLAUDE_FALSO_SEM_CONTROLES) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: `Unsupported control request subtype: ${r.subtype}` } });
+      return responde(d, CONTROLES[r.subtype](r));
+    }
     return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: `pedido desconhecido: ${r.subtype}` } });
   }
   if (d.type !== 'user') return;
@@ -89,6 +120,7 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
     return fim('');
   }
   init();
+  if (t === '/heapdump') return saidaLocal(`Heap dump written to ${HOME}/falso.heapsnapshot`);
   let m = /^\/effort (\S+)$/.exec(t);
   if (m) return saidaLocal(`Set effort level to ${m[1]} (this session only): falso`);
   m = /^\/config permissionMode=(\S+)$/.exec(t);

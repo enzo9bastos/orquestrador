@@ -16,7 +16,7 @@ async function digitar(app, v) {
   await app.avaliar(`(() => { const e = document.getElementById('entrada'); e.focus(); e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input')); })()`);
 }
 
-test('0.B7: a lista do "/" vem de uma fonte só: o que o app trata + o init; mortos somem; lista negra cinza', async (t) => {
+test('0.B7: a lista do "/" vem de uma fonte só e tem TODOS os comandos: nada some, nada cinza', async (t) => {
   const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-')), 'log.jsonl');
   process.env.CLAUDE_FALSO_LOG = log;
   process.env.CLAUDE_FALSO_COMANDOS = JSON.stringify(['compact', 'agents', 'fast', 'doctor']);
@@ -27,77 +27,68 @@ test('0.B7: a lista do "/" vem de uma fonte só: o que o app trata + o init; mor
   await app.avaliar("window.orq.conversa.mandar('orquestrador', 'oi')");
   await app.esperar("[...document.querySelectorAll('#mensagens .texto-claude')].some((e) => e.textContent.trim() === 'ok')", 10000);
 
-  await t.test('sem os sete comandos mortos; com os do app, os do init e a skill /doctor', async () => {
+  await t.test('os que o 0.B7 tirava ou deixava cinza aparecem, nenhum cinza; com os do app, os do init e a skill /doctor', async () => {
     await digitar(app, '/');
     await app.esperar("!document.getElementById('sugestoes').hidden");
     const l = await app.avaliar(sugestoes);
     const nomes = l.map((x) => x.nome);
-    for (const m of ['/status', '/memory', '/hooks', '/help', '/release-notes', '/todos', '/cost']) assert.ok(!nomes.includes(m), `${m} não existe no -p e apareceu`);
+    for (const m of ['/status', '/memory', '/hooks', '/help', '/release-notes', '/todos', '/agents', '/fast', '/heapdump', '/workflow-launch-exec'])
+      assert.ok(nomes.includes(m), `${m} sumiu da lista`);
     for (const n of ['/restart', '/model', '/effort', '/config', '/permissions', '/compact', '/doctor', '/exit']) assert.ok(nomes.includes(n), `faltou ${n}`);
-    assert.ok(!l.find((x) => x.nome === '/doctor').bloqueado, '/doctor é skill: não esconder');
-  });
-
-  await t.test('/agents e /fast aparecem cinza, com o "use X", depois dos bons e antes do /exit', async () => {
-    const l = await app.avaliar(sugestoes);
-    for (const n of ['/agents', '/fast']) {
-      const x = l.find((i) => i.nome === n);
-      assert.ok(x && x.bloqueado, `${n} não está cinza`);
-      assert.match(x.texto, /use /, `${n} sem a dica do que usar`);
-      assert.ok(!x.selecionada);
-    }
-    const iBloq = l.findIndex((x) => x.bloqueado), iBom = l.map((x) => !x.bloqueado && x.nome !== '/exit').lastIndexOf(true);
-    assert.ok(iBloq > iBom, 'bloqueado no meio dos bons');
+    assert.ok(!l.some((x) => x.bloqueado), 'algum comando está cinza');
     assert.strictEqual(l.at(-1).nome, '/exit');
-    assert.ok(!l[0].bloqueado && l[0].nome !== '/exit' && l[0].selecionada);
+    assert.ok(l[0].nome !== '/exit' && l[0].selecionada);
   });
 
-  await t.test('"/age": nada selecionado e o Enter não completa o /agents', async () => {
-    await digitar(app, '/age');
+  await t.test('"/cos" acha o /usage pelo alias /cost', async () => {
+    await digitar(app, '/cos');
     await app.esperar("!document.getElementById('sugestoes').hidden");
-    await app.tecla('Enter', 'Enter', 13);
-    assert.strictEqual(await app.avaliar("document.getElementById('entrada').value"), '/age');
+    const l = await app.avaliar(sugestoes);
+    assert.strictEqual(l[0].nome, '/usage');
+    assert.match(l[0].texto, /cost/);
   });
 
-  await t.test('/agents digitado inteiro não é enviado: aviso com o que usar e o texto fica na caixa', async () => {
+  await t.test('/agents digitado inteiro abre o popup dos subagentes e não vai ao Claude como texto', async () => {
     await digitar(app, '/agents');
     await app.tecla('Escape', 'Escape', 27);
     await app.avaliar("document.getElementById('compositor').requestSubmit()");
-    await app.esperar("!!document.querySelector('#mensagens .aviso-comando')");
-    assert.match(await app.avaliar("document.querySelector('#mensagens .aviso-comando').innerText"), /\/agents.*use a aba Repertório/s);
-    assert.strictEqual(await app.avaliar("document.getElementById('entrada').value"), '/agents');
+    await app.esperar("!!document.querySelector('#popup:not([hidden]) .cmd-popup[data-cmd=\"agents\"]')");
     await app.espera(300);
     const mandados = linhas(log).filter((o) => o.type === 'user').map((o) => JSON.stringify(o.message.content));
     assert.ok(!mandados.some((m) => m.includes('/agents')), 'o /agents foi mandado ao Claude');
-    await digitar(app, '');
+    await app.tecla('Escape', 'Escape', 27);
   });
 
-  await t.test('a paleta (Ctrl+K) não oferece os da lista negra nem os mortos', async () => {
+  await t.test('a paleta (Ctrl+K) oferece os mesmos comandos, sem cortar nenhum', async () => {
     await app.avaliar('window.orqPaleta.abrir()');
     const titulos = await app.avaliar("[...document.querySelectorAll('.paleta-lista .paleta-item .titulo')].map((x) => x.textContent)");
-    assert.ok(titulos.includes('/compact') && titulos.includes('/exit'));
-    for (const n of ['/agents', '/fast', '/status', '/cost', '/help']) assert.ok(!titulos.includes(n), `${n} na paleta`);
+    for (const n of ['/compact', '/exit', '/agents', '/fast', '/status', '/usage', '/help']) assert.ok(titulos.includes(n), `${n} fora da paleta`);
     await app.tecla('Escape', 'Escape', 27);
   });
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
 
-test('0.B8: numa conversa Codex, /config e /permissions não abrem os popups do Claude nem vão ao Codex', async (t) => {
+test('0.B8: numa conversa Codex, /config e /permissions abrem a tela do Codex no terminal: nem popup do Claude, nem texto ao Codex', async (t) => {
   const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-codex-falso-')), 'log.jsonl');
   process.env.CODEX_FALSO_LOG = log;
   const app = await abrirApp({ config: { iaOrquestrador: 'codex', iasCaminhos: { codex: CODEX_FALSO } }, arquivos: { '.claude/settings.json': '{"permissions":{"allow":[]}}' } });
   t.after(() => app.fechar());
   await app.esperar('!!window.__orqTeste');
   await app.esperar("(document.getElementById('entrada').placeholder || '').length > 0");
+  // O terminal do app: anota o que seria colado (sem abrir shell no teste).
+  await app.avaliar('window.__colado = []; window.orqTerminal = { colar: async (t) => { window.__colado.push(t); return true; } }');
+  await app.esperar("window.orq.comandos.estado('orquestrador').then((e) => !!e.sessao)", 8000);
 
   for (const cmd of ['/config', '/permissions']) {
-    await t.test(`${cmd}: aviso "ainda não disponível no Codex", sem popup e sem turn/start`, async () => {
-      const antes = await app.avaliar("document.querySelectorAll('#mensagens .aviso-comando').length");
+    await t.test(`${cmd}: o Codex com a conversa vai para o terminal do app, sem popup e sem turn/start`, async () => {
+      const antes = await app.avaliar("document.querySelectorAll('#mensagens .aviso-conversa').length");
       await digitar(app, cmd);
       await app.tecla('Escape', 'Escape', 27);
       await app.avaliar("document.getElementById('compositor').requestSubmit()");
-      await app.esperar(`document.querySelectorAll('#mensagens .aviso-comando').length > ${antes}`);
-      assert.match(await app.avaliar("[...document.querySelectorAll('#mensagens .aviso-comando')].pop().innerText"), /ainda não disponível no Codex/);
+      await app.esperar(`document.querySelectorAll('#mensagens .aviso-conversa').length > ${antes}`);
+      assert.match(await app.avaliar("[...document.querySelectorAll('#mensagens .aviso-conversa')].pop().innerText"), new RegExp(`terminal do Codex.*${cmd}`, 's'));
+      assert.match(await app.avaliar('window.__colado.at(-1)'), /fork/);
       assert.strictEqual(await app.avaliar("document.getElementById('popup').hidden"), true, 'o popup do Claude abriu');
       await app.espera(300);
       const turnos = linhas(log).filter((o) => o.method === 'turn/start').map((o) => JSON.stringify(o.params));

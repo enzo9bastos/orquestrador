@@ -323,6 +323,81 @@ ipcMain.handle('conversa:reiniciar', (_e, id) => conversa.reiniciar(id));
 ipcMain.handle('conversa:nova', () => conversa.nova());
 ipcMain.handle('conversa:fechar', (_e, id) => conversa.fechar(id));
 
+// --- comandos do "/" que o app faz (comandos.js, renderer/comandos-tela.js) ----
+// Cada um devolve o resultado ou { erro } (a tela mostra o erro no popup).
+const comandosApp = require('./comandos-app');
+const seguro = (fn) => async (_e, ...a) => { try { return await fn(...a); } catch (e) { return { erro: String((e && e.message) || e) }; } };
+// Só os pedidos que os comandos usam: a tela não manda pedido qualquer ao motor.
+const CONTROLES = ['get_status', 'get_memory_dialog', 'get_skills_dialog', 'get_hooks_listing', 'export_conversation', 'get_plan',
+  'get_workspace_diff', 'side_question', 'submit_feedback', 'stop_task', 'background_tasks', 'get_task_output', 'set_permission_mode', 'mcp_status'];
+const METODOS_CODEX = ['thread/compact/start', 'review/start', 'thread/name/set', 'thread/list', 'thread/archive', 'thread/backgroundTerminals/list',
+  'thread/backgroundTerminals/clean', 'mcpServerStatus/list', 'skills/list', 'hooks/list', 'account/rateLimits/read', 'config/read'];
+const pastaDa = (id) => { const e = conversa.estadoComando(id); return (e.init && e.init.pasta) || e.info.pasta || conversa.PASTA; };
+ipcMain.handle('cmd:controle', seguro((id, subtype, extra = {}) => {
+  if (!CONTROLES.includes(subtype)) throw new Error(`pedido não liberado: ${subtype}`);
+  return conversa.controle(id, subtype, extra && typeof extra === 'object' ? extra : {}, subtype === 'side_question' ? 120000 : 20000);
+}));
+ipcMain.handle('cmd:codex', seguro((id, metodo, params = {}) => {
+  if (!METODOS_CODEX.includes(metodo)) throw new Error(`método não liberado: ${metodo}`);
+  return conversa.codexPedir(id, metodo, params && typeof params === 'object' ? params : {});
+}));
+ipcMain.handle('cmd:estado', seguro((id) => conversa.estadoComando(id)));
+ipcMain.handle('cmd:rapido', seguro((id, ligar) => conversa.rapido(id, !!ligar)));
+ipcMain.handle('cmd:pastaExtra', seguro((id, p) => ({ pasta: conversa.pastaExtra(id, p) })));
+ipcMain.handle('cmd:threadNova', seguro((id) => conversa.threadNova(id)));
+ipcMain.handle('cmd:pausar', seguro((id) => conversa.pausar(id)));
+ipcMain.handle('cmd:ramificar', seguro(async (id, msg) => ({ id: await conversa.ramificar(id, typeof msg === 'string' ? msg.slice(0, 20000) : '') })));
+ipcMain.handle('cmd:retomar', seguro((sessao, motor, titulo) => ({ id: conversa.retomar(sessao, motor, titulo) })));
+ipcMain.handle('cmd:memoria', seguro(async (id) => {
+  let dialogo = null;
+  try { dialogo = await conversa.controle(id, 'get_memory_dialog', {}, 8000); } catch { /* sem resposta: os caminhos conhecidos */ }
+  return comandosApp.memoria(pastaDa(id), dialogo);
+}));
+ipcMain.handle('cmd:lerArquivo', seguro((p) => comandosApp.lerArquivo(p)));
+ipcMain.handle('cmd:gravarArquivo', seguro((p, conteudo, mtime) => comandosApp.gravarArquivo(p, conteudo, mtime)));
+ipcMain.handle('cmd:keybindings', seguro(() => comandosApp.lerArquivo(comandosApp.keybindings())));
+ipcMain.handle('cmd:hooks', seguro(async (id) => {
+  let listagem = null;
+  try { listagem = await conversa.controle(id, 'get_hooks_listing', {}, 8000); } catch { /* só os dos arquivos */ }
+  return { arquivos: comandosApp.hooks(pastaDa(id)), listagem };
+}));
+ipcMain.handle('cmd:gravarHooks', seguro((id, caminho, texto, confirmado) => comandosApp.gravarHooks(pastaDa(id), caminho, texto, confirmado === true)));
+ipcMain.handle('cmd:agentes', seguro((id) => comandosApp.agentes(pastaDa(id))));
+ipcMain.handle('cmd:criarAgente', seguro((id, dados) => comandosApp.criarAgente(pastaDa(id), dados || {})));
+ipcMain.handle('cmd:custoApagarAgente', seguro((p) => comandosApp.custoApagarAgente(p)));
+ipcMain.handle('cmd:apagarAgente', seguro((p, confirmado) => comandosApp.apagarAgente(p, confirmado === true)));
+ipcMain.handle('cmd:todos', seguro((id) => {
+  const e = conversa.estadoComando(id);
+  if (!e.sessao) return { achou: false, itens: [] };
+  return comandosApp.todos(conversa.arqTranscript(e.sessao));
+}));
+ipcMain.handle('cmd:notasVersao', seguro((id) => { const e = conversa.estadoComando(id); return comandosApp.notasVersao(e.init && e.init.versao); }));
+ipcMain.handle('cmd:sessoes', seguro(async (id) => {
+  const abertas = conversa.lista().map((c) => conversa.estadoComando(c.id).sessao).filter(Boolean);
+  return comandosApp.sessoes(path.dirname(conversa.arqTranscript('x')), abertas);
+}));
+ipcMain.handle('cmd:diffGit', seguro((id) => comandosApp.diffGit(pastaDa(id))));
+ipcMain.handle('cmd:salvarTexto', seguro(async (nome, texto) => {
+  const r = await dialog.showSaveDialog(janela, { title: t('Salvar a conversa'), defaultPath: path.join(os.homedir(), String(nome || 'conversa.txt').replace(/[/\\]/g, '-')) });
+  if (r.canceled || !r.filePath) return { cancelado: true };
+  if (fs.existsSync(r.filePath)) throw new Error(`${r.filePath} já existe; escolha outro nome (o app não grava por cima)`);
+  return comandosApp.salvarTexto(r.filePath, texto);
+}));
+// Comando que só existe na tela do terminal: a linha que abre o motor com esta
+// conversa e o comando. A tela cola no terminal do app SEM executar.
+const aspasShell = (s) => `'${String(s).replace(/'/g, "'\\''")}'`;
+ipcMain.handle('cmd:linhaTerminal', seguro((id, comando) => {
+  const e = conversa.estadoComando(id);
+  const caminhos = config.ler().iasCaminhos;
+  const cmd = String(comando || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 2000);
+  if (e.motor === 'codex') {
+    const bin = aspasShell(ias.comando('codex', caminhos));
+    return { linha: e.sessao ? `${bin} fork ${aspasShell(e.sessao)}` : bin, digitar: cmd };
+  }
+  const bin = aspasShell(ias.comando('claude', caminhos));
+  return { linha: `${bin}${e.sessao ? ` --resume ${aspasShell(e.sessao)} --fork-session` : ''} ${aspasShell(cmd)}`, digitar: null };
+}));
+
 // --- configurações --------------------------------------------------------
 // A tela só lê o que precisa para desenhar; grava só a aparência.
 // A tela lê a configuração como está escrita (sem expandir ~) e grava

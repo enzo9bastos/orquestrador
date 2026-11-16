@@ -1490,13 +1490,54 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .cartao-aprovacao .texto-aprovacao { white-space: pre-wrap; font-size: 13px; line-height: 1.5; color: var(--fg-2); }
 
 /* --- P0 tela (0.B7, 0.B8, 0.B10, 0.B11) ------------------------------------ */
-/* Lista do "/": comando da lista negra aparece cinza, com o que usar no lugar. */
-.sugestoes li.bloqueado { cursor: default; opacity: .55; }
-.sugestoes li.bloqueado:hover { background: none; }
-.sugestoes li.bloqueado .nome-comando { color: var(--fg-4); text-decoration: line-through; text-decoration-thickness: 1px; }
-.dica-bloqueado { margin-right: 8px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--borda); color: var(--fg-2); font-size: 11px; }
-/* Aviso de comando que não foi (lista negra, ou do Claude numa conversa Codex). */
+/* Aviso sobre um comando (o que falta escrever depois dele, por exemplo). */
 .aviso-comando code { font: 11.5px var(--mono); color: var(--fg-2); }
+
+/* --- comandos do "/" que o app faz (comandos-tela.js) ----------------------- */
+.cmd-popup { display: grid; gap: 2px; }
+.cmd-popup h4 { margin: 14px 18px 4px; font-size: 13px; font-weight: 600; color: var(--fg); }
+.cmd-popup h4 code { font: 400 11px var(--mono); color: var(--fg-4); margin-left: 4px; }
+.cmd-contagem { font: 400 11px var(--mono); color: var(--fg-4); margin-left: 6px; }
+.cmd-tabela { width: calc(100% - 36px); margin: 4px 18px; border-collapse: collapse; font-size: 12.5px; }
+.cmd-tabela th, .cmd-tabela td { text-align: left; vertical-align: top; padding: 5px 8px; border-bottom: 1px solid var(--borda); }
+.cmd-tabela th { width: 34%; font-weight: 500; color: var(--fg-3); }
+.cmd-tabela td { color: var(--fg); overflow-wrap: anywhere; }
+.cmd-ajuda th { width: 26%; }
+.cmd-ajuda code { font: 12px var(--mono); color: var(--claude); }
+.cmd-ajuda small { font: 10.5px var(--mono); color: var(--fg-4); }
+.cmd-jeito { width: 18%; color: var(--fg-4) !important; font-size: 11.5px; }
+.cmd-lista { list-style: none; margin: 4px 18px; padding: 0; display: grid; gap: 4px; }
+.cmd-lista > li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 8px; border-radius: var(--r-sm); background: var(--bg-afundado); font-size: 12.5px; }
+.cmd-lista code { font: 11.5px var(--mono); color: var(--fg-3); overflow-wrap: anywhere; }
+.cmd-item { flex: 1; display: grid; gap: 2px; text-align: left; padding: 4px 2px; min-width: 0; }
+.cmd-item strong { font-weight: 500; color: var(--fg); }
+.cmd-item span { color: var(--fg-3); font-size: 12px; }
+.cmd-item em { color: var(--fg-4); font-size: 11px; font-style: normal; }
+.cmd-item:hover strong { color: var(--claude); }
+.cmd-secao { padding-bottom: 6px; border-bottom: 1px solid var(--borda); }
+.cmd-secao > .botao-texto { margin: 2px 18px 6px; }
+.cmd-editor { display: block; width: calc(100% - 36px); min-height: 260px; margin: 6px 18px; padding: 10px; border-radius: var(--r-sm); border: 1px solid var(--borda-forte); background: var(--bg-afundado); color: var(--fg); font: 12.5px/1.5 var(--mono); resize: vertical; }
+.cmd-pre { margin: 6px 18px; padding: 10px; max-height: 50vh; overflow: auto; border-radius: var(--r-sm); background: var(--bg-afundado); font: 12px/1.5 var(--mono); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cmd-acoes { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 0; }
+.botao.perigo { background: var(--perigo); color: #fff; }
+.cmd-erro { margin: 8px 18px; color: var(--perigo); font-size: 12.5px; }
+.cmd-popup > p:not(.popup-nota):not(.cmd-erro) { margin: 12px 18px 4px; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
+.cmd-popup details { margin: 4px 18px; }
+.cmd-popup details summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 4px 0; }
+.cmd-popup .md { font-size: 12.5px; }
+.cmd-todos { list-style: none; margin: 6px 18px; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.cmd-todos li { display: flex; gap: 8px; }
+.cmd-todos .marca { color: var(--claude); }
+.cmd-todos .todo-completed span:last-child { color: var(--fg-4); text-decoration: line-through; }
+.cmd-saida { flex-basis: 100%; }
+.estado-running { color: var(--claude); font-size: 11.5px; }
+.estado-failed { color: var(--perigo); font-size: 11.5px; }
+.estado-completed, .estado-stopped { color: var(--fg-4); font-size: 11.5px; }
+.mais { color: #16a34a; } .menos { color: var(--perigo); }
+/* Cartão de um comando na conversa (a resposta do /btw). */
+.cartao-comando { margin: 8px 0 8px 32px; padding: 10px 14px; border-radius: var(--r-md, 10px); border: 1px dashed var(--borda-forte); background: var(--bg-afundado); }
+.cartao-comando .cartao-titulo { font: 600 10px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--claude); margin-bottom: 4px; }
+.cartao-comando .cartao-pergunta { font-size: 13px; color: var(--fg-2); margin-bottom: 6px; }
 /* Link na conversa: dica com o endereço de verdade e confirmação de domínio. */
 .mensagens a[href] { cursor: pointer; }
 .dica-link { position: fixed; z-index: 60; max-width: min(520px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; pointer-events: none;
