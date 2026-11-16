@@ -1594,6 +1594,10 @@ body.sem-demandas { --larg-inspetor: 0px; }
    conteúdo some antes, para não ver o texto se espremer. */
 .lateral, .inspetor { transition: opacity .12s ease, visibility 0s linear 0s; }
 body.sem-agentes .lateral, body.sem-demandas .inspetor { opacity: 0; visibility: hidden; border-width: 0; padding-left: 0; padding-right: 0; transition: opacity .1s ease, visibility 0s linear .16s; }
+/* Largura zero não segura os blocos de dentro (eles guardam o preenchimento
+   lateral): sem cortar, a caixa deles passava da borda e a página rolava
+   para o lado por programa. */
+body.sem-demandas .inspetor { overflow: hidden; }
 .alternar-coluna { position: relative; flex: none; }
 .alternar-coluna.recolhida { color: var(--fg-2); }
 .alternar-coluna .sinal-coluna {
@@ -1636,6 +1640,8 @@ body.sem-agentes.sem-demandas { --larg-nota: min(1080px, max(760px, 52%)); }
 .sem-transicao .barra-nota { transition: none; } /* testes de tela: a janela não anima */
 
 /* Faixa "reinicie para aplicar a atualização" (recarga.js) */
-#faixa-reinicio { position: fixed; left: 150px; top: 3px; z-index: 9000; display: flex; align-items: center; gap: 10px;
-  max-width: calc(100vw - 160px); height: 33px; padding: 0 6px 0 12px; border: 1px solid var(--borda-forte); border-radius: 8px; background: var(--bg-elevado); color: inherit; font-size: 12.5px; white-space: nowrap; -webkit-app-region: no-drag; }
+#faixa-reinicio { position: relative; z-index: 9000; flex: 0 1 auto; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 10px;
+  height: 33px; padding: 0 6px 0 12px; border: 1px solid var(--borda-forte); border-radius: 8px; background: var(--bg-elevado); color: inherit; font-size: 12.5px; white-space: nowrap; -webkit-app-region: no-drag; }
+#faixa-reinicio > span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#faixa-reinicio > button { flex: none; }
 #faixa-reinicio .botao, #faixa-reinicio .botao-texto { padding: 2px 9px; font-size: 12px; }

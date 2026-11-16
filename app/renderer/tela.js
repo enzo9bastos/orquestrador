@@ -517,13 +517,16 @@ setInterval(atualizar, 2000);
 
 // Atualização que mexe no processo principal: a tela não recarrega sozinha
 // (ficaria falando com um processo antigo); aparece esta faixa pedindo o reinício.
+// Ela entra na barra de cima, antes do espaço livre: ocupa só o que sobra entre
+// os botões (o texto encolhe com reticências) e nunca cobre nenhum deles.
 function avisoDeReinicio() {
   if (document.getElementById('faixa-reinicio')) return;
   const el = document.createElement('div');
   el.id = 'faixa-reinicio';
   el.setAttribute('role', 'status');
-  el.innerHTML = '<span>Atualização pronta. Reinicie o app para aplicar: as conversas continuam.</span> <button type="button" class="botao primario" id="faixa-reinicio-agora">Reiniciar agora</button> <button type="button" class="botao-texto" id="faixa-reinicio-depois">Depois</button>';
-  document.body.append(el);
+  el.innerHTML = '<span title="Atualização pronta. Reinicie o app para aplicar: as conversas continuam.">Atualização pronta. Reinicie o app para aplicar: as conversas continuam.</span> <button type="button" class="botao primario" id="faixa-reinicio-agora">Reiniciar agora</button> <button type="button" class="botao-texto" id="faixa-reinicio-depois">Depois</button>';
+  const vao = document.querySelector('.topo .espaco-topo');
+  if (vao) vao.before(el); else document.body.append(el);
   el.querySelector('#faixa-reinicio-agora').addEventListener('click', () => window.orq.app.reiniciar());
   el.querySelector('#faixa-reinicio-depois').addEventListener('click', () => el.remove());
 }

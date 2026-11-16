@@ -230,3 +230,31 @@ test('colunas: em inglês as dicas dos botões e o sinal estão traduzidos', asy
   assert.strictEqual(await app.avaliar("document.getElementById('coluna-demandas').getAttribute('aria-label')"), 'Requests and approvals');
   assert.deepStrictEqual(app.erros, []);
 });
+
+// Coluna recolhida tem largura zero, mas os blocos de dentro guardam o
+// preenchimento lateral: sem cortar, a caixa deles passava da borda da janela
+// e a página rolava para o lado por programa (um scrollIntoView deslocava a
+// tela inteira).
+test('colunas: com coluna recolhida a janela não rola para o lado', async (t) => {
+  const app = await abrirApp({ config: { mostrarBichinho: false } });
+  t.after(() => app.fechar());
+  await app.esperar('!!window.orqColunas && !!window.__orqLateral');
+  await estadoFalso(app, PRECISA);
+  await app.esperar("document.querySelectorAll('.cartao-agente').length === 3", 6000);
+  const rolagem = () => app.avaliar(`(() => {
+    const se = document.scrollingElement; se.scrollLeft = 200; const andou = se.scrollLeft; se.scrollLeft = 0;
+    return { largura: document.documentElement.scrollWidth, janela: innerWidth, andou };
+  })()`);
+  for (const [larg, alt] of [[1480, 900], [1920, 1080]]) {
+    await app.tamanho(larg, alt);
+    for (const [nome, agentes, demandas] of [['abertas', true, true], ['demandas recolhida', true, false], ['agentes recolhida', false, true], ['as duas recolhidas', false, false]]) {
+      await app.avaliar(`window.orqColunas.definir('agentes', ${agentes}); window.orqColunas.definir('demandas', ${demandas})`);
+      await pousou(app, agentes, demandas);
+      await app.espera(250);
+      const r = await rolagem();
+      assert.strictEqual(r.largura, r.janela, `${larg} px, ${nome}: a página tem ${r.largura} px de largura numa janela de ${r.janela}`);
+      assert.strictEqual(r.andou, 0, `${larg} px, ${nome}: a página rolou ${r.andou} px para o lado`);
+    }
+  }
+  assert.deepStrictEqual(app.erros, []);
+});
