@@ -141,8 +141,11 @@ function criarJanela() {
 // Cada terminal é um shell próprio, guardado aqui no processo principal: a tela
 // recarregar não derruba nenhum, e ao voltar ela recebe o que já passou.
 const MAX_TERMINAIS = 4;
-const terminais = new Map(); // id → { pty, historico, sessao }
+const terminais = new Map(); // id → { pty, historico (lista de pedaços), sessao }
+const envios = require('./envios');
 const enviar = (canal, ...a) => janela && janela.webContents.send(canal, ...a);
+// Saída dos terminais: junta a cada 16 ms (um quadro) em vez de um envio por pedaço.
+const loteTerminal = envios.criarLoteTerminal({ enviar });
 
 ipcMain.handle('pty:lista', () => [...terminais].map(([id, t]) => ({ id, sessao: t.sessao })));
 // sessao: nome de uma sessão tmux de agente para anexar (o "Abrir terminal" da
@@ -150,7 +153,8 @@ ipcMain.handle('pty:lista', () => [...terminais].map(([id, t]) => ({ id, sessao:
 ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
   const t = terminais.get(id);
   if (t) {
-    enviar('pty:dados', id, t.historico);
+    loteTerminal.descartar(id); // o histórico já tem o que ainda não saiu
+    enviar('pty:dados', id, t.historico.texto());
     try { t.pty.resize(cols, rows); } catch { /* fechou */ }
     return true;
   }
@@ -161,11 +165,11 @@ ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
   const p = pty.spawn('bash', ['-lc', comando], {
     name: 'xterm-256color', cols, rows, cwd: os.homedir(), env: conversa.ambienteLimpo(),
   });
-  const novo = { pty: p, historico: '', sessao: sessao || null };
+  const novo = { pty: p, historico: envios.criarHistorico(200000), sessao: sessao || null };
   terminais.set(id, novo);
   p.onData((d) => {
-    novo.historico = (novo.historico + d).slice(-200000);
-    enviar('pty:dados', id, d);
+    novo.historico.add(d);
+    loteTerminal.dados(id, d);
   });
   // "Abrir terminal" de agente que não anexou (sem tmux no PATH, sessão que já
   // acabou): sai na hora com erro. A tela avisa com o motivo, em vez de o
@@ -173,8 +177,9 @@ ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
   const inicio = Date.now();
   p.onExit(({ exitCode } = {}) => {
     terminais.delete(id);
+    loteTerminal.esvaziar(id); // o que sobrou sai antes do aviso de saída
     const falhou = !!sessao && exitCode !== 0 && Date.now() - inicio < 5000;
-    enviar('pty:saiu', id, falhou ? { falhou: true, motivo: ultimaLinha(novo.historico) } : null);
+    enviar('pty:saiu', id, falhou ? { falhou: true, motivo: ultimaLinha(novo.historico.texto()) } : null);
   });
   return true;
 });
@@ -266,7 +271,7 @@ ipcMain.handle('arquivos:escolher', async () => {
 ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janela && janela.webContents.send('notas:mudou', m)));
 
 // --- conversas (orquestrador e avulsas) -----------------------------------
-conversa.ligar((canal, dado) => enviar(canal, dado));
+conversa.ligar((canal, dado) => enviar(canal, dado), { lote: true });
 
 // Notificação do app quando uma conversa precisa do usuário (no lugar de hook
 // do Claude). Clicar traz a janela e abre a conversa certa.

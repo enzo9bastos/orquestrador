@@ -1000,7 +1000,8 @@ carregarLista();
 
 module.exports = {
   usuarioEscreveu, _pegar: (id) => pegar(id),
-  ligar: (fn) => { enviarTela = fn; },
+  // { lote: true }: os envios de cada conversa se juntam num `conversa:lote` a cada 50 ms (envios.js).
+  ligar: (fn, opc) => { enviarTela = opc && opc.lote ? require('./envios').criarLote({ enviar: fn }).enviar : fn; },
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade
   lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _pontoDeVoltaArquivo: pontoDeVoltaDoArquivo, _arqTranscript: arqTranscript, _historico: historicoDoTranscript,
