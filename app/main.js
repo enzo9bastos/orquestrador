@@ -64,6 +64,14 @@ function pedirReinicio() {
   reinicioPedido = true;
   notificar({ title: t('Orquestração'), body: t('Atualização pronta. Reinicie o app para aplicar (as conversas continuam).') });
 }
+// Publicação que muda só o código de fora da tela (main.js, conversa.js, bin/…)
+// não mexe em renderer/ e não dispara a vigia da tela (criarJanela): esta vigia
+// o HEAD do git e pede o reinício — veja recarga.js. Desligada nos testes de
+// tela (um commit no worktree durante a bateria acenderia a faixa à toa), salvo
+// quando o próprio teste pede (ORQ_APP_VIGIAR_PRINCIPAL=1).
+if (process.env.ORQ_APP_E2E !== '1' || process.env.ORQ_APP_VIGIAR_PRINCIPAL === '1') {
+  require('./recarga').vigiarPrincipal({ pastaApp: __dirname, inicio: versaoNoInicio, aoMudar: pedirReinicio });
+}
 
 function criarJanela() {
   // Testes de tela (ORQ_APP_E2E=1): janela escondida, desenhando por trás, para

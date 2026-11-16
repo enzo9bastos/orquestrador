@@ -14,7 +14,10 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // casaExistente: reabre o app na mesma casa temporária de uma abertura anterior
 // (para provar o que sobrevive a reiniciar); a configuração não é regravada.
-async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null } = {}) {
+// pasta: abre o app de outra pasta (uma cópia num repositório git temporário,
+// para o teste fazer commit sem tocar no repositório de verdade). env: variáveis
+// a mais para o app (a casa e as marcas de teste continuam valendo).
+async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null, pasta = null, env = {} } = {}) {
   const casa = casaExistente || fs.mkdtempSync(path.join(os.tmpdir(), 'orq-tela-'));
   const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
   fs.mkdirSync(path.dirname(cfg), { recursive: true });
@@ -29,8 +32,8 @@ async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null
   const dados = path.join(casa, '.config', 'orquestrador');
   const arqPorta = path.join(dados, 'DevToolsActivePort');
   try { fs.unlinkSync(arqPorta); } catch { /* casa nova, ou reaberta sem o arquivo */ }
-  const proc = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '..', '..'), '--remote-debugging-port=0', `--user-data-dir=${dados}`], {
-    env: { ...process.env, HOME: casa, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) }, stdio: 'ignore',
+  const proc = spawn(process.env.ORQ_ELECTRON, [pasta || path.join(__dirname, '..', '..'), '--remote-debugging-port=0', `--user-data-dir=${dados}`], {
+    env: { ...process.env, ...env, HOME: casa, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) }, stdio: 'ignore',
   });
   let saiu = false;
   proc.once('exit', () => { saiu = true; });
