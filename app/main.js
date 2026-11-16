@@ -25,6 +25,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 const pty = require('node-pty');
 const coletor = require('./coletor');
+const medidor = require('./medidor');
 const conversa = require('./conversa');
 const notas = require('./notas');
 const permissoes = require('./permissoes');
@@ -45,6 +46,16 @@ const ORQUESTRADOR = process.env.ORQ_APP_ORQUESTRADOR || 'exec bash';
 
 let janela;
 const avisados = new Set();
+
+// A versão do código do processo principal quando o app abriu (recarga.js).
+const versaoNoInicio = require('./recarga').versaoDoPrincipal(__dirname);
+let reinicioPedido = false;
+function pedirReinicio() {
+  if (janela && !janela.isDestroyed()) janela.webContents.send('app:precisa-reiniciar');
+  if (reinicioPedido) return;
+  reinicioPedido = true;
+  notificar({ title: t('Orquestração'), body: t('Atualização pronta. Reinicie o app para aplicar (as conversas continuam).') });
+}
 
 function criarJanela() {
   // Testes de tela (ORQ_APP_E2E=1): janela escondida, desenhando por trás, para
@@ -114,7 +125,14 @@ function criarJanela() {
     setTimeout(async () => {
       for (let i = 0; i < 30 && espera === rodada; i++) {
         if (await require('./recarga').publicado(path.join(__dirname, 'renderer'))) {
-          if (janela && !janela.isDestroyed()) janela.webContents.reload();
+          // Só a tela mudou: recarrega. Mudou também o processo principal ou a
+          // ponte: a tela nova não combina com o processo que está rodando;
+          // fica a tela atual e o app pede para reiniciar.
+          const agora = await require('./recarga').versaoDoPrincipal(__dirname);
+          const inicio = await versaoNoInicio;
+          if (!janela || janela.isDestroyed()) return;
+          if (agora === inicio) janela.webContents.reload();
+          else pedirReinicio();
           return;
         }
         await new Promise((r) => setTimeout(r, 1000));
@@ -140,8 +158,11 @@ function criarJanela() {
 // Cada terminal é um shell próprio, guardado aqui no processo principal: a tela
 // recarregar não derruba nenhum, e ao voltar ela recebe o que já passou.
 const MAX_TERMINAIS = 4;
-const terminais = new Map(); // id → { pty, historico, sessao }
+const terminais = new Map(); // id → { pty, historico (lista de pedaços), sessao }
+const envios = require('./envios');
 const enviar = (canal, ...a) => janela && janela.webContents.send(canal, ...a);
+// Saída dos terminais: junta a cada 16 ms (um quadro) em vez de um envio por pedaço.
+const loteTerminal = envios.criarLoteTerminal({ enviar });
 
 ipcMain.handle('pty:lista', () => [...terminais].map(([id, t]) => ({ id, sessao: t.sessao })));
 // sessao: nome de uma sessão tmux de agente para anexar (o "Abrir terminal" da
@@ -149,7 +170,8 @@ ipcMain.handle('pty:lista', () => [...terminais].map(([id, t]) => ({ id, sessao:
 ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
   const t = terminais.get(id);
   if (t) {
-    enviar('pty:dados', id, t.historico);
+    loteTerminal.descartar(id); // o histórico já tem o que ainda não saiu
+    enviar('pty:dados', id, t.historico.texto());
     try { t.pty.resize(cols, rows); } catch { /* fechou */ }
     return true;
   }
@@ -160,11 +182,11 @@ ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
   const p = pty.spawn('bash', ['-lc', comando], {
     name: 'xterm-256color', cols, rows, cwd: os.homedir(), env: conversa.ambienteLimpo(),
   });
-  const novo = { pty: p, historico: '', sessao: sessao || null };
+  const novo = { pty: p, historico: envios.criarHistorico(200000), sessao: sessao || null };
   terminais.set(id, novo);
   p.onData((d) => {
-    novo.historico = (novo.historico + d).slice(-200000);
-    enviar('pty:dados', id, d);
+    novo.historico.add(d);
+    loteTerminal.dados(id, d);
   });
   // "Abrir terminal" de agente que não anexou (sem tmux no PATH, sessão que já
   // acabou): sai na hora com erro. A tela avisa com o motivo, em vez de o
@@ -172,8 +194,9 @@ ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
   const inicio = Date.now();
   p.onExit(({ exitCode } = {}) => {
     terminais.delete(id);
+    loteTerminal.esvaziar(id); // o que sobrou sai antes do aviso de saída
     const falhou = !!sessao && exitCode !== 0 && Date.now() - inicio < 5000;
-    enviar('pty:saiu', id, falhou ? { falhou: true, motivo: ultimaLinha(novo.historico) } : null);
+    enviar('pty:saiu', id, falhou ? { falhou: true, motivo: ultimaLinha(novo.historico.texto()) } : null);
   });
   return true;
 });
@@ -265,7 +288,7 @@ ipcMain.handle('arquivos:escolher', async () => {
 ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janela && janela.webContents.send('notas:mudou', m)));
 
 // --- conversas (orquestrador e avulsas) -----------------------------------
-conversa.ligar((canal, dado) => enviar(canal, dado));
+conversa.ligar((canal, dado) => enviar(canal, dado), { lote: true });
 
 // Notificação do app quando uma conversa precisa do usuário (no lugar de hook
 // do Claude). Clicar traz a janela e abre a conversa certa.
@@ -391,7 +414,9 @@ ipcMain.handle('cmd:todos', seguro((id) => {
 ipcMain.handle('cmd:notasVersao', seguro((id) => { const e = conversa.estadoComando(id); return comandosApp.notasVersao(e.init && e.init.versao); }));
 ipcMain.handle('cmd:sessoes', seguro(async (id) => {
   const abertas = conversa.lista().map((c) => conversa.estadoComando(c.id).sessao).filter(Boolean);
-  return comandosApp.sessoes(path.dirname(conversa.arqTranscript('x')), abertas);
+  // A pasta é a do transcript da sessão atual (o CLI corta nomes longos); sem sessão, a esperada.
+  const atual = conversa.arqTranscript(conversa.estadoComando(id).sessao);
+  return comandosApp.sessoes(atual ? path.dirname(atual) : conversa.pastaDosTranscripts(), abertas);
 }));
 ipcMain.handle('cmd:diffGit', seguro((id) => comandosApp.diffGit(pastaDa(id))));
 ipcMain.handle('cmd:salvarTexto', seguro(async (nome, texto) => {
@@ -503,18 +528,18 @@ let pararTopicos = null;
 // registro muda (inclusive pelo bin/orq-recado).
 let marcaRecados = 0;
 let ultimoQuadro = 0;
-let ultimoRetrato = null;
-function cicloRecados() {
+let cicloRecadosRodando = false;
+let cicloRecadosDeNovo = false; // pediram de novo enquanto rodava (ex.: acabou de decidir um recado)
+async function cicloRecados() {
+  if (cicloRecadosRodando) { cicloRecadosDeNovo = true; return; }
+  cicloRecadosRodando = true;
   try {
     const ps = coletor.projetos();
     const esperando = ps.some((p) => { try { return fs.readdirSync(path.join(p.dir, '.orq', 'recados', 'saida')).some((f) => f.endsWith('.json')); } catch { return false; } });
-    // Agentes abertos: do último retrato da tela se tiver menos de 10 s
-    // (o coletor é caro); senão, um retrato novo, só quando for preciso.
-    let frentes = null;
-    const obterFrentes = () => {
-      if (!frentes) frentes = (Date.now() - ultimoEstado < 10000 && ultimoRetrato) ? ultimoRetrato.frentes : coletor.estado().frentes;
-      return frentes;
-    };
+    // Agentes abertos: do último retrato se tiver menos de 10 s; senão, um
+    // novo (o coletor divide a leitura em voo com a tela e com o laço de 5 s).
+    const { frentes } = await medidor.medir('estado', () => coletor.estado({ maxIdade: 10000 }));
+    const obterFrentes = () => frentes;
     if (esperando) recados.recolher(ps, obterFrentes());
     recados.entregar(conversa, obterFrentes);
     // Quadro de quem está aberto e das vezes abertas, a cada 15 s.
@@ -530,7 +555,7 @@ function cicloRecados() {
     try { m = fs.statSync(recados.arquivoLog()).mtimeMs; } catch { /* ainda sem recado */ }
     try { m += fs.statSync(recados.arquivoVezes()).mtimeMs; } catch { /* ainda sem vez passada */ }
     if (m !== marcaRecados) { marcaRecados = m; enviar('recados:mudou', recados.ler()); }
-  } catch (e) { console.error('[recados]', e.message); }
+  } catch (e) { console.error('[recados]', e.message); } finally { cicloRecadosRodando = false; if (cicloRecadosDeNovo) { cicloRecadosDeNovo = false; cicloRecados(); } }
 }
 setInterval(cicloRecados, 3000);
 
@@ -652,17 +677,21 @@ function verPendencias(r) {
   ajudante.pendencias(lista);
 }
 let ultimoEstado = 0;
-ipcMain.handle('estado', () => {
-  const r = coletor.estado();
+medidor.iniciar();
+// Só nos testes de tela: o teste de desempenho lê e zera o medidor.
+if (process.env.ORQ_APP_E2E === '1') {
+  ipcMain.handle('diag:laco', (_e, zerar) => { if (zerar) medidor.reiniciar(); return medidor.fotografia(); });
+}
+ipcMain.handle('estado', async () => {
+  const r = await medidor.medir('estado', () => coletor.estado());
   ultimoEstado = Date.now();
-  ultimoRetrato = r;
   avisarNovidades(r);
   verPendencias(r);
   return r;
 });
 // Com a janela minimizada a tela quase não pergunta o estado: aí o processo
 // principal confere sozinho, para o ajudante não perder pendência.
-setInterval(() => { if (Date.now() - ultimoEstado > 8000) { try { verPendencias(coletor.estado()); } catch { /* tenta de novo */ } } }, 5000);
+setInterval(async () => { if (Date.now() - ultimoEstado > 8000) { try { verPendencias(await medidor.medir('estado', () => coletor.estado())); } catch { /* tenta de novo */ } } }, 5000);
 
 // Ajudante (bichinho fora do app).
 ipcMain.handle('pet:prefs', () => ({ ...ajudante.ler(), fora: ajudante.estaFora() }));

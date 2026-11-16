@@ -53,7 +53,13 @@ let conversaAberta = false;
 let fila = []; // mensagens que chegaram antes da tela ficar pronta
 let pronto = false;
 
-const paraApp = (m) => process.stdout.write(JSON.stringify(m) + '\n');
+// O app fechou antes (ou no meio) de uma escrita: o canal quebra (EPIPE). Sai
+// quieto em vez de mostrar a caixa de erro do Electron na tela do usuário.
+process.stdout.on('error', () => app.quit());
+const paraApp = (m) => {
+  if (!process.stdout.writable) return;
+  try { process.stdout.write(JSON.stringify(m) + '\n'); } catch { app.quit(); }
+};
 const paraTela = (m) => { if (pronto && win) win.webContents.send('ajudante', m); else fila.push(m); };
 
 function area() {

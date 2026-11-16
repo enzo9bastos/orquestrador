@@ -282,3 +282,20 @@ test('ajudante fora do app: pergunta com resposta secreta não tem campo no bich
     assert.match(await js("document.getElementById('pg-corpo').innerText"), /^Question with a secret answer: answer it in the app\.$/);
   } finally { p.kill(); }
 });
+
+// 16/11: o app fechou enquanto a janelinha abria; o "iniciado" bateu num canal
+// quebrado (EPIPE) e o Electron pôs a caixa "A JavaScript error occurred in the
+// main process" na tela do usuário. A janelinha tem de sair quieta.
+test('ajudante fora do app: app fechado antes do "iniciado" não vira caixa de erro', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+  let erro = '';
+  p.stderr.on('data', (d) => { erro += d; });
+  p.stdout.destroy(); // o lado do app fechou
+  const saiu = await new Promise((ok) => {
+    const t = setTimeout(() => ok(false), 15000);
+    p.on('exit', () => { clearTimeout(t); ok(true); });
+  });
+  if (!saiu) p.kill('SIGKILL');
+  assert.ok(saiu, 'a janelinha ficou presa (caixa de erro aberta) em vez de sair');
+  assert.doesNotMatch(erro, /Uncaught Exception|EPIPE/);
+});

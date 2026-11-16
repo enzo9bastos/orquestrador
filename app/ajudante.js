@@ -62,6 +62,7 @@ function iniciar() {
   proc = spawn(process.execPath, args, { stdio: ['pipe', 'pipe', 'inherit'], env: { ...process.env, ELECTRON_OZONE_PLATFORM_HINT: 'x11' } });
   proc.on('exit', () => { proc = null; mudarLugar(false); });
   proc.on('error', () => { proc = null; });
+  proc.stdin.on('error', () => {}); // a janelinha morreu: o 'exit' acima limpa; sem isto o EPIPE vira erro do app
   readline.createInterface({ input: proc.stdout }).on('line', (l) => { let m; try { m = JSON.parse(l); } catch { return; } receber(m); });
   mandar({ t: 'visual', ...aparencia() });
 }

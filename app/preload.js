@@ -2,10 +2,22 @@
 // acesso direto a arquivo ou processo.
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+// Os eventos de conversa chegam juntos num `conversa:lote` (envios.js) e são
+// entregues aqui um a um, na mesma ordem; um ouvinte que falha não impede os
+// seguintes (antes cada evento era uma mensagem própria).
+const ouvintesConversa = new Map(); // canal → [fn(id, dado)]
+ipcRenderer.on('conversa:lote', (_e, m) => {
+  for (const [canal, dado] of m.itens) {
+    for (const fn of ouvintesConversa.get(canal) || []) { try { fn(m.id, dado); } catch (e) { console.error(e); } }
+  }
+});
+const aoConversa = (canal) => (fn) => { if (!ouvintesConversa.has(canal)) ouvintesConversa.set(canal, []); ouvintesConversa.get(canal).push(fn); };
+
 contextBridge.exposeInMainWorld('orq', {
   // Só nos testes de tela (ORQ_APP_E2E=1): a tela expõe ganchos para o runner.
   teste: process.env.ORQ_APP_E2E === '1',
   estado: () => ipcRenderer.invoke('estado'),
+  diagLaco: (zerar) => ipcRenderer.invoke('diag:laco', zerar), // só responde nos testes de tela
   espelho: (pane) => ipcRenderer.invoke('espelho', pane),
   anotacoes: () => ipcRenderer.invoke('anotacoes'),
   lerNota: (qual) => ipcRenderer.invoke('ler-nota', qual),
@@ -25,15 +37,15 @@ contextBridge.exposeInMainWorld('orq', {
     reiniciar: (id) => ipcRenderer.invoke('conversa:reiniciar', id),
     nova: () => ipcRenderer.invoke('conversa:nova'),
     fechar: (id) => ipcRenderer.invoke('conversa:fechar', id),
-    aoEvento: (fn) => ipcRenderer.on('conversa:evento', (_e, m) => fn(m.id, m.dado)),
-    aoParcial: (fn) => ipcRenderer.on('conversa:parcial', (_e, m) => fn(m.id, m.dado)),
-    aoPedido: (fn) => ipcRenderer.on('conversa:pedido', (_e, m) => fn(m.id, m.dado)),
-    aoRespondido: (fn) => ipcRenderer.on('conversa:respondido', (_e, m) => fn(m.id, m.dado)),
-    aoInfo: (fn) => ipcRenderer.on('conversa:info', (_e, m) => fn(m.id, m.dado)),
-    aoTudo: (fn) => ipcRenderer.on('conversa:tudo', (_e, m) => fn(m.id, m.dado)),
+    aoEvento: aoConversa('conversa:evento'),
+    aoParcial: aoConversa('conversa:parcial'),
+    aoPedido: aoConversa('conversa:pedido'),
+    aoRespondido: aoConversa('conversa:respondido'),
+    aoInfo: aoConversa('conversa:info'),
+    aoTudo: aoConversa('conversa:tudo'),
     aoLista: (fn) => ipcRenderer.on('conversa:lista', (_e, l) => fn(l)),
     aoFocar: (fn) => ipcRenderer.on('conversa:focar', (_e, id) => fn(id)),
-    aoComandos: (fn) => ipcRenderer.on('conversa:comandos', (_e, m) => fn(m.id, m.dado)),
+    aoComandos: aoConversa('conversa:comandos'),
   },
   // Comandos do "/" que o app faz (renderer/comandos-tela.js).
   comandos: {
@@ -128,6 +140,7 @@ contextBridge.exposeInMainWorld('orq', {
   app: {
     reiniciar: () => ipcRenderer.invoke('app:reiniciar'),
     recarregarTela: () => ipcRenderer.invoke('app:recarregarTela'),
+    aoPrecisarReiniciar: (fn) => ipcRenderer.on('app:precisa-reiniciar', () => fn()),
   },
   janela: {
     minimizar: () => ipcRenderer.send('janela:minimizar'),

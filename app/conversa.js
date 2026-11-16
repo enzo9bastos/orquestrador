@@ -16,6 +16,7 @@ const config = require('./config');
 const ias = require('./ias');
 const codex = require('./conversa-codex');
 const listaComandos = require('./comandos');
+const jsonl = require('./jsonl');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
 const TESTE = process.env.ORQ_APP_TESTE === '1';
@@ -104,23 +105,61 @@ const CTX_CODEX = {
   fimDeTurno: (c, r) => c.fimDeTurno(r),
 };
 
-const arqTranscript = (sessao) => path.join(os.homedir(), '.claude', 'projects', PASTA.replace(/[^A-Za-z0-9]/g, '-'), sessao + '.jsonl');
-function linhasDoTranscript(sessao) {
-  try { return fs.readFileSync(arqTranscript(sessao), 'utf8').split('\n'); } catch { return []; }
+// Onde o Claude guarda os transcripts: <CLAUDE_CONFIG_DIR ou ~/.claude>/projects.
+const pastaProjetos = () => path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
+const nomeDaPasta = (p) => p.replace(/[^A-Za-z0-9]/g, '-');
+// O transcript de uma sessão, achado pelo id (<projects>/*/<id>.jsonl) e não
+// montando o nome da pasta: o CLI corta nomes acima de 200 caracteres e
+// acrescenta um hash, e o app não precisa saber a regra. Primeiro o caminho
+// esperado para a pasta das conversas; senão procura em todas; havendo mais de
+// uma cópia, vale a mais recente. Só ids de sessão (letras, números, - e _).
+// A pasta de transcripts esperada para a pasta das conversas (o /resume lista dela).
+const pastaDosTranscripts = () => path.join(pastaProjetos(), nomeDaPasta(PASTA));
+const arquivosAchados = new Map(); // id → caminho (confere que ainda existe)
+function arqTranscript(sessao) {
+  if (!/^[\w-]+$/.test(String(sessao || ''))) return null;
+  const raiz = pastaProjetos();
+  const chave = raiz + '\n' + sessao;
+  const lembrado = arquivosAchados.get(chave);
+  if (lembrado && fs.existsSync(lembrado)) return lembrado;
+  const esperado = path.join(raiz, nomeDaPasta(PASTA), sessao + '.jsonl');
+  let achado = fs.existsSync(esperado) ? esperado : null;
+  if (!achado) {
+    let melhor = 0;
+    let pastas = [];
+    try { pastas = fs.readdirSync(raiz); } catch { /* sem projetos */ }
+    for (const d of pastas) {
+      const a = path.join(raiz, d, sessao + '.jsonl');
+      try { const m = fs.statSync(a).mtimeMs; if (m >= melhor) { melhor = m; achado = a; } } catch { /* não está nesta pasta */ }
+    }
+  }
+  if (achado) arquivosAchados.set(chave, achado);
+  return achado;
 }
 
 // Histórico de uma sessão anterior, lido do transcript que o Claude grava.
 // ate: uuid de uma linha; o histórico para nela (conversa que voltou).
+// Lê de trás para frente, em páginas, só o que cabe nas últimas 600 mensagens:
+// uma sessão de 120 MB abre sem ser lida inteira.
+const MAX_HISTORICO = 600;
 function historicoDoTranscript(sessao, ate = null) {
+  const arq = arqTranscript(sessao);
+  if (!arq) return [];
+  let limite = null;
+  if (ate) {
+    limite = jsonl.fimDaLinhaCom(arq, `"uuid":"${ate}"`);
+    // Sem a linha (não achou), vale o arquivo todo, como antes.
+  }
   const lista = [];
-  for (const l of linhasDoTranscript(sessao)) {
-    if (!l) continue;
+  for (const { linha: l } of jsonl.linhasDeTras(arq, { ate: limite })) {
     let d;
     try { d = JSON.parse(l); } catch { continue; /* linha cortada */ }
-    if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) lista.push({ tipo: d.type, message: d.message, antigo: true, ts: Date.parse(d.timestamp) || undefined });
-    if (ate && d.uuid === ate) break;
+    if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) {
+      lista.push({ tipo: d.type, message: d.message, antigo: true, ts: Date.parse(d.timestamp) || undefined });
+      if (lista.length >= MAX_HISTORICO) break;
+    }
   }
-  return lista.slice(-600);
+  return lista.reverse();
 }
 
 // --- voltar a conversa ------------------------------------------------------
@@ -130,21 +169,29 @@ function historicoDoTranscript(sessao, ate = null) {
 const textoDoPrompt = (c) => (typeof c === 'string' ? c : Array.isArray(c) && !c.some((b) => b && b.type === 'tool_result')
   ? c.filter((b) => b && b.type === 'text').map((b) => b.text).join('\n') : null);
 const normal = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+// O que uma linha do transcript é para o "voltar": a resposta do Claude
+// (marca o ponto de corte) ou uma mensagem do usuário que virou balão.
+function itemDoTranscript(l) {
+  if (!l) return null;
+  let d;
+  try { d = JSON.parse(l); } catch { return null; }
+  if (d.isSidechain || !d.uuid) return null;
+  if (d.type === 'assistant') return { assistant: d.uuid };
+  if (d.type !== 'user' || d.isMeta || !d.message) return null;
+  const t = textoDoPrompt(d.message.content);
+  if (t == null) return null;
+  const tt = t.trim();
+  if (!tt || /^<(orq-|command-|local-command|system-reminder|task-notification)/.test(tt) || tt.startsWith('/')) return null;
+  return { prompt: { uuid: d.uuid, texto: tt, antes: undefined } };
+}
 function promptsDoTranscript(linhas) {
   const lista = [];
   let antes = null;
   for (const l of linhas) {
-    if (!l) continue;
-    let d;
-    try { d = JSON.parse(l); } catch { continue; }
-    if (d.isSidechain || !d.uuid) continue;
-    if (d.type === 'assistant') { antes = d.uuid; continue; }
-    if (d.type !== 'user' || d.isMeta || !d.message) continue;
-    const t = textoDoPrompt(d.message.content);
-    if (t == null) continue;
-    const tt = t.trim();
-    if (!tt || /^<(orq-|command-|local-command|system-reminder|task-notification)/.test(tt) || tt.startsWith('/')) continue;
-    lista.push({ uuid: d.uuid, texto: tt, antes });
+    const it = itemDoTranscript(l);
+    if (!it) continue;
+    if (it.assistant) antes = it.assistant;
+    else lista.push({ ...it.prompt, antes });
   }
   return lista;
 }
@@ -152,14 +199,51 @@ function promptsDoTranscript(linhas) {
 // 0 = a última mensagem do usuário, 1 = a penúltima… Confere o texto do balão
 // com o do histórico; não batendo, procura a mais recente que bate, e se nenhuma
 // bate recusa (cortar no lugar errado apagaria a parte certa da conversa).
-function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
-  const prompts = promptsDoTranscript(linhas);
+// `deTras` entrega as linhas da mais nova à mais antiga e é lido só até o
+// ponto de corte achado (um transcript de 120 MB não é lido inteiro).
+function pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao) {
   const alvo = normal(String(textoBalao || '').split('\n📎')[0]).slice(0, 80);
-  const bate = (p) => !!p && (!alvo || normal(p.texto).includes(alvo));
-  let p = prompts[prompts.length - 1 - Number(ordemDoFim || 0)];
-  if (!bate(p)) p = [...prompts].reverse().find(bate);
-  if (!p) throw new Error('não achei essa mensagem no histórico do Claude');
-  return { ate: p.antes, texto: p.texto };
+  const bate = (p) => !alvo || normal(p.texto).includes(alvo);
+  const ordem = Number(ordemDoFim || 0);
+  let n = 0;
+  let primeiroQueBate = null; // a mais recente que bate (plano B)
+  let escolhido = null;
+  let semAntes = []; // mensagens vistas ainda sem a resposta que veio antes delas
+  for (const l of deTras) {
+    const it = itemDoTranscript(l);
+    if (!it) continue;
+    if (it.assistant) {
+      for (const p of semAntes) p.antes = it.assistant;
+      semAntes = [];
+      if (escolhido && escolhido.antes !== undefined) break;
+      continue;
+    }
+    const p = it.prompt;
+    semAntes.push(p);
+    if (!primeiroQueBate && bate(p)) primeiroQueBate = p;
+    if (!escolhido) {
+      if (n === ordem) escolhido = bate(p) ? p : primeiroQueBate;
+      else if (n > ordem && bate(p)) escolhido = p;
+    }
+    n++;
+    if (escolhido && escolhido.antes !== undefined) break;
+  }
+  if (!escolhido) escolhido = primeiroQueBate; // havia menos mensagens que a ordem pedida
+  if (!escolhido) throw new Error('não achei essa mensagem no histórico do Claude');
+  return { ate: escolhido.antes === undefined ? null : escolhido.antes, texto: escolhido.texto };
+}
+function* deTrasDe(linhas) { for (let i = linhas.length - 1; i >= 0; i--) yield linhas[i]; }
+function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
+  return pontoDeVoltaDeTras(deTrasDe(linhas), ordemDoFim, textoBalao);
+}
+// O mesmo, lendo o transcript do disco de trás para frente. `ate` (conversa já
+// voltada): o transcript vale só até a linha com esse uuid.
+function pontoDeVoltaDoArquivo(sessao, ordemDoFim, textoBalao, ate = null) {
+  const arq = arqTranscript(sessao);
+  if (!arq) throw new Error('não achei essa mensagem no histórico do Claude');
+  const limite = ate ? jsonl.fimDaLinhaCom(arq, `"uuid":"${ate}"`) : null;
+  const deTras = (function* () { for (const { linha } of jsonl.linhasDeTras(arq, { ate: limite })) yield linha; })();
+  return pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao);
 }
 
 // Lista de comandos (/…) do autocompletar: fonte única em comandos.js. Antes
@@ -254,10 +338,7 @@ class Conversa {
     if (this.motor === 'codex') throw new Error('voltar a conversa ainda não funciona com o Codex');
     const de = this.volta ? this.volta.de : this.sessao;
     if (!de) throw new Error('esta conversa ainda não tem histórico para voltar');
-    const linhas = this.volta
-      ? (() => { const l = linhasDoTranscript(de); const i = l.findIndex((x) => x.includes(`"uuid":"${this.volta.ate}"`)); return i >= 0 ? l.slice(0, i + 1) : l; })()
-      : linhasDoTranscript(de);
-    const p = pontoDeVolta(linhas, ordemDoFim, textoBalao);
+    const p = pontoDeVoltaDoArquivo(de, ordemDoFim, textoBalao, this.volta ? this.volta.ate : null);
     if (this.proc) { this.proc.reiniciando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
     this.pendentes.clear();
     this.info.ocupado = false;
@@ -921,10 +1002,11 @@ carregarLista();
 
 module.exports = {
   usuarioEscreveu, _pegar: (id) => pegar(id),
-  ligar: (fn) => { enviarTela = fn; },
+  // { lote: true }: os envios de cada conversa se juntam num `conversa:lote` a cada 50 ms (envios.js).
+  ligar: (fn, opc) => { enviarTela = opc && opc.lote ? require('./envios').criarLote({ enviar: fn }).enviar : fn; },
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade
-  lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _historico: historicoDoTranscript,
+  lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _pontoDeVoltaArquivo: pontoDeVoltaDoArquivo, _arqTranscript: arqTranscript, _historico: historicoDoTranscript,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   pedidos: (id) => [...pegar(id).pendentes.values()],
@@ -942,5 +1024,5 @@ module.exports = {
   // /stop: o processo sai (a linha "A conversa foi pausada." vem da saída dele);
   // sem processo, só o aviso. A próxima mensagem retoma do mesmo ponto.
   pausar: (id) => { const c = pegar(id); if (c.proc) c.parar(); else c.registrar({ tipo: 'aviso', texto: 'Conversa pausada. A próxima mensagem retoma do mesmo ponto.' }); return true; },
-  ramificar, retomar, arqTranscript, PASTA,
+  ramificar, retomar, arqTranscript, pastaDosTranscripts, PASTA,
 };

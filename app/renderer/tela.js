@@ -514,3 +514,18 @@ window.orqPaleta?.registrar(() => (ultimo ? ultimo.frentes : []).map((f, i) => (
 
 atualizar();
 setInterval(atualizar, 2000);
+
+// Atualização que mexe no processo principal: a tela não recarrega sozinha
+// (ficaria falando com um processo antigo); aparece esta faixa pedindo o reinício.
+function avisoDeReinicio() {
+  if (document.getElementById('faixa-reinicio')) return;
+  const el = document.createElement('div');
+  el.id = 'faixa-reinicio';
+  el.setAttribute('role', 'status');
+  el.innerHTML = '<span>Atualização pronta. Reinicie o app para aplicar: as conversas continuam.</span> <button type="button" class="botao primario" id="faixa-reinicio-agora">Reiniciar agora</button> <button type="button" class="botao-texto" id="faixa-reinicio-depois">Depois</button>';
+  document.body.append(el);
+  el.querySelector('#faixa-reinicio-agora').addEventListener('click', () => window.orq.app.reiniciar());
+  el.querySelector('#faixa-reinicio-depois').addEventListener('click', () => el.remove());
+}
+window.orqAvisoDeReinicio = avisoDeReinicio;
+if (window.orq.app && window.orq.app.aoPrecisarReiniciar) window.orq.app.aoPrecisarReiniciar(avisoDeReinicio);

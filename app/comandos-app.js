@@ -12,6 +12,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const jsonl = require('./jsonl');
 
 const casa = () => os.homedir();
 const CLAUDE_DIR = () => path.join(casa(), '.claude');
@@ -268,7 +269,7 @@ function sessoes(pastaProjetos, abertas = []) {
     .sort((a, b) => b.mtime - a.mtime).slice(0, 40);
   return lista.map((s) => {
     let titulo = '', mensagens = 0;
-    const txt = (lerTexto(s.arq) || '').split('\n').slice(0, 400);
+    const txt = jsonl.lerCabeca(s.arq, 256 * 1024).linhas.slice(0, 400); // só o começo: há sessão de 100+ MB
     for (const l of txt) {
       if (!l) continue;
       let d;

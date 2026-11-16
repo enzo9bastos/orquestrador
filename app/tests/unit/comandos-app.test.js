@@ -86,3 +86,13 @@ test('/resume: sessões do projeto com a primeira mensagem e as abertas marcadas
   const l = A.sessoes(dir, ['s-1']);
   assert.deepStrictEqual(l.map((s) => [s.sessao, s.titulo, s.aberta]), [['s-1', 'arrumar o login', true]]);
 });
+
+test('/resume: a lista lê só o começo de cada sessão, nunca o transcript inteiro', () => {
+  const dir = path.join(CASA, 'proj-grande');
+  esc('proj-grande/s-g.jsonl', `${JSON.stringify({ type: 'user', message: { content: 'revisar o relatório' } })}\n${'{"type":"assistant"}\n'.repeat(1000)}`);
+  const lerInteiro = fs.readFileSync;
+  fs.readFileSync = (p, ...r) => { if (String(p).endsWith('s-g.jsonl')) throw new Error('leu o transcript inteiro'); return lerInteiro(p, ...r); };
+  try {
+    assert.deepStrictEqual(A.sessoes(dir, []).map((s) => [s.sessao, s.titulo]), [['s-g', 'revisar o relatório']]);
+  } finally { fs.readFileSync = lerInteiro; }
+});

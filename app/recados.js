@@ -26,6 +26,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const pastaProjeto = require('./pasta-projeto');
+const jsonl = require('./jsonl');
 
 const MARCA = '# (arquivo do App de Orquestração: o app instala e atualiza esta cópia)';
 const SCRIPT = path.join(__dirname, '..', 'hooks', 'orq-recado.sh');
@@ -44,20 +45,35 @@ function acrescentar(linha) {
   fs.appendFileSync(arquivoLog(), JSON.stringify(linha) + '\n');
 }
 
-// Todos os recados, com o estado mais recente de cada um, do mais antigo ao
-// mais novo (os últimos `max`).
-function ler(max = 500) {
-  let texto = '';
-  try { texto = fs.readFileSync(arquivoLog(), 'utf8'); } catch { return []; }
-  const porId = new Map();
-  for (const l of texto.split('\n')) {
+// Índice em memória do registro: lê o arquivo uma vez e depois só o que entrou
+// desde o último deslocamento (jsonl.incremental). Arquivo trocado ou menor
+// que o já lido recomeça do zero. Fica um índice por arquivo (cada casa de
+// teste tem o seu).
+const indices = new Map(); // caminho → { leitor, porId }
+function indiceDe(arq) {
+  let ix = indices.get(arq);
+  if (!ix) { ix = { leitor: jsonl.incremental(arq), porId: new Map() }; indices.set(arq, ix); }
+  return ix;
+}
+function atualizar(ix) {
+  const { linhas, recomecou } = ix.leitor.ler();
+  if (recomecou) ix.porId.clear();
+  for (const l of linhas) {
     if (!l.trim()) continue;
     let o;
     try { o = JSON.parse(l); } catch { continue; }
-    if (o.de) porId.set(o.id, o);
-    else if (o.id && porId.has(o.id)) Object.assign(porId.get(o.id), o.mudanca || {});
+    if (o.de) ix.porId.set(o.id, o);
+    else if (o.id && ix.porId.has(o.id)) Object.assign(ix.porId.get(o.id), o.mudanca || {});
   }
-  return [...porId.values()].sort((a, b) => a.ts - b.ts).slice(-max);
+}
+
+// Todos os recados, com o estado mais recente de cada um, do mais antigo ao
+// mais novo (os últimos `max`). Devolve cópias: quem muda o que recebeu não
+// estraga o índice.
+function ler(max = 500) {
+  const ix = indiceDe(arquivoLog());
+  atualizar(ix);
+  return [...ix.porId.values()].sort((a, b) => a.ts - b.ts).slice(-max).map((o) => ({ ...o }));
 }
 
 function mudar(id, mudanca) { acrescentar({ id, mudanca: { ...mudanca, mudouEm: Date.now() } }); }

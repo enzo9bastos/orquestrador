@@ -1609,3 +1609,8 @@ body.sem-agentes.sem-demandas { --larg-leitura: min(1500px, max(860px, 66%)); --
 .mais-nota [data-cor-nota="roxo"] .bolinha-cor { background: #9065b0; } .mais-nota [data-cor-nota=""] .bolinha-cor { background: linear-gradient(135deg, transparent 45%, var(--perigo) 45% 55%, transparent 55%); }
 @media (prefers-reduced-motion: reduce) { .barra-nota { transition: none; } }
 .sem-transicao .barra-nota { transition: none; } /* testes de tela: a janela não anima */
+
+/* Faixa "reinicie para aplicar a atualização" (recarga.js) */
+#faixa-reinicio { position: fixed; left: 150px; top: 3px; z-index: 9000; display: flex; align-items: center; gap: 10px;
+  max-width: calc(100vw - 160px); height: 33px; padding: 0 6px 0 12px; border: 1px solid var(--borda-forte); border-radius: 8px; background: var(--bg-elevado); color: inherit; font-size: 12.5px; white-space: nowrap; -webkit-app-region: no-drag; }
+#faixa-reinicio .botao, #faixa-reinicio .botao-texto { padding: 2px 9px; font-size: 12px; }
