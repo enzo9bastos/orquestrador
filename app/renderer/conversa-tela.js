@@ -191,6 +191,7 @@
     el.className = 'md texto-claude';
     el.innerHTML = md(t);
     marcarCaminhos(el);
+    linkificarDominios(el);
     botoesDeCodigo(el);
     noGrupo(el);
   }
@@ -220,11 +221,63 @@
   // vira clicável; o app procura na pasta da conversa, nas pastas dos caminhos
   // citados na mesma mensagem, em Downloads, na Área de Trabalho e na pasta pessoal.
   const PARECE_ARQUIVO = /^(?!-)(?!.*\.\.)[\w@+-][\w@+.\/-]*\.[A-Za-z][A-Za-z0-9]{0,5}$/;
+  // Endereço escrito sem "http://" ("sistema.exemplo.com.br", "painel.exemplo.com/login")
+  // também é link: abre como http://, com as mesmas regras (Ctrl+clique, dica do
+  // host, confirmação). Só conta como domínio o que termina num sufixo de site
+  // conhecido; nome de arquivo ("app.js", "README.md", "config.validar") não.
+  const SUFIXO_SITE = /\.(com|net|org|br|io|dev|app|gov|edu|info|biz|me|co|ai|us|uk|pt|es|de|fr|it|ar|cl|mx|uy|eu|cloud|online|site|tech|xyz|local|lan|internal|home|intra|corp)$/i;
+  const DOMINIO = /^((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})(?::\d{1,5})?(?:[/?#][^\s<>"'`]*)?$/i;
+  function pareceDominio(t) {
+    const m = String(t || '').trim().match(DOMINIO);
+    if (!m) return false;
+    const host = m[1];
+    if (/\.(md|js|ts|mjs|cjs|json|txt|sh|html?|css|png|jpe?g|gif|svg|pdf|ya?ml|toml|lock|log|csv|xml|zip)$/i.test(host)) return false;
+    return SUFIXO_SITE.test(host);
+  }
+  // Texto corrido: o Markdown só faz link de "www." e "http(s)://"; aqui o
+  // domínio sem esquema também vira link (fora de código, de link e de bloco).
+  function linkificarDominios(raiz) {
+    const andar = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.parentElement && n.parentElement.closest('a, code, pre, .cartao-pedido') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    const nos = [];
+    while (andar.nextNode()) nos.push(andar.currentNode);
+    const PALAVRA = /(^|[\s(\["'«])([a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?::\d{1,5})?(?:[/?#][^\s<>"'`)\]»]*)?)/gi;
+    for (const no of nos) {
+      const texto = no.nodeValue;
+      if (!texto || texto.indexOf('.') < 0) continue;
+      const pedacos = [];
+      let ultimo = 0;
+      let m;
+      PALAVRA.lastIndex = 0;
+      while ((m = PALAVRA.exec(texto))) {
+        let alvo = m[2].replace(/[.,;:!?]+$/, ''); // pontuação do fim da frase não é do endereço
+        if (!pareceDominio(alvo)) continue;
+        const ini = m.index + m[1].length;
+        pedacos.push(document.createTextNode(texto.slice(ultimo, ini)));
+        const a = document.createElement('a');
+        a.href = `http://${alvo}`;
+        a.textContent = alvo;
+        pedacos.push(a);
+        ultimo = ini + alvo.length;
+      }
+      if (!pedacos.length) continue;
+      pedacos.push(document.createTextNode(texto.slice(ultimo)));
+      no.replaceWith(...pedacos);
+    }
+  }
   function marcarCaminhos(raiz) {
     const codigos = [...raiz.querySelectorAll('code')].filter((c) => !c.closest('pre'));
     const dicas = codigos.map((c) => c.textContent.trim()).filter((t) => PARECE_CAMINHO.test(t) && t.length > 2);
     for (const c of codigos) {
       const t = c.textContent.trim();
+      if (pareceDominio(t)) { // "sistema.exemplo.com.br" em código é endereço, não arquivo
+        const a = document.createElement('a');
+        a.href = `http://${t}`;
+        a.textContent = t;
+        c.replaceChildren(a);
+        continue;
+      }
       if (PARECE_CAMINHO.test(t) && t.length > 2) { c.classList.add('caminho-clicavel'); c.title = 'Abrir no explorador de arquivos'; }
       else if (PARECE_ARQUIVO.test(t)) {
         c.classList.add('caminho-clicavel');
@@ -331,7 +384,9 @@
   const linksAbertos = []; // para os testes de tela
   function analisarLink(a) {
     let u;
-    try { u = new URL(a.getAttribute('href') || '', location.href); } catch { return { erro: 'Endereço inválido: o app não abre' }; }
+    const bruto = String(a.getAttribute('href') || '').trim();
+    if (pareceDominio(bruto)) { try { u = new URL(`http://${bruto}`); } catch { /* cai abaixo */ } }
+    if (!u) try { u = new URL(bruto, location.href); } catch { return { erro: 'Endereço inválido: o app não abre' }; }
     if (!['http:', 'https:'].includes(u.protocol)) return { erro: 'Só links http e https abrem' };
     if (u.username || u.password) return { erro: 'Link com usuário e senha embutidos: o app não abre' };
     return { url: u.href, host: u.host, hostTexto: hostDoTexto(a.textContent) };
@@ -357,6 +412,7 @@
   function caminhoDoLink(a) {
     const bruto = String(a.getAttribute('href') || '').trim();
     if (!bruto || bruto.startsWith('#') || bruto.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(bruto)) return null;
+    if (pareceDominio(bruto)) return null; // "sistema.exemplo.com.br" é site, não arquivo
     let p = bruto.replace(/#.*$/, '');
     try { p = decodeURI(p); } catch { /* fica como veio */ }
     p = p.replace(/:\d+(?::\d+)?$/, ''); // "arquivo.js:12" → linha não faz parte do caminho

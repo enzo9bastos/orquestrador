@@ -275,3 +275,39 @@ test('0.B10: link para arquivo ou pasta local abre no explorador (não é recusa
   });
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
+
+// Pedido do Enzo (16/11): endereço escrito sem "http://" ("sistema.exemplo.com.br")
+// tem de abrir, como http, e não ser recusado nem tratado como arquivo.
+test('0.B10: endereço sem http:// (texto, código ou link) abre como http com Ctrl+clique', async (t) => {
+  const app = await abrirApp({ config: {} });
+  t.after(() => app.fechar());
+  await app.esperar('!!window.__orqTeste');
+  const md = 'Entre em sistema.exemplo.com.br, depois em `painel.exemplo.com.br/login` ou [o portal](portal.exemplo.net/inicio). Arquivos: `app.js`, `README.md`, config.validar e script.py.';
+  await app.avaliar(`window.__orqTeste.desenharEvento({ tipo: 'assistant', message: { content: [{ type: 'text', text: ${JSON.stringify(md)} }] } })`);
+  const textos = () => app.avaliar("[...document.querySelectorAll('#mensagens a[href]')].map((a) => a.textContent)");
+  const link = (txt) => `[...document.querySelectorAll('#mensagens a[href]')].find((a) => a.textContent === ${JSON.stringify(txt)})`;
+  const ctrl = (txt) => app.avaliar(`${link(txt)}.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }))`);
+
+  await t.test('o domínio vira link; nome de arquivo não', async () => {
+    assert.deepStrictEqual(await textos(), ['sistema.exemplo.com.br', 'painel.exemplo.com.br/login', 'o portal']);
+  });
+  await t.test('Ctrl+clique abre cada um como http://, sem aviso de erro', async () => {
+    await ctrl('sistema.exemplo.com.br');
+    await ctrl('painel.exemplo.com.br/login');
+    await ctrl('o portal');
+    await app.esperar('window.__orqTeste.linksAbertos.length === 3');
+    assert.deepStrictEqual(await app.avaliar('[...window.__orqTeste.linksAbertos]'),
+      ['http://sistema.exemplo.com.br/', 'http://painel.exemplo.com.br/login', 'http://portal.exemplo.net/inicio']);
+    assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#mensagens .aviso-conversa.erro')].map((e) => e.textContent)"), []);
+  });
+  await t.test('a dica mostra o host de verdade', async () => {
+    await app.avaliar(`${link('o portal')}.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))`);
+    assert.match(await app.avaliar("document.querySelector('.dica-link').innerText"), /portal\.exemplo\.net/);
+  });
+  await t.test('clique simples continua sem abrir', async () => {
+    await app.avaliar(`${link('sistema.exemplo.com.br')}.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))`);
+    await app.espera(200);
+    assert.strictEqual((await app.avaliar('[...window.__orqTeste.linksAbertos]')).length, 3);
+  });
+  await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
+});
