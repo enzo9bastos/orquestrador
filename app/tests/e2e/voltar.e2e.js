@@ -6,22 +6,17 @@ const os = require('os');
 const path = require('path');
 const { abrirApp } = require('./app');
 
-// Claude falso: anota os argumentos de cada vez que sobe e responde ao init.
+// O Claude falso comum (tests/unit/claude-falso.js): manda o init assim que sobe
+// e, como o Claude de verdade, --resume mantém a sessão e --fork-session abre
+// outra. A 1ª linha de cada subida no log é { args }: os argumentos de cada vez.
+const CLAUDE_FALSO = path.join(__dirname, '..', 'unit', 'claude-falso.js');
 function claudeFalso() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-'));
-  const log = path.join(d, 'args.log');
-  const bin = path.join(d, 'claude');
-  fs.writeFileSync(bin, `#!/usr/bin/env bash
-if [ "\${1:-}" = "--version" ]; then echo "9.9.9 (Claude Code)"; exit 0; fi
-echo "$*" >> "${log}"
-# Como o Claude de verdade: --resume mantém a sessão; com --fork-session nasce outra.
-sessao="S-nova-$$"; ant=""
-for a in "$@"; do [ "$ant" = "--resume" ] && sessao="$a"; ant="$a"; done
-case " $* " in *" --fork-session "*) sessao="S-nova-$$" ;; esac
-echo '{"type":"system","subtype":"init","session_id":"'"$sessao"'","model":"falso","cwd":"/"}'
-cat > /dev/null
-`, { mode: 0o755 });
-  return { bin, chamadas: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : []) };
+  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-')), 'log.jsonl');
+  Object.assign(process.env, { CLAUDE_FALSO_LOG: log, CLAUDE_FALSO_INIT_NA_SUBIDA: '1', CLAUDE_FALSO_SESSAO_REAL: '1' });
+  const chamadas = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : [])
+    .map((l) => JSON.parse(l)).filter((o) => Array.isArray(o.args)).map((o) => o.args.join(' '));
+  const desligar = () => { for (const k of ['CLAUDE_FALSO_LOG', 'CLAUDE_FALSO_INIT_NA_SUBIDA', 'CLAUDE_FALSO_SESSAO_REAL']) delete process.env[k]; };
+  return { bin: CLAUDE_FALSO, chamadas, desligar };
 }
 
 test('voltar a conversa para antes de uma mensagem', async (t) => {
@@ -30,7 +25,7 @@ test('voltar a conversa para antes de uma mensagem', async (t) => {
     config: { iasCaminhos: { claude: falso.bin } },
     arquivos: { '.cache/orq-app/conversas-teste.json': JSON.stringify([{ id: 'orquestrador', titulo: 'Orquestrador', sessao: 'S1', orquestrador: true }]) },
   });
-  t.after(() => app.fechar());
+  t.after(() => { falso.desligar(); return app.fechar(); });
   await app.esperar('!!window.__orqTeste');
   // Histórico do Claude: três mensagens do usuário, cada uma com resposta.
   const l = (o) => JSON.stringify(o);
