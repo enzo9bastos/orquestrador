@@ -278,6 +278,7 @@ por [`examples/config.example.json`](examples/config.example.json); cada clave s
 | `ambiente` | Variables de entorno extra para las conversaciones y terminales de la app |
 | `iaOrquestrador`, `iaAgentes` | Qué CLI de IA corre el orquestador (`claude` o `codex`) y los agentes nuevos |
 | `canalServidor`, `canalArquivoCliente`, `canalMinhaCaixa`, `canalMeuNome`, `canalContatos` | Canal entre orquestadores: servidor ntfy, archivo del cliente con el token, tu buzón, tu nombre, los contactos |
+| `canalPastaAnexos`, `canalAnexoMaxMB`, `canalAnexoDias` | Adjuntos del canal: carpeta de los recibidos (por defecto, dentro de los datos de la app), límite del servidor por archivo en MB (5) y días que los guarda (7) |
 | `canalAprovarEnvio`, `canalSemAprovarCiente`, `canalSemAprovarInformacao` | Qué tiene que esperar tu aprobación antes de salir de la computadora |
 
 ### Mensajes de los agentes y memoria del proyecto
@@ -322,6 +323,24 @@ posterior puede leer — sea cual sea la IA en la que corra. Todo son archivos l
     que estén en tu último mensaje de la conversación y que nombre al contacto — entonces sale sin volver a
     preguntar;
   - el texto que parezca una contraseña, clave o token, o de más de 4 KB, se rechaza.
+
+  - **Adjuntos (imágenes y PDF).** `orq-recado externo <contacto> "texto" --anexo archivo [--anexo archivo]` (hasta 3;
+    png, jpg, webp o pdf; hasta el límite del servidor por archivo, 5 MB por defecto) sale como adjunto de ntfy, un
+    envío por archivo, todos ligados al mismo id de mensaje (etiqueta `rc-<id>`). El tipo se comprueba por los
+    **bytes**, no por la extensión, y un nombre de archivo que parece un secreto se rechaza como el texto. Un mensaje
+    **con adjunto nunca sale solo**: sea cual sea `--tipo` o `--autorizado`, espera en *Para aprobar* con la miniatura
+    de cada imagen (nombre y tamaño del PDF) y un aviso destacado: *quien tenga el enlace lo abre durante 7 días: no
+    envíes capturas con contraseñas, tokens o datos personales o de clientes; recorta la pantalla antes* (ntfy sirve la
+    descarga sin token). Los metadatos (EXIF, GPS, XMP, texto, comentarios) se quitan de PNG, JPEG y WebP **en el
+    código de la app, sin recodificar** (el mismo código corre en el comando `orq-recado` y otra vez justo antes del
+    envío); un PDF va tal cual. Se envía la copia que aprobaste: si el archivo cambió, no sale. Un adjunto no sale por
+    el aprobar rápido del ayudante ni por la tarjeta del chat: solo desde la pestaña Mensajes, donde ves la miniatura.
+  - **Recepción.** El adjunto que llega se descarga (solo del mismo servidor, sin redirecciones, png/jpg/webp/pdf por
+    los bytes, con límite de tamaño y tiempo) a la carpeta de Configuración (`canalPastaAnexos`; por defecto
+    `~/.local/share/orq-app/anexos-canal/AAAA-MM-DD/`, carpeta 700, archivo 600, nombre seguro, nunca sobrescribe). La
+    pestaña Mensajes muestra la imagen **desde ese archivo local** (nunca el enlace remoto). El orquestador recibe solo
+    la **ruta local** dentro del sobre de datos `<orq-recado>`, nunca el contenido, y el adjunto nunca va solo a un
+    agente. Si la descarga falla o el adjunto expiró, el mensaje llega igual y lo dice.
 
   Solo el orquestador usa el canal: los agentes siguen hablando solo con el orquestador de la misma computadora. El
   agente de cualquier otra persona (otra app, o Claude Code con la CLI `ntfy`) puede sumarse: publica con

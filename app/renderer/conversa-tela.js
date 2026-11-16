@@ -1389,7 +1389,8 @@
     if (naDoOrquestrador()) aguardando.forEach(cartaoAprovacao);
   }
   async function carregarAprovacoes(l) {
-    try { aguardando = (l || await R.lista()).filter((r) => r.estado === 'aguardando'); } catch { aguardando = []; }
+    // Com anexo: só na aba Recados, onde dá para ver a miniatura antes de aprovar.
+    try { aguardando = (l || await R.lista()).filter((r) => r.estado === 'aguardando' && !(r.anexos && r.anexos.length)); } catch { aguardando = []; }
     desenharAprovacoes();
   }
   async function decidirAprovacao(c, aprovar) {

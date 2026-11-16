@@ -162,9 +162,9 @@
     } else if (it.tipo === 'aprovacao') {
       // Algo que só sai (ou só roda) com o seu sim: decide aqui mesmo.
       $('pg-passo').textContent = 'espera você aprovar';
-      $('pg-corpo').innerHTML = `<p class="pergunta">${it.canal ? `Recado para ${esc(it.quem)}` : `Pedido ao ${esc(it.quem)}`}</p>${it.titulo ? `<p><strong>${esc(it.titulo)}</strong></p>` : ''}<pre class="aj-comando aj-recado">${esc(it.texto)}</pre>${it.motivo ? `<p class="aj-motivo">${esc(it.motivo)}</p>` : ''}
+      $('pg-corpo').innerHTML = `<p class="pergunta">${it.canal ? `Recado para ${esc(it.quem)}` : `Pedido ao ${esc(it.quem)}`}</p>${it.titulo ? `<p><strong>${esc(it.titulo)}</strong></p>` : ''}<pre class="aj-comando aj-recado">${esc(it.texto)}</pre>${it.motivo ? `<p class="aj-motivo">${esc(it.motivo)}</p>` : ''}${it.anexos ? '<p class="aj-motivo">Tem anexo: abra o app (aba Recados) para ver a miniatura e aprovar.</p>' : ''}
         <textarea id="pg-nota" rows="2" placeholder="Orientação ou motivo (opcional)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
-      $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao-texto" data-pg="negar">Negar</button><button type="button" class="botao primario" data-pg="permitir">Aprovar</button>';
+      $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao-texto" data-pg="negar">Negar</button>' + (it.anexos ? '' : '<button type="button" class="botao primario" data-pg="permitir">Aprovar</button>');
     } else if (it.tipo === 'acao') {
       // O orquestrador pediu para rodar algo: mostra os comandos para copiar.
       $('pg-passo').textContent = 'pede uma ação sua';

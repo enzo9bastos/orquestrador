@@ -566,9 +566,11 @@ let canalChave = null;
 let canalSituacao = { conectado: false, erro: null };
 const canalTentativas = new Map(); // id → { n, depois }
 const canalEnviando = new Set();
+const canalBaixando = new Set();
+const canalBaixaTentativas = new Map(); // id do recado → { n, depois }
 function situacaoCanal() {
   const a = canal.ajustes(config.ler());
-  return { ativo: a.ativo, pronto: a.pronto, falta: a.falta, servidor: a.host, minhaCaixa: a.minhaCaixa, contatos: a.contatos,
+  return { anexoDias: a.anexoDias, anexoMaxMB: Math.round((a.anexoMax / 1048576) * 10) / 10, ativo: a.ativo, pronto: a.pronto, falta: a.falta, servidor: a.host, minhaCaixa: a.minhaCaixa, contatos: a.contatos,
     aprovarEnvio: a.aprovarEnvio, conectado: !!(canalEscuta && canalSituacao.conectado), erro: canalEscuta ? canalSituacao.erro : null };
 }
 function cicloCanal() {
@@ -591,6 +593,7 @@ function cicloCanal() {
     // última mensagem que ele digitou na conversa do orquestrador, citando o
     // contato pelo nome ou pela caixa.
     for (const r of recados.conferindoExternos()) recados.conferirAutorizacao(r.id, conversa.usuarioEscreveu(r.autorizadoPor, { contato: r.para }));
+    baixarAnexosPendentes(a);
     const fila = recados.externosNaFila();
     // Recado esperando aprovação: quem avisa é o bichinho (pendências) e o
     // cartão na conversa; sem notificação do sistema (pedido de 2026-11-13).
@@ -604,7 +607,10 @@ function cicloCanal() {
       const problema = canal.problemaDoTexto(r.texto);
       if (problema) { recados.concluirExterno(r.id, { ok: false, erro: problema }); continue; }
       canalEnviando.add(r.id);
-      canal.publicar(a, { caixa: r.para.caixa, texto: r.texto, titulo: r.titulo })
+      // Com anexo: um envio por arquivo, lido da cópia aprovada (conferida e sem metadados de novo).
+      (r.anexos && r.anexos.length
+        ? canal.publicarComAnexos(a, { caixa: r.para.caixa, texto: r.texto, titulo: r.titulo, id: r.id, anexos: r.anexos, desde: r.enviados || 0, aoEnviar: (n) => recados.anexoEnviado(r.id, n) })
+        : canal.publicar(a, { caixa: r.para.caixa, texto: r.texto, titulo: r.titulo }))
         .then(() => { canalTentativas.delete(r.id); recados.concluirExterno(r.id, { ok: true }); })
         .catch((e) => {
           const definitivo = e.status && e.status !== 429 && e.status < 500;
@@ -616,7 +622,41 @@ function cicloCanal() {
     }
   } catch (e) { console.error('[canal]', e.message); }
 }
+// Anexo que chegou: baixa para a pasta de anexos (fora da lista de tipos ou do
+// limite, ou link de outro servidor, é recusado). Erro de rede tenta de novo
+// com espera crescente; o resto (expirou, grande demais, tipo errado) é final.
+// O recado só vai ao orquestrador depois, dizendo o que houve.
+function baixarAnexosPendentes(a) {
+  if (!a.pronto) return;
+  for (const r of recados.anexosParaBaixar()) {
+    if (canalBaixando.has(r.id)) continue;
+    const tent = canalBaixaTentativas.get(r.id) || { n: 0, depois: 0 };
+    if (Date.now() < tent.depois) continue;
+    canalBaixando.add(r.id);
+    canal.baixarAnexo(a, { name: r.anexo.nome, size: r.anexo.tamanho, expires: r.anexo.expira, url: r.anexo.url })
+      .then((res) => {
+        if (res.ok) { canalBaixaTentativas.delete(r.id); recados.anexoBaixado(r.id, res); return; }
+        if (res.definitivo || tent.n >= 4) { canalBaixaTentativas.delete(r.id); recados.anexoFalhou(r.id, res.erro); return; }
+        canalBaixaTentativas.set(r.id, { n: tent.n + 1, depois: Date.now() + 10000 * 2 ** tent.n });
+      })
+      .catch((e) => recados.anexoFalhou(r.id, `não consegui baixar o anexo (${e.message})`))
+      .finally(() => { canalBaixando.delete(r.id); cicloRecados(); });
+  }
+}
 setInterval(cicloCanal, 3000);
+// Miniatura de imagem para a aba Recados: lida do arquivo LOCAL (a cópia que sai,
+// ou o anexo já baixado), conferida pelos bytes e pelo tamanho. O caminho vem do
+// registro, nunca da tela; nada remoto é carregado.
+ipcMain.handle('recados:anexo', (_e, id, i) => {
+  try {
+    const r = recados.ler(5000).find((x) => x.id === id && x.canal);
+    if (!r) return null;
+    const a = canal.ajustes(config.ler());
+    const alvo = Number.isInteger(i) ? (r.anexos || [])[i] : (r.anexo && r.anexo.estado === 'ok' ? { arquivo: r.anexo.caminho } : null);
+    if (!alvo || !alvo.arquivo) return null;
+    return { dataUrl: require('./canal-anexo').miniatura(alvo.arquivo, { max: a.anexoMax }) };
+  } catch { return null; }
+});
 ipcMain.handle('canal:estado', () => situacaoCanal());
 ipcMain.handle('recados:lista', () => recados.ler());
 ipcMain.handle('recados:vezes', () => recados.lerVezes());
@@ -646,7 +686,7 @@ function verPendencias(r) {
     ...recados.ler(1000).filter((r) => r.estado === 'aguardando').map((r) => ({
       id: `aprovar:${r.id}`,
       texto: r.canal ? `Recado para ${r.para.nome} espera você aprovar` : `Pedido ao ${r.para.nome} espera você aprovar`,
-      item: { tipo: 'aprovacao', recado: r.id, canal: !!r.canal, quem: r.para.nome, titulo: r.titulo || null, texto: String(r.texto || '').slice(0, 1500), motivo: r.motivo || null },
+      item: { tipo: 'aprovacao', recado: r.id, canal: !!r.canal, quem: r.para.nome, titulo: r.titulo || null, texto: String(r.texto || '').slice(0, 1500), motivo: r.motivo || null, anexos: (r.anexos || []).length },
     })),
   ];
   ajudante.pendencias(lista);
@@ -754,7 +794,11 @@ app.whenReady().then(() => {
   });
   criarJanela();
   ajudante.ligar({ janela: () => janela, presenca: () => require('./janelas').estado([process.pid]),
-    decidir: (id, aprovar, nota) => { recados.decidir(id, aprovar, nota); cicloRecados(); cicloCanal(); return true; }, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
+    decidir: (id, aprovar, nota) => {
+      // Recado com anexo só sai depois de o usuário VER a miniatura (aba Recados): o bichinho não aprova.
+      if (aprovar && (recados.ler(5000).find((x) => x.id === id) || {}).anexos?.length) return false;
+      recados.decidir(id, aprovar, nota); cicloRecados(); cicloCanal(); return true;
+    }, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
   workflows.ligar({
     conversa,

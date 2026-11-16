@@ -1018,6 +1018,21 @@
     "Recado de fora:": "Message from outside:",
     "🚫 Recado para fora que você não deixou sair": "🚫 Outgoing message you didn't let out",
     "⚠ Recado para fora que não saiu": "⚠ Outgoing message that didn't go out",
+    "Abrir no explorador": "Show in file manager",
+    "Anexo que não chegou:": "Attachment that didn't arrive:",
+    "não deu para mostrar a imagem": "couldn't show the image",
+    "Pasta dos anexos recebidos": "Folder for received attachments",
+    "Imagens e PDFs que chegam pelo canal ficam aqui, numa subpasta por dia. Vazio: dentro dos dados do app.": "Images and PDFs that arrive through the channel are kept here, in one subfolder per day. Empty: inside the app's data.",
+    "Tem anexo: abra o app (aba Recados) para ver a miniatura e aprovar.": "Has an attachment: open the app (Messages tab) to see the thumbnail and approve.",
+    "o servidor já apagou o anexo": "the server has already deleted the attachment",
+    "o tipo do arquivo não é aceito (só png, jpg, webp e pdf)": "the file type isn't accepted (only png, jpg, webp and pdf)",
+    "o tipo do arquivo não bate com o nome; não abri": "the file type doesn't match its name; I didn't open it",
+    "o link do anexo não é do servidor do canal; não baixei": "the attachment link isn't from the channel's server; I didn't download it",
+    "a mensagem não trouxe o link do anexo": "the message didn't include the attachment link",
+    "o link do anexo é inválido": "the attachment link is invalid",
+    "não foi baixado": "it wasn't downloaded",
+    "Quem tiver o link abre por 1 dia: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.": "Anyone with the link can open it for 1 day: don't send a screenshot with a password, token, or personal or customer data; crop the screen first.",
+    "Baixando o anexo": "Downloading the attachment",
     "Para aprovar": "To approve",
     "Todos os recados": "All messages",
     "Sem aprovar: ciente": "No approval: acknowledgment",
@@ -2215,6 +2230,10 @@
       "Leaves this computer for $1 (inbox $2) if you approve."
     ],
     [
+      "^vai sair deste computador; tem (\\d+) anexos?: espera você ver e aprovar$",
+      "leaves this computer; has $1 attachment(s): waits for you to see and approve"
+    ],
+    [
       "^vai sair deste computador; (.+) \\(a autorização citada não está na sua última mensagem, ou não cita (.+) pelo nome ou pela caixa\\)$",
       "leaves this computer; $1 (the quoted authorization isn't in your last message, or doesn't name $2 or their inbox)"
     ],
@@ -2245,6 +2264,30 @@
     [
       "^marcado como ciente, mas tem mais de (\\d+) caracteres: espera você aprovar$",
       "marked as acknowledgment, but longer than $1 characters: waits for your approval"
+    ],
+    [
+      "^Quem tiver o link abre por (\\d+) dias: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes\\.$",
+      "Anyone with the link can open it for $1 days: don't send a screenshot with a password, token, or personal or customer data; crop the screen first."
+    ],
+    [
+      "^Cada arquivo pode ter até ([\\d.]+) MB\\. Das imagens, o app tira os metadados \\(EXIF, GPS, texto\\); o PDF vai como está\\.$",
+      "Each file can be up to $1 MB. The app strips the metadata (EXIF, GPS, text) from images; a PDF goes as it is."
+    ],
+    [
+      "^o anexo expirou no servidor \\(ele guarda por (\\d+) dias\\)$",
+      "the attachment expired on the server (it keeps them for $1 days)"
+    ],
+    [
+      "^o anexo é maior que o limite de ([\\d.]+) MB$",
+      "the attachment is larger than the $1 MB limit"
+    ],
+    [
+      "^não consegui baixar o anexo \\((.+)\\)$",
+      "couldn't download the attachment ($1)"
+    ],
+    [
+      "^tem (\\d+) anexos?: espera você ver e aprovar$",
+      "has $1 attachment(s): waits for you to see and approve"
     ],
     [
       "^Sai agora para (.+)$",
