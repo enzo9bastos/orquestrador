@@ -526,8 +526,10 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 @keyframes espernear { 0% { transform: translateY(0.6px); } 50% { transform: translateY(-0.4px); } }
 .pet.arrastado .braco { transform: translateY(-1.5px) rotate(0deg); }
 .pet.amassado .pet-vira { scale: 1.15 .8; transform-origin: center bottom; }
-/* balão de fala */
+/* balão de fala: só texto, não segura o clique do que está embaixo (um botão
+   da barra de cima ficava sem clicar enquanto a fala durava) */
 .pet-balao {
+  pointer-events: none;
   position: absolute; bottom: calc(100% + 8px); left: 50%; translate: -50% 0; white-space: nowrap;
   padding: 4px 10px; border-radius: 10px; background: var(--painel); color: var(--fg); font: 600 12px var(--sans);
   border: 1px solid var(--borda-forte); box-shadow: 0 4px 14px rgba(0, 0, 0, .3);

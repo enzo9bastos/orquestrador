@@ -364,3 +364,33 @@ test('ajudante fora do app: quando o usuário vai direto ao app, o aviso sai; re
     assert.strictEqual((await estado()).conversaAberta, true, 'a conversa com ele continua aberta');
   } finally { p.kill(); }
 });
+
+// 16/11: o balão de fala do bichinho de dentro do app é só texto, mas segurava
+// o clique do que ficava embaixo dele (um botão da barra de cima, por exemplo)
+// enquanto a fala durava. Apareceu quando os testes passaram a desenhar de
+// verdade: o balão de boas-vindas cobria um botão do topo em 1000 px.
+test('bichinho no app: o balão de fala não segura o clique do que está embaixo', async (t) => {
+  const app = await abrirApp();
+  t.after(() => app.fechar());
+  await app.esperar('!!window.orqPetAtual && !!document.querySelector("#palco-pet .pet-balao")');
+  await app.tamanho(1480, 900);
+  // De pé na caixa de escrever, para o balão ficar inteiro dentro da janela.
+  await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
+  await app.avaliar(`(() => { const p = window.orqPetAtual; const c = document.querySelector('.caixa-entrada').getBoundingClientRect();
+    p.salaNome = 'centro'; p.modo = 'outro'; p.x = Math.round(c.left + 300); p.y = 0; p.noAr = false; p.encaixar(); })()`);
+  await app.esperar('!window.orqPetAtual.noAr', 8000);
+  const r = await app.avaliar(`(() => {
+    const p = window.orqPetAtual;
+    p.falar('Agentes, ao trabalho!', 0); // fala fixa: fica na tela durante a conferência
+    const b = p.balao.getBoundingClientRect();
+    const x = b.left + b.width / 2, y = b.top + b.height / 2;
+    const alvo = document.elementFromPoint(x, y);
+    return { largura: Math.round(b.width), dentro: x > 0 && y > 0 && x < innerWidth && y < innerHeight, noBalao: !!(alvo && alvo.closest('.pet-balao')), estilo: getComputedStyle(p.balao).pointerEvents };
+  })()`);
+  assert.ok(r.largura > 20 && r.dentro, 'o balão está na tela, dentro da janela');
+  assert.strictEqual(r.noBalao, false, 'o clique no lugar do balão tem de chegar ao que está embaixo');
+  assert.strictEqual(r.estilo, 'none');
+  // O bichinho em si continua recebendo o ponteiro (carinho, arrastar, menu).
+  assert.strictEqual(await app.avaliar('getComputedStyle(window.orqPetAtual.el).pointerEvents'), 'auto');
+  assert.deepStrictEqual(app.erros, []);
+});
