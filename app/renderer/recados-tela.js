@@ -47,7 +47,10 @@
   }
   function blocoAnexos(r) {
     let h = '';
-    if (r.anexos && r.anexos.length) {
+    if (r.anexos && r.anexos.length && (r.copiaApagada || r.estado === 'entregue')) {
+      // Já saiu: a cópia de envio foi apagada, o registro guarda nome, tamanho e hash. Sem miniatura.
+      h += `<div class="nota recado-motivo recado-anexos-enviados">${r.anexos.map((x) => `<div><span>enviado:</span> <span data-sem-traducao>${esc(x.nome)} · ${esc(tamanho(x.bytes || 0))}</span></div>`).join('')}</div>`;
+    } else if (r.anexos && r.anexos.length) {
       h += `<div class="recado-anexos">${r.anexos.map((x, i) => figura(`${r.id}/${i}`, r.id, i, x.nome, x.tipo, x.bytes, x.arquivo)).join('')}</div>`;
       if (r.estado === 'aguardando') h += aviso();
     }
@@ -196,6 +199,7 @@
       await carregar();
       return;
     }
+    if (ev.target.closest('#recados-abrir-anexos')) { await R.pastaAnexos(); return; }
     const ab = ev.target.closest('[data-rc-abrir]');
     if (ab) { window.orq.abrirCaminho(ab.dataset.rcAbrir); return; }
     const l = ev.target.closest('[data-rc-liberar]');

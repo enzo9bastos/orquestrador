@@ -146,6 +146,7 @@ contextBridge.exposeInMainWorld('orq', {
     decidir: (id, aprovar, nota) => ipcRenderer.invoke('recados:decidir', id, aprovar, nota),
     projetos: () => ipcRenderer.invoke('recados:projetos'),
     anexo: (id, i) => ipcRenderer.invoke('recados:anexo', id, i),
+    pastaAnexos: () => ipcRenderer.invoke('recados:pasta-anexos'),
     memoria: (alvo) => ipcRenderer.invoke('recados:memoria', alvo),
     aoMudar: (fn) => ipcRenderer.on('recados:mudou', (_e, l) => fn(l)),
   },

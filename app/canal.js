@@ -18,6 +18,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const anexo = require('./canal-anexo');
+const i18n = require('./i18n');
 
 const LIMITE_BYTES = 4096; // o tamanho que o ntfy aceita sem virar anexo
 const casa = (p) => String(p || '').replace(/^~(?=$|\/)/, os.homedir());
@@ -181,6 +182,20 @@ async function publicar(a, { caixa, texto, titulo, arquivo = null, grupo = null 
   return { id: j.id || null };
 }
 
+// Para quem lê só o texto (ex.: `ntfy subscribe caixa | jq -r .message`) e não vê o
+// campo `attachment`: toda mensagem com anexo termina com esta linha. Entra na
+// conta dos 4 KB e na recusa de segredo, e sai no idioma do app (en.json).
+function linhaDoAnexo(i, n, { nome, tipo, bytes }, dias = 7) {
+  return i18n.t(`📎 anexo ${i}/${n}: ${nome} (${anexo.ehImagem(tipo) ? 'imagem' : 'PDF'}, ${anexo.tamanhoLegivel(bytes)}); o arquivo está no campo "attachment" desta mensagem; o link vale ${dias} dias.`);
+}
+// Texto completo de cada mensagem de um recado com anexos (o que vai em Message).
+function textosComAnexos({ texto, titulo, anexos, dias = 7 }) {
+  return anexos.map((x, i) => {
+    const t = i === 0 ? texto : `Anexo ${i + 1} de ${anexos.length} do mesmo recado${titulo ? ` («${titulo}»)` : ''}.`;
+    return `${t}\n${linhaDoAnexo(i + 1, anexos.length, x, dias)}`;
+  });
+}
+
 // Recado com anexos: um envio por anexo, ligados pelo mesmo id de recado (etiqueta
 // rc-<id>). O texto vai no primeiro; os outros dizem de qual recado são. Cada
 // anexo é lido da cópia que o usuário aprovou, conferido (hash, tipo, tamanho)
@@ -197,8 +212,13 @@ async function publicarComAnexos(a, { caixa, texto, titulo, id, anexos, desde = 
     const limpo = anexo.limparMetadados(lido.buf, lido.tipo);
     return { nome: x.nome, tipo: lido.tipo, buf: limpo.buf };
   });
+  const textos = textosComAnexos({ texto, titulo, anexos: prontos.map((x, i) => ({ nome: anexos[i].nome, tipo: x.tipo, bytes: x.buf.length })), dias: a.anexoDias || 7 });
+  for (const t of textos) {
+    const p = problemaDoTexto(t);
+    if (p) throw Object.assign(new Error(p), { status: 400 });
+  }
   for (let i = desde; i < prontos.length; i++) {
-    const t = i === 0 ? texto : `Anexo ${i + 1} de ${prontos.length} do mesmo recado${titulo ? ` («${titulo}»)` : ''}.`;
+    const t = textos[i];
     await publicar(a, { caixa, texto: t, titulo, arquivo: prontos[i], grupo: id });
     aoEnviar(i + 1);
   }
@@ -307,4 +327,4 @@ function escutar(a, { aoChegar, aoEstado = () => {} }) {
   return { parar: () => { parado = true; if (controle) controle.abort(); } };
 }
 
-module.exports = { problemaDoNome, publicarComAnexos, baixarAnexo, CLASSES, NOME_CLASSE, precisaAprovar, lerCliente, contatosDe, ajustes, acharContato, problemaDoTexto, remetente, etiqueta, publicar, escutar, LIMITE_BYTES, arquivoEstado };
+module.exports = { linhaDoAnexo, textosComAnexos, problemaDoNome, publicarComAnexos, baixarAnexo, CLASSES, NOME_CLASSE, precisaAprovar, lerCliente, contatosDe, ajustes, acharContato, problemaDoTexto, remetente, etiqueta, publicar, escutar, LIMITE_BYTES, arquivoEstado };

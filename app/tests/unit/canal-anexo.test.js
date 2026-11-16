@@ -306,7 +306,7 @@ test('envio: um PUT por anexo, com nome, texto codificado, título, etiquetas e 
   assert.deepStrictEqual(recebidos.map((x) => [x.metodo, x.caixa, x.headers.filename, x.headers['content-type']]),
     [['PUT', 'para-bruno', 'captura.png', 'image/png'], ['PUT', 'para-bruno', 'foto.jpg', 'image/jpeg'], ['PUT', 'para-bruno', 'rel.pdf', 'application/pdf']]);
   const dec = (h) => { const m = /^=\?UTF-8\?B\?(.+)\?=$/.exec(h); return m ? Buffer.from(m[1], 'base64').toString('utf8') : h; };
-  assert.strictEqual(dec(recebidos[0].headers.message), 'Veja a linha 2\nacentuação ok');
+  assert.strictEqual(dec(recebidos[0].headers.message), `Veja a linha 2\nacentuação ok\n📎 anexo 1/3: captura.png (imagem, ${anexo.tamanhoLegivel(r.anexos[0].bytes)}); o arquivo está no campo "attachment" desta mensagem; o link vale 7 dias.`);
   assert.match(dec(recebidos[1].headers.message), /^Anexo 2 de 3 do mesmo recado/);
   assert.ok(recebidos.every((x) => x.headers.authorization === `Bearer ${TOKEN}` && x.headers.title === 'Erro na tela'));
   const grupo = recebidos[0].headers.tags;
@@ -491,4 +491,101 @@ test('config: pasta dos anexos e os limites do servidor são validados', () => {
   assert.deepStrictEqual(v({ canalAnexoMaxMB: 0, canalAnexoDias: 0.5 }).recusado, ['canalAnexoMaxMB', 'canalAnexoDias']);
   const a = prontos();
   assert.deepStrictEqual([a.anexoMax, a.anexoDias], [5 * 1024 * 1024, 7], 'padrão: 5 MB e 7 dias');
+});
+
+// --- ajustes de 2026-11-16: linha no texto, conferência na aprovação, cópia de envio ---------------
+test('texto: toda mensagem com anexo termina com a linha "📎 anexo i/n" (para quem lê só o .message)', async () => {
+  const a = prontos();
+  const r = recados.pedirExterno({ contato: a.contatos[0], texto: 'duas coisas', titulo: 'T', anexos: [{ nome: 'erro.png', tipo: 'png', buf: ex.png() }, { nome: 'rel.pdf', tipo: 'pdf', buf: ex.pdf() }] });
+  recebidos.length = 0;
+  await canal.publicarComAnexos(a, { caixa: 'para-bruno', texto: r.texto, titulo: 'T', id: r.id, anexos: r.anexos });
+  const dec = (h) => Buffer.from(/^=\?UTF-8\?B\?(.+)\?=$/.exec(h)[1], 'base64').toString('utf8');
+  const linhas = recebidos.map((x) => dec(x.headers.message).split('\n').at(-1));
+  assert.deepStrictEqual(linhas, [
+    `📎 anexo 1/2: erro.png (imagem, ${anexo.tamanhoLegivel(r.anexos[0].bytes)}); o arquivo está no campo "attachment" desta mensagem; o link vale 7 dias.`,
+    `📎 anexo 2/2: rel.pdf (PDF, ${anexo.tamanhoLegivel(r.anexos[1].bytes)}); o arquivo está no campo "attachment" desta mensagem; o link vale 7 dias.`]);
+  assert.strictEqual(canal.linhaDoAnexo(1, 1, { nome: 'x.png', tipo: 'png', bytes: 122880 }, 3).match(/\(imagem, (.+?)\).*vale (\d+)/).slice(1).join('|'), '120 KB|3', 'o tamanho e os dias vêm dos dados');
+});
+
+test('texto: a linha do anexo entra nos 4 KB e na recusa de segredo, e sai no idioma do app', async () => {
+  const a = prontos();
+  const um = [{ nome: 'a.png', tipo: 'png', buf: ex.png() }];
+  // cabe sozinho, mas com a linha passa dos 4096 bytes
+  const folga = 'x'.repeat(4096 - 20);
+  const r = recados.pedirExterno({ contato: a.contatos[0], texto: folga, anexos: um });
+  assert.strictEqual(canal.problemaDoTexto(r.texto), null);
+  recebidos.length = 0;
+  await assert.rejects(canal.publicarComAnexos(a, { caixa: 'para-bruno', texto: r.texto, id: r.id, anexos: r.anexos }), (e) => e.status === 400 && /recado grande demais/.test(e.message));
+  assert.strictEqual(recebidos.length, 0, 'nada saiu');
+  // o comando recusa antes de guardar qualquer coisa
+  const f = tmp('cabe.png', ex.png());
+  const antes = recados.ler().length;
+  const c = rodar('externo', 'bruno', folga, '--tipo', 'pedido', '--anexo', f);
+  assert.notStrictEqual(c.status, 0);
+  assert.match(c.stderr, /recado grande demais.*com a linha do anexo/);
+  assert.strictEqual(recados.ler().length, antes);
+  // nome com cara de segredo que chegou ao registro por outro caminho: a linha leva o nome, e a recusa vale
+  const r2 = recados.pedirExterno({ contato: a.contatos[0], texto: 'ok', anexos: um });
+  r2.anexos[0].nome = 'senha=abc12345.png';
+  await assert.rejects(canal.publicarComAnexos(a, { caixa: 'para-bruno', texto: 'ok', id: r2.id, anexos: r2.anexos }), (e) => /parece ter senha/.test(e.message));
+  // em inglês
+  const cfgArq = path.join(casa, '.config', 'orq-app', 'config.json');
+  const cfg0 = fs.readFileSync(cfgArq, 'utf8');
+  fs.writeFileSync(cfgArq, JSON.stringify({ ...JSON.parse(cfg0), idioma: 'en' }));
+  try {
+    assert.strictEqual(canal.linhaDoAnexo(1, 2, { nome: 'erro.png', tipo: 'png', bytes: 122880 }, 7),
+      '📎 attachment 1/2: erro.png (image, 120 KB); the file is in the "attachment" field of this message; the link is valid for 7 days.');
+    assert.match(canal.linhaDoAnexo(2, 2, { nome: 'r.pdf', tipo: 'pdf', bytes: 500 }, 7), /^📎 attachment 2\/2: r\.pdf \(PDF, 500 B\);/);
+  } finally { fs.writeFileSync(cfgArq, cfg0); }
+});
+
+test('aprovar confere a cópia: se o arquivo mudou depois de guardado, nenhum lugar aprova (aba, balão, conversa)', () => {
+  const a = ajustes();
+  const r = recados.pedirExterno({ contato: a.contatos[0], texto: 'confere', anexos: [{ nome: 'a.png', tipo: 'png', buf: ex.png(8, 8) }, { nome: 'b.pdf', tipo: 'pdf', buf: ex.pdf() }] });
+  fs.writeFileSync(r.anexos[0].arquivo, ex.png(30, 30));
+  assert.throws(() => recados.decidir(r.id, true, ''), /a\.png: o arquivo mudou depois de guardado/);
+  assert.strictEqual(recados.ler().find((x) => x.id === r.id).estado, 'aguardando');
+  assert.ok(!recados.externosNaFila().some((x) => x.id === r.id));
+  // Negar continua valendo: não manda nada.
+  recados.decidir(r.id, false, 'não');
+  assert.strictEqual(recados.ler().find((x) => x.id === r.id).estado, 'negado');
+});
+
+test('cópia de envio: some depois que o servidor confirmou TUDO; o registro guarda nome, tamanho e hash; o original não é tocado', async () => {
+  const a = prontos();
+  const orig = tmp('original-do-usuario.png', ex.pngComMetadados());
+  const antesOrig = fs.readFileSync(orig);
+  const r = rodar('externo', 'bruno', 'segue', '--tipo', 'pedido', '--anexo', orig, '--anexo', tmp('doc.pdf', ex.pdf()));
+  assert.strictEqual(r.status, 0, r.stderr);
+  const rec = recados.ler().at(-1);
+  const dir = path.dirname(rec.anexos[0].arquivo);
+  assert.ok(fs.existsSync(dir) && fs.readdirSync(dir).length === 2);
+  recados.decidir(rec.id, true, '');
+  recebidos.length = 0;
+  await canal.publicarComAnexos(a, { caixa: 'para-bruno', texto: rec.texto, id: rec.id, anexos: rec.anexos });
+  assert.ok(fs.existsSync(dir), 'enviado, mas ainda não concluído: a cópia fica');
+  recados.concluirExterno(rec.id, { ok: true });
+  assert.ok(!fs.existsSync(dir), 'a pasta saida/<id> sumiu');
+  const dep = recados.ler().find((x) => x.id === rec.id);
+  assert.strictEqual(dep.estado, 'entregue');
+  assert.deepStrictEqual(dep.anexos.map((x) => [x.nome, x.tipo, x.bytes > 0, x.sha256.length, x.arquivo]), [['original-do-usuario.png', 'png', true, 64, undefined], ['doc.pdf', 'pdf', true, 64, undefined]]);
+  assert.strictEqual(dep.copiaApagada, true);
+  assert.ok(fs.readFileSync(orig).equals(antesOrig), 'o arquivo original do usuário continua igual');
+});
+
+test('cópia de envio: com falha, a cópia fica para reenviar; só a pasta do recado é apagada', () => {
+  const a = ajustes();
+  const r = recados.pedirExterno({ contato: a.contatos[0], texto: 'falha', anexos: [{ nome: 'f.png', tipo: 'png', buf: ex.png() }] });
+  const dir = path.dirname(r.anexos[0].arquivo);
+  recados.decidir(r.id, true, '');
+  recados.concluirExterno(r.id, { ok: false, erro: 'HTTP 507: o servidor está sem espaço para anexos' });
+  assert.ok(fs.existsSync(r.anexos[0].arquivo), 'falhou: a cópia fica');
+  assert.strictEqual(recados.ler().find((x) => x.id === r.id).anexos[0].arquivo, r.anexos[0].arquivo);
+  // apagarSaida só mexe na pasta do próprio recado, nunca fora da pasta de saída
+  const vizinha = path.join(path.dirname(dir), 'outro-recado');
+  fs.mkdirSync(vizinha, { recursive: true });
+  fs.writeFileSync(path.join(vizinha, 'a.png'), 'nao mexa');
+  assert.strictEqual(anexo.apagarSaida('../' + path.basename(vizinha)), 0, 'id com ../ não sai da pasta');
+  assert.ok(fs.existsSync(path.join(vizinha, 'a.png')));
+  assert.strictEqual(anexo.apagarSaida('nao-existe'), 0);
 });

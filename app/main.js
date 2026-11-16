@@ -3,7 +3,7 @@
 // Casca por cima do tmux e do orq: os agentes continuam vivendo no tmux, dentro
 // dos devcontainers. Fechar o app não derruba nada. O orquestrador também roda
 // numa sessão tmux própria ("orquestrador"), então sobrevive ao app.
-const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net, Menu, nativeImage } = require('electron');
 const { pathToFileURL } = require('url');
 // Uma cópia só por usuário: duas rodariam cada workflow em dobro e
 // brigariam pelo servidor de controle e pelo ajudante. Abrir de novo só traz
@@ -644,9 +644,29 @@ function baixarAnexosPendentes(a) {
   }
 }
 setInterval(cicloCanal, 3000);
-// Miniatura de imagem para a aba Recados: lida do arquivo LOCAL (a cópia que sai,
-// ou o anexo já baixado), conferida pelos bytes e pelo tamanho. O caminho vem do
+// Miniatura de imagem (aba Recados, cartão da conversa e balão do bichinho): lida do arquivo
+// LOCAL (a cópia que sai, ou o anexo já baixado), conferida pelos bytes e pelo tamanho e
+// decodificada de verdade (nativeImage): se não dá para montar, devolve null e o lugar
+// mostra "abra na aba Recados para ver" em vez de aprovar às cegas. O caminho vem do
 // registro, nunca da tela; nada remoto é carregado.
+const miniCache = new Map(); // arquivo|largura|hash → data:
+function miniaturaReduzida(arquivo, max, largura) {
+  const lido = require('./canal-anexo').lerArquivo(arquivo, { max });
+  if (lido.erro || !require('./canal-anexo').ehImagem(lido.tipo)) return null;
+  const chave = `${arquivo}|${largura}|${require('crypto').createHash('sha1').update(lido.buf).digest('hex')}`;
+  if (miniCache.has(chave)) return miniCache.get(chave);
+  let url = null;
+  try {
+    let img = nativeImage.createFromBuffer(lido.buf);
+    if (!img.isEmpty()) {
+      if (img.getSize().width > largura) img = img.resize({ width: largura, quality: 'good' });
+      url = img.toDataURL();
+    }
+  } catch { url = null; }
+  if (miniCache.size > 60) miniCache.clear();
+  miniCache.set(chave, url);
+  return url;
+}
 ipcMain.handle('recados:anexo', (_e, id, i) => {
   try {
     const r = recados.ler(5000).find((x) => x.id === id && x.canal);
@@ -654,8 +674,19 @@ ipcMain.handle('recados:anexo', (_e, id, i) => {
     const a = canal.ajustes(config.ler());
     const alvo = Number.isInteger(i) ? (r.anexos || [])[i] : (r.anexo && r.anexo.estado === 'ok' ? { arquivo: r.anexo.caminho } : null);
     if (!alvo || !alvo.arquivo) return null;
-    return { dataUrl: require('./canal-anexo').miniatura(alvo.arquivo, { max: a.anexoMax }) };
+    return { dataUrl: miniaturaReduzida(alvo.arquivo, a.anexoMax, 640) };
   } catch { return null; }
+});
+// Os anexos recebidos ficam na pasta padrão do app e NÃO são apagados (depois de alguns dias
+// do servidor são a única cópia). O botão da aba Recados abre essa pasta.
+ipcMain.handle('recados:pasta-anexos', () => {
+  try {
+    const a = canal.ajustes(config.ler());
+    const dir = a.pastaAnexos || require('./canal-anexo').pastaRecebidos();
+    require('./canal-anexo').pastaPrivada(dir);
+    if (!process.env.ORQ_APP_E2E) shell.openPath(dir);
+    return { pasta: dir };
+  } catch (e) { return { erro: e.message }; }
 });
 ipcMain.handle('canal:estado', () => situacaoCanal());
 ipcMain.handle('recados:lista', () => recados.ler());
@@ -670,6 +701,15 @@ ipcMain.handle('recados:memoria', (_e, alvo) => {
 // --- dados ---------------------------------------------------------------
 // O que espera o usuário: permissões e pedidos dos agentes (fila) e
 // perguntas das conversas do app. O ajudante vem avisar das novas.
+// Anexos do recado para o balão do bichinho: miniatura pequena de cada imagem (null = não deu
+// para montar: o balão manda abrir a aba Recados e não oferece Aprovar) e o aviso do link.
+function itemAnexos(r) {
+  if (!r.anexos || !r.anexos.length || r.estado !== 'aguardando') return {};
+  const a = canal.ajustes(config.ler());
+  const ca = require('./canal-anexo');
+  return { anexos: r.anexos.map((x) => ({ nome: x.nome, tipo: x.tipo, bytes: x.bytes, imagem: ca.ehImagem(x.tipo), dataUrl: ca.ehImagem(x.tipo) ? miniaturaReduzida(x.arquivo, a.anexoMax, 480) : null })),
+    avisoAnexo: { dias: a.anexoDias, mb: Math.round((a.anexoMax / 1048576) * 10) / 10 } };
+}
 function verPendencias(r) {
   const lista = [
     ...r.fila.map((p) => ({
@@ -686,7 +726,7 @@ function verPendencias(r) {
     ...recados.ler(1000).filter((r) => r.estado === 'aguardando').map((r) => ({
       id: `aprovar:${r.id}`,
       texto: r.canal ? `Recado para ${r.para.nome} espera você aprovar` : `Pedido ao ${r.para.nome} espera você aprovar`,
-      item: { tipo: 'aprovacao', recado: r.id, canal: !!r.canal, quem: r.para.nome, titulo: r.titulo || null, texto: String(r.texto || '').slice(0, 1500), motivo: r.motivo || null, anexos: (r.anexos || []).length },
+      item: { tipo: 'aprovacao', recado: r.id, canal: !!r.canal, quem: r.para.nome, titulo: r.titulo || null, texto: String(r.texto || '').slice(0, 1500), motivo: r.motivo || null, ...itemAnexos(r) },
     })),
   ];
   ajudante.pendencias(lista);
@@ -795,8 +835,7 @@ app.whenReady().then(() => {
   criarJanela();
   ajudante.ligar({ janela: () => janela, presenca: () => require('./janelas').estado([process.pid]),
     decidir: (id, aprovar, nota) => {
-      // Recado com anexo só sai depois de o usuário VER a miniatura (aba Recados): o bichinho não aprova.
-      if (aprovar && (recados.ler(5000).find((x) => x.id === id) || {}).anexos?.length) return false;
+      // Com anexo, recados.decidir confere o hash da cópia aprovada (erro = não aprova).
       recados.decidir(id, aprovar, nota); cicloRecados(); cicloCanal(); return true;
     }, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.

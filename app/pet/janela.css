@@ -214,3 +214,11 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 /* Aprovação trazida pelo bichinho: o recado em texto corrido (não código) e o motivo de esperar. */
 .aj-recado { font: 12.5px var(--sans); max-height: 180px; }
 .aj-motivo { margin: 4px 0 6px; font-size: 11.5px; color: var(--fg-3); }
+
+/* Anexos do recado que espera aprovação: miniaturas pequenas; o clique amplia dentro do balão */
+.aj-rc-anexos { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.aj-rc-anexo { margin: 0; max-width: 100%; font-size: 11px; color: var(--fg-3); }
+.aj-rc-mini { display: block; width: 84px; height: 56px; object-fit: cover; border: 1px solid var(--borda-forte); border-radius: 6px; cursor: zoom-in; }
+.aj-rc-anexo.grande { flex-basis: 100%; }
+.aj-rc-anexo.grande .aj-rc-mini { width: 100%; height: auto; max-height: 260px; object-fit: contain; cursor: zoom-out; }
+.aj-rc-aviso { margin: 6px 0; padding: 6px 8px; border: 1px solid var(--esperando, #b9922f); border-radius: 6px; font-size: 11.5px; }

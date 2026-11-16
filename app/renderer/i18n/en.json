@@ -1033,6 +1033,11 @@
     "não foi baixado": "it wasn't downloaded",
     "Quem tiver o link abre por 1 dia: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.": "Anyone with the link can open it for 1 day: don't send a screenshot with a password, token, or personal or customer data; crop the screen first.",
     "Baixando o anexo": "Downloading the attachment",
+    "enviado:": "sent:",
+    "Abrir a pasta dos anexos": "Open the attachments folder",
+    "Os anexos que chegam pelo canal ficam guardados aqui, uma subpasta por dia": "Attachments that arrive through the channel are kept here, one subfolder per day",
+    "Clique para ampliar": "Click to enlarge",
+    "Abra na aba Recados para ver a imagem antes de aprovar.": "Open the Messages tab to see the image before approving.",
     "Para aprovar": "To approve",
     "Todos os recados": "All messages",
     "Sem aprovar: ciente": "No approval: acknowledgment",
@@ -2288,6 +2293,14 @@
     [
       "^tem (\\d+) anexos?: espera você ver e aprovar$",
       "has $1 attachment(s): waits for you to see and approve"
+    ],
+    [
+      "^📎 anexo (\\d+)/(\\d+): (.+) \\(imagem, (.+)\\); o arquivo está no campo \"attachment\" desta mensagem; o link vale (\\d+) dias\\.$",
+      "📎 attachment $1/$2: $3 (image, $4); the file is in the \"attachment\" field of this message; the link is valid for $5 days."
+    ],
+    [
+      "^📎 anexo (\\d+)/(\\d+): (.+) \\(PDF, (.+)\\); o arquivo está no campo \"attachment\" desta mensagem; o link vale (\\d+) dias\\.$",
+      "📎 attachment $1/$2: $3 (PDF, $4); the file is in the \"attachment\" field of this message; the link is valid for $5 days."
     ],
     [
       "^Sai agora para (.+)$",

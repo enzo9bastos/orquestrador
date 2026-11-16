@@ -140,6 +140,13 @@ try {
       if (pn) sair(`recusado: ${pn}`);
       anexos.push({ nome: lido.nome, tipo: lido.tipo, buf: lido.buf });
     }
+    // A linha "📎 anexo…" que vai no texto de cada mensagem também conta nos 4 KB e passa pela recusa de segredo.
+    if (anexos.length) {
+      for (const t of canal.textosComAnexos({ texto, titulo: opc.titulo || null, anexos: anexos.map((x) => ({ nome: x.nome, tipo: x.tipo, bytes: x.buf.length })), dias: a.anexoDias })) {
+        const pt = canal.problemaDoTexto(t);
+        if (pt) sair(`recusado: ${pt} (com a linha do anexo que o app acrescenta ao texto)`);
+      }
+    }
     const segurar = anexos.length ? `tem ${anexos.length} anexo${anexos.length > 1 ? 's' : ''}: espera você ver e aprovar` : canal.precisaAprovar(a, { classe, texto });
     const r = recados.pedirExterno({ contato, texto, titulo: opc.titulo || null, classe, segurar, autorizadoPor: opc.autorizado || null, anexos, anexoMax: a.anexoMax });
     console.log(anexos.length

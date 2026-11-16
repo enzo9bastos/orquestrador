@@ -1438,6 +1438,7 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .recados-abas { display: flex; gap: 4px; margin-bottom: 12px; }
 .recados-abas button { padding: 4px 12px; border-radius: var(--r-sm); color: var(--fg-3); font-size: 12.5px; }
 .recados-abas button:hover { background: var(--painel-hover); color: var(--fg); }
+.recados-abas .recados-pasta-anexos { margin-left: auto; }
 .recados-abas button.ativa { background: var(--claude-suave); color: var(--fg); }
 .recados-linha, .memoria-notas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .recado, .memoria-nota { border: 1px solid var(--borda); border-radius: var(--r-sm); padding: 10px 12px; background: var(--bg-elevado); }
@@ -1470,7 +1471,7 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .concluir-topico:hover { background: var(--painel-hover); color: var(--ativo); }
 .concluir-topico.confirmando { color: var(--ativo); font-weight: 600; padding: 0 6px; white-space: nowrap; }
 /* Anexos do canal (imagem e PDF): miniatura, PDF e o aviso do link */
-.recado-anexos { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.recado-anexos { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; margin-top: 8px; }
 .recado-anexo { margin: 0; font-size: 12px; color: var(--fg-3); max-width: 240px; }
 .recado-miniatura { display: block; max-width: 240px; max-height: 160px; border: 1px solid var(--borda); border-radius: var(--r-sm); background: var(--bg); object-fit: contain; }
 .recado-anexo figcaption { margin-top: 4px; overflow-wrap: anywhere; }

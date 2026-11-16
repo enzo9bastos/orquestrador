@@ -560,6 +560,10 @@ function decidirExterno(id, aprovar, nota = '') {
   if (!r) throw new Error('recado não encontrado');
   if (r.estado !== 'aguardando') throw new Error('este recado não está esperando você');
   const n = String(nota || '').trim().slice(0, 2000) || null;
+  // Com anexo: a cópia tem de ser a mesma que a tela mostrou (vale na aba Recados, no balão e na conversa).
+  if (aprovar && r.anexos && r.anexos.length) {
+    for (const x of r.anexos) { const c = canalAnexo.conferirCopia(x); if (c.erro) throw new Error(c.erro); }
+  }
   if (aprovar) { mudar(id, { estado: 'na-fila', motivo: null, nota: n, ...(r.anexos && r.anexos.length ? { aprovadoPorUsuario: true } : {}) }); return; }
   mudar(id, { estado: 'negado', motivo: null, nota: n });
   avisarOrquestradorDoEnvio(r, `O usuário NÃO deixou sair o recado para ${r.para.nome}: «${r.texto.slice(0, 300)}»${n ? `\nMotivo/orientação: ${n}` : '\n(sem motivo)'}`, 'negado');
@@ -579,7 +583,12 @@ function anexoEnviado(id, n) { mudar(id, { enviados: n }); }
 function concluirExterno(id, { ok, erro = null }) {
   const r = externoPorId(id);
   if (!r) return;
-  mudar(id, { estado: ok ? 'entregue' : 'falhou', motivo: ok ? null : erro, enviadoEm: ok ? Date.now() : undefined });
+  const temAnexo = r.anexos && r.anexos.length;
+  mudar(id, { estado: ok ? 'entregue' : 'falhou', motivo: ok ? null : erro, enviadoEm: ok ? Date.now() : undefined,
+    // Tudo confirmado pelo servidor: o registro fica com nome, tamanho e hash; a cópia de envio some.
+    // Se algo falhou, a cópia fica para reenviar.
+    ...(ok && temAnexo ? { anexos: r.anexos.map(({ nome, tipo, bytes, sha256, retirado }) => ({ nome, tipo, bytes, sha256, retirado })), copiaApagada: true } : {}) });
+  if (ok && temAnexo) { try { canalAnexo.apagarSaida(id); } catch (e) { console.error('[canal] cópia de saída:', e.message); } }
   if (!ok) avisarOrquestradorDoEnvio(r, `Não consegui mandar o recado para ${r.para.nome}: ${erro}`, 'falhou');
 }
 // Tentativa que falhou por rede: continua na fila, com o motivo à vista.

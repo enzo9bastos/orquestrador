@@ -210,6 +210,35 @@ function guardarSaida(idRecado, itens) {
   });
 }
 
+// Confere a cópia guardada de um anexo contra o que o usuário aprovou (tipo, tamanho e
+// hash). { ok: true } ou { erro }.
+function conferirCopia(x, { max = MAX_PADRAO } = {}) {
+  const lido = lerArquivo(x.arquivo, { max });
+  if (lido.erro) return { erro: `${x.nome}: ${lido.erro.replace(/^[^:]*: /, '')}` };
+  if (x.sha256 && crypto.createHash('sha256').update(lido.buf).digest('hex') !== x.sha256) return { erro: `${x.nome}: o arquivo mudou depois de guardado; não vale aprovar nem enviar` };
+  return { ok: true };
+}
+
+// Depois que o servidor confirmou TODOS os pedaços, a cópia de envio (a pasta
+// saida/<id>) não serve mais: some. Só apaga a pasta desse recado, dentro da pasta
+// de saída do app, e só o que é arquivo comum; o arquivo ORIGINAL do usuário nunca
+// foi tocado (a cópia nasceu de uma leitura). Devolve quantos arquivos saíram.
+function apagarSaida(idRecado) {
+  const raiz = pastaSaida();
+  const dir = path.join(raiz, String(idRecado).replace(/[^A-Za-z0-9._-]/g, '_'));
+  if (path.dirname(dir) !== raiz) return 0;
+  let st;
+  try { st = fs.lstatSync(dir); } catch { return 0; }
+  if (st.isSymbolicLink() || !st.isDirectory()) return 0;
+  let n = 0;
+  for (const nome of fs.readdirSync(dir)) {
+    const f = path.join(dir, nome);
+    if (fs.lstatSync(f).isFile()) { fs.unlinkSync(f); n++; }
+  }
+  try { fs.rmdirSync(dir); } catch { /* sobrou algo que não é nosso: fica */ }
+  return n;
+}
+
 // "data:" para a tela mostrar a miniatura sem carregar nada de fora. Só imagem
 // conferida pelos bytes, até o limite.
 function miniatura(arquivo, { max = MAX_PADRAO } = {}) {
@@ -221,4 +250,4 @@ function miniatura(arquivo, { max = MAX_PADRAO } = {}) {
 }
 
 module.exports = { TIPOS, MAX_PADRAO, MAX_ANEXOS, tipoPorBytes, ehImagem, extensaoDe, lerArquivo, limparMetadados, nomeSeguro, pastaPrivada, gravarSemSobrescrever,
-  guardarRecebido, guardarSaida, miniatura, pastaRecebidos, pastaSaida, tamanhoLegivel, mb, dia };
+  guardarRecebido, guardarSaida, conferirCopia, apagarSaida, miniatura, pastaRecebidos, pastaSaida, tamanhoLegivel, mb, dia };
