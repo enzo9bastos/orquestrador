@@ -4,12 +4,13 @@
 // o menu. Agora o app confere a tela antes (estadoPelaTela do coletor); com
 // pergunta ou menu pendente, não digita nada, o recado espera e diz por quê.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const casa = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-cegas-'));
+const casa = pastaTemporaria('orq-cegas-');
 process.env.HOME = casa;
 const recados = require('../../recados');
 

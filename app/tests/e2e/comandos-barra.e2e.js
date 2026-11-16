@@ -4,6 +4,7 @@
 // Enter não o completa (Tab ou clique, sim; digitado inteiro, o Enter manda).
 // Nas conversas Codex, a lista não oferece os comandos próprios do Claude.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
@@ -22,7 +23,7 @@ async function digitar(app, texto) {
 }
 
 test('autocompletar dos comandos: /exit nunca é o primeiro nem vai pelo Enter', async (t) => {
-  process.env.CLAUDE_FALSO_LOG = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-')), 'log.jsonl');
+  process.env.CLAUDE_FALSO_LOG = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
   const app = await abrirApp({ config: { iasCaminhos: { claude: CLAUDE_FALSO } } });
   t.after(() => app.fechar());
   await app.esperar('!!window.__orqTeste');
@@ -73,7 +74,7 @@ test('autocompletar dos comandos: /exit nunca é o primeiro nem vai pelo Enter',
 });
 
 test('autocompletar dos comandos numa conversa Codex: sem os comandos próprios do Claude', async (t) => {
-  process.env.CODEX_FALSO_LOG = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-codex-falso-')), 'log.jsonl');
+  process.env.CODEX_FALSO_LOG = path.join(pastaTemporaria('orq-codex-falso-'), 'log.jsonl');
   const app = await abrirApp({
     config: { iaOrquestrador: 'codex', iasCaminhos: { codex: CODEX_FALSO } },
     arquivos: { '.codex/skills/rodada-x/SKILL.md': '---\nname: rodada-x\ndescription: Skill do Codex\n---\nx' },

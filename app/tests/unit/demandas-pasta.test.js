@@ -1,5 +1,6 @@
 // Área: topicos (demandas gravadas como .md na pasta de notas)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
@@ -133,7 +134,7 @@ test('demandas: recusada com nota leva a nota junto; sugerida sem nota só sai d
 
 test('demandas: orq-topico apagar usa a lixeira do sistema (gio trash)', () => {
   const t = topicos.abrir({ titulo: 'Pelo comando' });
-  const bin = fs.mkdtempSync(path.join(require('os').tmpdir(), 'orq-teste-gio-'));
+  const bin = pastaTemporaria('orq-teste-gio-');
   const log = path.join(bin, 'log');
   fs.writeFileSync(path.join(bin, 'gio'), `#!/bin/sh\necho "$@" >> "${log}"\n`, { mode: 0o755 });
   execFileSync(process.execPath, [cli, 'apagar', t.id], { env: { ...process.env, HOME: casa, PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });

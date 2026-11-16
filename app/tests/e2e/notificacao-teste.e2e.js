@@ -4,6 +4,7 @@
 // virava "O orquestrador respondeu"). Em teste, o aviso vai para um arquivo na
 // casa temporária, onde o teste confere que ele teria saído.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -13,7 +14,7 @@ const { abrirApp } = require('./app');
 const CLAUDE_FALSO = path.join(__dirname, '..', 'unit', 'claude-falso.js');
 
 test('app de teste não notifica o sistema: o aviso fica no arquivo da casa temporária', async (t) => {
-  process.env.CLAUDE_FALSO_LOG = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-')), 'log.jsonl');
+  process.env.CLAUDE_FALSO_LOG = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
   const app = await abrirApp({ config: { iasCaminhos: { claude: CLAUDE_FALSO } } });
   t.after(() => app.fechar());
   await app.esperar('!!window.__orqTeste');

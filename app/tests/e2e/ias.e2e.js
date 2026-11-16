@@ -1,5 +1,6 @@
 // Área: ias
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -9,7 +10,7 @@ const { abrirApp } = require('./app');
 // CLIs de mentira numa pasta temporária, primeira no PATH do app. O "claude"
 // de mentira só responde a versão (a conversa do orquestrador que o app sobe
 // sozinho sai na hora, sem chamar IA nenhuma).
-const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-ias-bin-'));
+const bin = pastaTemporaria('orq-ias-bin-');
 function cli(nome, versao) {
   fs.writeFileSync(path.join(bin, nome), `#!/bin/sh\n[ "$1" = --version ] && echo "${versao}"\nexit 0\n`, { mode: 0o755 });
 }
@@ -93,7 +94,7 @@ test('ias: em inglês', async (t) => {
 // Caminho escolhido: um "claude" de mentira fora do PATH, que anota quando é
 // aberto para conversar (sem --version). O PATH do app não tem claude nenhum.
 test('ias: caminho escolhido para o CLI', async (t) => {
-  const fora = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-ias-fora-'));
+  const fora = pastaTemporaria('orq-ias-fora-');
   const falso = path.join(fora, 'claude-meu');
   const marca = path.join(fora, 'abriu.txt');
   fs.writeFileSync(falso, `#!/bin/sh\n[ "$1" = --version ] && { echo "6.5.4 (Claude Code)"; exit 0; }\necho "$@" >> "${marca}"\nexit 0\n`, { mode: 0o755 });

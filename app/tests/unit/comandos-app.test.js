@@ -3,13 +3,14 @@
 // esses comandos editam; tirar hook e apagar subagente só com confirmação, e
 // sempre com cópia antes.)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 // Casa temporária: o módulo lê os.homedir() a cada chamada.
-const CASA = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-cmd-casa-'));
+const CASA = pastaTemporaria('orq-cmd-casa-');
 process.env.HOME = CASA;
 const A = require('../../comandos-app');
 const esc = (rel, txt) => { const p = path.join(CASA, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, txt); return p; };

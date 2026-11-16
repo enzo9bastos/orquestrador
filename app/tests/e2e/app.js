@@ -5,17 +5,21 @@
 // um teste nunca conversa com o app de outro (sorteada entre 400, um app órfão
 // de outra rodada "atendia" no lugar do app do teste). O app de teste também
 // vigia quem o abriu (ORQ_APP_E2E_PAI) e sai sozinho se esse processo morrer.
+// A casa temporária é apagada quando o teste passa (../temporarias.js), e o app
+// conversa com um tmux PRIVADO, dentro da casa: nunca enxerga nem mexe nas
+// sessões de tmux do usuário.
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
+const { pastaTemporaria } = require('../temporarias');
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // casaExistente: reabre o app na mesma casa temporária de uma abertura anterior
 // (para provar o que sobrevive a reiniciar); a configuração não é regravada.
-async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null } = {}) {
-  const casa = casaExistente || fs.mkdtempSync(path.join(os.tmpdir(), 'orq-tela-'));
+// tmux: pasta do tmux privado do app (TMUX_TMPDIR); por padrão, <casa>/tm.
+async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null, tmux = null } = {}) {
+  const casa = casaExistente || pastaTemporaria('orq-tela-');
   const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
   fs.mkdirSync(path.dirname(cfg), { recursive: true });
   if (!casaExistente) fs.writeFileSync(cfg, JSON.stringify(config).replace(/~\//g, `${casa}/`));
@@ -29,9 +33,22 @@ async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null
   const dados = path.join(casa, '.config', 'orquestrador');
   const arqPorta = path.join(dados, 'DevToolsActivePort');
   try { fs.unlinkSync(arqPorta); } catch { /* casa nova, ou reaberta sem o arquivo */ }
-  const proc = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '..', '..'), '--remote-debugging-port=0', `--user-data-dir=${dados}`], {
-    env: { ...process.env, HOME: casa, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) }, stdio: 'ignore',
-  });
+  // tmux privado: TMUX_TMPDIR dentro da casa e sem TMUX (que, herdado de quem
+  // roda os testes de dentro de um tmux, apontaria para o servidor do usuário).
+  const tmuxDir = tmux || path.join(casa, 'tm');
+  fs.mkdirSync(tmuxDir, { recursive: true });
+  const env = { ...process.env, HOME: casa, TMUX_TMPDIR: tmuxDir, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) };
+  delete env.TMUX;
+  delete env.TMUX_PANE;
+  // A saída do processo principal fica em <casa>/app.log: quando o teste falha,
+  // a casa é guardada e o log diz o que o app reclamou.
+  const log = fs.openSync(path.join(casa, 'app.log'), 'a');
+  // X11 sempre: sem isto o Electron escolhe o Wayland da sessão (mesmo dentro
+  // do xvfb-run e sem WAYLAND_DISPLAY, a libwayland acha o wayland-0 sozinha) e
+  // a janela de teste vai para a tela de verdade. Com X11 ela fica no DISPLAY.
+  delete env.WAYLAND_DISPLAY;
+  const proc = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '..', '..'), '--ozone-platform=x11', '--remote-debugging-port=0', `--user-data-dir=${dados}`], { env, stdio: ['ignore', log, log] });
+  fs.closeSync(log);
   let saiu = false;
   proc.once('exit', () => { saiu = true; });
   const matar = async () => {
@@ -66,6 +83,7 @@ async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null
 
   const app = {
     casa,
+    tmux: tmuxDir,
     porta,
     pid: proc.pid,
     erros,

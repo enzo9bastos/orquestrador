@@ -1,5 +1,6 @@
 // Área: hook (canal de permissão do hooks/orq-evento.sh)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -11,7 +12,7 @@ const pular = !fs.existsSync(HOOK) && 'fora do repositório';
 
 // Monta um projeto com o hook copiado em .orq/bin e o app "vivo".
 function projeto({ hookSoLeitura, respostasSoLeitura }) {
-  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-hook-'));
+  const raiz = pastaTemporaria('orq-hook-');
   const bin = path.join(raiz, '.orq', 'bin');
   fs.mkdirSync(bin, { recursive: true });
   fs.mkdirSync(path.join(raiz, '.orq', 'respostas-perm'));

@@ -420,11 +420,39 @@ cd app
 npm test                  # everything: unit + end-to-end
 npm test -- workflows     # one area only (each test file declares its area)
 npm test -- --so-unidade  # unit tests only, without opening the app
+npm test -- --rapido      # skip the files marked [lento] (slow)
+npm test -- --lento       # only the files marked [lento]
+npm test -- --trabalhadores=4   # how many end-to-end files run at the same time
 ```
 
 End-to-end tests launch the real app hidden, with a throwaway home directory, and talk to it through the
 DevTools protocol — your real files are never touched. Every bug that was fixed gets a regression test,
 listed in [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
+
+How the run is kept fast and clean:
+
+- **Virtual screen.** End-to-end tests never open a window on your screen. Outside a virtual X server
+  (Xvfb), `npm test` re-runs itself inside `xvfb-run -a` (without `WAYLAND_DISPLAY`, so nothing reaches
+  your Wayland session); without `xvfb-run` it stops and tells you how to install it
+  (`sudo apt install xvfb`). `ORQ_TESTE_NA_TELA=1` runs on the real screen on purpose, for debugging.
+  Calling `xvfb-run -a npm test` yourself keeps working as before. The test app always starts with
+  `--ozone-platform=x11`: on a Wayland session Electron would otherwise connect to the real compositor
+  (`wayland-0`) even inside `xvfb-run`. The main process output of each test app goes to `app.log` in
+  its throwaway home.
+- **In parallel.** Each test file runs in its own process, with its own home directory and DevTools
+  port. End-to-end files run several at a time (by default half the CPU cores, between 2 and 8; or
+  `--trabalhadores=N` / `ORQ_TESTE_TRABALHADORES=N`); files marked `[sozinho]` (alone: they measure time
+  or depend on window position) run afterwards, one at a time. The run ends with a summary and the 10
+  slowest files. The exit code is 0 only when everything passed.
+- **Marks.** Each test file declares its area on the first line (`// Área: notas`); the same line may
+  carry `[lento]` and `[sozinho]`.
+- **Private tmux.** Every app opened by a test talks to a tmux server of its own (`TMUX_TMPDIR` inside
+  its throwaway home, `TMUX` unset): tests never see or touch your tmux sessions.
+- **No leftovers.** Temporary folders are created through `app/tests/temporarias.js`, which deletes the
+  folders of each test that passed when the test file finishes. A failed test keeps its folders and
+  prints their paths; `ORQ_TESTE_GUARDAR=1` keeps everything. The cleanup only removes folders created by
+  the same process, directly inside the system temporary folder, with the `orq-` prefix, checked by real
+  path.
 
 The screenshots in this README come from the real app the same way, with made-up data:
 `node scripts/imagens-readme.js` regenerates them (Python 3 with Pillow converts the frames).

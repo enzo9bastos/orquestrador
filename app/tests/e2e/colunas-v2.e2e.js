@@ -1,4 +1,4 @@
-// Área: colunas
+// Área: colunas [lento]
 // Segunda rodada da tela limpa: conversa e nota usam mais largura com as
 // colunas recolhidas; os atalhos aparecem nas Configurações (trocar, desligar,
 // voltar ao padrão, recusa de colisão); o contador pulsa 3 vezes e para; a

@@ -1,5 +1,6 @@
-// Área: pet
+// Área: pet [lento]
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const path = require('path');
 const readline = require('readline');
@@ -77,7 +78,7 @@ test('bichinho no app: menu e guarda-roupa', async (t) => {
 // A janelinha do ajudante (processo próprio, em X11): o protocolo por linhas
 // de JSON. Em teste a janela nunca aparece na tela.
 test('ajudante fora do app: protocolo da janelinha', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
-  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') } });
   t.after(() => p.kill());
   const recebidas = [];
   readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
@@ -132,107 +133,13 @@ test('ajudante fora do app: protocolo da janelinha', { skip: !process.env.DISPLA
   assert.strictEqual((await estado()).pos.x, antes, 'volta para onde estava');
 });
 
-// Pedido de 2026-11-05: cada espécie chega e vai embora do seu jeito.
-test('ajudante fora do app: chegada e saída de cada espécie', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
-  async function acompanhar(especie, noMeio) {
-    const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
-    const recebidas = [];
-    readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
-    const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
-    const espera = async (fn, ms = 10000) => { for (let i = 0; i < ms / 50; i++) { const r = recebidas.find(fn); if (r) return r; await new Promise((x) => setTimeout(x, 50)); } throw new Error(`não chegou: ${fn}`); };
-    const estado = async () => { recebidas.length = 0; manda({ t: 'estado' }); return espera((m) => m.t === 'estado'); };
-    try {
-      await espera((m) => m.t === 'iniciado', 20000);
-      manda({ t: 'visual', visual: { especie, cor: 'azul', itens: {} }, tema: 'dark' });
-      manda({ t: 'pendencia', texto: 'teste', total: 1 });
-      const chegada = [];
-      for (let i = 0; i < 120; i++) { const e = await estado(); e.ms = Date.now(); chegada.push(e); if (e.modo === 'parado' && chegada.length > 2) break; await new Promise((x) => setTimeout(x, 60)); }
-      const parado = chegada.at(-1);
-      const extra = noMeio ? await noMeio({ manda, estado, espera, recebidas }) : null;
-      manda({ t: 'sumir' });
-      const saida = [];
-      for (let i = 0; i < 120; i++) { const e = await estado(); saida.push(e); if (e.modo === 'escondido') break; await new Promise((x) => setTimeout(x, 60)); }
-      const entrando = chegada.filter((e) => e.modo === 'entrando');
-      const saindo = saida.filter((e) => e.modo === 'saindo');
-      return {
-        chegada: entrando.map((e) => e.pos.y), chegadaX: entrando.map((e) => e.pos.x), parado, extra,
-        msChegada: entrando.length ? parado.ms - entrando[0].ms : 0,
-        saida: saindo.map((e) => e.pos.y), saidaX: saindo.map((e) => e.pos.x), floreioSaida: saida.at(-1).floreio,
-      };
-    } finally { p.kill(); }
-  }
-  const varia = (ys) => Math.max(...ys) - Math.min(...ys);
-
-  await t.test('bicho: chega e sai andando no chão (como sempre)', async () => {
-    const r = await acompanhar('bicho');
-    assert.strictEqual(r.parado.modo, 'parado');
-    assert.strictEqual(varia(r.chegada), 0, `altura mudou ao chegar: ${r.chegada}`);
-    assert.strictEqual(varia(r.saida), 0, `altura mudou ao sair: ${r.saida}`);
-  });
-  for (const especie of ['fantasma', 'nuvem']) {
-    await t.test(`${especie}: chega voando ondulado, para no ar e vai embora subindo`, async () => {
-      const r = await acompanhar(especie);
-      assert.strictEqual(r.parado.modo, 'parado');
-      assert.ok(varia(r.chegada) > 25, `não voou na chegada: ${r.chegada}`);
-      assert.ok(Math.min(...r.saida) < r.parado.pos.y - 100, `não subiu ao sair: ${r.saida} (parado em ${r.parado.pos.y})`);
-    });
-  }
-  await t.test('gosma: chega e vai embora pulando', async () => {
-    const r = await acompanhar('gosma');
-    assert.strictEqual(r.parado.modo, 'parado');
-    assert.ok(varia(r.chegada) > 40, `não pulou na chegada: ${r.chegada}`);
-    assert.ok(varia(r.saida) > 40, `não pulou na saída: ${r.saida}`);
-    assert.ok(Math.max(...r.chegada) <= r.parado.pos.y, 'os pulos são para cima do chão');
-  });
-
-  // Pedido de 2026-11-10: o fantasma vinha "duro" de cima, descia e ficava
-  // parado lá embaixo, no mesmo lugar dos outros. Agora quem voa vem
-  // rapidinho, dá o seu floreio e fica voando ali esperando a resposta — e
-  // continua no ar quando a pergunta fecha.
-  for (const [especie, floreio] of [['fantasma', 'pirueta'], ['nuvem', 'rolinho'], ['passarinho', 'looping']]) {
-    await t.test(`${especie}: vem rapidinho, faz ${floreio} e espera voando, alto (não no chão)`, async () => {
-      const r = await acompanhar(especie);
-      assert.strictEqual(r.parado.floreio, floreio);
-      assert.ok(r.parado.pos.y <= r.parado.chao - 120, `espera perto do chão: y ${r.parado.pos.y}, chão ${r.parado.chao}`);
-      if (especie === 'fantasma') assert.ok(r.msChegada < 1300, `chegada lenta: ${r.msChegada} ms`);
-      assert.ok(Math.max(...r.chegada) > r.parado.pos.y, 'mergulha abaixo do ponto de espera antes de subir até ele');
-    });
-  }
-  await t.test('fantasma: depois que a conversa fecha, continua voando onde estava', async () => {
-    const r = await acompanhar('fantasma', async ({ manda, estado }) => {
-      const antes = await estado();
-      manda({ t: 'js', codigo: "document.getElementById('pet').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); true" });
-      for (let i = 0; i < 40 && !(await estado()).conversaAberta; i++) await new Promise((x) => setTimeout(x, 50));
-      manda({ t: 'js', codigo: "document.getElementById('fechar').click(); true" });
-      for (let i = 0; i < 40 && (await estado()).conversaAberta; i++) await new Promise((x) => setTimeout(x, 50));
-      return { antes, depois: await estado() };
-    });
-    assert.strictEqual(r.extra.depois.conversaAberta, false);
-    assert.strictEqual(r.extra.depois.pos.y, r.extra.antes.pos.y, `caiu para o chão: ${r.extra.antes.pos.y} → ${r.extra.depois.pos.y}`);
-  });
-  await t.test('cada espécie chega com o seu floreio', async () => {
-    const esperado = { bicho: 'oi', gatinho: 'espreguica', pinguim: 'levanta', sapinho: 'quica', gosma: 'quica' };
-    for (const [especie, floreio] of Object.entries(esperado)) {
-      const r = await acompanhar(especie);
-      assert.strictEqual(r.parado.floreio, floreio, especie);
-    }
-  });
-  await t.test('cogumelo: brota do chão onde vai ficar e afunda nele para ir embora', async () => {
-    const r = await acompanhar('cogumelo');
-    assert.strictEqual(r.parado.modo, 'parado');
-    assert.strictEqual(r.parado.floreio, 'brota');
-    assert.strictEqual(varia(r.chegadaX), 0, `andou ao chegar: ${r.chegadaX}`);
-    assert.strictEqual(varia(r.chegada), 0, `saiu do chão ao chegar: ${r.chegada}`);
-    assert.strictEqual(r.floreioSaida, 'afunda');
-    assert.strictEqual(varia(r.saidaX), 0, `andou ao sair: ${r.saidaX}`);
-  });
-});
+// Chegada e saída de cada espécie: pet-especies-1/2/3.e2e.js (dividido para rodar em paralelo).
 
 // Pedido de 2026-11-13: o que espera aprovação vem com o bichinho de sempre
 // (o pombo-correio separado foi desfeito no mesmo dia) e dá para aprovar ou
 // negar ali mesmo, com motivo.
 test('ajudante fora do app: o bichinho traz a aprovação', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
-  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') } });
   const recebidas = [];
   readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
   const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
@@ -257,7 +164,7 @@ test('ajudante fora do app: o bichinho traz a aprovação', { skip: !process.env
 // digitada no bichinho. O app já não manda a pergunta para ele; se mandar (app
 // antigo), a janelinha mostra só o aviso e o botão para abrir o app.
 test('ajudante fora do app: pergunta com resposta secreta não tem campo no bichinho', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
-  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') } });
   const recebidas = [];
   readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
   const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
@@ -287,7 +194,7 @@ test('ajudante fora do app: pergunta com resposta secreta não tem campo no bich
 // quebrado (EPIPE) e o Electron pôs a caixa "A JavaScript error occurred in the
 // main process" na tela do usuário. A janelinha tem de sair quieta.
 test('ajudante fora do app: app fechado antes do "iniciado" não vira caixa de erro', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
-  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') } });
   let erro = '';
   p.stderr.on('data', (d) => { erro += d; });
   p.stdout.destroy(); // o lado do app fechou

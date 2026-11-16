@@ -1,6 +1,7 @@
-// Área: conversa (P0 da tela: 0.B7 lista única do "/", 0.B8 popups do Claude
+// Área: conversa [lento] (P0 da tela: 0.B7 lista única do "/", 0.B8 popups do Claude
 // numa conversa Codex, 0.B9 cartão de permissão, 0.B10 links na conversa)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
@@ -17,7 +18,7 @@ async function digitar(app, v) {
 }
 
 test('0.B7: a lista do "/" vem de uma fonte só e tem TODOS os comandos: nada some, nada cinza', async (t) => {
-  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-')), 'log.jsonl');
+  const log = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
   process.env.CLAUDE_FALSO_LOG = log;
   process.env.CLAUDE_FALSO_COMANDOS = JSON.stringify(['compact', 'agents', 'fast', 'doctor']);
   const app = await abrirApp({ config: { iasCaminhos: { claude: CLAUDE_FALSO } } });
@@ -93,7 +94,7 @@ test('0.B7: a lista do "/" vem de uma fonte só e tem TODOS os comandos: nada so
 });
 
 test('0.B8: numa conversa Codex, /config e /permissions abrem a tela do Codex no terminal: nem popup do Claude, nem texto ao Codex', async (t) => {
-  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-codex-falso-')), 'log.jsonl');
+  const log = path.join(pastaTemporaria('orq-codex-falso-'), 'log.jsonl');
   process.env.CODEX_FALSO_LOG = log;
   const app = await abrirApp({ config: { iaOrquestrador: 'codex', iasCaminhos: { codex: CODEX_FALSO } }, arquivos: { '.claude/settings.json': '{"permissions":{"allow":[]}}' } });
   t.after(() => app.fechar());

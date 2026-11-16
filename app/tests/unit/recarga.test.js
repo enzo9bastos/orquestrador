@@ -1,5 +1,6 @@
 // Área: recarga (recarregar a tela ao vivo só com código publicado)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -10,7 +11,7 @@ const { publicado } = require('../../recarga');
 const git = (d, ...a) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd: d, stdio: 'pipe' });
 
 test('recarga: só recarrega quando a pasta da tela está igual ao commit (S12)', async () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-recarga-'));
+  const d = pastaTemporaria('orq-recarga-');
   const tela = path.join(d, 'renderer');
   fs.mkdirSync(tela);
   fs.writeFileSync(path.join(tela, 'a.js'), 'um');
@@ -22,7 +23,7 @@ test('recarga: só recarrega quando a pasta da tela está igual ao commit (S12)'
   assert.strictEqual(await publicado(tela), true);
   fs.writeFileSync(path.join(tela, 'novo.js'), 'plantado');
   assert.strictEqual(await publicado(tela), false, 'arquivo novo fora do git');
-  const solto = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-recarga-'));
+  const solto = pastaTemporaria('orq-recarga-');
   assert.strictEqual(await publicado(solto), false, 'sem git, não recarrega sozinho');
 });
 
@@ -33,7 +34,7 @@ test('recarga: só recarrega quando a pasta da tela está igual ao commit (S12)'
 test('recarga: mudança fora da tela muda a versão do principal (pede reinício); só na tela, não', async () => {
   const { versaoDoPrincipal } = require('../../recarga');
   assert.strictEqual(typeof versaoDoPrincipal, 'function', 'sem a trava de versão');
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-recarga-'));
+  const d = pastaTemporaria('orq-recarga-');
   fs.mkdirSync(path.join(d, 'renderer'));
   fs.writeFileSync(path.join(d, 'renderer', 'tela.js'), 'tela 1');
   fs.writeFileSync(path.join(d, 'main.js'), 'principal 1');
@@ -47,5 +48,5 @@ test('recarga: mudança fora da tela muda a versão do principal (pede reinício
   fs.writeFileSync(path.join(d, 'preload.js'), 'ponte 2');
   git(d, 'commit', '-qam', 'a ponte mudou');
   assert.notStrictEqual(await versaoDoPrincipal(d), inicio, 'a ponte mudou: não recarrega, pede reinício');
-  assert.strictEqual(await versaoDoPrincipal(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-recarga-'))), null, 'sem git');
+  assert.strictEqual(await versaoDoPrincipal(pastaTemporaria('orq-recarga-')), null, 'sem git');
 });

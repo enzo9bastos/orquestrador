@@ -1,5 +1,6 @@
 // Área: recados (agentes ↔ orquestrador) e memória do projeto
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -7,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const SCRIPT = path.join(__dirname, '../../../hooks/orq-recado.sh');
-const casa = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-recados-'));
+const casa = pastaTemporaria('orq-recados-');
 process.env.HOME = casa; // o registro vai para ~/.local/share/orq-app/recados
 const recados = require('../../recados');
 

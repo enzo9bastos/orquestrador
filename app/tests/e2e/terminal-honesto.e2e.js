@@ -2,6 +2,7 @@
 // "Abrir terminal" de um agente sem tmux no PATH: o painel não some calado;
 // a aba Terminal diz que não abriu e por quê (em português e em inglês).
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -13,7 +14,7 @@ const frente = { chave: 'g/a:%1', emp: 'g', proj: 'proj-a', dir: '/x/a', pane: '
 
 // PATH só com o bash (o terminal do app é um bash de login): sem tmux.
 function pathSemTmux() {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-sem-tmux-'));
+  const bin = pastaTemporaria('orq-sem-tmux-');
   fs.symlinkSync(fs.realpathSync('/bin/bash'), path.join(bin, 'bash'));
   return bin;
 }

@@ -1,11 +1,12 @@
 // Área: pedido avulso (uma tarefa a um Claude ou Codex num container descartável)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const casa = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-avulso-'));
+const casa = pastaTemporaria('orq-avulso-');
 process.env.HOME = casa;
 const avulso = require('../../avulso');
 const recados = require('../../recados');

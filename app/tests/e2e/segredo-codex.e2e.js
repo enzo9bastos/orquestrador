@@ -3,6 +3,7 @@
 // responder, o valor não fica no DOM (o cartão mostra •••). Duas perguntas com
 // o mesmo texto recebem cada uma a sua resposta (casadas pelo id).
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,7 @@ const FALSO = path.join(__dirname, '..', 'unit', 'codex-falso.js');
 const SEGREDO = 'S3nh4-da-tela-7713';
 
 test('resposta secreta do Codex', async (t) => {
-  const LOG = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'orq-codex-falso-')), 'log.jsonl');
+  const LOG = path.join(pastaTemporaria('orq-codex-falso-'), 'log.jsonl');
   process.env.CODEX_FALSO_LOG = LOG;
   process.env.CODEX_FALSO_PERGUNTAS = JSON.stringify([
     { id: 'qa', header: 'Acesso', question: 'Qual a senha?', isSecret: true, isOther: true, options: null },

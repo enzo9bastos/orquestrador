@@ -44,9 +44,10 @@ test('janela: abrir o app de novo não sobe uma segunda cópia (M1)', async () =
   const { spawn } = require('child_process');
   const app = await abrirApp();
   try {
-    const p2 = spawn(process.env.ORQ_ELECTRON, [require('path').join(__dirname, '..', '..')], {
-      env: { ...process.env, HOME: app.casa, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1' }, stdio: 'ignore',
-    });
+    // Como o abrirApp: X11 (tela virtual) e o tmux privado do app.
+    const env = { ...process.env, HOME: app.casa, TMUX_TMPDIR: app.tmux, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1' };
+    delete env.TMUX; delete env.WAYLAND_DISPLAY;
+    const p2 = spawn(process.env.ORQ_ELECTRON, [require('path').join(__dirname, '..', '..'), '--ozone-platform=x11'], { env, stdio: 'ignore' });
     const saiu = await new Promise((ok) => { const t = setTimeout(() => ok(false), 8000); p2.on('exit', () => { clearTimeout(t); ok(true); }); });
     if (!saiu) p2.kill();
     assert.ok(saiu, 'a segunda cópia continuou aberta (workflows e servidor de controle em dobro)');

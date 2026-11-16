@@ -3,6 +3,7 @@
 // package.json e no package-lock.json, abre a entrada no CHANGELOG, e não
 // sobe o número duas vezes quando a publicação é repetida depois de falhar.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -14,7 +15,7 @@ const git = (d, ...a) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'use
 const ler = (d, rel) => fs.readFileSync(path.join(d, rel), 'utf8');
 
 function repo(versao = '0.2.1') {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-versao-'));
+  const d = pastaTemporaria('orq-versao-');
   fs.mkdirSync(path.join(d, 'app'));
   fs.writeFileSync(path.join(d, 'app', 'package.json'), JSON.stringify({ name: 'app', version: versao, main: 'main.js' }, null, 2) + '\n');
   fs.writeFileSync(path.join(d, 'app', 'package-lock.json'), JSON.stringify({ name: 'app', version: versao, lockfileVersion: 3, packages: { '': { name: 'app', version: versao }, 'node_modules/x': { version: '1.8.0' } } }, null, 2) + '\n');

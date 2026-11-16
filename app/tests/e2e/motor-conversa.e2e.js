@@ -5,6 +5,7 @@
 // (sem balão; nunca "/effort") e o
 // /clear deixa só a divisória "Conversa limpa". Casa temporária, nada real.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -14,7 +15,7 @@ const { abrirApp } = require('./app');
 const CLAUDE_FALSO = path.join(__dirname, '..', 'unit', 'claude-falso.js');
 
 async function abrirComFalso(config = {}) {
-  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-motor-')), 'log.jsonl');
+  const log = path.join(pastaTemporaria('orq-motor-'), 'log.jsonl');
   process.env.CLAUDE_FALSO_LOG = log;
   const app = await abrirApp({ config: { iasCaminhos: { claude: CLAUDE_FALSO }, ...config } });
   const linhas = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []);

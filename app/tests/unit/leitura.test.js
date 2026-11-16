@@ -1,12 +1,13 @@
 // Área: leitura (leitor de arquivos .jsonl: transcripts, recados e eventos sem ler tudo)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const jsonl = require('../../jsonl');
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-leitura-'));
+const dir = pastaTemporaria('orq-leitura-');
 let n = 0;
 const novo = () => path.join(dir, `a${n++}.jsonl`);
 const j = (o) => JSON.stringify(o);

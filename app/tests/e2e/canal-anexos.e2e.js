@@ -3,6 +3,7 @@
 // link), imagem e PDF que chegaram, anexo que falhou; e o ciclo todo contra um
 // servidor ntfy FALSO daqui mesmo (receber e baixar, aprovar e enviar).
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const http = require('http');
@@ -102,7 +103,7 @@ test('aba Recados: miniatura do que vai sair, aviso do link, imagem e PDF recebi
     await app.esperar("(document.querySelector('[data-id=\"r1\"] img') || {}).naturalWidth === 160", 10000);
     const r = await app.avaliar(`(() => ({ pdf: document.querySelector('[data-id="r2"] .recado-anexo-pdf').innerText.replace(/\\s+/g, ' ').trim(),
       externos: [...document.querySelectorAll('#aba-recados [src], #aba-recados [href]')].map((e) => e.getAttribute('src') || e.getAttribute('href')).filter((u) => !/^data:image\\//.test(u) && !/^#/.test(u)),
-      avisoSoNoQueSai: document.querySelectorAll('.recado-aviso-anexo').length }))()`);
+      avisoSoNoQueSai: document.querySelectorAll('#aba-recados .recado-aviso-anexo').length }))()`);
     assert.match(r.pdf, /^📄 resumo\.pdf · \d+ B Abrir no explorador$/);
     assert.deepStrictEqual(r.externos, [], 'só data: de arquivo local; nenhum link nem imagem remota');
     assert.strictEqual(r.avisoSoNoQueSai, 2, 'o aviso é do que vai sair (dois recados esperando), não do que chegou');
@@ -153,8 +154,11 @@ test('aba Recados em inglês: o aviso e os rótulos dos anexos', async (t) => {
   const app = await abrirComRecados({ idioma: 'en', canalContatos: [{ nome: 'Bruno', caixa: 'para-bruno' }] });
   t.after(() => app.fechar());
   await app.esperar("window.orqI18n && window.orqI18n.idioma() === 'en'", 15000);
-  await app.esperar("/Anyone with the link/.test(document.querySelector('.recado-aviso-anexo').innerText)", 10000);
-  const aviso = await app.avaliar("document.querySelector('.recado-aviso-anexo').innerText");
+  // Só o aviso da aba Recados: o cartão de aprovação na conversa (escondida, e
+  // antes no DOM) tem outro igual, e sem estar desenhado o innerText dele vem
+  // com a indentação do HTML. Rodando em paralelo, ele às vezes já existia aqui.
+  await app.esperar("/Anyone with the link/.test(document.querySelector('#aba-recados .recado-aviso-anexo').innerText)", 10000);
+  const aviso = await app.avaliar("document.querySelector('#aba-recados .recado-aviso-anexo').innerText");
   assert.strictEqual(aviso, "Anyone with the link can open it for 7 days: don't send a screenshot with a password, token, or personal or customer data; crop the screen first.\nEach file can be up to 5 MB. The app strips the metadata (EXIF, GPS, text) from images; a PDF goes as it is.");
   assert.match(await app.avaliar("document.querySelector('[data-id=\"r2\"] .recado-anexo-pdf').innerText.replace(/\\s+/g, ' ').trim()"), /^📄 resumo\.pdf · \d+ B Show in file manager$/);
   assert.match(await app.avaliar("document.querySelector('[data-id=\"r3\"] .recado-anexo-falha').innerText.replace(/\\s+/g, ' ')"), /^Attachment that didn't arrive: antigo\.png — the attachment expired on the server \(it keeps them for 7 days\)$/);
@@ -223,7 +227,7 @@ test('ciclo com servidor falso: a mensagem com anexo chega, é baixada e mostrad
 const { spawn } = require('child_process');
 const readline = require('readline');
 test('balão do bichinho: miniatura, aviso e Aprovar; imagem sem miniatura não aprova às cegas', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY)' }, async (t) => {
-  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: fs.mkdtempSync(path.join(require('os').tmpdir(), 'orq-tela-')) } });
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') } });
   const recebidas = [];
   readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
   const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');

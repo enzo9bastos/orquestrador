@@ -1,11 +1,11 @@
 // Utilidades dos testes: uma "casa" temporária para cada teste, para nunca
 // tocar nos arquivos reais (config, notas, settings do Claude).
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
+const { pastaTemporaria } = require('./temporarias');
 
 function casaTemporaria(config = {}) {
-  const casa = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-teste-'));
+  const casa = pastaTemporaria('orq-teste-'); // apagada quando o teste passa
   fs.mkdirSync(path.join(casa, '.config', 'orq-app'), { recursive: true });
   fs.writeFileSync(path.join(casa, '.config', 'orq-app', 'config.json'), JSON.stringify(config));
   process.env.HOME = casa;
@@ -19,4 +19,4 @@ function escrever(casa, rel, texto) {
   return abs;
 }
 
-module.exports = { casaTemporaria, escrever };
+module.exports = { casaTemporaria, escrever, pastaTemporaria };

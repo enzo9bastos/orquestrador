@@ -1,5 +1,6 @@
 // Área: coletor
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const { casaTemporaria, escrever } = require('../ajuda');
 
@@ -61,7 +62,7 @@ test('estado pela tela: movimento conta só a parte de cima e só por 8 s', () =
 test('status do agente: lido do .orq/status.json e vale mais que a tela por 30 min', () => {
   const fs = require('fs');
   const path = require('path');
-  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'orq-status-'));
+  const dir = pastaTemporaria('orq-status-');
   fs.mkdirSync(path.join(dir, '.orq'));
   const agora = Date.now();
   fs.writeFileSync(path.join(dir, '.orq', 'status.json'), JSON.stringify({ texto: 'Comparando', estado: 'travado', progresso: '2/5', ts: agora }));

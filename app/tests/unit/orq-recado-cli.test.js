@@ -6,6 +6,7 @@
 // Aqui ele roda como o orquestrador roda, num tmux PRIVADO (TMUX_TMPDIR
 // próprio), com casa temporária e docker falso: nada do tmux do usuário.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -17,7 +18,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 test('orq-recado para: acha o agente pelo estado do coletor e escreve no painel dele', async (t) => {
   try { execFileSync('tmux', ['-V'], { stdio: 'ignore' }); } catch { t.skip('sem tmux'); return; }
-  const casa = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-teste-'));
+  const casa = pastaTemporaria('orq-teste-');
   const dir = path.join(casa, 'dev', 'emp', 'proj-ana');
   const tmuxDir = path.join(casa, 'tm');
   const bin = path.join(casa, 'bin');

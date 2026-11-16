@@ -1,4 +1,7 @@
-// Área: demandas (painel resumido que abre a nota .md na aba Notas)
+// Área: demandas [sozinho] (painel resumido que abre a nota .md na aba Notas)
+// [sozinho] desde 16/11: com outros apps de teste rodando ao mesmo tempo, a edição
+// externa da nota e a demanda nova chegam ao disco na hora, mas o cartão não
+// atualiza em 8 s (sozinho, em ~0,2 s). Causa ainda não achada; não é repetição.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');

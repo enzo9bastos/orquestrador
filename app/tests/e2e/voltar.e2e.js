@@ -1,5 +1,6 @@
 // Área: voltar (conversa: voltar para antes de uma mensagem)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -8,7 +9,7 @@ const { abrirApp } = require('./app');
 
 // Claude falso: anota os argumentos de cada vez que sobe e responde ao init.
 function claudeFalso() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-'));
+  const d = pastaTemporaria('orq-claude-falso-');
   const log = path.join(d, 'args.log');
   const bin = path.join(d, 'claude');
   fs.writeFileSync(bin, `#!/usr/bin/env bash

@@ -4,6 +4,7 @@
 // (d) estado da sessão, (e) equivalente do app, (t) terminal.)
 // O que mexe em arquivo do usuário roda na casa temporária e confere o arquivo.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
@@ -28,7 +29,7 @@ async function fecharPopup(app) { await app.avaliar("document.getElementById('fe
 const avisos = (app) => app.avaliar("document.querySelectorAll('#mensagens .aviso-conversa').length");
 
 test('comandos do Claude: cada jeito funciona de verdade', async (t) => {
-  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-')), 'log.jsonl');
+  const log = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
   process.env.CLAUDE_FALSO_LOG = log;
   process.env.CLAUDE_FALSO_COMANDOS = JSON.stringify(['compact', 'agents', 'fast', 'heapdump', 'workflow-launch-exec', 'doctor']);
   const settings = { model: 'opus', hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo antes' }, { type: 'command', command: 'echo depois' }] }] } };
@@ -246,7 +247,7 @@ test('comandos do Claude: cada jeito funciona de verdade', async (t) => {
 });
 
 test('comandos do Claude: sem o pedido de controle, o /status mostra o que o init contou', async (t) => {
-  process.env.CLAUDE_FALSO_LOG = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-claude-falso-')), 'log.jsonl');
+  process.env.CLAUDE_FALSO_LOG = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
   process.env.CLAUDE_FALSO_SEM_CONTROLES = '1';
   const app = await abrirApp({ config: { iasCaminhos: { claude: CLAUDE_FALSO } } });
   t.after(() => { delete process.env.CLAUDE_FALSO_SEM_CONTROLES; return app.fechar(); });
@@ -264,7 +265,7 @@ test('comandos do Claude: sem o pedido de controle, o /status mostra o que o ini
 });
 
 test('comandos do Codex: os do app-server funcionam pelo método dele', async (t) => {
-  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-codex-falso-')), 'log.jsonl');
+  const log = path.join(pastaTemporaria('orq-codex-falso-'), 'log.jsonl');
   process.env.CODEX_FALSO_LOG = log;
   const app = await abrirApp({ config: { iaOrquestrador: 'codex', iasCaminhos: { codex: CODEX_FALSO } } });
   t.after(() => app.fechar());

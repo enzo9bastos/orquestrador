@@ -1,6 +1,7 @@
 // Área: pet
 // O app está na tela? (janelas.js) — as contas e a leitura de cada ambiente.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -35,7 +36,7 @@ test('janelas: Hyprland — área de trabalho, escondida e flutuante por cima', 
 });
 
 test('janelas: GNOME — lê a resposta da extensão pelo gdbus; sem extensão, ninguém responde (null)', async () => {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-janelas-'));
+  const bin = pastaTemporaria('orq-janelas-');
   const env = { ...process.env };
   try {
     fs.writeFileSync(path.join(bin, 'gdbus'), "#!/bin/sh\necho \"('{\\\"foco\\\":\\\"nenhum\\\",\\\"visivel\\\":true}',)\"\n", { mode: 0o755 });

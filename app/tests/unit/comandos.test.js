@@ -1,6 +1,7 @@
 // Área: conversa (lista única dos comandos /…: tudo o que funciona no Claude
 // Code ou no Codex aparece e funciona no app; nada cinza, nada some)
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -62,7 +63,7 @@ test('comandos: commands_changed traz descrição de skill nova sem tirar ningu�
 });
 
 test('comandos: antes do init, o catálogo inteiro + skills locais', () => {
-  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-skills-'));
+  const pasta = pastaTemporaria('orq-skills-');
   fs.mkdirSync(path.join(pasta, 'rodada'));
   fs.writeFileSync(path.join(pasta, 'rodada', 'SKILL.md'), '---\nname: rodada\ndescription: "Faz a rodada"\n---\n');
   const l = comandos.montar({ motor: 'claude', skills: comandos.skillsLocais(pasta) });

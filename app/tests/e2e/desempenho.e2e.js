@@ -1,4 +1,4 @@
-// Área: desempenho
+// Área: desempenho [lento] [sozinho] (mede tempo: não divide a máquina com outro teste de tela)
 // Orçamento do processo principal com 10 agentes falsos: o atraso do laço de
 // eventos (medidor.js) não passa de 100 ms no p99, e o estado mostrado de cada
 // agente é o esperado. Tudo isolado: tmux PRIVADO (TMUX_TMPDIR próprio),
@@ -6,6 +6,7 @@
 //   ORQ_MEDIDAS_SAIDA=arquivo.json  grava os números (para o laudo)
 //   ORQ_MEDIR_S=35                  segundos de amostragem com 10 agentes
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -39,7 +40,7 @@ test('desempenho: 10 agentes falsos, atraso do laço no orçamento', async (t) =
   try { execFileSync('tmux', ['-V'], { stdio: 'ignore' }); } catch { t.skip('sem tmux'); return; }
 
   // tmux privado + docker falso (via PATH), herdados pelo app que o abrirApp lança.
-  const area = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-perf-'));
+  const area = pastaTemporaria('orq-perf-');
   const tmuxDir = path.join(area, 'tm');
   const bin = path.join(area, 'bin');
   fs.mkdirSync(tmuxDir); fs.mkdirSync(bin);
@@ -65,7 +66,7 @@ exec sleep 3600
 
   const arquivos = {};
   for (let i = 0; i < N; i++) arquivos[`dev/emp/proj-${i}/.keep`] = '';
-  const app = await abrirApp({ config: { raizProjetos: '~/dev', niveis: 2, ignorar: '^[_-]' }, arquivos });
+  const app = await abrirApp({ config: { raizProjetos: '~/dev', niveis: 2, ignorar: '^[_-]' }, arquivos, tmux: tmuxDir });
   t.after(async () => { await app.fechar(); try { tmux('kill-server'); } catch { /* já não havia */ } });
 
   const snap = (zerar = false) => app.avaliar(`window.orq.diagLaco(${zerar})`);

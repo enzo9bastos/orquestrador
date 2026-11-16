@@ -1,8 +1,12 @@
-// Área: conversa
+// Área: conversa [sozinho]
+// [sozinho] desde 16/11: com outros apps de teste rodando ao mesmo tempo, a lista do
+// "/" às vezes não abre em 5 s depois do pedido de controle desconhecido (0.A5).
+// Causa ainda não achada; não é repetição.
 // Etapa 0.A (segurança), testador independente: a vizinhança na tela, com um
 // Claude falso (anota tudo o que recebe e manda o que cada teste precisa).
 // Nada de Claude real: o app roda numa casa temporária.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -13,7 +17,7 @@ const { abrirApp } = require('./app');
 // PERGUNTA vira AskUserQuestion; ELICIT vira um pedido de controle que o app
 // não conhece; o resto termina o turno. Grava cada linha recebida no log.
 function claudeFalso() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-cf-0a-'));
+  const d = pastaTemporaria('orq-cf-0a-');
   const log = path.join(d, 'log.jsonl');
   const bin = path.join(d, 'claude');
   fs.writeFileSync(bin, `#!${process.execPath}

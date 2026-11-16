@@ -3,6 +3,7 @@
 // mostra o texto inteiro, na ordem; a pergunta de permissão aparece sem esperar
 // o lote; o terminal continua mostrando a saída.
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
@@ -12,7 +13,7 @@ const { abrirApp } = require('./app');
 const CLAUDE_FALSO = path.join(__dirname, '..', 'unit', 'claude-falso.js');
 
 test('envios em lote na tela', async (t) => {
-  process.env.CLAUDE_FALSO_LOG = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'orq-envios-')), 'log.jsonl');
+  process.env.CLAUDE_FALSO_LOG = path.join(pastaTemporaria('orq-envios-'), 'log.jsonl');
   const app = await abrirApp({ config: { iasCaminhos: { claude: CLAUDE_FALSO } } });
   t.after(() => app.fechar());
   await app.esperar('!!window.__orqTeste');

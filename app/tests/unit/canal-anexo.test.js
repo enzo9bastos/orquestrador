@@ -3,6 +3,7 @@
 // bytes, retirada de metadados, nome e pasta seguros, trava de aprovação,
 // envio e recebimento contra um servidor ntfy FALSO daqui mesmo (nada de rede).
 const test = require('node:test');
+const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -118,7 +119,7 @@ test('anexo: pasta 700, arquivo 600, nunca sobrescreve (nome repetido ganha sufi
   fs.symlinkSync(os_tmp(), path.join(casa, 'link-pasta'));
   assert.throws(() => anexo.guardarRecebido(path.join(casa, 'link-pasta'), 'x.png', 'png', buf), /não é uma pasta comum/);
 });
-const os_tmp = () => fs.mkdtempSync(path.join(require('os').tmpdir(), 'orq-alvo-'));
+const os_tmp = () => pastaTemporaria('orq-alvo-');
 
 test('anexo: arquivo plantado como link no lugar do nome não é seguido na gravação', () => {
   const base = path.join(casa, 'anexos-link');
