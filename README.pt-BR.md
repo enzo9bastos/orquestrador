@@ -51,6 +51,12 @@ O app fala **inglês e português** — troque em ⚙ Configurações → *Idiom
 A janela tem três colunas: **conversas e agentes** à esquerda, a **aba atual** no meio e as **demandas** mais os
 detalhes do agente escolhido à direita.
 
+As duas colunas laterais **recolhem**, pelos botões nas duas pontas da barra de cima ou por `Ctrl+Alt+,` (agentes) e
+`Ctrl+Alt+.` (demandas). Fora da aba do Orquestrador elas recolhem sozinhas, e Notas, Workflows e as outras abas
+ficam com a janela inteira; o que você reabre fica lembrado por aba e sobrevive a reiniciar. Coluna recolhida nunca
+esconde algo que precisa de você: o botão dela mostra um contador. Troque ou desligue os dois atalhos em
+⚙ Configurações → *Atalhos*.
+
 ### 💬 Orquestrador
 
 A conversa com o orquestrador — o Claude rodando sem terminal (`stream-json`, o protocolo do Agent SDK), então não
@@ -58,6 +64,8 @@ há terminal para vigiar.
 
 - Respostas em Markdown, chamadas de ferramenta recolhíveis (*Rodou …*, *Leu …*), cartões de pergunta com opções
   clicáveis, **Permitir / Negar** nos pedidos de permissão, autocompletar de `/comando`.
+- A conversa acompanha o espaço livre (até 1200 px de largura): respostas à esquerda, suas mensagens à direita,
+  cada lado deixando uma margem para o outro; o texto corrido para numa largura confortável de leitura.
 - Troca de modelo e de esforço, medidores de contexto e de uso (janelas de 5 horas e de 7 dias) na barra de cima;
   cada resposta mostra o horário ao lado do nome do Claude (com a data quando é de outro dia).
 - **Iniciar** manda o seu comando de abertura da rodada (por exemplo, uma skill sua); **Desligar** encerra a rodada

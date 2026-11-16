@@ -54,6 +54,12 @@ La app habla **inglés y portugués** — cámbialo en ⚙ Settings → *App lan
 La ventana tiene tres columnas: **conversaciones y agentes** a la izquierda, la **pestaña actual** en el centro y
 los **requests** junto con los detalles del agente elegido a la derecha.
 
+Las dos columnas laterales **se pliegan**, con los botones en los dos extremos de la barra superior o con
+`Ctrl+Alt+,` (agentes) y `Ctrl+Alt+.` (requests). Fuera de la pestaña del Orchestrator se pliegan solas, y Notes,
+Workflows y las demás pestañas se quedan con toda la ventana; lo que vuelves a abrir se recuerda por pestaña y
+sobrevive a un reinicio. Una columna plegada nunca esconde algo que te necesita: su botón muestra un contador.
+Cambia o desactiva los dos atajos en ⚙ Settings → *Shortcuts*.
+
 ### 💬 Orchestrator
 
 La conversación con el orquestador — Claude corriendo sin terminal (`stream-json`, el protocolo del Agent SDK), así
@@ -61,6 +67,8 @@ que no hay ninguna terminal que vigilar.
 
 - Respuestas en Markdown, llamadas a herramientas plegables (*Ran …*, *Read …*), tarjetas de pregunta con opciones
   clicables, **Allow / Deny** en los pedidos de permiso, autocompletado de `/comando`.
+- La conversación acompaña el espacio libre (hasta 1200 px de ancho): respuestas a la izquierda, tus mensajes a la
+  derecha, cada lado dejando un margen para el otro; el texto corrido se detiene en un ancho cómodo de lectura.
 - Cambio de modelo y de esfuerzo, medidores de contexto y de uso (ventanas de 5 horas y de 7 días) en la barra
   superior; cada respuesta muestra la hora junto al nombre de Claude (con la fecha cuando es de otro día).
 - **Start** envía tu comando de apertura de la ronda (por ejemplo, una skill tuya); **Shut down** cierra la ronda de

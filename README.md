@@ -50,6 +50,12 @@ The app speaks **English and Portuguese** — switch in ⚙ Settings → *App la
 The window has three columns: **conversations and agents** on the left, the **current tab** in the
 middle, and the **requests** plus the selected agent's details on the right.
 
+Both side columns **collapse**, with the buttons at the two ends of the top bar or with `Ctrl+Alt+,` (agents) and
+`Ctrl+Alt+.` (requests). Outside the Orchestrator tab they collapse on their own, so Notes, Workflows and the
+other tabs get the whole window; what you reopen is remembered per tab and survives a restart. A collapsed
+column never hides something that needs you: its button shows a counter. Change or turn off the two shortcuts in
+⚙ Settings → *Shortcuts*.
+
 ### 💬 Orchestrator
 
 The conversation with the orchestrator — Claude running headless (`stream-json`, the Agent SDK
@@ -57,6 +63,8 @@ protocol), so there is no terminal to babysit.
 
 - Markdown answers, collapsible tool calls (*Ran …*, *Read …*), question cards with clickable options,
   **Allow / Deny** on permission requests, `/command` autocomplete.
+- The conversation follows the free space (up to 1200 px wide): answers on the left, your messages on the right,
+  each side leaving a margin for the other; running text stops at a comfortable reading width.
 - Model and effort switcher, context and usage meters (5-hour and 7-day windows) in the top bar; each reply shows
   its time next to Claude's name (with the date when it is from another day).
 - **Start** sends your round-opening command (e.g. a skill of yours); **Shut down** ends the round safely.
