@@ -129,6 +129,7 @@
               <button type="button" role="tab" data-rc-aba="recados" class="ativa">Recados</button>
               <button type="button" role="tab" data-rc-aba="vezes">Vezes passadas</button>
               <button type="button" role="tab" data-rc-aba="memoria">Memória do projeto</button>
+              <button type="button" class="botao-texto recados-pasta-anexos" id="recados-abrir-anexos" title="Os anexos que chegam pelo canal ficam guardados aqui, uma subpasta por dia">Abrir a pasta dos anexos</button>
             </div>
             <section class="recados-aprovar" id="recados-aprovar" hidden>
               <h4 class="recados-aprovar-titulo">Para aprovar</h4>
@@ -424,6 +425,10 @@
             <div class="config-linha">
               <div><strong>Contatos</strong><span>Um por linha: <code>Nome: caixa</code>.</span></div>
               <textarea class="campo-config mono" data-cfg="canalContatos" rows="3" placeholder="Bruno: para-bruno" spellcheck="false"></textarea>
+            </div>
+            <div class="config-linha">
+              <div><strong>Pasta dos anexos recebidos</strong><span>Imagens e PDFs que chegam pelo canal ficam aqui, numa subpasta por dia. Vazio: dentro dos dados do app.</span></div>
+              <input class="campo-config mono" data-cfg="canalPastaAnexos" placeholder="~/Documentos/anexos-canal" spellcheck="false">
             </div>
             <div class="config-linha">
               <div><strong>Aprovar cada envio</strong><span>Nada sai deste computador sem você aprovar na aba Recados.</span></div>

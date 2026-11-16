@@ -16,6 +16,25 @@
   // ficam até a próxima chegada (o bichinho já sumiu quando acabam).
   const FLOREIOS = { oi: 1000, espreguica: 1500, levanta: 950, looping: 1050, quica: 750, brota: 1000, pirueta: 1050, rolinho: 1300 };
   const PERSISTENTES = ['desvanece', 'dissolve', 'afunda'];
+  // Anexos do recado que espera aprovação: miniatura pequena de cada imagem (clique amplia dentro
+  // do balão), nome e tamanho do PDF e o aviso do link. Imagem que não deu para montar: manda abrir
+  // a aba Recados e não oferece Aprovar (nunca aprova às cegas). O #pg-corpo não é traduzido
+  // sozinho, então cada texto passa por tr().
+  const tr = (x) => (window.orqI18n ? window.orqI18n.t(x) : x);
+  const tam = (b) => (b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 102.4) / 10} KB` : `${Math.round(b / 104857.6) / 10} MB`);
+  function blocoAnexos(it) {
+    if (!it.anexos || !it.anexos.length) return { html: '', semMiniatura: false };
+    const semMiniatura = it.anexos.some((x) => x.imagem && !x.dataUrl);
+    const d = (it.avisoAnexo || {}).dias || 7;
+    const mb = (it.avisoAnexo || {}).mb || 5;
+    const itens = it.anexos.map((x) => (x.imagem && x.dataUrl
+      ? `<figure class="aj-rc-anexo"><img class="aj-rc-mini" src="${esc(x.dataUrl)}" alt="" data-ampliar title="${esc(tr('Clique para ampliar'))}"><figcaption>${esc(x.nome)} · ${esc(tam(x.bytes))}</figcaption></figure>`
+      : x.imagem ? `<p class="aj-motivo">${esc(x.nome)} — ${esc(tr('não deu para mostrar a imagem'))}</p>`
+      : `<p class="aj-motivo">📄 ${esc(x.nome)} · ${esc(tam(x.bytes))}</p>`)).join('');
+    const aviso = d === 1 ? 'Quem tiver o link abre por 1 dia: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.' : `Quem tiver o link abre por ${d} dias: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.`;
+    return { semMiniatura, html: `<div class="aj-rc-anexos">${itens}</div><p class="aj-rc-aviso"><strong>${esc(tr(aviso))}</strong> ${esc(tr(`Cada arquivo pode ter até ${mb} MB. Das imagens, o app tira os metadados (EXIF, GPS, texto); o PDF vai como está.`))}</p>`
+      + (semMiniatura ? `<p class="aj-erro">${esc(tr('Abra na aba Recados para ver a imagem antes de aprovar.'))}</p>` : '') };
+  }
   // Balão fixo (ms = 0: um aviso esperando você) e falas passageiras: a fala
   // passageira aparece por cima e, quando some, o aviso fixo volta.
   let fixo = null;
@@ -162,9 +181,10 @@
     } else if (it.tipo === 'aprovacao') {
       // Algo que só sai (ou só roda) com o seu sim: decide aqui mesmo.
       $('pg-passo').textContent = 'espera você aprovar';
-      $('pg-corpo').innerHTML = `<p class="pergunta">${it.canal ? `Recado para ${esc(it.quem)}` : `Pedido ao ${esc(it.quem)}`}</p>${it.titulo ? `<p><strong>${esc(it.titulo)}</strong></p>` : ''}<pre class="aj-comando aj-recado">${esc(it.texto)}</pre>${it.motivo ? `<p class="aj-motivo">${esc(it.motivo)}</p>` : ''}
+      const anexos = blocoAnexos(it);
+      $('pg-corpo').innerHTML = `<p class="pergunta">${it.canal ? `Recado para ${esc(it.quem)}` : `Pedido ao ${esc(it.quem)}`}</p>${it.titulo ? `<p><strong>${esc(it.titulo)}</strong></p>` : ''}<pre class="aj-comando aj-recado">${esc(it.texto)}</pre>${it.motivo ? `<p class="aj-motivo">${esc(it.motivo)}</p>` : ''}${anexos.html}
         <textarea id="pg-nota" rows="2" placeholder="Orientação ou motivo (opcional)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
-      $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao-texto" data-pg="negar">Negar</button><button type="button" class="botao primario" data-pg="permitir">Aprovar</button>';
+      $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao-texto" data-pg="negar">Negar</button>' + (anexos.semMiniatura ? '' : '<button type="button" class="botao primario" data-pg="permitir">Aprovar</button>');
     } else if (it.tipo === 'acao') {
       // O orquestrador pediu para rodar algo: mostra os comandos para copiar.
       $('pg-passo').textContent = 'pede uma ação sua';
@@ -199,6 +219,8 @@
       op.classList.toggle('marcada');
       return;
     }
+    const ampliar = ev.target.closest('[data-ampliar]');
+    if (ampliar) { ampliar.closest('.aj-rc-anexo').classList.toggle('grande'); return; }
     const cp = ev.target.closest('[data-copiar]');
     if (cp) { A.enviar({ t: 'copiar', texto: pg.item.comandos[Number(cp.dataset.copiar)] }); cp.textContent = 'Copiado'; setTimeout(() => { cp.textContent = 'Copiar'; }, 1500); return; }
     const a = ev.target.closest('[data-pg]')?.dataset.pg;

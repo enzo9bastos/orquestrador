@@ -95,6 +95,13 @@ const PADRAO = {
   // dúvida, segura): ciente ("recebi") e informação (fatos).
   canalSemAprovarCiente: false,
   canalSemAprovarInformacao: false,
+  // Anexos (imagem e PDF). canalPastaAnexos: onde o que chega é guardado (uma
+  // subpasta por dia); vazio = dentro dos dados do app (anexos-canal). Os dois
+  // seguintes dizem o que o servidor aceita: tamanho máximo por arquivo (MB) e
+  // dias que ele guarda (vão no aviso do cartão de aprovação).
+  canalPastaAnexos: null,
+  canalAnexoMaxMB: 5,
+  canalAnexoDias: 7,
 
   // Programa que recorta um pedaço da tela para o ajudante (bichinho): lista
   // com o caminho e os argumentos; ele imprime o caminho da imagem na última
@@ -180,6 +187,9 @@ function validar(m) {
       case 'canalMinhaCaixa': aceitar(k, !texto(v) || /^[A-Za-z0-9_-]{1,64}$/.test(texto(v)), texto(v) || null); break;
       case 'canalMeuNome': aceitar(k, true, texto(v).slice(0, 60) || null); break;
       case 'canalContatos': { const c = require('./canal').contatosDe(v); aceitar(k, Array.isArray(v) || typeof v === 'string', c); break; }
+      case 'canalPastaAnexos': aceitar(k, !texto(v) || (/^(~|\/)/.test(texto(v)) && !texto(v).split('/').includes('..')), semBarraNoFim(texto(v)) || null); break;
+      case 'canalAnexoMaxMB': aceitar(k, typeof v === 'number' && v >= 1 && v <= 20, v); break;
+      case 'canalAnexoDias': aceitar(k, Number.isInteger(v) && v >= 1 && v <= 365, v); break;
       case 'canalAprovarEnvio': case 'canalSemAprovarCiente': case 'canalSemAprovarInformacao': aceitar(k, typeof v === 'boolean', v); break;
       case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), () => v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
       case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), () => v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;

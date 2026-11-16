@@ -1432,9 +1432,40 @@
         </div>
         <textarea class="outra" rows="1" maxlength="2000" placeholder="Orientação ou motivo (opcional; escreva antes de escolher)"></textarea>
       </fieldset>`;
+    if (r.anexos && r.anexos.length) anexosNoCartao(el, r);
     grupo = null;
     caixa.append(el);
     rolar();
+  }
+  // Recado com anexo: as mesmas miniaturas e o mesmo aviso do link da aba Recados. Aprovar só
+  // liga quando TODAS as imagens foram montadas; se alguma não puder ser montada, o cartão manda
+  // abrir a aba Recados e não aprova às cegas (Negar continua valendo).
+  const tamanhoAnexo = (b) => (b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 102.4) / 10} KB` : `${Math.round(b / 104857.6) / 10} MB`);
+  async function anexosNoCartao(el, r) {
+    const imagem = (x) => x.tipo === 'png' || x.tipo === 'jpg' || x.tipo === 'webp';
+    let info = { anexoDias: 7, anexoMaxMB: 5 };
+    try { const c = await window.orq.canal.estado(); if (c && c.anexoDias) info = c; } catch { /* fica o padrão */ }
+    const d = info.anexoDias;
+    const aprovar = el.querySelector('[data-decidir="1"]');
+    const temImagem = r.anexos.some(imagem);
+    if (temImagem) aprovar.disabled = true;
+    el.querySelector('.texto-aprovacao').insertAdjacentHTML('afterend', `<div class="recado-anexos">${r.anexos.map((x, i) => (imagem(x)
+      ? `<figure class="recado-anexo"><img class="recado-miniatura" data-cv-i="${i}" alt="" hidden><figcaption><span data-sem-traducao>${esc(x.nome)} · ${esc(tamanhoAnexo(x.bytes))}</span></figcaption></figure>`
+      : `<div class="recado-anexo recado-anexo-pdf"><span aria-hidden="true">📄</span> <span data-sem-traducao>${esc(x.nome)} · ${esc(tamanhoAnexo(x.bytes))}</span></div>`)).join('')}</div>
+      <div class="recado-aviso-anexo" role="alert"><strong>${d === 1 ? 'Quem tiver o link abre por 1 dia: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.' : `Quem tiver o link abre por ${d} dias: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.`}</strong>
+      <span class="nota">${`Cada arquivo pode ter até ${info.anexoMaxMB} MB. Das imagens, o app tira os metadados (EXIF, GPS, texto); o PDF vai como está.`}</span></div>`);
+    if (!temImagem) return;
+    let faltam = r.anexos.filter(imagem).length;
+    let falhou = false;
+    for (const img of el.querySelectorAll('img[data-cv-i]')) {
+      R.anexo(r.id, Number(img.dataset.cvI)).then((res) => {
+        if (res && res.dataUrl) { img.src = res.dataUrl; img.hidden = false; } else falhou = true;
+      }).catch(() => { falhou = true; }).finally(() => {
+        if (--faltam > 0) return;
+        if (falhou) el.querySelector('.recado-aviso-anexo').insertAdjacentHTML('afterend', '<p class="nota recado-anexo-falha">Abra na aba Recados para ver a imagem antes de aprovar.</p>');
+        else aprovar.disabled = false;
+      });
+    }
   }
   function desenharAprovacoes() {
     const vivos = new Set(aguardando.map((r) => r.id));

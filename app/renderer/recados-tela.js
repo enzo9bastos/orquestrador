@@ -24,6 +24,60 @@
     const hoje = new Date().toDateString() === d.toDateString();
     return hoje ? d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   };
+  // --- anexos (imagem e PDF) --------------------------------------------------
+  // A miniatura vem do arquivo LOCAL (o processo principal lê, confere pelos
+  // bytes e devolve um data:): nunca se carrega o link remoto na tela.
+  let canalInfo = { anexoDias: 7, anexoMaxMB: 5 };
+  const miniaturas = new Map(); // "id/índice" → data: (ou '' quando não deu para mostrar)
+  const tamanho = (b) => (b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 102.4) / 10} KB` : `${Math.round(b / 104857.6) / 10} MB`);
+  const ehImg = (t) => t === 'png' || t === 'jpg' || t === 'webp';
+  function figura(chave, id, i, nome, tipo, bytes, caminho) {
+    if (ehImg(tipo)) {
+      const dado = miniaturas.get(chave);
+      return `<figure class="recado-anexo"><img class="recado-miniatura" data-rc-img="${esc(chave)}" data-rc-id="${esc(id)}" data-rc-i="${i}" alt="" ${dado ? `src="${esc(dado)}"` : 'hidden'}>
+        <figcaption><span data-sem-traducao>${esc(nome)}</span> · <span data-sem-traducao>${esc(tamanho(bytes || 0))}</span>${dado === '' ? ' · <span>não deu para mostrar a imagem</span>' : ''}</figcaption></figure>`;
+    }
+    return `<div class="recado-anexo recado-anexo-pdf"><span aria-hidden="true">📄</span> <span data-sem-traducao>${esc(nome)}</span> · <span data-sem-traducao>${esc(tamanho(bytes || 0))}</span>
+      ${caminho ? `<button type="button" class="botao-texto" data-rc-abrir="${esc(caminho)}">Abrir no explorador</button>` : ''}</div>`;
+  }
+  function aviso() {
+    const d = canalInfo.anexoDias;
+    return `<div class="recado-aviso-anexo" role="alert"><strong>${d === 1 ? 'Quem tiver o link abre por 1 dia: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.' : `Quem tiver o link abre por ${d} dias: não mande print com senha, token ou dado pessoal ou de cliente; recorte a tela antes.`}</strong>
+      <span class="nota">${`Cada arquivo pode ter até ${canalInfo.anexoMaxMB} MB. Das imagens, o app tira os metadados (EXIF, GPS, texto); o PDF vai como está.`}</span></div>`;
+  }
+  function blocoAnexos(r) {
+    let h = '';
+    if (r.anexos && r.anexos.length && (r.copiaApagada || r.estado === 'entregue')) {
+      // Já saiu: a cópia de envio foi apagada, o registro guarda nome, tamanho e hash. Sem miniatura.
+      h += `<div class="nota recado-motivo recado-anexos-enviados">${r.anexos.map((x) => `<div><span>enviado:</span> <span data-sem-traducao>${esc(x.nome)} · ${esc(tamanho(x.bytes || 0))}</span></div>`).join('')}</div>`;
+    } else if (r.anexos && r.anexos.length) {
+      h += `<div class="recado-anexos">${r.anexos.map((x, i) => figura(`${r.id}/${i}`, r.id, i, x.nome, x.tipo, x.bytes, x.arquivo)).join('')}</div>`;
+      if (r.estado === 'aguardando') h += aviso();
+    }
+    const x = r.anexo;
+    if (x) {
+      if (x.estado === 'baixando') h += `<div class="nota recado-motivo">Baixando o anexo <span data-sem-traducao>${esc(x.nome)}</span>…</div>`;
+      else if (x.estado === 'ok') h += `<div class="recado-anexos">${figura(`${r.id}/r`, r.id, 'r', x.nome, x.tipo, x.bytes, x.caminho)}</div>`;
+      else h += `<div class="nota recado-motivo recado-anexo-falha"><span>Anexo que não chegou:</span> <span data-sem-traducao>${esc(x.nome)}</span> — <span>${esc(x.erro || 'não foi baixado')}</span></div>`;
+    }
+    return h;
+  }
+  // Preenche as miniaturas que ainda não foram lidas (uma vez por imagem).
+  function preencherMiniaturas() {
+    for (const img of document.querySelectorAll('#aba-recados img[data-rc-img]')) {
+      const chave = img.dataset.rcImg;
+      if (miniaturas.has(chave) || img.dataset.rcPedido) continue;
+      img.dataset.rcPedido = '1';
+      const i = img.dataset.rcI === 'r' ? 'r' : Number(img.dataset.rcI);
+      R.anexo(img.dataset.rcId, i === 'r' ? null : i).then((r) => {
+        miniaturas.set(chave, (r && r.dataUrl) || '');
+        for (const el of document.querySelectorAll('#aba-recados img[data-rc-img]')) {
+          if (el.dataset.rcImg !== chave) continue;
+          if (r && r.dataUrl) { el.src = r.dataUrl; el.hidden = false; } else desenhar();
+        }
+      }).catch(() => { miniaturas.set(chave, ''); });
+    }
+  }
   const alvoDo = (r) => r.de.alvo || r.para.alvo || '';
   const quem = (x) => (x.tipo === 'orquestrador' ? 'Orquestrador' : x.tipo === 'usuario' ? 'Você' : x.nome || x.alvo || x.caixa);
   // Orquestrador e Você são rótulos (traduzidos); nome de agente ou contato é dado.
@@ -56,6 +110,7 @@
     $('recados-dica').textContent = lista.length || aprovar.length ? ''
       : 'Nenhum recado ainda. Os agentes do app falam com o orquestrador por .orq/bin/orq-recado enviar; o orquestrador responde com orq-recado para <projeto>.';
     $('recados-linha').innerHTML = lista.map(itemRecado).join('');
+    preencherMiniaturas();
   }
   const CLASSE = { ciente: 'ciente', informacao: 'informação', pedido: 'pedido', decisao: 'decisão' };
   function itemRecado(r) {
@@ -69,6 +124,7 @@
         <span class="recado-hora">${esc(hora(r.ts))}</span></div>
       ${r.canal && r.titulo ? `<div class="recado-titulo" data-sem-traducao><strong>${esc(r.titulo)}</strong></div>` : ''}
       <div class="recado-texto" data-sem-traducao>${esc(r.texto)}</div>
+      ${blocoAnexos(r)}
       ${r.motivo ? `<div class="nota recado-motivo">${esc(r.motivo)}</div>` : ''}
       ${r.tipo === 'pedido' ? `<div class="nota recado-motivo">${r.escrever ? 'Pode escrever na pasta do projeto' : 'Só leitura'}${r.modelo ? ` · modelo ${esc(r.modelo)}` : ''}${r.nota ? ` · sua orientação: <span data-sem-traducao>${esc(r.nota)}</span>` : ''}</div>` : ''}
       ${r.tipo === 'pedido' && r.arquivos && r.arquivos.length ? `<div class="recado-texto pedido-arquivos"><strong>Arquivos:</strong> <span data-sem-traducao>${r.arquivos.map(esc).join(', ')}</span></div>` : ''}
@@ -124,6 +180,7 @@
 
   async function carregar() {
     [recados, projetos, vezes] = await Promise.all([R.lista(), R.projetos(), R.vezes ? R.vezes() : []]);
+    try { const c = window.orq.canal && await window.orq.canal.estado(); if (c && c.anexoDias) canalInfo = { anexoDias: c.anexoDias, anexoMaxMB: c.anexoMaxMB }; } catch { /* fica o padrão */ }
     desenhar();
   }
 
@@ -142,6 +199,9 @@
       await carregar();
       return;
     }
+    if (ev.target.closest('#recados-abrir-anexos')) { await R.pastaAnexos(); return; }
+    const ab = ev.target.closest('[data-rc-abrir]');
+    if (ab) { window.orq.abrirCaminho(ab.dataset.rcAbrir); return; }
     const l = ev.target.closest('[data-rc-liberar]');
     if (l) {
       l.disabled = true;

@@ -270,6 +270,7 @@ Tudo é opcional e fica em `~/.config/orq-app/config.json` (quase tudo também e
 | `ambiente` | Variáveis de ambiente extras para as conversas e os terminais do app |
 | `iaOrquestrador`, `iaAgentes` | Qual CLI de IA roda o orquestrador (`claude` ou `codex`) e os agentes novos |
 | `canalServidor`, `canalArquivoCliente`, `canalMinhaCaixa`, `canalMeuNome`, `canalContatos` | Canal entre orquestradores: servidor ntfy, arquivo do cliente com o token, a sua caixa, o seu nome, os contatos |
+| `canalPastaAnexos`, `canalAnexoMaxMB`, `canalAnexoDias` | Anexos do canal: pasta dos recebidos (padrão: dentro dos dados do app), limite do servidor por arquivo em MB (5) e dias que ele guarda (7) |
 | `canalAprovarEnvio`, `canalSemAprovarCiente`, `canalSemAprovarInformacao` | O que espera a sua aprovação antes de sair do computador |
 
 ### Recados dos agentes e memória do projeto
@@ -309,6 +310,26 @@ ler — seja qual for a IA em que ele roda. Tudo são arquivos locais; nada sai 
   - quando foi você que mandou enviar, o orquestrador cita as suas palavras (`--autorizado "…"`) e o app confere se
     estão na sua última mensagem da conversa, e se ela cita o contato — aí sai sem pedir de novo;
   - texto que parece senha, chave ou token, ou com mais de 4 KB, é recusado.
+
+  - **Anexos (imagem e PDF).** `orq-recado externo <contato> "texto" --anexo arquivo [--anexo arquivo]` (até 3; png,
+    jpg, webp ou pdf; até o limite do servidor por arquivo, 5 MB por padrão) sai como anexo do ntfy, um envio por
+    arquivo, todos ligados ao mesmo id de recado (etiqueta `rc-<id>`). O tipo é conferido pelos **bytes**, não pela
+    extensão, e nome de arquivo com cara de segredo é recusado como o texto. Recado **com anexo nunca sai sozinho**:
+    qualquer que seja o `--tipo` ou o `--autorizado`, espera em *Para aprovar* com a miniatura de cada imagem (nome e
+    tamanho do PDF) e um aviso em destaque: *quem tiver o link abre por 7 dias: não mande print com senha, token ou
+    dado pessoal ou de cliente; recorte a tela antes* (o ntfy serve o download sem token). Os metadados (EXIF, GPS, XMP,
+    texto, comentários) saem de PNG, JPEG e WebP **no código do app, sem reencodar** (o mesmo código roda no comando
+    `orq-recado` e de novo logo antes do envio, então não depende do Electron); PDF vai como está e pode ter autor e
+    título. A cópia que sai é a que você aprovou: se o arquivo mudou depois, não é enviado. Anexo não sai pelo
+    aprovar rápido do bichinho nem pelo cartão da conversa: só pela aba Recados, onde você vê a miniatura.
+  - **Recebimento.** O anexo que chega é baixado (só do mesmo servidor, sem redirecionamento, png/jpg/webp/pdf pelos
+    bytes, com limite de tamanho e prazo) para a pasta das Configurações (`canalPastaAnexos`; padrão
+    `~/.local/share/orq-app/anexos-canal/AAAA-MM-DD/`, pasta 700, arquivo 600, nome seguro, nunca sobrescreve: nome
+    repetido ganha `-2`, `-3`). A aba Recados mostra a imagem **desse arquivo local** (nunca o link remoto); o PDF
+    aparece com nome e tamanho e *Abrir no explorador*. O orquestrador recebe só o **caminho local** dentro do envelope
+    de dado `<orq-recado>`, nunca o conteúdo, e o anexo nunca vai sozinho a um agente. Se o download falhar ou o anexo
+    expirou, o recado chega assim mesmo dizendo isso. `canalAnexoMaxMB` (5) e `canalAnexoDias` (7) descrevem o que o
+    servidor aceita e guarda; alimentam os limites e o texto do aviso.
 
   Só o orquestrador usa o canal: os agentes continuam falando só com o orquestrador do mesmo computador. O agente de
   qualquer outra pessoa (outro app, ou o Claude Code com a CLI `ntfy`) pode participar: publique com

@@ -262,6 +262,7 @@ in [`examples/CONFIGURATION.md`](examples/CONFIGURATION.md).
 | `ambiente` | Extra environment variables for the app's conversations and terminals |
 | `iaOrquestrador`, `iaAgentes` | Which AI CLI runs the orchestrator (`claude` or `codex`) and the new agents |
 | `canalServidor`, `canalArquivoCliente`, `canalMinhaCaixa`, `canalMeuNome`, `canalContatos` | Channel between orchestrators: ntfy server, client file with the token, your inbox, your name, contacts |
+| `canalPastaAnexos`, `canalAnexoMaxMB`, `canalAnexoDias` | Channel attachments: folder for received files (default: inside the app's data), the server's per-file limit in MB (5) and how many days it keeps them (7) |
 | `canalAprovarEnvio`, `canalSemAprovarCiente`, `canalSemAprovarInformacao` | What has to wait for your approval before leaving the computer |
 
 ### Agent messages and project memory
@@ -302,6 +303,27 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   - when you told it to send, the orchestrator quotes your words (`--autorizado "…"`) and the app checks them against
     your last message in the chat, which has to name the contact — then it goes out without asking again;
   - text that looks like a password, key or token, or over 4 KB, is refused.
+
+  - **Attachments (images and PDF).** `orq-recado externo <contact> "text" --anexo file [--anexo file]` (up to 3;
+    png, jpg, webp or pdf; up to the server's limit per file, 5 MB by default) goes out as an ntfy attachment, one
+    upload per file, all tied to the same message id (tag `rc-<id>`). The type is checked from the file's **bytes**,
+    not its extension, and a file name that looks like a secret is refused like the text. A message **with an
+    attachment never goes out on its own**: whatever `--tipo` or `--autorizado` say, it waits in *To approve* with a
+    thumbnail of each image (name and size for a PDF) and a highlighted warning: *anyone with the link can open it for
+    7 days: don't send a screenshot with a password, token, or personal or customer data; crop the screen first* (ntfy
+    serves downloads without a token). Metadata (EXIF, GPS, XMP, text chunks, comments) is stripped from PNG, JPEG and
+    WebP **in the app's code, without re-encoding** (the same code runs in the `orq-recado` command and again right
+    before upload, so it does not depend on Electron); a PDF goes as it is and may carry author and title. The copy
+    that goes out is the one you approved: if the file changed since, it is not sent. An attachment never leaves
+    through the helper's quick approve button or the chat card: only the Messages tab, where you see the thumbnail.
+  - **Receiving.** An incoming attachment is downloaded (same server only, no redirects, png/jpg/webp/pdf by bytes,
+    size-limited, with a timeout) into the folder set in Settings (`canalPastaAnexos`; default
+    `~/.local/share/orq-app/anexos-canal/YYYY-MM-DD/`, folder mode 700, file mode 600, safe name, never overwrites: a
+    repeated name gets `-2`, `-3`). The Messages tab shows the image **from that local file** (never the remote link);
+    a PDF shows name and size with *Show in file manager*. The orchestrator gets only the **local path** inside the
+    `<orq-recado>` data envelope, never the content, and it never goes to an agent on its own. If the download fails or
+    the attachment expired, the message still arrives and says so. `canalAnexoMaxMB` (5) and `canalAnexoDias` (7)
+    describe what the server accepts and keeps; they feed the limits and the warning text.
 
   Only the orchestrator uses the channel: agents keep talking only to the orchestrator on the same computer. Anyone
   else's agent (another app, or Claude Code with the `ntfy` CLI) can join: publish with `--tags de-<your-name>` so
@@ -362,6 +384,7 @@ orquestrador/
 │   ├── recados.js        messages between agents and the orchestrator, project memory
 │   ├── avulso.js         one-off requests to Codex or Claude in a throwaway container
 │   ├── canal.js          channel between orchestrators on different computers (ntfy)
+│   ├── canal-anexo.js    channel attachments: type by bytes, metadata stripping, safe names and folders
 │   ├── janelas.js        is the app on screen? (GNOME, Sway, Hyprland, X11)
 │   ├── workflows.js      workflow engine, clock, folder watcher, credentials
 │   ├── ajudante.js       bridge to the desktop helper process

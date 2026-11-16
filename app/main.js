@@ -3,7 +3,7 @@
 // Casca por cima do tmux e do orq: os agentes continuam vivendo no tmux, dentro
 // dos devcontainers. Fechar o app não derruba nada. O orquestrador também roda
 // numa sessão tmux própria ("orquestrador"), então sobrevive ao app.
-const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell, dialog, protocol, net, Menu, nativeImage } = require('electron');
 const { pathToFileURL } = require('url');
 // Uma cópia só por usuário: duas rodariam cada workflow em dobro e
 // brigariam pelo servidor de controle e pelo ajudante. Abrir de novo só traz
@@ -591,9 +591,11 @@ let canalChave = null;
 let canalSituacao = { conectado: false, erro: null };
 const canalTentativas = new Map(); // id → { n, depois }
 const canalEnviando = new Set();
+const canalBaixando = new Set();
+const canalBaixaTentativas = new Map(); // id do recado → { n, depois }
 function situacaoCanal() {
   const a = canal.ajustes(config.ler());
-  return { ativo: a.ativo, pronto: a.pronto, falta: a.falta, servidor: a.host, minhaCaixa: a.minhaCaixa, contatos: a.contatos,
+  return { anexoDias: a.anexoDias, anexoMaxMB: Math.round((a.anexoMax / 1048576) * 10) / 10, ativo: a.ativo, pronto: a.pronto, falta: a.falta, servidor: a.host, minhaCaixa: a.minhaCaixa, contatos: a.contatos,
     aprovarEnvio: a.aprovarEnvio, conectado: !!(canalEscuta && canalSituacao.conectado), erro: canalEscuta ? canalSituacao.erro : null };
 }
 function cicloCanal() {
@@ -616,6 +618,7 @@ function cicloCanal() {
     // última mensagem que ele digitou na conversa do orquestrador, citando o
     // contato pelo nome ou pela caixa.
     for (const r of recados.conferindoExternos()) recados.conferirAutorizacao(r.id, conversa.usuarioEscreveu(r.autorizadoPor, { contato: r.para }));
+    baixarAnexosPendentes(a);
     const fila = recados.externosNaFila();
     // Recado esperando aprovação: quem avisa é o bichinho (pendências) e o
     // cartão na conversa; sem notificação do sistema (pedido de 2026-11-13).
@@ -629,7 +632,10 @@ function cicloCanal() {
       const problema = canal.problemaDoTexto(r.texto);
       if (problema) { recados.concluirExterno(r.id, { ok: false, erro: problema }); continue; }
       canalEnviando.add(r.id);
-      canal.publicar(a, { caixa: r.para.caixa, texto: r.texto, titulo: r.titulo })
+      // Com anexo: um envio por arquivo, lido da cópia aprovada (conferida e sem metadados de novo).
+      (r.anexos && r.anexos.length
+        ? canal.publicarComAnexos(a, { caixa: r.para.caixa, texto: r.texto, titulo: r.titulo, id: r.id, anexos: r.anexos, desde: r.enviados || 0, aoEnviar: (n) => recados.anexoEnviado(r.id, n) })
+        : canal.publicar(a, { caixa: r.para.caixa, texto: r.texto, titulo: r.titulo }))
         .then(() => { canalTentativas.delete(r.id); recados.concluirExterno(r.id, { ok: true }); })
         .catch((e) => {
           const definitivo = e.status && e.status !== 429 && e.status < 500;
@@ -641,7 +647,72 @@ function cicloCanal() {
     }
   } catch (e) { console.error('[canal]', e.message); }
 }
+// Anexo que chegou: baixa para a pasta de anexos (fora da lista de tipos ou do
+// limite, ou link de outro servidor, é recusado). Erro de rede tenta de novo
+// com espera crescente; o resto (expirou, grande demais, tipo errado) é final.
+// O recado só vai ao orquestrador depois, dizendo o que houve.
+function baixarAnexosPendentes(a) {
+  if (!a.pronto) return;
+  for (const r of recados.anexosParaBaixar()) {
+    if (canalBaixando.has(r.id)) continue;
+    const tent = canalBaixaTentativas.get(r.id) || { n: 0, depois: 0 };
+    if (Date.now() < tent.depois) continue;
+    canalBaixando.add(r.id);
+    canal.baixarAnexo(a, { name: r.anexo.nome, size: r.anexo.tamanho, expires: r.anexo.expira, url: r.anexo.url })
+      .then((res) => {
+        if (res.ok) { canalBaixaTentativas.delete(r.id); recados.anexoBaixado(r.id, res); return; }
+        if (res.definitivo || tent.n >= 4) { canalBaixaTentativas.delete(r.id); recados.anexoFalhou(r.id, res.erro); return; }
+        canalBaixaTentativas.set(r.id, { n: tent.n + 1, depois: Date.now() + 10000 * 2 ** tent.n });
+      })
+      .catch((e) => recados.anexoFalhou(r.id, `não consegui baixar o anexo (${e.message})`))
+      .finally(() => { canalBaixando.delete(r.id); cicloRecados(); });
+  }
+}
 setInterval(cicloCanal, 3000);
+// Miniatura de imagem (aba Recados, cartão da conversa e balão do bichinho): lida do arquivo
+// LOCAL (a cópia que sai, ou o anexo já baixado), conferida pelos bytes e pelo tamanho e
+// decodificada de verdade (nativeImage): se não dá para montar, devolve null e o lugar
+// mostra "abra na aba Recados para ver" em vez de aprovar às cegas. O caminho vem do
+// registro, nunca da tela; nada remoto é carregado.
+const miniCache = new Map(); // arquivo|largura|hash → data:
+function miniaturaReduzida(arquivo, max, largura) {
+  const lido = require('./canal-anexo').lerArquivo(arquivo, { max });
+  if (lido.erro || !require('./canal-anexo').ehImagem(lido.tipo)) return null;
+  const chave = `${arquivo}|${largura}|${require('crypto').createHash('sha1').update(lido.buf).digest('hex')}`;
+  if (miniCache.has(chave)) return miniCache.get(chave);
+  let url = null;
+  try {
+    let img = nativeImage.createFromBuffer(lido.buf);
+    if (!img.isEmpty()) {
+      if (img.getSize().width > largura) img = img.resize({ width: largura, quality: 'good' });
+      url = img.toDataURL();
+    }
+  } catch { url = null; }
+  if (miniCache.size > 60) miniCache.clear();
+  miniCache.set(chave, url);
+  return url;
+}
+ipcMain.handle('recados:anexo', (_e, id, i) => {
+  try {
+    const r = recados.ler(5000).find((x) => x.id === id && x.canal);
+    if (!r) return null;
+    const a = canal.ajustes(config.ler());
+    const alvo = Number.isInteger(i) ? (r.anexos || [])[i] : (r.anexo && r.anexo.estado === 'ok' ? { arquivo: r.anexo.caminho } : null);
+    if (!alvo || !alvo.arquivo) return null;
+    return { dataUrl: miniaturaReduzida(alvo.arquivo, a.anexoMax, 640) };
+  } catch { return null; }
+});
+// Os anexos recebidos ficam na pasta padrão do app e NÃO são apagados (depois de alguns dias
+// do servidor são a única cópia). O botão da aba Recados abre essa pasta.
+ipcMain.handle('recados:pasta-anexos', () => {
+  try {
+    const a = canal.ajustes(config.ler());
+    const dir = a.pastaAnexos || require('./canal-anexo').pastaRecebidos();
+    require('./canal-anexo').pastaPrivada(dir);
+    if (!process.env.ORQ_APP_E2E) shell.openPath(dir);
+    return { pasta: dir };
+  } catch (e) { return { erro: e.message }; }
+});
 ipcMain.handle('canal:estado', () => situacaoCanal());
 ipcMain.handle('recados:lista', () => recados.ler());
 ipcMain.handle('recados:vezes', () => recados.lerVezes());
@@ -655,6 +726,15 @@ ipcMain.handle('recados:memoria', (_e, alvo) => {
 // --- dados ---------------------------------------------------------------
 // O que espera o usuário: permissões e pedidos dos agentes (fila) e
 // perguntas das conversas do app. O ajudante vem avisar das novas.
+// Anexos do recado para o balão do bichinho: miniatura pequena de cada imagem (null = não deu
+// para montar: o balão manda abrir a aba Recados e não oferece Aprovar) e o aviso do link.
+function itemAnexos(r) {
+  if (!r.anexos || !r.anexos.length || r.estado !== 'aguardando') return {};
+  const a = canal.ajustes(config.ler());
+  const ca = require('./canal-anexo');
+  return { anexos: r.anexos.map((x) => ({ nome: x.nome, tipo: x.tipo, bytes: x.bytes, imagem: ca.ehImagem(x.tipo), dataUrl: ca.ehImagem(x.tipo) ? miniaturaReduzida(x.arquivo, a.anexoMax, 480) : null })),
+    avisoAnexo: { dias: a.anexoDias, mb: Math.round((a.anexoMax / 1048576) * 10) / 10 } };
+}
 function verPendencias(r) {
   const lista = [
     ...r.fila.map((p) => ({
@@ -671,7 +751,7 @@ function verPendencias(r) {
     ...recados.ler(1000).filter((r) => r.estado === 'aguardando').map((r) => ({
       id: `aprovar:${r.id}`,
       texto: r.canal ? `Recado para ${r.para.nome} espera você aprovar` : `Pedido ao ${r.para.nome} espera você aprovar`,
-      item: { tipo: 'aprovacao', recado: r.id, canal: !!r.canal, quem: r.para.nome, titulo: r.titulo || null, texto: String(r.texto || '').slice(0, 1500), motivo: r.motivo || null },
+      item: { tipo: 'aprovacao', recado: r.id, canal: !!r.canal, quem: r.para.nome, titulo: r.titulo || null, texto: String(r.texto || '').slice(0, 1500), motivo: r.motivo || null, ...itemAnexos(r) },
     })),
   ];
   ajudante.pendencias(lista);
@@ -783,7 +863,10 @@ app.whenReady().then(() => {
   });
   criarJanela();
   ajudante.ligar({ janela: () => janela, presenca: () => require('./janelas').estado([process.pid]),
-    decidir: (id, aprovar, nota) => { recados.decidir(id, aprovar, nota); cicloRecados(); cicloCanal(); return true; }, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
+    decidir: (id, aprovar, nota) => {
+      // Com anexo, recados.decidir confere o hash da cópia aprovada (erro = não aprova).
+      recados.decidir(id, aprovar, nota); cicloRecados(); cicloCanal(); return true;
+    }, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
   workflows.ligar({
     conversa,
