@@ -25,6 +25,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 const pty = require('node-pty');
 const coletor = require('./coletor');
+const medidor = require('./medidor');
 const conversa = require('./conversa');
 const notas = require('./notas');
 const permissoes = require('./permissoes');
@@ -512,7 +513,7 @@ function cicloRecados() {
     // (o coletor é caro); senão, um retrato novo, só quando for preciso.
     let frentes = null;
     const obterFrentes = () => {
-      if (!frentes) frentes = (Date.now() - ultimoEstado < 10000 && ultimoRetrato) ? ultimoRetrato.frentes : coletor.estado().frentes;
+      if (!frentes) frentes = (Date.now() - ultimoEstado < 10000 && ultimoRetrato) ? ultimoRetrato.frentes : medidor.medir('estado', () => coletor.estado()).frentes;
       return frentes;
     };
     if (esperando) recados.recolher(ps, obterFrentes());
@@ -652,8 +653,13 @@ function verPendencias(r) {
   ajudante.pendencias(lista);
 }
 let ultimoEstado = 0;
+medidor.iniciar();
+// Só nos testes de tela: o teste de desempenho lê e zera o medidor.
+if (process.env.ORQ_APP_E2E === '1') {
+  ipcMain.handle('diag:laco', (_e, zerar) => { if (zerar) medidor.reiniciar(); return medidor.fotografia(); });
+}
 ipcMain.handle('estado', () => {
-  const r = coletor.estado();
+  const r = medidor.medir('estado', () => coletor.estado());
   ultimoEstado = Date.now();
   ultimoRetrato = r;
   avisarNovidades(r);
@@ -662,7 +668,7 @@ ipcMain.handle('estado', () => {
 });
 // Com a janela minimizada a tela quase não pergunta o estado: aí o processo
 // principal confere sozinho, para o ajudante não perder pendência.
-setInterval(() => { if (Date.now() - ultimoEstado > 8000) { try { verPendencias(coletor.estado()); } catch { /* tenta de novo */ } } }, 5000);
+setInterval(() => { if (Date.now() - ultimoEstado > 8000) { try { verPendencias(medidor.medir('estado', () => coletor.estado())); } catch { /* tenta de novo */ } } }, 5000);
 
 // Ajudante (bichinho fora do app).
 ipcMain.handle('pet:prefs', () => ({ ...ajudante.ler(), fora: ajudante.estaFora() }));

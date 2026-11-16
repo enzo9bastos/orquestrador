@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('orq', {
   // Só nos testes de tela (ORQ_APP_E2E=1): a tela expõe ganchos para o runner.
   teste: process.env.ORQ_APP_E2E === '1',
   estado: () => ipcRenderer.invoke('estado'),
+  diagLaco: (zerar) => ipcRenderer.invoke('diag:laco', zerar), // só responde nos testes de tela
   espelho: (pane) => ipcRenderer.invoke('espelho', pane),
   anotacoes: () => ipcRenderer.invoke('anotacoes'),
   lerNota: (qual) => ipcRenderer.invoke('ler-nota', qual),
