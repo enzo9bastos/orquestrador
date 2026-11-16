@@ -4,6 +4,26 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.4.0 (2026-11-16)
+
+- Clean screen: the agents column (left) and the requests column (right)
+  collapse, with a button at each end of the top bar or with `Ctrl+Alt+,` and
+  `Ctrl+Alt+.`. Outside the Orchestrator tab they collapse on their own, so
+  Notes, Workflows and the other tabs get the whole window; what the user
+  reopens is remembered per tab and survives a restart. A collapsed column
+  never hides something that needs the user: its button shows a counter.
+- Settings has a Shortcuts section: the two column shortcuts can be changed
+  or turned off, and a combination already taken by the app or by the system
+  is refused.
+- Wider conversation: it follows the free space up to 1200 px, with answers
+  on the left and the user's messages on the right, each side leaving a
+  margin for the other; running text stops at 960 px. The message box, the
+  cards and the code blocks follow the same column.
+- Notes: the note grows with the free space too, and the formatting bar shows
+  on focus or hover and never wraps to a second line.
+- The "Update ready. Restart the app" banner is now part of the top bar: it
+  no longer covers buttons, at any window width.
+
 ## 0.3.1 (2026-11-16)
 
 - orq-recado para works again: it crashed with a TypeError after the agent collector became asynchronous
