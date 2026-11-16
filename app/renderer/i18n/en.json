@@ -1431,7 +1431,16 @@
     "ex.: /rename revisão do site": "e.g. /rename site review",
     "A conversa reiniciou. O que estiver rodando em segundo plano (tarefas, Monitor, subagentes) é encerrado.": "The conversation restarted. Whatever was running in the background (tasks, Monitor, subagents) is stopped.",
     "Do usuário e do projeto": "User and project",
-    "Do projeto e local": "Project and local"
+    "Do projeto e local": "Project and local",
+    "Recolher a coluna de agentes (Ctrl+Alt+,)": "Collapse the agents column (Ctrl+Alt+,)",
+    "Abrir a coluna de agentes (Ctrl+Alt+,)": "Open the agents column (Ctrl+Alt+,)",
+    "Abrir a coluna de agentes (Ctrl+Alt+,) · 1 precisa de você": "Open the agents column (Ctrl+Alt+,) · 1 needs you",
+    "Mostrar a coluna de agentes": "Show the agents column",
+    "Recolher a coluna de demandas (Ctrl+Alt+.)": "Collapse the requests column (Ctrl+Alt+.)",
+    "Abrir a coluna de demandas (Ctrl+Alt+.)": "Open the requests column (Ctrl+Alt+.)",
+    "Abrir a coluna de demandas (Ctrl+Alt+.) · 1 precisa de você": "Open the requests column (Ctrl+Alt+.) · 1 needs you",
+    "Mostrar a coluna de demandas": "Show the requests column",
+    "Demandas e pedidos": "Requests and approvals"
   },
   "padroes": [
     [
@@ -2437,6 +2446,14 @@
     [
       "^(\\d+)% usados · renova (.+)$",
       "$1% used · resets $2"
+    ],
+    [
+      "^Abrir a coluna de agentes \\(Ctrl\\+Alt\\+,\\) · (\\d+) precisam de você$",
+      "Open the agents column (Ctrl+Alt+,) · $1 need you"
+    ],
+    [
+      "^Abrir a coluna de demandas \\(Ctrl\\+Alt\\+\\.\\) · (\\d+) precisam de você$",
+      "Open the requests column (Ctrl+Alt+.) · $1 need you"
     ]
   ]
 }

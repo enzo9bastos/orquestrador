@@ -63,7 +63,9 @@ body {
   color: var(--fg);
   display: grid;
   /* Colunas que encolhem junto com a janela, até um mínimo legível. */
-  grid-template-columns: clamp(210px, 19vw, 272px) minmax(0, 1fr) clamp(250px, 23vw, 340px);
+  --larg-lateral: clamp(210px, 19vw, 272px);
+  --larg-inspetor: clamp(250px, 23vw, 340px);
+  grid-template-columns: var(--larg-lateral) minmax(0, 1fr) var(--larg-inspetor);
   grid-template-rows: var(--barra) minmax(0, 1fr);
   grid-template-areas: "topo topo topo" "lateral painel inspetor";
   overflow: hidden;
@@ -1557,3 +1559,24 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .conversa-barra.apertada .barra-uso { display: none; }
 .conversa-barra.muito-apertada .rotulo-botao { display: none; }
 .conversa-barra.muito-apertada .so-icone { display: block; }
+
+/* --- colunas laterais recolhíveis (colunas-tela.js) --------------------- */
+body.colunas-prontas { transition: grid-template-columns .16s ease; }
+body.sem-agentes { --larg-lateral: 0px; }
+body.sem-demandas { --larg-inspetor: 0px; }
+/* Recolhida: a coluna sai da tela e do teclado depois da transição; o
+   conteúdo some antes, para não ver o texto se espremer. */
+.lateral, .inspetor { transition: opacity .12s ease, visibility 0s linear 0s; }
+body.sem-agentes .lateral, body.sem-demandas .inspetor { opacity: 0; visibility: hidden; border-width: 0; padding-left: 0; padding-right: 0; transition: opacity .1s ease, visibility 0s linear .16s; }
+.alternar-coluna { position: relative; flex: none; }
+.alternar-coluna.recolhida { color: var(--fg-2); }
+.alternar-coluna .sinal-coluna {
+  position: absolute; top: 1px; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
+  font: 600 9.5px/14px var(--mono); text-align: center; color: #fff; background: var(--esperando);
+  box-shadow: 0 0 0 2px var(--bg-afundado), 0 0 0 4px var(--esperando-suave); animation: pulso-sinal 1.6s ease-in-out infinite;
+}
+@keyframes pulso-sinal { 50% { box-shadow: 0 0 0 2px var(--bg-afundado), 0 0 0 7px transparent; } }
+.alternar-coluna .sinal-coluna[hidden] { display: none; }
+button.pilula { cursor: pointer; border: 0; }
+button.pilula:hover { background: var(--painel-hover); color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { body.colunas-prontas, .lateral, .inspetor { transition: none !important; } .alternar-coluna .sinal-coluna { animation: none; } }

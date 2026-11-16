@@ -268,11 +268,12 @@ function trocarHtml(el, html) {
 
 function desenharTopo(r) {
   const n = (est) => r.frentes.filter((f) => f.estado === est).length;
-  const pilula = (classe, num, texto) => `<span class="pilula"><span class="ponto ${classe}"></span>${num} ${texto}</span>`;
+  // Cada chip abre a coluna onde está o que ele conta (colunas-tela.js).
+  const pilula = (classe, num, texto, coluna) => `<button type="button" class="pilula" data-abrir-coluna="${coluna}" title="${coluna === 'agentes' ? 'Mostrar a coluna de agentes' : 'Mostrar a coluna de demandas'}"><span class="ponto ${classe}"></span>${num} ${texto}</button>`;
   trocarHtml($('contagem'),
-    pilula('trabalhando', n('trabalhando'), 'trabalhando') +
-    pilula('esperando', n('esperando'), 'esperando') +
-    pilula('permissao', n('permissao') + r.fila.filter((p) => p.tipo === 'pedido').length, 'pendências'));
+    pilula('trabalhando', n('trabalhando'), 'trabalhando', 'agentes') +
+    pilula('esperando', n('esperando'), 'esperando', 'agentes') +
+    pilula('permissao', n('permissao') + r.fila.filter((p) => p.tipo === 'pedido').length, 'pendências', 'demandas'));
 }
 
 function desenharFrentes(r) {
@@ -337,7 +338,8 @@ function desenharFila(r) {
 
 // O detalhe do agente fica recolhido embaixo dos tópicos; clicar num agente
 // (ou escolhê-lo no Ctrl+K) abre.
-function abrirDetalhe() { $('bloco-detalhe').open = true; }
+// O detalhe mora na coluna da direita: quem escolhe uma frente quer vê-lo, então a coluna abre (colunas-tela.js).
+function abrirDetalhe() { $('bloco-detalhe').open = true; window.dispatchEvent(new CustomEvent('orq:detalhe')); }
 
 function desenharDetalhe(r) {
   const i = r.frentes.findIndex((x) => x.chave === selecionada);
@@ -464,6 +466,7 @@ async function atualizarUmaVez() {
     desenharFrentes(r);
     desenharFila(r);
     desenharDetalhe(r);
+    window.dispatchEvent(new CustomEvent('orq:estado', { detail: r }));
     await atualizarEspelhos(r);
   } catch (err) {
     trocarHtml($('projetos'), VAZIO('i-terminal', 'Não consegui ler as frentes', `${esc(err.message)}. Tento de novo em 2 s.`));
