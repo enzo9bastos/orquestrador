@@ -63,11 +63,16 @@ body {
   color: var(--fg);
   display: grid;
   /* Colunas que encolhem junto com a janela, até um mínimo legível. */
-  /* Conversa (mensagens + caixa): ~88% do centro, teto de 1500 px, nunca menos
+  /* Conversa (mensagens + caixa): ~88% do centro, teto de 1200 px, nunca menos
      que os 860 px de antes; vale com as colunas abertas ou recolhidas. O texto
-     corrido do assistente para no limite de leitura (--larg-texto). */
-  --larg-leitura: min(1500px, max(860px, 88%));
-  --larg-texto: 1100px;
+     corrido do assistente para no limite de leitura (--larg-texto).
+     Cada lado deixa margem do outro, como no app do Claude: o que é do
+     assistente vai até ~84% da coluna (--lado-claude) e o balão do usuário até
+     ~64% (--lado-voce); em coluna estreita os dois usam o que cabe. */
+  --larg-leitura: min(1200px, max(860px, 88%));
+  --larg-texto: 960px;
+  --lado-claude: max(84%, min(100%, 760px));
+  --lado-voce: max(64%, min(75%, 520px));
   --larg-nota: 760px;
   --larg-lateral: clamp(210px, 19vw, 272px);
   --larg-inspetor: clamp(250px, 23vw, 340px);
@@ -316,12 +321,15 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 
 .msg-voce { display: flex; justify-content: flex-end; }
 .balao {
-  max-width: 75%; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--painel);
+  max-width: var(--lado-voce); padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--painel);
   color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .balao.comando { display: inline-flex; align-items: center; gap: 8px; font: 500 12.5px var(--mono); background: var(--claude-suave); color: var(--claude); }
 
 .msg-claude { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* O lado do assistente: resposta, ferramenta, código e cartões ficam à esquerda
+   e não chegam à borda direita da coluna (a margem é do lado do usuário). */
+.mensagens > .msg-claude, .mensagens > .ferramenta, .mensagens > .cartao-pedido, .mensagens > .cartao-aprovacao { max-width: var(--lado-claude); align-self: flex-start; width: 100%; box-sizing: border-box; }
 .msg-claude .autor { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--fg); font-size: 13px; }
 .md.texto-claude { max-width: none; padding: 0; font-size: 14px; }
 /* Texto corrido com limite de leitura, à esquerda; código e tabela usam a coluna inteira. */

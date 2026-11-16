@@ -1,15 +1,22 @@
 // Área: colunas
 // Terceira rodada da tela limpa (v3), no jeito do app do Claude: a coluna da
-// conversa (mensagens + caixa) usa ~88% do centro, com teto de 1500 px e nunca
-// menos que antes (860 px), com as colunas abertas ou recolhidas (uma regra só);
-// caixa, cartões e blocos de código usam a coluna inteira; o texto corrido do
-// assistente para num limite de leitura, à esquerda; o balão do usuário fica
-// à direita, com no máximo 75% da coluna. Nada estoura em 1480 nem em 1000 px.
+// conversa (mensagens + caixa) usa ~88% do centro, com teto de 1200 px e nunca
+// menos que antes (860 px), com as colunas abertas ou recolhidas (uma regra só).
+// Cada lado deixa margem do outro, como no app do Claude: o que é do assistente
+// (texto, ferramenta, código, cartão) fica à esquerda e vai até ~84% da coluna;
+// o balão do usuário fica à direita e vai até ~64%. Em coluna estreita os dois
+// usam o que cabe. O texto corrido ainda para num limite de leitura (960 px).
+// A caixa de texto usa a coluna inteira. Nada estoura em 1480 nem em 1000 px.
+// (1ª versão da v3: teto de 1500 e os dois lados quase de ponta a ponta; ficou
+// esticado e sem margem entre a mensagem do usuário e a resposta.)
 const test = require('node:test');
 const assert = require('node:assert');
 const { abrirApp } = require('./app');
 
-const TETO = 1500, PISO = 860, PROPORCAO = 0.88, LIMITE_TEXTO = 1100, BALAO = 0.75;
+const TETO = 1200, PISO = 860, PROPORCAO = 0.88, LIMITE_TEXTO = 960;
+// Até onde vai cada lado, para uma coluna de largura col.
+const ladoClaude = (col) => Math.max(0.84 * col, Math.min(col, 760));
+const ladoVoce = (col) => Math.max(0.64 * col, Math.min(0.75 * col, 520));
 // A coluna esperada para um centro de largura c (com 24 px de respiro de cada lado).
 const esperada = (c) => Math.min(TETO, Math.max(PISO, PROPORCAO * c), c - 48);
 
@@ -73,10 +80,11 @@ const colunas = (app, a, d) => app.avaliar(`window.orqColunas.definir('agentes',
 const largou = (app, a, d) => app.esperar(`(() => { const l = document.querySelector('.lateral').getBoundingClientRect().width, r = document.querySelector('.inspetor').getBoundingClientRect().width; return ${a ? 'l > 150' : 'l < 2'} && ${d ? 'r > 200' : 'r < 2'}; })()`, 4000);
 const perto = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${Math.round(a)} (esperado ${Math.round(b)} ±${tol})`);
 
-const JANELAS = [[2400, 1350], [1480, 900], [1000, 760]];
+// 1920×1080: uma tela de 2400 px físicos com escala de 125%, vista pelo app.
+const JANELAS = [[2400, 1350], [1480, 900], [1000, 760], [1920, 1080]];
 const ESTADOS = [['abertas', true, true], ['agentes recolhida', false, true], ['demandas recolhida', true, false], ['as duas recolhidas', false, false]];
 
-test('conversa larga (v3): a coluna usa ~88% do centro, a caixa e os cartões a coluna inteira, o texto um limite de leitura, o balão à direita', async (t) => {
+test('conversa larga (v3): a coluna usa ~88% do centro até 1200 px; o assistente à esquerda e o usuário à direita, cada um deixando margem do outro', async (t) => {
   const app = await abrirApp({ config: { mostrarBichinho: false } });
   t.after(() => app.fechar());
   await app.esperar('!!window.orqColunas && !!window.__orqLateral && !!window.__orqTeste');
@@ -95,39 +103,49 @@ test('conversa larga (v3): a coluna usa ~88% do centro, a caixa e os cartões a 
         const m = await medir(app);
         const quer = esperada(m.centro);
         const onde = `${larg} px, ${nome} (centro ${Math.round(m.centro)})`;
-        // A coluna: ~88% do centro, teto 1500, nunca menor que 860 (quando cabe).
+        // A coluna: ~88% do centro, teto 1200, nunca menor que 860 (quando cabe).
         perto(m.caixa.w, quer, 2, `caixa de texto em ${onde}`);
         perto(m.col.w, quer, 2, `coluna das mensagens em ${onde}`);
         // Mensagens e caixa na mesma coluna: mesma borda esquerda e direita.
         perto(m.col.l, m.caixa.l, 2, `borda esquerda da coluna × caixa em ${onde}`);
         perto(m.col.r, m.caixa.r, 2, `borda direita da coluna × caixa em ${onde}`);
         perto(m.trabalhando.w, m.caixa.w, 2, `faixa "Pensando…" × caixa em ${onde}`);
-        // Cartões e código: a coluna inteira.
+        // O lado do assistente: ferramenta, cartão e código à esquerda, até ~84% da coluna.
+        const claude = ladoClaude(m.col.w), voce = ladoVoce(m.col.w);
         for (const k of ['ferramenta', 'cartao', 'codigo']) {
-          perto(m[k].w, m.col.w, 2, `${k} em ${onde}`);
+          perto(m[k].w, claude, 2, `${k} em ${onde}`);
           perto(m[k].l, m.col.l, 2, `${k} à esquerda em ${onde}`);
         }
-        // Texto corrido do assistente: à esquerda, no limite de leitura.
+        // Texto corrido do assistente: à esquerda, no limite de leitura (e dentro do lado dele).
+        const limiteTexto = Math.min(LIMITE_TEXTO, claude);
         for (const p of m.textos) {
           perto(p.l, m.col.l, 2, `texto do assistente à esquerda em ${onde}`);
-          assert.ok(p.w <= Math.min(LIMITE_TEXTO, m.col.w) + 1, `texto do assistente com ${Math.round(p.w)} px em ${onde} (limite ${LIMITE_TEXTO})`);
+          assert.ok(p.w <= limiteTexto + 1, `texto do assistente com ${Math.round(p.w)} px em ${onde} (limite ${Math.round(limiteTexto)})`);
         }
-        perto(Math.max(...m.textos.map((p) => p.w)), Math.min(LIMITE_TEXTO, m.col.w), 2, `o parágrafo longo vai até o limite em ${onde}`);
-        // Balões do usuário: encostados à direita da coluna, até 75% dela; o curto é curto.
+        perto(Math.max(...m.textos.map((p) => p.w)), limiteTexto, 2, `o parágrafo longo vai até o limite em ${onde}`);
+        // Balões do usuário: encostados à direita da coluna, até ~64% dela; o curto é curto.
         for (const b of m.baloes) {
           perto(b.r, m.col.r, 2, `balão do usuário à direita em ${onde}`);
-          assert.ok(b.w <= BALAO * m.col.w + 1, `balão com ${Math.round(b.w)} px de ${Math.round(m.col.w)} em ${onde}`);
+          assert.ok(b.w <= voce + 1, `balão com ${Math.round(b.w)} px de ${Math.round(m.col.w)} em ${onde}`);
         }
         assert.ok(m.baloes[0].w < 360, `balão curto com ${Math.round(m.baloes[0].w)} px em ${onde}`);
-        perto(m.baloes[1].w, BALAO * m.col.w, 2, `balão longo ocupa os 75% em ${onde}`);
+        perto(m.baloes[1].w, voce, 2, `balão longo vai até o limite do lado dele em ${onde}`);
+        // A margem entre os dois lados (o pedido): em coluna larga, a resposta
+        // não chega perto da direita e a mensagem do usuário não chega perto da esquerda.
+        if (m.col.w >= 1000) {
+          const direitaDoClaude = Math.max(...['ferramenta', 'cartao', 'codigo'].map((k) => m[k].r), ...m.textos.map((p) => p.r));
+          assert.ok(m.col.r - direitaDoClaude >= 0.15 * m.col.w, `a resposta chega a ${Math.round(m.col.r - direitaDoClaude)} px da direita em ${onde} (quer pelo menos ${Math.round(0.15 * m.col.w)})`);
+          const esquerdaDoUsuario = Math.min(...m.baloes.map((b) => b.l));
+          assert.ok(esquerdaDoUsuario - m.col.l >= 0.35 * m.col.w, `a mensagem do usuário chega a ${Math.round(esquerdaDoUsuario - m.col.l)} px da esquerda em ${onde} (quer pelo menos ${Math.round(0.35 * m.col.w)})`);
+        }
         assert.strictEqual(m.rolaX, false, `rolagem horizontal em ${onde}`);
       });
     }
   }
 
-  await t.test('os números de hoje em 2400 e 1480 px (para o relatório)', async () => {
+  await t.test('os números de hoje em 2400, 1920 e 1480 px (para o relatório)', async () => {
     const linhas = [];
-    for (const [larg, alt] of JANELAS.slice(0, 2)) {
+    for (const [larg, alt] of [JANELAS[0], JANELAS[3], JANELAS[1]]) {
       await app.tamanho(larg, alt);
       for (const [nome, a, d] of [ESTADOS[0], ESTADOS[1], ESTADOS[3]]) {
         await colunas(app, a, d); await largou(app, a, d); await app.espera(150);
@@ -138,7 +156,7 @@ test('conversa larga (v3): a coluna usa ~88% do centro, a caixa e os cartões a 
     t.diagnostic(linhas.join('\n'));
     // Abertas em 2400 px a conversa já não fica nos 860 de antes.
     await app.tamanho(2400, 1350); await colunas(app, true, true); await largou(app, true, true); await app.espera(150);
-    assert.ok((await medir(app)).caixa.w > 1400);
+    assert.ok((await medir(app)).caixa.w > 1150);
   });
 
   await t.test('nada some: ✎ do balão, Copiar do código, link e o balão de comando continuam ao alcance', async () => {
