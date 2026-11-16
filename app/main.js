@@ -397,7 +397,9 @@ ipcMain.handle('cmd:todos', seguro((id) => {
 ipcMain.handle('cmd:notasVersao', seguro((id) => { const e = conversa.estadoComando(id); return comandosApp.notasVersao(e.init && e.init.versao); }));
 ipcMain.handle('cmd:sessoes', seguro(async (id) => {
   const abertas = conversa.lista().map((c) => conversa.estadoComando(c.id).sessao).filter(Boolean);
-  return comandosApp.sessoes(path.dirname(conversa.arqTranscript('x')), abertas);
+  // A pasta é a do transcript da sessão atual (o CLI corta nomes longos); sem sessão, a esperada.
+  const atual = conversa.arqTranscript(conversa.estadoComando(id).sessao);
+  return comandosApp.sessoes(atual ? path.dirname(atual) : conversa.pastaDosTranscripts(), abertas);
 }));
 ipcMain.handle('cmd:diffGit', seguro((id) => comandosApp.diffGit(pastaDa(id))));
 ipcMain.handle('cmd:salvarTexto', seguro(async (nome, texto) => {

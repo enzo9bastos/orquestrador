@@ -113,6 +113,8 @@ const nomeDaPasta = (p) => p.replace(/[^A-Za-z0-9]/g, '-');
 // acrescenta um hash, e o app não precisa saber a regra. Primeiro o caminho
 // esperado para a pasta das conversas; senão procura em todas; havendo mais de
 // uma cópia, vale a mais recente. Só ids de sessão (letras, números, - e _).
+// A pasta de transcripts esperada para a pasta das conversas (o /resume lista dela).
+const pastaDosTranscripts = () => path.join(pastaProjetos(), nomeDaPasta(PASTA));
 const arquivosAchados = new Map(); // id → caminho (confere que ainda existe)
 function arqTranscript(sessao) {
   if (!/^[\w-]+$/.test(String(sessao || ''))) return null;
@@ -1022,5 +1024,5 @@ module.exports = {
   // /stop: o processo sai (a linha "A conversa foi pausada." vem da saída dele);
   // sem processo, só o aviso. A próxima mensagem retoma do mesmo ponto.
   pausar: (id) => { const c = pegar(id); if (c.proc) c.parar(); else c.registrar({ tipo: 'aviso', texto: 'Conversa pausada. A próxima mensagem retoma do mesmo ponto.' }); return true; },
-  ramificar, retomar, arqTranscript, PASTA,
+  ramificar, retomar, arqTranscript, pastaDosTranscripts, PASTA,
 };
