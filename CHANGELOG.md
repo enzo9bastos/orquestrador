@@ -4,6 +4,10 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.3.1 (2026-11-16)
+
+- orq-recado para works again: it crashed with a TypeError after the agent collector became asynchronous
+
 ## 0.3.0 (2026-11-16)
 
 - Channel between orchestrators: images and PDFs can go as attachments
