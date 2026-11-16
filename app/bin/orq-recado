@@ -60,12 +60,15 @@ function projeto(alvo) {
   return final[0];
 }
 
+// O estado dos agentes vem do coletor como promessa (ele não trava mais o
+// processo que chama): o comando inteiro roda dentro de uma função assíncrona.
+(async () => {
 try {
   if (cmd === 'para') {
     const [alvo, ...txt] = resto;
     const texto = txt.join(' ');
     if (!alvo || !texto.trim()) sair('uso: orq-recado para <projeto|agente> "texto" [--tipo pergunta|aviso]');
-    const frentes = coletor.estado().frentes;
+    const frentes = (await coletor.estado()).frentes;
     const achou = recados.acharFrente(frentes, alvo);
     if (!achou.length) sair(`nenhum agente do app em "${alvo}". Agentes abertos: ${frentes.map((f) => `${f.nome} (${f.emp ? `${f.emp}/` : ''}${f.proj})`).join(', ') || 'nenhum'}`);
     if (achou.length > 1) sair(`"${alvo}" tem ${achou.length} agentes: ${achou.map((f) => f.nome).join(', ')}; use o nome do agente`);
@@ -172,3 +175,4 @@ try {
     if (cmd) process.exit(1);
   }
 } catch (e) { sair(`erro: ${e.message}`); }
+})();
