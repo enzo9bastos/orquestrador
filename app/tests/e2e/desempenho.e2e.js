@@ -4,7 +4,7 @@
 // agente é o esperado. Tudo isolado: tmux PRIVADO (TMUX_TMPDIR próprio),
 // `docker` falso no PATH, casa temporária; nada de claude real nem do tmux do usuário.
 //   ORQ_MEDIDAS_SAIDA=arquivo.json  grava os números (para o laudo)
-//   ORQ_MEDIR_S=20                  segundos de amostragem com 10 agentes
+//   ORQ_MEDIR_S=35                  segundos de amostragem com 10 agentes
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -14,7 +14,8 @@ const { execFileSync } = require('child_process');
 const { abrirApp } = require('./app');
 
 const N = 10;
-const SEGUNDOS = Number(process.env.ORQ_MEDIR_S) || 20;
+// 35 s: cobre uma releitura inteira do cache de modelos (30 s), que é o maior travamento da base.
+const SEGUNDOS = Number(process.env.ORQ_MEDIR_S) || 35;
 const SEGUNDOS_VAZIO = 8;
 
 // Tela de cada tipo de agente falso (as mesmas marcas que o coletor reconhece).
@@ -110,6 +111,9 @@ exec sleep 3600
   await espera(SEGUNDOS * 1000);
   const cheio = await snap();
   r = await retrato();
+
+  // O modelo vem do container e chega até 30 s depois do primeiro retrato.
+  for (let k = 0; k < 20 && !r.frentes.every((f) => f.modeloAgente); k++) { await espera(500); r = await retrato(); }
 
   // Estado mostrado de cada agente: o esperado, com o modelo do container.
   const porProj = Object.fromEntries(r.frentes.map((f) => [f.proj, f]));

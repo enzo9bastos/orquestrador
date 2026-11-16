@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFile } = require('child_process');
 
 const config = require('./config');
 const pastaProjeto = require('./pasta-projeto');
@@ -26,12 +26,28 @@ function modeloDoCodex(fim) {
   return m ? m[1].replace(/^gpt/, 'GPT') : null;
 }
 
+// Nada aqui bloqueia o processo principal: cada comando externo (tmux, git,
+// docker) roda com execFile assíncrono, no máximo MAX_EM_PARALELO ao mesmo tempo.
+const MAX_EM_PARALELO = 4;
+let rodando = 0;
+const fila = [];
+let execPadrao = (cmd, args) => new Promise((ok) => {
+  execFile(cmd, args, { encoding: 'utf8', timeout: 4000, maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }, (erro, saida) => ok(erro ? '' : saida));
+});
+let executor = execPadrao;
 function rodar(cmd, args) {
-  try {
-    return execFileSync(cmd, args, { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] });
-  } catch {
-    return '';
-  }
+  return new Promise((ok) => {
+    const lancar = () => {
+      rodando++;
+      Promise.resolve().then(() => executor(cmd, args)).catch(() => '').then((saida) => {
+        rodando--;
+        ok(typeof saida === 'string' ? saida : '');
+        const prox = fila.shift();
+        if (prox) prox();
+      });
+    };
+    if (rodando < MAX_EM_PARALELO) lancar(); else fila.push(lancar);
+  });
 }
 
 function pastas(dir) {
@@ -57,16 +73,16 @@ function projetos(cfg = config.ler()) {
   return lista;
 }
 
-function paineis() {
-  const saida = rodar('tmux', ['list-panes', '-a', '-F', '#{pane_id}\t#{pane_current_path}\t#{pane_title}\t#{session_name}']);
+async function paineis() {
+  const saida = await rodar('tmux', ['list-panes', '-a', '-F', '#{pane_id}\t#{pane_current_path}\t#{pane_title}\t#{session_name}']);
   return saida.split('\n').filter(Boolean).map((l) => {
     const [pane, dir, titulo, sessao] = l.split('\t');
     return { pane, dir, titulo, sessao };
   });
 }
 
-function tela(pane, linhas = 8) {
-  const t = rodar('tmux', ['capture-pane', '-p', '-t', pane]);
+async function tela(pane, linhas = 8) {
+  const t = await rodar('tmux', ['capture-pane', '-p', '-t', pane]);
   return t.split('\n').filter((l) => l.trim()).slice(-linhas).join('\n');
 }
 
@@ -132,6 +148,30 @@ function estadoComStatus(estadoTela, status, agora = Date.now()) {
   return ESTADO_DO_STATUS[status.estado] || estadoTela;
 }
 
+// As últimas `limite` linhas do arquivo, lendo só o fim (o arquivo de eventos
+// cresce a cada ferramenta que o agente usa). Mesmo resultado de ler tudo:
+// se o pedaço lido não tem linhas de sobra, lê um pedaço maior.
+function ultimasLinhas(arq, limite) {
+  const fd = fs.openSync(arq, 'r');
+  try {
+    const { size } = fs.fstatSync(fd);
+    let tam = 64 * 1024;
+    for (;;) {
+      const ler = Math.min(size, tam);
+      const buf = Buffer.alloc(ler);
+      fs.readSync(fd, buf, 0, ler, size - ler);
+      let texto = buf.toString('utf8');
+      if (ler < size) { // a primeira linha do pedaço pode estar cortada: descarta
+        const i = texto.indexOf('\n');
+        texto = i < 0 ? '' : texto.slice(i + 1);
+      }
+      const linhas = texto.trim().split('\n');
+      if (ler >= size || linhas.length > limite) return linhas.slice(-limite);
+      tam *= 4;
+    }
+  } finally { fs.closeSync(fd); }
+}
+
 function lerEventos(dirProj, limite = 60) {
   const pasta = path.join(dirProj, '.orq', 'eventos');
   let arquivos;
@@ -143,7 +183,7 @@ function lerEventos(dirProj, limite = 60) {
     return null;
   }
   if (!arquivos.length) return null;
-  const linhas = fs.readFileSync(path.join(pasta, arquivos[0].f), 'utf8').trim().split('\n').slice(-limite);
+  const linhas = ultimasLinhas(path.join(pasta, arquivos[0].f), limite);
   const eventos = [];
   for (const l of linhas) {
     try { eventos.push(JSON.parse(l)); } catch { /* linha cortada no meio da escrita */ }
@@ -203,31 +243,66 @@ function tarefas(cfg) {
 // Modelo que cada agente está usando: o último "model" do transcript da
 // sessão mais recente, lido de dentro do devcontainer do projeto (a pasta
 // ~/.claude dos containers é um volume do Docker, fora do alcance do host).
-// Relido a cada 30 s, não a cada desenho da tela.
+// Não dá para trocar pelo "model" do SessionStart: ele guarda o modelo do
+// INÍCIO da sessão, e um /model no meio muda o que o transcript diz.
+// Relido a cada 30 s, sem travar: quem pede enquanto o cache está velho recebe
+// o último valor e a releitura (uma só, os `docker exec` em paralelo, no limite
+// de 4) acontece por trás. Só a primeira vez espera.
 let cacheModelos = { em: 0, porDir: {} };
-function modelos(cfg) {
-  if (Date.now() - cacheModelos.em < 30000) return cacheModelos.porDir;
+let lendoModelos = null;
+async function lerModelos(cfg) {
   const porDir = {};
-  const saida = rodar('docker', ['ps', '--format', `{{.Names}}\t{{.Label "${cfg.rotuloContainer}"}}`]);
+  const saida = await rodar('docker', ['ps', '--format', `{{.Names}}\t{{.Label "${cfg.rotuloContainer}"}}`]);
+  const itens = [];
   for (const l of saida.split('\n')) {
     const [nome, dir] = l.split('\t');
     if (!nome || !dir || !dir.startsWith(cfg.raizProjetos)) continue;
+    itens.push({ nome, dir });
+  }
+  await Promise.all(itens.map(async ({ nome, dir }) => {
     const pasta = cfg.pastaTranscript.replace('{projeto}', path.basename(dir));
-    const m = rodar('docker', ['exec', nome, 'sh', '-c',
+    const m = await rodar('docker', ['exec', nome, 'sh', '-c',
       `f=$(ls -t "$HOME/.claude/projects/${pasta}"/*.jsonl 2>/dev/null | head -1); [ -n "$f" ] && tail -c 300000 "$f" | grep -o '"model":"claude-[a-z0-9-]*"' | tail -1`]);
     const x = m.match(/claude-([a-z]+)-(\d+)-(\d+)/);
     if (x) porDir[dir] = `${x[1][0].toUpperCase()}${x[1].slice(1)} ${x[2]}.${x[3]}`;
-  }
+  }));
   cacheModelos = { em: Date.now(), porDir };
   return porDir;
 }
+function modelos(cfg) {
+  const velho = Date.now() - cacheModelos.em >= 30000;
+  if (velho && !lendoModelos) lendoModelos = lerModelos(cfg).finally(() => { lendoModelos = null; });
+  if (cacheModelos.em === 0 && lendoModelos) return lendoModelos; // primeira vez: espera
+  return Promise.resolve(cacheModelos.porDir);
+}
 
-function git(dir) {
-  const ultimo = rodar('git', ['-C', dir, 'log', '-1', '--format=%ct\t%s']).trim();
-  const n = rodar('git', ['-C', dir, 'log', '--since=20 hours ago', '--oneline']).split('\n').filter(Boolean).length;
-  if (!ultimo) return { commits20h: n };
-  const [ct, assunto] = ultimo.split('\t');
+// Git por pasta: guardado por 60 s, ou até o .git/logs/HEAD mudar (commit,
+// checkout, reset), o que vier primeiro. Chamadas simultâneas da mesma pasta
+// dividem uma só consulta.
+const VALIDADE_GIT = 60 * 1000;
+const cacheGit = new Map(); // dir → { em, marca, valor }
+const lendoGit = new Map(); // dir → promessa
+function marcaGit(dir) {
+  try { return fs.statSync(path.join(dir, '.git', 'logs', 'HEAD')).mtimeMs; } catch { return 0; }
+}
+async function lerGit(dir) {
+  const [ultimo, lista] = await Promise.all([
+    rodar('git', ['-C', dir, 'log', '-1', '--format=%ct\t%s']),
+    rodar('git', ['-C', dir, 'log', '--since=20 hours ago', '--oneline']),
+  ]);
+  const n = lista.split('\n').filter(Boolean).length;
+  if (!ultimo.trim()) return { commits20h: n };
+  const [ct, assunto] = ultimo.trim().split('\t');
   return { ultimoEm: Number(ct) * 1000, assunto, commits20h: n };
+}
+function git(dir) {
+  const marca = marcaGit(dir);
+  const c = cacheGit.get(dir);
+  if (c && Date.now() - c.em < VALIDADE_GIT && c.marca === marca) return Promise.resolve(c.valor);
+  if (!lendoGit.has(dir)) {
+    lendoGit.set(dir, lerGit(dir).then((valor) => { cacheGit.set(dir, { em: Date.now(), marca, valor }); return valor; }).finally(() => lendoGit.delete(dir)));
+  }
+  return lendoGit.get(dir);
 }
 
 // Pedidos de permissão dos agentes, congelados na 1ª leitura: o agente pode
@@ -302,62 +377,102 @@ function sinalDeVida() {
 }
 
 // Todos os projetos de uma vez: o app não separa por grupo.
-function estado() {
-  const ps = paineis();
+// Uma só leitura em voo: quem pede enquanto outra roda (a tela, o ciclo de
+// recados, o laço de 5 s) recebe a mesma promessa. Com maxIdade, um retrato
+// pronto há menos que isso (ms) é devolvido sem ler de novo.
+let emVoo = null;
+let ultimoRetrato = null; // { em, retrato }
+function estado({ maxIdade = 0 } = {}) {
+  if (emVoo) return emVoo;
+  if (maxIdade > 0 && ultimoRetrato && Date.now() - ultimoRetrato.em < maxIdade) return Promise.resolve(ultimoRetrato.retrato);
+  emVoo = lerEstado().then((retrato) => { ultimoRetrato = { em: Date.now(), retrato }; return retrato; }).finally(() => { emVoo = null; });
+  return emVoo;
+}
+
+async function lerEstado() {
+  const ps = await paineis();
   const frentes = [];
   const fila = [];
   let semTerminal = 0;
 
   const cfg = config.ler();
   const tarefasAtuais = tarefas(cfg);
-  const modelosAtuais = modelos(cfg);
-  for (const { emp, proj, dir, alvo } of projetos(cfg)) {
+  const modelosAtuais = await modelos(cfg);
+  const lista = projetos(cfg);
+
+  // 1) A tela de cada painel candidato, uma vez só por painel, em paralelo (limite de 4).
+  const telas = new Map(); // pane → tela (60 linhas com texto)
+  await Promise.all(lista.flatMap(({ dir }) => ps.filter((p) => p.dir === dir)).map(async (p) => {
+    telas.set(p.pane, await tela(p.pane, 60));
+  }));
+
+  // 2) Classifica na mesma ordem de sempre (mexeu e ehAgente guardam estado entre leituras).
+  const achados = [];
+  for (const { emp, proj, dir, alvo } of lista) {
     fila.push(...pendencias(emp, proj, dir));
     const candidatos = ps.filter((p) => p.dir === dir);
     const eventos = lerEventos(dir);
     let achou = false;
     for (const p of candidatos) {
       const statusAgente = lerStatus(dir);
-      const inteira = tela(p.pane, 60);
+      const inteira = telas.get(p.pane);
       // 12 linhas: a dica que o Claude mostra embaixo do contador empurrava a
       // linha do contador para fora de uma janela menor.
       const fim = inteira.split('\n').slice(-12).join('\n');
       const mexeuAgora = mexeu(p.pane, inteira);
       if (!ehAgente(p.pane, fim)) continue;
       achou = true;
-      const ultimo = eventos && eventos.length ? eventos[eventos.length - 1] : null;
-      const resposta = eventos ? [...eventos].reverse().find((e) => e.last_assistant_message) : null;
-      const inicio = eventos ? [...eventos].reverse().find((e) => e.evento === 'SessionStart') : null;
-      frentes.push({
-        chave: `${emp}/${proj}:${p.pane}`,
-        emp, proj, dir,
-        pane: p.pane,
-        sessaoTmux: p.sessao,
-        nome: nomeDoAgente(p.titulo, proj, (tarefasAtuais[alvo] || {}).numero),
-        estado: ultimo ? estadoPeloSinal(ultimo) : estadoComStatus(estadoPelaTela(fim, mexeuAgora), statusAgente),
-        statusAgente,
-        fimDaTela: fim,
-        fonte: ultimo ? 'sinal' : 'tela',
-        desde: ultimo ? ultimo.ts : null,
-        sessaoClaude: inicio ? inicio.sessao : null,
-        modelo: inicio ? inicio.model : null,
-        ultimaResposta: resposta ? resposta.last_assistant_message : null,
-        linhaDoTempo: eventos || [],
-        git: git(dir),
-        motor: motorDaTela(fim),
-        modeloAgente: motorDaTela(fim) === 'codex' ? modeloDoCodex(inteira) : (modelosAtuais[dir] || null),
-        tarefa: (tarefasAtuais[alvo] || {}).tarefa || null,
-      });
+      achados.push({ emp, proj, dir, alvo, p, statusAgente, inteira, fim, mexeuAgora, eventos });
     }
     if (!achou) semTerminal++;
+  }
+
+  // 3) Git das pastas dos agentes (cache; as consultas novas vão em paralelo).
+  const gits = new Map();
+  await Promise.all([...new Set(achados.map((a) => a.dir))].map(async (dir) => { gits.set(dir, await git(dir)); }));
+
+  for (const { emp, proj, dir, alvo, p, statusAgente, inteira, fim, mexeuAgora, eventos } of achados) {
+    const ultimo = eventos && eventos.length ? eventos[eventos.length - 1] : null;
+    const resposta = eventos ? [...eventos].reverse().find((e) => e.last_assistant_message) : null;
+    const inicio = eventos ? [...eventos].reverse().find((e) => e.evento === 'SessionStart') : null;
+    frentes.push({
+      chave: `${emp}/${proj}:${p.pane}`,
+      emp, proj, dir,
+      pane: p.pane,
+      sessaoTmux: p.sessao,
+      nome: nomeDoAgente(p.titulo, proj, (tarefasAtuais[alvo] || {}).numero),
+      estado: ultimo ? estadoPeloSinal(ultimo) : estadoComStatus(estadoPelaTela(fim, mexeuAgora), statusAgente),
+      statusAgente,
+      fimDaTela: fim,
+      fonte: ultimo ? 'sinal' : 'tela',
+      desde: ultimo ? ultimo.ts : null,
+      sessaoClaude: inicio ? inicio.sessao : null,
+      modelo: inicio ? inicio.model : null,
+      ultimaResposta: resposta ? resposta.last_assistant_message : null,
+      linhaDoTempo: eventos || [],
+      git: gits.get(dir),
+      motor: motorDaTela(fim),
+      modeloAgente: motorDaTela(fim) === 'codex' ? modeloDoCodex(inteira) : (modelosAtuais[dir] || null),
+      tarefa: (tarefasAtuais[alvo] || {}).tarefa || null,
+    });
   }
   return { frentes, fila, semTerminal, lidoEm: Date.now() };
 }
 
-// Espelho da tela de um agente, com cores (somente leitura).
+// Espelho da tela de um agente, com cores (somente leitura). Uma captura por
+// painel por vez: pedidos simultâneos dividem a mesma, e a leitura de menos
+// de 1,5 s é reaproveitada (a tela pede a cada 2 s).
+const VALIDADE_ESPELHO = 1500;
+const espelhos = new Map(); // pane → { em, texto, voo }
 function espelho(pane) {
-  if (!/^%\d+$/.test(pane)) return '';
-  return rodar('tmux', ['capture-pane', '-p', '-e', '-t', pane]);
+  if (!/^%\d+$/.test(pane)) return Promise.resolve('');
+  const e = espelhos.get(pane);
+  if (e && e.voo) return e.voo;
+  if (e && Date.now() - e.em < VALIDADE_ESPELHO) return Promise.resolve(e.texto);
+  const voo = rodar('tmux', ['capture-pane', '-p', '-e', '-t', pane]).then((texto) => { espelhos.set(pane, { em: Date.now(), texto, voo: null }); return texto; });
+  espelhos.set(pane, { em: e ? e.em : 0, texto: e ? e.texto : '', voo });
+  if (espelhos.size > 60) espelhos.delete(espelhos.keys().next().value);
+  return voo;
 }
 
 // Resposta de permissão: grava o arquivo que o hook está esperando.
@@ -400,4 +515,4 @@ function lerNota(qual) {
   try { return fs.readFileSync(arq, 'utf8'); } catch { return null; }
 }
 
-module.exports = { _pendencias: pendencias, lerStatus, estadoComStatus, estadoPelaTela, mexeu, ehAgente, motorDaTela, modeloDoCodex, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };
+module.exports = { _executor: (f) => { executor = f || execPadrao; }, _limparCaches: () => { cacheGit.clear(); espelhos.clear(); cacheModelos = { em: 0, porDir: {} }; ultimoRetrato = null; }, _pendencias: pendencias, _ultimasLinhas: ultimasLinhas, _lerEventos: lerEventos, lerStatus, estadoComStatus, estadoPelaTela, mexeu, ehAgente, motorDaTela, modeloDoCodex, nomeDoAgente, projetos, tarefas, estado, espelho, responder, sinalDeVida, anotacoes, lerNota, raiz: () => config.ler().raizProjetos };
