@@ -109,3 +109,23 @@ test('configuracoes', async (t) => {
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
+
+// 16/11: "mostrarBichinho": false na configuração não valia ao abrir o app. A
+// leitura inicial da engrenagem avisa ("orq:config") antes de a conversa, que
+// esconde o palco, começar a escutar; e a leitura da própria conversa guardava a
+// configuração sem esconder. O bichinho aparecia e falava mesmo desligado (e o
+// balão dele atrapalhava os testes que pediam o bichinho desligado).
+test('configuracoes: bichinho desligado na configuração já abre escondido', async (t) => {
+  const palco = "(() => { const p = document.getElementById('palco-pet'); return { desligado: p.classList.contains('desligado'), mostra: getComputedStyle(p).display !== 'none' }; })()";
+  const desligado = await abrirApp({ config: { mostrarBichinho: false } });
+  t.after(() => desligado.fechar());
+  await desligado.esperar("document.readyState === 'complete' && !!window.orqPetAtual");
+  await desligado.espera(1500); // qualquer aviso de configuração atrasado já chegou
+  assert.deepStrictEqual(await desligado.avaliar(palco), { desligado: true, mostra: false }, 'o bichinho aparece com mostrarBichinho: false');
+  // Controle: com o padrão, ele aparece (o teste não passa à toa).
+  const ligado = await abrirApp();
+  t.after(() => ligado.fechar());
+  await ligado.esperar("document.readyState === 'complete' && !!window.orqPetAtual");
+  await ligado.espera(1500);
+  assert.deepStrictEqual(await ligado.avaliar(palco), { desligado: false, mostra: true });
+});

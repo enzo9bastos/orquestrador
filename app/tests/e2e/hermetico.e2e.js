@@ -132,3 +132,55 @@ test('testes de tela: o app de teste desenha na tela virtual (X), nunca na sess�
   assert.deepStrictEqual(telas.filter((c) => /wayland/i.test(c)), [], `o app de teste se ligou ao Wayland da sessão: ${telas}`);
   assert.ok(telas.some((c) => c.endsWith(`.X11-unix/X${n}`)), `o app de teste não está no X da tela virtual (:${n}): ${telas}`);
 });
+
+// 16/11: app de teste sem Claude falso configurado subia o `claude` DE VERDADE
+// do PATH (com HOME falso; ele gravava .claude.json na casa), e herdava o
+// CLAUDE_CONFIG_DIR/CODEX_HOME de quem rodava os testes (que apontariam para a
+// configuração e o login de verdade). Agora o Claude e o Codex falsos vêm na
+// frente do PATH e a configuração deles fica dentro da casa.
+const descendentes = (pid) => {
+  const lista = [String(pid)];
+  for (let i = 0; i < lista.length; i++) {
+    try { lista.push(...fs.readFileSync(`/proc/${lista[i]}/task/${lista[i]}/children`, 'utf8').trim().split(/\s+/).filter(Boolean)); } catch { /* saiu */ }
+  }
+  return lista.slice(1).map((p) => {
+    const ler = (f) => { try { return fs.readFileSync(`/proc/${p}/${f}`, 'utf8'); } catch { return ''; } };
+    let exe = '';
+    try { exe = fs.realpathSync(`/proc/${p}/exe`); } catch { /* saiu */ }
+    return { pid: p, exe, cmd: ler('cmdline').split('\0').filter(Boolean), env: Object.fromEntries(ler('environ').split('\0').filter(Boolean).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)])) };
+  });
+};
+
+test('testes de tela: o app de teste nunca sobe o claude nem o codex de verdade, nem lê a configuração deles', async (t) => {
+  const { RAIZ } = require('../temporarias');
+  // Os binários de verdade que o PATH de quem roda os testes acharia (fora da pasta temporária).
+  const reais = [];
+  for (const nome of ['claude', 'codex']) {
+    for (const d of String(process.env.PATH || '').split(path.delimiter)) {
+      if (!d || d.startsWith(RAIZ)) continue;
+      try { reais.push(fs.realpathSync(path.join(d, nome))); break; } catch { /* não está aqui */ }
+    }
+  }
+  const fora = pastaTemporaria('orq-config-fora-');
+  const antes = { CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR, CODEX_HOME: process.env.CODEX_HOME };
+  Object.assign(process.env, { CLAUDE_CONFIG_DIR: path.join(fora, 'claude'), CODEX_HOME: path.join(fora, 'codex') });
+  const app = await abrirApp();
+  t.after(async () => {
+    await app.fechar();
+    for (const [k, v] of Object.entries(antes)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  });
+  // A conversa do orquestrador sobe sozinha ao abrir: espera o processo dela.
+  let ps = [];
+  for (let i = 0; i < 100; i++) {
+    ps = descendentes(app.pid);
+    if (ps.some((p) => reais.includes(p.exe) || p.cmd.some((a) => /claude-falso\.js$/.test(a)))) break;
+    await espera(100);
+  }
+  const deVerdade = ps.filter((p) => reais.includes(p.exe) || reais.includes(p.cmd[0]));
+  assert.deepStrictEqual(deVerdade.map((p) => p.cmd.join(' ')), [], 'subiu um claude/codex de verdade');
+  const falso = ps.find((p) => p.cmd.some((a) => /claude-falso\.js$/.test(a)));
+  assert.ok(falso, `a conversa não subiu com o Claude falso: ${ps.map((p) => p.cmd.join(' ')).join(' | ')}`);
+  assert.strictEqual(falso.env.CLAUDE_CONFIG_DIR, path.join(app.casa, '.claude'), 'a configuração do Claude é a da casa de teste');
+  assert.strictEqual(falso.env.CODEX_HOME, path.join(app.casa, '.codex'));
+  assert.deepStrictEqual(fs.readdirSync(fora), [], 'nada foi gravado na configuração de quem roda os testes');
+});

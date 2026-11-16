@@ -61,6 +61,10 @@ function telaVirtual(env = process.env) {
 const noPath = (cmd) => (process.env.PATH || '').split(path.delimiter).some((d) => { try { fs.accessSync(path.join(d, cmd), fs.constants.X_OK); return true; } catch { return false; } });
 
 const ambiente = { ...process.env };
+// A configuração (e o login) do Claude e do Codex de quem roda os testes nunca
+// chega aos testes: sem estas variáveis, cada teste usa a da casa falsa dele.
+delete ambiente.CLAUDE_CONFIG_DIR;
+delete ambiente.CODEX_HOME;
 if (vaiAbrirApp) {
   if (process.env.ORQ_TESTE_NA_TELA === '1') {
     console.log('\n== tela REAL (ORQ_TESTE_NA_TELA=1): janelas e caixas de erro podem aparecer na sua tela ==');

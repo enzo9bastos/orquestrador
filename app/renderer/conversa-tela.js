@@ -1405,6 +1405,9 @@
   });
   Promise.all([window.orq.config.ler(), C.lista()]).then(([c, l]) => {
     cfg = c;
+    // O aviso "orq:config" da leitura inicial da engrenagem pode chegar antes de
+    // este script escutar: o bichinho desligado vale já na abertura.
+    $('palco-pet').classList.toggle('desligado', cfg.mostrarBichinho === false);
     desenharLista(l);
     trocar('orquestrador');
   });

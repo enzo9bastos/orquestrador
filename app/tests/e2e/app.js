@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const { pastaTemporaria } = require('../temporarias');
+const { pastaTemporaria, RAIZ } = require('../temporarias');
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,7 +40,30 @@ async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null
   // roda os testes de dentro de um tmux, apontaria para o servidor do usuário).
   const tmuxDir = tmux || path.join(casa, 'tm');
   fs.mkdirSync(tmuxDir, { recursive: true });
-  const env = { ...process.env, ...envExtra, HOME: casa, TMUX_TMPDIR: tmuxDir, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) };
+  // Nenhum claude/codex de verdade: quando o PATH acharia o de verdade (o app
+  // procura no PATH quando a configuração não escolhe um caminho), o Claude falso
+  // e o Codex falso vêm na frente. Falso que o próprio teste pôs no PATH (numa
+  // pasta temporária) e PATH sem nenhum, de propósito, continuam como estão.
+  // A configuração deles fica dentro da casa, nunca a de quem roda os testes.
+  const falsos = path.join(casa, 'bin-falso');
+  fs.mkdirSync(falsos, { recursive: true });
+  const caminhoBase = envExtra.PATH != null ? envExtra.PATH : (process.env.PATH || '');
+  const deVerdade = (nome) => {
+    const d = String(caminhoBase).split(path.delimiter).find((x) => x && fs.existsSync(path.join(x, nome)));
+    return !!d && !d.startsWith(`${RAIZ}${path.sep}`);
+  };
+  const unit = path.join(__dirname, '..', 'unit');
+  const wrapper = (nome, js, extra = '') => {
+    const arq = path.join(falsos, nome);
+    if (deVerdade(nome) && !fs.existsSync(arq)) fs.writeFileSync(arq, `#!/bin/sh\n${extra}exec "${process.execPath}" "${path.join(unit, js)}" "$@"\n`, { mode: 0o755 });
+  };
+  wrapper('claude', 'claude-falso.js');
+  wrapper('codex', 'codex-falso.js', `: "\${CODEX_FALSO_LOG:=${path.join(casa, 'codex-falso.log')}}"; export CODEX_FALSO_LOG\n`);
+  const env = {
+    ...process.env, CLAUDE_CONFIG_DIR: path.join(casa, '.claude'), CODEX_HOME: path.join(casa, '.codex'), ...envExtra,
+    PATH: `${falsos}${path.delimiter}${caminhoBase}`,
+    HOME: casa, TMUX_TMPDIR: tmuxDir, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid),
+  };
   delete env.TMUX;
   delete env.TMUX_PANE;
   // A saída do processo principal fica em <casa>/app.log: quando o teste falha,
