@@ -13,4 +13,19 @@ function publicado(pasta) {
   });
 }
 
-module.exports = { publicado };
+// O código que NÃO é da tela (processo principal, ponte, módulos): a lista do
+// último commit da pasta do app, sem a pasta renderer/. A tela só pode
+// recarregar sozinha se isto estiver igual ao que estava quando o app abriu:
+// tela nova com processo principal antigo deixa os dois falando formatos
+// diferentes (16/11: a tela esperava os envios em lote e o processo antigo
+// mandava um a um; as mensagens sumiram da tela até reiniciar).
+function versaoDoPrincipal(pastaApp) {
+  return new Promise((ok) => {
+    execFile('git', ['ls-tree', 'HEAD', '.'], { cwd: pastaApp, timeout: 5000 }, (erro, saida) => {
+      if (erro) return ok(null);
+      ok(String(saida).split('\n').filter((l) => l && !/\trenderer$/.test(l)).join('\n'));
+    });
+  });
+}
+
+module.exports = { publicado, versaoDoPrincipal };

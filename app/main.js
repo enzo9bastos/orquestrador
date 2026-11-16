@@ -47,6 +47,16 @@ const ORQUESTRADOR = process.env.ORQ_APP_ORQUESTRADOR || 'exec bash';
 let janela;
 const avisados = new Set();
 
+// A versão do código do processo principal quando o app abriu (recarga.js).
+const versaoNoInicio = require('./recarga').versaoDoPrincipal(__dirname);
+let reinicioPedido = false;
+function pedirReinicio() {
+  if (janela && !janela.isDestroyed()) janela.webContents.send('app:precisa-reiniciar');
+  if (reinicioPedido) return;
+  reinicioPedido = true;
+  notificar({ title: t('Orquestração'), body: t('Atualização pronta. Reinicie o app para aplicar (as conversas continuam).') });
+}
+
 function criarJanela() {
   // Testes de tela (ORQ_APP_E2E=1): janela escondida, desenhando por trás, para
   // não aparecer na tela de quem está trabalhando.
@@ -115,7 +125,14 @@ function criarJanela() {
     setTimeout(async () => {
       for (let i = 0; i < 30 && espera === rodada; i++) {
         if (await require('./recarga').publicado(path.join(__dirname, 'renderer'))) {
-          if (janela && !janela.isDestroyed()) janela.webContents.reload();
+          // Só a tela mudou: recarrega. Mudou também o processo principal ou a
+          // ponte: a tela nova não combina com o processo que está rodando;
+          // fica a tela atual e o app pede para reiniciar.
+          const agora = await require('./recarga').versaoDoPrincipal(__dirname);
+          const inicio = await versaoNoInicio;
+          if (!janela || janela.isDestroyed()) return;
+          if (agora === inicio) janela.webContents.reload();
+          else pedirReinicio();
           return;
         }
         await new Promise((r) => setTimeout(r, 1000));
