@@ -63,7 +63,11 @@ body {
   color: var(--fg);
   display: grid;
   /* Colunas que encolhem junto com a janela, até um mínimo legível. */
-  --larg-leitura: 860px; /* conversa: linha de leitura; cresce com as colunas recolhidas (fim do arquivo) */
+  /* Conversa (mensagens + caixa): ~88% do centro, teto de 1500 px, nunca menos
+     que os 860 px de antes; vale com as colunas abertas ou recolhidas. O texto
+     corrido do assistente para no limite de leitura (--larg-texto). */
+  --larg-leitura: min(1500px, max(860px, 88%));
+  --larg-texto: 1100px;
   --larg-nota: 760px;
   --larg-lateral: clamp(210px, 19vw, 272px);
   --larg-inspetor: clamp(250px, 23vw, 340px);
@@ -304,7 +308,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .barra-uso i.alto { background: var(--perigo); }
 .conversa-barra .botao-texto { margin-left: auto; }
 
-.mensagens { flex: 1; min-height: 0; overflow-y: auto; padding: 24px max(24px, calc((100% - var(--larg-leitura)) / 2)) 16px; display: flex; flex-direction: column; gap: 18px; }
+.mensagens { flex: 1; min-height: 0; overflow-y: auto; padding: 24px calc(max(24px, (100% - var(--larg-leitura)) / 2) - 8px) 16px max(24px, calc((100% - var(--larg-leitura)) / 2)); scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 18px; }
 .boas-vindas { margin: auto; display: grid; justify-items: center; gap: 6px; color: var(--fg-3); }
 .boas-vindas strong { color: var(--fg); font-size: 16px; font-weight: 600; }
 .marca-claude { color: var(--claude); font-size: 15px; line-height: 1; }
@@ -312,7 +316,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 
 .msg-voce { display: flex; justify-content: flex-end; }
 .balao {
-  max-width: 78%; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--painel);
+  max-width: 75%; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--painel);
   color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .balao.comando { display: inline-flex; align-items: center; gap: 8px; font: 500 12.5px var(--mono); background: var(--claude-suave); color: var(--claude); }
@@ -320,6 +324,8 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .msg-claude { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .msg-claude .autor { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--fg); font-size: 13px; }
 .md.texto-claude { max-width: none; padding: 0; font-size: 14px; }
+/* Texto corrido com limite de leitura, à esquerda; código e tabela usam a coluna inteira. */
+.md.texto-claude > :not(.caixa-codigo):not(table) { max-width: var(--larg-texto); }
 .md.texto-claude h2 { border-top: 0; padding-top: 0; margin-top: 18px; }
 .rascunho::after { content: '▍'; color: var(--claude); animation: piscar 1s steps(1) infinite; }
 @keyframes piscar { 50% { opacity: 0; } }
@@ -587,7 +593,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* --- autocompletar de comandos ------------------------------------------- */
 .compositor { position: relative; }
 .sugestoes {
-  position: absolute; left: max(24px, calc((100% - 860px) / 2)); right: max(24px, calc((100% - 860px) / 2)); bottom: calc(100% - 4px);
+  position: absolute; left: max(24px, calc((100% - var(--larg-leitura)) / 2)); right: max(24px, calc((100% - var(--larg-leitura)) / 2)); bottom: calc(100% - 4px);
   z-index: 20; margin: 0; padding: 6px; list-style: none; display: grid; gap: 1px;
   background: var(--bg-elevado); border: 1px solid var(--borda-forte); border-radius: 12px; box-shadow: 0 -10px 30px rgba(0, 0, 0, .35);
 }
@@ -1584,10 +1590,11 @@ button.pilula { cursor: pointer; border: 0; }
 button.pilula:hover { background: var(--painel-hover); color: var(--fg); }
 @media (prefers-reduced-motion: reduce) { body.colunas-prontas, .lateral, .inspetor { transition: none !important; } .alternar-coluna .sinal-coluna.novo { animation: none; } }
 
-/* Com colunas recolhidas a conversa e a nota usam o espaço livre, em proporção
-   dele, sem passar de uma linha confortável de ler. Abertas: como sempre. */
-body.sem-agentes, body.sem-demandas { --larg-leitura: min(1180px, max(860px, 60%)); --larg-nota: min(920px, max(760px, 46%)); }
-body.sem-agentes.sem-demandas { --larg-leitura: min(1500px, max(860px, 66%)); --larg-nota: min(1080px, max(760px, 52%)); }
+/* Com colunas recolhidas a nota usa o espaço livre, em proporção dele, sem
+   passar de uma linha confortável de ler. Abertas: como sempre. (A conversa
+   tem uma regra só, no :root: ~88% do centro.) */
+body.sem-agentes, body.sem-demandas { --larg-nota: min(920px, max(760px, 46%)); }
+body.sem-agentes.sem-demandas { --larg-nota: min(1080px, max(760px, 52%)); }
 
 /* --- Configurações › Atalhos -------------------------------------------- */
 .atalho-controles { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }

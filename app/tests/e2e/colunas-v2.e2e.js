@@ -38,17 +38,17 @@ test('colunas v2: largura da conversa e da nota acompanha o espaço livre', asyn
   await app.tamanho(2400, 1350);
   await estadoFalso(app, CALMO);
 
-  await t.test('conversa: abertas como hoje (860 px); uma recolhida meio-termo; as duas até ~1500 px', async () => {
-    assert.strictEqual(await medida(app, '.caixa-entrada'), 860);
+  // v3 (conversa-larga.e2e.js): a conversa tem uma regra só, ~88% do centro com
+  // teto de 1500 px; em 2400 px ela bate no teto nos três estados.
+  await t.test('conversa: em 2400 px, abertas, uma recolhida ou as duas, até o teto de 1500 px', async () => {
+    assert.strictEqual(await medida(app, '.caixa-entrada'), 1500);
     await colunas(app, false, true); await largou(app, false, true);
-    const uma = await medida(app, '.caixa-entrada');
-    assert.ok(uma > 1000 && uma <= 1180, `uma recolhida: ${uma}`);
+    assert.strictEqual(await medida(app, '.caixa-entrada'), 1500);
     await colunas(app, false, false); await largou(app, false, false);
-    const duas = await medida(app, '.caixa-entrada');
-    assert.ok(duas >= 1400 && duas <= 1500, `duas recolhidas: ${duas}`);
+    assert.strictEqual(await medida(app, '.caixa-entrada'), 1500);
     assert.strictEqual(await app.visivel('#enviar'), 'ok');
     await colunas(app, true, true); await largou(app, true, true);
-    assert.strictEqual(await medida(app, '.caixa-entrada'), 860);
+    assert.strictEqual(await medida(app, '.caixa-entrada'), 1500);
   });
 
   await t.test('proporcional: em 1480 px com as duas recolhidas a linha cresce, mas menos que em 2400', async () => {
@@ -56,7 +56,7 @@ test('colunas v2: largura da conversa e da nota acompanha o espaço livre', asyn
     await app.tamanho(1480, 900);
     await espera(200);
     const m = await medida(app, '.caixa-entrada');
-    assert.ok(m > 900 && m < 1100, `1480 px: ${m}`);
+    assert.ok(m > 1250 && m < 1350, `1480 px: ${m}`);
     await colunas(app, true, true); await largou(app, true, true);
     const aberto = await medida(app, '.caixa-entrada');
     assert.ok(aberto < m && aberto <= 860, `abertas em 1480 px: ${aberto}`);
