@@ -4,6 +4,10 @@
 // "recarrega ou pede reinício" está no teste de unidade (recarga.test.js).
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFileSync } = require('child_process');
 const { abrirApp } = require('./app');
 
 test('recarga: a faixa de reinício aparece, traduz e não some sozinha', async (t) => {
@@ -75,5 +79,53 @@ test('recarga: a faixa de reinício não cobre nenhum botão da barra de cima, e
         assert.deepStrictEqual(app.erros, []);
       } finally { await app.fechar(); }
     });
+  }
+});
+
+// 16/11 (Etapa 0.D): publicação que mudou SÓ o código de fora da tela (main.js,
+// conversa.js, bin/…) não mexia em renderer/ e a faixa não aparecia: o app
+// seguia com o processo principal velho sem avisar. O app roda de uma cópia
+// num repositório git temporário (o commit não pode ser no worktree de
+// verdade). Em modo de teste a vigia fica desligada, salvo quando pedida: um
+// commit no worktree durante a bateria não pode acender a faixa à toa.
+test('recarga: commit só fora da tela acende a faixa de reinício (em modo de teste, só quando pedido)', async (t) => {
+  const origem = path.join(__dirname, '..', '..');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-tela-repo-'));
+  const pasta = path.join(raiz, 'app');
+  const git = (...a) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd: raiz, stdio: 'pipe' });
+  try {
+    fs.cpSync(origem, pasta, { recursive: true, filter: (src) => src !== path.join(origem, 'node_modules') });
+    fs.symlinkSync(fs.realpathSync(path.join(origem, 'node_modules')), path.join(pasta, 'node_modules'));
+    fs.writeFileSync(path.join(raiz, '.gitignore'), 'node_modules\n');
+    git('init', '-q'); git('add', '-A'); git('commit', '-qm', 'um');
+    const faixa = "!!document.getElementById('faixa-reinicio')";
+    await t.test('vigia ligada: commit só fora da tela acende a faixa', async () => {
+      const app = await abrirApp({ pasta, config: { idioma: 'pt-BR' }, env: { ORQ_APP_VIGIAR_PRINCIPAL: '1' } });
+      try {
+        await app.esperar('!!window.orqAvisoDeReinicio');
+        await app.espera(500);
+        assert.strictEqual(await app.avaliar(faixa), false, 'a faixa apareceu sem mudança nenhuma');
+        fs.writeFileSync(path.join(pasta, 'principal-novo.js'), '// código novo do processo principal\n');
+        git('add', '-A'); git('commit', '-qm', 'só fora da tela');
+        await app.esperar(faixa, 8000);
+        assert.match(await app.avaliar("document.getElementById('faixa-reinicio').innerText"), /Atualização pronta[\s\S]*Reiniciar agora/);
+        assert.deepStrictEqual(app.erros, []);
+      } finally { await app.fechar(); }
+    });
+    await t.test('modo de teste sem pedir: commit não acende a faixa', async () => {
+      const app = await abrirApp({ pasta, config: { idioma: 'pt-BR' } });
+      try {
+        await app.esperar('!!window.orqAvisoDeReinicio');
+        await app.espera(500);
+        fs.writeFileSync(path.join(pasta, 'principal-novo.js'), '// de novo\n');
+        git('commit', '-qam', 'outra mudança fora da tela');
+        await app.espera(3000);
+        assert.strictEqual(await app.avaliar(faixa), false, 'em modo de teste a faixa acendeu sozinha');
+        assert.deepStrictEqual(app.erros, []);
+      } finally { await app.fechar(); }
+    });
+  } finally {
+    // Só a cópia que este teste criou (o node_modules é um link: sai o link, não o destino).
+    fs.rmSync(raiz, { recursive: true, force: true });
   }
 });
