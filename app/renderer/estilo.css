@@ -865,7 +865,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 /* Caminho clicável na conversa. */
 .md code.caminho-clicavel { cursor: pointer; text-decoration: underline dotted color-mix(in srgb, var(--claude) 70%, transparent); text-underline-offset: 3px; }
 .md code.caminho-clicavel:hover { color: var(--claude); border-color: color-mix(in srgb, var(--claude) 50%, transparent); }
-.md code.caminho-sumiu { text-decoration: line-through; cursor: not-allowed; }
+.md code.caminho-sumiu, .md a.caminho-sumiu { text-decoration: line-through; cursor: not-allowed; }
 .menu-contexto li.desligado { opacity: .45; pointer-events: none; }
 
 /* --- configurações: seções, campos e chaves -------------------------------- */

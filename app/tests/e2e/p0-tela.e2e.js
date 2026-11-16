@@ -231,3 +231,47 @@ test('0.B10: links da conversa: Ctrl+clique abre; dica com o host; credenciais e
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
+
+// Regressão do 0.B10 (16/11): o link Markdown que aponta para um arquivo local
+// ("[relatorio.md](/home/ana/relatorio.md)") passou a dar "Só links http e https
+// abrem". Caminho local não é endereço web: abre no explorador, com clique simples.
+test('0.B10: link para arquivo ou pasta local abre no explorador (não é recusado como link web)', async (t) => {
+  const app = await abrirApp({ config: {} });
+  t.after(() => app.fechar());
+  await app.esperar('!!window.__orqTeste');
+  const pasta = path.join(app.casa, 'relatorios');
+  fs.mkdirSync(pasta, { recursive: true });
+  fs.writeFileSync(path.join(pasta, 'prompt.md'), 'oi');
+  fs.writeFileSync(path.join(pasta, 'main.js'), '//');
+  const md = `Deixei em [${pasta}/prompt.md](${pasta}/prompt.md) · [a pasta](${pasta}) · [main.js:12](${pasta}/main.js:12) · [sumiu.md](/nao/existe/sumiu.md) · [docs](https://docs.exemplo.com.br/)`;
+  await app.avaliar(`window.__orqTeste.desenharEvento({ tipo: 'assistant', message: { content: [{ type: 'text', text: ${JSON.stringify(md)} }] } })`);
+  const link = (txt) => `[...document.querySelectorAll('#mensagens a[href]')].find((a) => a.textContent === ${JSON.stringify(txt)})`;
+  const clicar = (txt) => app.avaliar(`${link(txt)}.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))`);
+  const abertos = () => app.avaliar('[...window.__orqTeste.caminhosAbertos]');
+  const avisosErro = () => app.avaliar("[...document.querySelectorAll('#mensagens .aviso-conversa.erro')].map((e) => e.textContent)");
+
+  await t.test('clique simples no caminho absoluto abre o arquivo no explorador', async () => {
+    await clicar(`${pasta}/prompt.md`);
+    await app.esperar('(window.__orqTeste.caminhosAbertos || []).length === 1');
+    assert.deepStrictEqual(await abertos(), [path.join(pasta, 'prompt.md')]);
+  });
+  await t.test('pasta e "arquivo:linha" também abrem', async () => {
+    await clicar('a pasta');
+    await clicar('main.js:12');
+    await app.esperar('window.__orqTeste.caminhosAbertos.length === 3');
+    assert.deepStrictEqual((await abertos()).slice(1), [pasta, path.join(pasta, 'main.js')]);
+  });
+  await t.test('caminho que não existe fica riscado, sem aviso de "só http"', async () => {
+    await clicar('sumiu.md');
+    await app.esperar(`${link('sumiu.md')}.classList.contains('caminho-sumiu')`);
+    assert.deepStrictEqual(await avisosErro(), []);
+  });
+  await t.test('a dica de link web não aparece em caminho local; link web continua só com Ctrl+clique', async () => {
+    await app.avaliar(`${link('main.js:12')}.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))`);
+    assert.strictEqual(await app.avaliar("document.querySelector('.dica-link').hidden"), true);
+    await clicar('docs');
+    await app.espera(200);
+    assert.deepStrictEqual(await app.avaliar('[...window.__orqTeste.linksAbertos]'), []);
+  });
+  await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
+});

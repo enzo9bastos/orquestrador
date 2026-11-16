@@ -349,6 +349,25 @@
     const a = semWww(hostTexto), b = semWww(String(host).replace(/:\d+$/, ''));
     return a === b || b.endsWith(`.${a}`) || a.endsWith(`.${b}`);
   }
+  // Link que aponta para um arquivo ou pasta local ("[relatorio.md](/home/ana/relatorio.md)",
+  // "app/main.js:12") não é endereço web: abre no explorador de arquivos como o
+  // caminho em `código` (pasta abre; arquivo aparece selecionado). "file://" o
+  // DOMPurify já tira do Markdown.
+  const caminhosAbertos = []; // para os testes de tela
+  function caminhoDoLink(a) {
+    const bruto = String(a.getAttribute('href') || '').trim();
+    if (!bruto || bruto.startsWith('#') || bruto.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(bruto)) return null;
+    let p = bruto.replace(/#.*$/, '');
+    try { p = decodeURI(p); } catch { /* fica como veio */ }
+    p = p.replace(/:\d+(?::\d+)?$/, ''); // "arquivo.js:12" → linha não faz parte do caminho
+    return PARECE_CAMINHO.test(p) || PARECE_ARQUIVO.test(p) ? p : null;
+  }
+  async function abrirCaminhoDoLink(a, p) {
+    const ok = window.orq.abrirCaminho ? await window.orq.abrirCaminho(p, { pasta: infoAtual.pasta || '', dicas: [] }) : false;
+    if (ok) { caminhosAbertos.push(ok); a.classList.remove('caminho-sumiu'); return; }
+    a.classList.add('caminho-sumiu');
+    a.title = 'Este caminho não existe (ou não está acessível daqui)';
+  }
   async function abrirLink(url) {
     const r = window.orq.abrirLink ? await window.orq.abrirLink(url) : false;
     if (r) linksAbertos.push(url); else aviso('O app não abriu este link.', 'erro');
@@ -380,6 +399,7 @@
   caixa.addEventListener('mouseover', (ev) => {
     const a = ev.target.closest('a[href]');
     if (!a) return;
+    if (caminhoDoLink(a)) { dicaLink.hidden = true; if (!a.title) a.title = 'Abrir no explorador de arquivos'; return; }
     const l = analisarLink(a);
     dicaLink.classList.toggle('recusado', !!l.erro);
     dicaLink.innerHTML = l.erro ? `<span>${esc(l.erro)}</span>`
@@ -457,7 +477,13 @@
       return;
     }
     const a = ev.target.closest('a[href]');
-    if (a) { ev.preventDefault(); if (ev.ctrlKey || ev.metaKey) ctrlCliqueLink(a); return; } // nada de navegar dentro do app
+    if (a) { // nada de navegar dentro do app
+      ev.preventDefault();
+      const p = caminhoDoLink(a);
+      if (p) abrirCaminhoDoLink(a, p);
+      else if (ev.ctrlKey || ev.metaKey) ctrlCliqueLink(a);
+      return;
+    }
     if (ev.target.closest('[data-nova-rodada]')) { trocar('orquestrador'); return; }
     const ap = ev.target.closest('.cartao-aprovacao:not(.respondido)');
     if (ap) { const d = ev.target.closest('[data-decidir]'); if (d) decidirAprovacao(ap, d.dataset.decidir === '1'); return; }
@@ -1393,5 +1419,5 @@
     new MutationObserver(agendarAjuste).observe(barra, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
   }
 
-  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, expandir: (t) => expandir(t) };
+  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, caminhosAbertos, expandir: (t) => expandir(t) };
 })();
