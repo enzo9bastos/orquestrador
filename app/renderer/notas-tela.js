@@ -42,9 +42,13 @@
     $('pagina-nota').hidden = sim;
     if (sim) $('barra-nota').hidden = true;
     $('vazio-nota').hidden = !sim;
-    if (sim) $('vazio-nota').innerHTML = `<div class="vazio"><span class="ico-caixa"><svg class="ico"><use href="#i-notas"/></svg></span>
-      <strong>${pastas.length ? 'Nenhuma nota aberta' : 'Nenhuma pasta de notas'}</strong>
-      <span>${pastas.length ? 'Escolha uma nota à esquerda ou crie uma com o +.' : 'Configure "pastasNotas" em ~/.config/orq-app/config.json.'}</span></div>`;
+    if (!sim) return;
+    $('caminho-nota').textContent = ''; // sem nota aberta, o caminho da anterior não fica escrito em cima
+    const semAba = pastas.length > 0 && ativa < 0; // todas as abas fechadas
+    $('vazio-nota').innerHTML = `<div class="vazio"><span class="ico-caixa"><svg class="ico"><use href="#i-notas"/></svg></span>
+      <strong>${semAba ? 'Nenhuma pasta aberta' : pastas.length ? 'Nenhuma nota aberta' : 'Nenhuma pasta de notas'}</strong>
+      <span>${semAba ? 'As pastas continuam no app. Reabra uma aqui ou pelo "+ Pasta".' : pastas.length ? 'Escolha uma nota à esquerda ou crie uma com o +.' : 'Configure "pastasNotas" em ~/.config/orq-app/config.json.'}</span>
+      ${semAba ? `<div class="vazio-acoes">${pastas.map((p, i) => `<button type="button" class="botao-texto" data-reabrir-aba="${i}">Reabrir «${esc(p.nome)}»</button>`).join('')}</div>` : ''}</div>`;
   }
 
   // --- abas das pastas (em cima) e explorador (à esquerda) --------------------
@@ -52,17 +56,42 @@
   const SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
   const DATA = /^(\d{4})-(\d{2})-(\d{2})$/;
   let ativa = Number(lerPref('notas-pasta-ativa')) || 0;
+  // Abas fechadas pelo ✕ (guardadas pelo id da pasta): a pasta continua no app
+  // e no disco (as notas dela seguem na paleta, no @nota e nas Demandas); só a
+  // aba sai de cima. Reabre pelo "+ Pasta". Quem tira a pasta do app é a engrenagem.
+  const fechadas = new Set(lerPref('notas-abas-fechadas') || []);
+  const estaFechada = (i) => !!pastas[i] && fechadas.has(pastas[i].id);
+  const reabrirAba = (i) => { if (pastas[i] && fechadas.delete(pastas[i].id)) gravarPref('notas-abas-fechadas', [...fechadas]); };
+  // A aba da frente tem de existir e estar aberta; sem nenhuma aberta, -1.
+  function ajustarAtiva() {
+    if (pastas[ativa] && !estaFechada(ativa)) return;
+    ativa = pastas.findIndex((_, i) => !estaFechada(i));
+  }
+  // Traz a aba da pasta i para a frente (reabre, se estava fechada).
+  function mostrarAba(i) {
+    if (!pastas[i]) return;
+    reabrirAba(i);
+    ativa = i; gravarPref('notas-pasta-ativa', ativa); selecionada = null;
+    desenharArvore();
+    if (!aberta) vazio(true);
+  }
+  async function abrirOutraPasta() {
+    const i = await N.adicionarPasta();
+    if (i == null) return;
+    await carregarArvore();
+    if (i >= 0) mostrarAba(i);
+  }
   let selecionada = null; // pasta (rel) onde a próxima nota nasce
 
   const ICO_PASTA = '<svg class="ico ico-arvore" viewBox="0 0 16 16"><path d="M2 4.5h4.2l1.3 1.5H14v6.5H2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
   const ICO_NOTA = '<svg class="ico ico-arvore" viewBox="0 0 16 16"><path d="M4 2.5h5l3 3v8H4zM9 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
 
   function desenharAbas() {
-    $('abas-pastas').innerHTML = pastas.map((p, i) => `
+    $('abas-pastas').innerHTML = pastas.map((p, i) => (estaFechada(i) ? '' : `
       <div class="aba-pasta${i === ativa ? ' ativa' : ''}" role="tab" aria-selected="${i === ativa}">
         <button type="button" data-pasta="${i}" title="${esc(p.nome)}">${ICO_PASTA}<span>${esc(p.nome)}</span></button>
-        <button type="button" class="tirar-pasta" data-tirar="${i}" title="Tirar esta pasta do app (nada é apagado do disco)" aria-label="Tirar pasta">✕</button>
-      </div>`).join('') +
+        <button type="button" class="tirar-pasta" data-fechar="${i}" title='Fechar esta aba (a pasta continua no app e no disco; reabra em "+ Pasta")' aria-label="Fechar aba">✕</button>
+      </div>`)).join('') +
       '<button type="button" class="aba-pasta-mais" data-mais title="Abrir outra pasta">+ Pasta</button>';
     $('nome-pasta-ativa').textContent = pastas[ativa] ? pastas[ativa].nome : 'Notas';
   }
@@ -105,7 +134,7 @@
 
   function desenharArvore() {
     desenharAbas();
-    if (!pastas.length) {
+    if (!pastas.length || ativa < 0) {
       $('arvore-notas').innerHTML = '<p class="nota explorador-vazio">Nenhuma pasta aberta. Use "+ Pasta" em cima para abrir uma.</p>';
       return;
     }
@@ -115,35 +144,43 @@
 
   async function carregarArvore() {
     pastas = await N.pastas();
-    if (ativa >= pastas.length) ativa = 0;
+    ajustarAtiva();
     arvores = await Promise.all(pastas.map((_, i) => N.arvore(i).catch(() => [])));
     desenharArvore();
     if (!aberta) vazio(true);
   }
 
+  $('vazio-nota').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-reabrir-aba]');
+    if (b) mostrarAba(Number(b.dataset.reabrirAba));
+  });
+
   $('abas-pastas').addEventListener('click', async (ev) => {
     const b = ev.target.closest('[data-pasta]');
     if (b) { ativa = Number(b.dataset.pasta); gravarPref('notas-pasta-ativa', ativa); selecionada = null; desenharArvore(); return; }
-    if (ev.target.closest('[data-mais]')) {
-      const i = await N.adicionarPasta();
-      if (i == null) return;
-      await carregarArvore();
-      if (i >= 0) { ativa = i; gravarPref('notas-pasta-ativa', ativa); desenharArvore(); }
+    const mais = ev.target.closest('[data-mais]');
+    if (mais) {
+      // Com aba fechada, o "+ Pasta" oferece reabrir (um clique) ou escolher outra pasta.
+      const paraReabrir = pastas.map((p, i) => ({ p, i })).filter(({ i }) => estaFechada(i));
+      if (!paraReabrir.length) { await abrirOutraPasta(); return; }
+      const r = mais.getBoundingClientRect();
+      abrirMenu(r.left, r.bottom + 4, [
+        ...paraReabrir.map(({ p, i }) => ({ nome: `Reabrir «${p.nome}»`, faz: () => mostrarAba(i) })),
+        '-', { nome: 'Abrir outra pasta do computador…', faz: abrirOutraPasta },
+      ]);
       return;
     }
-    const t = ev.target.closest('[data-tirar]');
-    if (t) {
-      // Confirma no segundo clique; tirar a pasta do app não apaga nada do disco.
-      if (!t.dataset.confirmando) {
-        t.dataset.confirmando = '1'; t.textContent = 'Tirar?';
-        setTimeout(() => { if (t.isConnected) { delete t.dataset.confirmando; t.textContent = '✕'; } }, 3500);
-        return;
-      }
-      const i = Number(t.dataset.tirar);
-      if (aberta && aberta.i === i) { if (sujo) { clearTimeout(timer); await salvar(); } aberta = null; N.vigiar(0, null); vazio(true); }
-      await N.removerPasta(i);
-      ativa = 0; gravarPref('notas-pasta-ativa', 0);
-      await carregarArvore();
+    const f = ev.target.closest('[data-fechar]');
+    if (f) {
+      // Só fecha a aba: nada sai do app nem do disco. A nota aberta dessa
+      // pasta é salva e sai da tela.
+      const i = Number(f.dataset.fechar);
+      if (!pastas[i]) return;
+      if (aberta && aberta.i === i) { if (sujo) { clearTimeout(timer); await salvar(); } aberta = null; gravarPref('nota-aberta', null); N.vigiar(0, null); }
+      fechadas.add(pastas[i].id); gravarPref('notas-abas-fechadas', [...fechadas]);
+      ajustarAtiva(); gravarPref('notas-pasta-ativa', ativa); selecionada = null;
+      desenharArvore();
+      if (!aberta) vazio(true);
     }
   });
 
@@ -170,7 +207,7 @@
       const i = await N.adicionarPasta();
       if (i == null) return;
       await carregarArvore();
-      if (i >= 0) { ativa = i; gravarPref('notas-pasta-ativa', ativa); desenharArvore(); }
+      if (i >= 0) mostrarAba(i);
       return;
     }
     if (b.dataset.acao === 'nova' || b.dataset.acao === 'nova-pasta') {
@@ -439,7 +476,7 @@
           { nome: 'Mover para a lixeira… (apaga do computador)', faz: () => confirmarLixeiraPasta(ev.clientX, ev.clientY, rel) }] : []),
         ...(!pasta && escondidasAgora.length ? ['-', { nome: `Pastas escondidas (${escondidasAgora.length})…`, faz: () => menuEscondidas(ev.clientX, ev.clientY, escondidasAgora) }] : []),
         '-', { nome: 'Abrir outra pasta do computador…', faz: async () => {
-          const i = await N.adicionarPasta(); if (i == null) return; await carregarArvore(); if (i >= 0) { ativa = i; gravarPref('notas-pasta-ativa', ativa); desenharArvore(); }
+          const i = await N.adicionarPasta(); if (i == null) return; await carregarArvore(); if (i >= 0) mostrarAba(i);
         } },
       ]);
     }
@@ -502,6 +539,7 @@
     $('titulo-nota').textContent = rel.split('/').pop().replace(/\.md$/i, '');
     $('titulo-nota').contentEditable = soLeitura ? 'false' : 'plaintext-only';
     $('caminho-nota').textContent = `${pastas[i].nome} / ${rel.replace(/\.md$/i, '').split('/').join(' / ')}`;
+    reabrirAba(i);
     if (ativa !== i) { ativa = i; gravarPref('notas-pasta-ativa', ativa); }
     estado(soLeitura ? 'Só leitura' : 'Salvo');
     aviso(!montou ? AVISO_SEM_MONTAR : soLeitura ? `Arquivo grande (${(r.bytes / 1024 / 1024).toFixed(1)} MB): aberto só para leitura, porque editar deixaria tudo lento.
@@ -599,7 +637,7 @@
     if (!aba) return;
     if (aba.dataset.aba === 'aba-notas') carregarArvore().then(() => {
       const ultima = lerPref('nota-aberta');
-      if (!aberta && ultima && pastas[ultima.i]) abrir(ultima.i, ultima.rel).catch(() => vazio(true));
+      if (!aberta && ultima && pastas[ultima.i] && !estaFechada(ultima.i)) abrir(ultima.i, ultima.rel).catch(() => vazio(true));
     });
     else if (sujo) { clearTimeout(timer); salvar(); }
   });

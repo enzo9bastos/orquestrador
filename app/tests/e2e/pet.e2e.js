@@ -206,3 +206,68 @@ test('ajudante fora do app: app fechado antes do "iniciado" não vira caixa de e
   assert.ok(saiu, 'a janelinha ficou presa (caixa de erro aberta) em vez de sair');
   assert.doesNotMatch(erro, /Uncaught Exception|EPIPE/);
 });
+
+// Pedido de 2026-11-16: o bichinho veio trazer uma pergunta e o usuário foi
+// direto ao app em vez de responder nele. O app avisa ("noApp") e o bichinho
+// vai embora sozinho; fica se o usuário já começou a responder ali ou se está
+// conversando com ele.
+test('ajudante fora do app: quando o usuário vai direto ao app, o aviso sai; resposta começada fica', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async () => {
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') } });
+  const recebidas = [];
+  readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
+  const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
+  const dorme = (ms) => new Promise((x) => setTimeout(x, ms));
+  const espera = async (fn, ms = 10000) => { for (let i = 0; i < ms / 50; i++) { const r = recebidas.find(fn); if (r) return r; await dorme(50); } throw new Error(`não chegou: ${fn}`); };
+  const js = async (codigo) => { recebidas.length = 0; manda({ t: 'js', codigo }); return (await espera((m) => m.t === 'js')).r; };
+  const estado = async () => { recebidas.length = 0; manda({ t: 'estado' }); return espera((m) => m.t === 'estado'); };
+  const pergunta = (n, perguntas) => manda({ t: 'pendencia', texto: 'O orquestrador tem uma pergunta para você', total: 1, conversa: 'orquestrador', id: `conversa:orquestrador:n${n}`,
+    item: { tipo: 'pergunta', quem: 'O orquestrador', reqId: `n${n}`, perguntas } });
+  const UMA = [{ question: 'Onde fica o campo?', options: [{ label: 'No painel' }, { label: 'Na lista' }] }];
+  const perguntaAberta = async () => { for (let i = 0; i < 100 && !(await js("!document.getElementById('pergunta').hidden")); i++) await dorme(100); assert.ok(await js("!document.getElementById('pergunta').hidden"), 'a pergunta abriu no bichinho'); };
+  const saiu = async () => { recebidas.length = 0; await espera((m) => m.t === 'visivel' && !m.visivel, 20000); assert.strictEqual((await estado()).modo, 'escondido'); };
+  const ficou = async (porque) => { await dorme(1800); const e = await estado(); assert.strictEqual(e.modo, 'parado', porque); };
+  try {
+    await espera((m) => m.t === 'iniciado', 20000);
+    manda({ t: 'visual', visual: { cor: 'azul', itens: {} }, tema: 'dark' });
+
+    // 1. Pergunta aberta, nada respondido: o usuário foi ao app, ele vai embora.
+    pergunta(1, UMA);
+    await perguntaAberta();
+    manda({ t: 'noApp' });
+    await saiu();
+    assert.ok(await js("document.getElementById('pergunta').hidden"), 'a pergunta fechou');
+
+    // 2. Já escreveu uma resposta ali: fica, com o texto.
+    pergunta(2, UMA);
+    await perguntaAberta();
+    await js("document.getElementById('pg-outra').value = 'na lista, mas só para médico'; 1");
+    manda({ t: 'noApp' });
+    await ficou('resposta escrita pela metade: não some');
+    assert.strictEqual(await js("document.getElementById('pg-outra').value"), 'na lista, mas só para médico');
+    await js("document.getElementById('pg-fechar').click(); 1");
+    await saiu();
+
+    // 3. Já respondeu a primeira de duas perguntas: fica.
+    pergunta(3, [...UMA, { question: 'Grava agora?', options: [{ label: 'Sim' }, { label: 'Não' }] }]);
+    await perguntaAberta();
+    await js("document.querySelector('[data-op=\"Na lista\"]').click(); 1");
+    manda({ t: 'noApp' });
+    await ficou('primeira pergunta já respondida: não some');
+    assert.match(await js("document.getElementById('pg-passo').textContent"), /pergunta 2 de 2/);
+    await js("document.getElementById('pg-fechar').click(); 1");
+    await saiu();
+
+    // 4. Aviso simples (balão com OK / Abrir no app): vai embora.
+    manda({ t: 'pendencia', texto: 'Agente 2 espera você', total: 1 });
+    for (let i = 0; i < 100 && !(await js("!document.getElementById('bolha').hidden && /Agente 2 espera/.test(document.getElementById('bolha-texto').textContent)")); i++) await dorme(100);
+    manda({ t: 'noApp' });
+    await saiu();
+
+    // 5. Sem aviso nenhum: o usuário chamou o bichinho para conversar e depois foi ao app. Ele fica.
+    manda({ t: 'chamar' });
+    for (let i = 0; i < 100 && (await estado()).modo !== 'parado'; i++) await dorme(100);
+    manda({ t: 'noApp' });
+    await ficou('veio a pedido do usuário, sem aviso: não some');
+    assert.strictEqual((await estado()).conversaAberta, true, 'a conversa com ele continua aberta');
+  } finally { p.kill(); }
+});

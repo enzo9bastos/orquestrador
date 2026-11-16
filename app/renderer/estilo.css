@@ -255,6 +255,8 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .vazio { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 24px 12px; color: var(--fg-3); font-size: 12px; }
 .vazio .ico-caixa { width: 40px; height: 40px; border-radius: var(--r-md); background: var(--painel); display: grid; place-items: center; color: var(--fg-2); margin-bottom: 4px; }
 .vazio strong { color: var(--fg); font-weight: 600; font-size: 13px; }
+.vazio-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+.vazio-acoes .botao-texto { margin-left: 0; }
 
 .detalhe-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
 .detalhe-meta .modelo { font: 400 11px var(--mono); color: var(--fg-3); }

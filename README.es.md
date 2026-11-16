@@ -130,7 +130,8 @@ Un editor de Markdown al estilo Notion sobre las carpetas que elijas: bloques, m
 destacados, imágenes. Guarda solo y conserva todas las versiones anteriores; borrar una nota la manda a la papelera
 del sistema. Clic derecho en una carpeta para **ocultarla de Notes** (no se borra nada; tráela de vuelta desde el menú
 del espacio vacío › *Hidden folders*) o para **mandarla a la papelera**, tras una confirmación que dice cuántas notas
-y archivos van con ella.
+y archivos van con ella. Cada carpeta es una pestaña: la ✕ solo **cierra la pestaña** (la carpeta sigue en la app y en
+el disco) y *+ Folder* la reabre; quitar una carpeta de la app se hace en ⚙ Settings.
 
 ### 📚 Library
 
@@ -199,9 +200,11 @@ la pantalla (la caja de texto, los adjuntos, las tarjetas de los agentes).
   espacio de trabajo entra por el lado del que viniste — solo en el monitor que de verdad cambió.
 - **Te trae lo que te necesita.** Cuando aparece algo pendiente y no estás mirando la app, llega con la pregunta y sus
   opciones (o el permiso, con *Allow / Deny*) y respondes ahí mismo. Lo que espera tu **aprobación** (un mensaje a otra
-  computadora, un pedido suelto que quiere escribir) llega igual, con *Approve / Deny* y un motivo opcional.
-- **Sabe cuándo la app está en pantalla.** Hacer clic en el escritorio le quita el foco, pero la app sigue frente a ti,
-  así que el ayudante se queda dentro de ella. Wayland no deja que una app vea las otras ventanas, así que cada
+  computadora, un pedido suelto que quiere escribir) llega igual, con *Approve / Deny* y un motivo opcional. Si vas
+  directo a la app en vez de responderle, se va solo (salvo que ya hubieras empezado una respuesta ahí).
+- **Sabe cuándo la app está en pantalla.** Cuenta lo que ves, no dónde está el teclado: con la app a la vista el
+  ayudante se queda dentro de ella, aunque estés escribiendo en otra ventana o en otro monitor, y si ya había salido
+  se va cuando la app vuelve a estar a la vista. Wayland no deja que una app vea las otras ventanas, así que cada
   escritorio tiene su manera:
   | Escritorio | Cómo lo sabe la app | Preparación |
   |---|---|---|

@@ -17,6 +17,7 @@ const ias = require('./ias');
 const codex = require('./conversa-codex');
 const listaComandos = require('./comandos');
 const jsonl = require('./jsonl');
+const capacidades = require('./capacidades');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
 const TESTE = process.env.ORQ_APP_TESTE === '1';
@@ -25,6 +26,14 @@ const CACHE = path.join(os.homedir(), '.cache', 'orq-app');
 // não pode retomar uma conversa de teste.
 const ARQ_LISTA = path.join(CACHE, TESTE ? 'conversas-teste.json' : 'conversas.json');
 const ARQ_SESSAO_ANTIGO = path.join(CACHE, TESTE ? 'sessao-teste' : 'sessao-orquestrador');
+// O que o Claude instalado atende, por versão (capacidades.js). Só registra: o
+// app não esconde nada com isto (decisão D16.1).
+const registroCap = capacidades.criar({ arquivo: path.join(CACHE, TESTE ? 'capacidades-claude-teste.json' : 'capacidades-claude.json') });
+// A sonda dos pedidos só de leitura, depois do 1º init de cada versão. Desligada
+// no modo de teste do app (os testes de tela contam os pedidos que cada comando
+// faz), a não ser com ORQ_SONDA_CAPACIDADES=1; ORQ_SONDA_CAPACIDADES=0 desliga sempre.
+const sondaLigada = () => process.env.ORQ_SONDA_CAPACIDADES === '1' || (process.env.ORQ_SONDA_CAPACIDADES !== '0' && process.env.ORQ_APP_TESTE !== '1');
+const sondando = new Set(); // versões com sonda em andamento (uma conversa sonda por vez)
 // Variáveis que o Claude põe no ambiente dos filhos. Herdadas, elas desligam a
 // gravação do transcript e confundem o processo novo com uma sub-sessão.
 const HERDADAS = ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_PID',
@@ -281,6 +290,13 @@ class Conversa {
     this.forkDe = typeof forkDe === 'string' && forkDe ? forkDe : null;
     this.initInfo = null; // o último init (versão, MCP, ferramentas…), para o /status
     this.tarefas = new Map(); // task_id → { id, descricao, status, tipo } (o /tasks)
+    // Registro de capacidades: o subtipo de cada pedido de controle enviado
+    // (request_id → subtipo), a versão do processo vivo (do init) e o que foi
+    // respondido antes de o init dizer a versão.
+    this.pedidosEnviados = new Map();
+    this.versaoViva = null;
+    this.capPendentes = [];
+    this.querSondar = false; // a sonda espera a conversa ficar parada (tentarSondar)
     this.id = id;
     this.titulo = titulo;
     this.sessao = sessao;
@@ -377,6 +393,8 @@ class Conversa {
     // Pedidos pendentes eram do processo anterior.
     this.pedidoModelo = null; this.modeloDepois = undefined; this.pedidosEsforco = new Set();
     this.recusarControles('o Claude reiniciou');
+    // A versão é a do processo novo: só vale depois do init dele.
+    this.versaoViva = null; this.pedidosEnviados.clear(); this.capPendentes = [];
     let iniciou = false;
     proc.on('error', (e) => this.registrar({ tipo: 'erro', texto: `Não consegui abrir o Claude: ${e.message}` }));
     let erroTexto = '';
@@ -440,6 +458,7 @@ class Conversa {
             if (k) { this.modeloEscolhido = k; gravarLista(); }
           }
           if (d.permissionMode) this.guardarModo(d.permissionMode);
+          this.versaoDoInit(d.claude_code_version);
           if (this.volta) this.sessaoDaVolta = d.session_id;
           else if (this.sessao !== d.session_id) {
             // Sessão nova no mesmo processo (ex.: /clear): a velha vai para
@@ -478,6 +497,7 @@ class Conversa {
       case 'control_response': {
         // Resposta do Claude a um pedido do app (set_model, apply_flag_settings).
         const r = d.response || {};
+        this.anotarCapacidade(r);
         const ctl = this.controles.get(r.request_id);
         if (ctl) {
           this.controles.delete(r.request_id); clearTimeout(ctl.timer);
@@ -561,6 +581,7 @@ class Conversa {
   // decide se avisa).
   fimDeTurno({ erro = false, duracao = null, texto = null } = {}) {
     this.info.ocupado = false;
+    this.tentarSondar();
     // O turno acabou: pedido que ficou sem resposta não vale mais (o cartão fecha).
     if (this.pendentes.size) {
       for (const id of this.pendentes.keys()) this.enviar('conversa:respondido', id);
@@ -584,8 +605,65 @@ class Conversa {
 
   escrever(o) {
     if (!this.proc) return false;
+    if (o && o.type === 'control_request' && o.request_id && o.request) {
+      this.pedidosEnviados.set(o.request_id, o.request.subtype);
+      // Pedido que nunca teve resposta não segura memória.
+      if (this.pedidosEnviados.size > 200) this.pedidosEnviados.delete(this.pedidosEnviados.keys().next().value);
+    }
     this.proc.stdin.write(JSON.stringify(o) + '\n');
     return true;
+  }
+
+  // --- registro de capacidades (capacidades.js) ---
+  // Resposta do Claude a um pedido do app: anota se o subtipo é atendido.
+  anotarCapacidade(r) {
+    const sub = this.pedidosEnviados.get(r.request_id);
+    if (sub === undefined) return;
+    this.pedidosEnviados.delete(r.request_id);
+    const como = String(r.request_id).startsWith('sonda-') ? 'sonda' : 'uso';
+    if (this.versaoViva) registroCap.anotar(this.versaoViva, sub, r, como);
+    else if (this.capPendentes.length < 50) this.capPendentes.push([sub, r, como]);
+  }
+  // O init disse a versão: o que foi respondido antes dele vai para ela, e a
+  // primeira vez de cada processo sonda em segundo plano o que falta saber.
+  versaoDoInit(v) {
+    if (typeof v !== 'string' || !v || v === this.versaoViva) return;
+    this.versaoViva = v;
+    registroCap.viu(v);
+    for (const [sub, r, como] of this.capPendentes) registroCap.anotar(v, sub, r, como);
+    this.capPendentes = [];
+    if (sondaLigada()) { this.querSondar = true; this.tentarSondar(); }
+  }
+  // A sonda só roda com a conversa parada: nunca no meio de uma resposta (ela
+  // não foi provada contra o Claude de verdade com um turno em andamento).
+  // Quem chama: o init (se a conversa estiver parada) e o fim de cada turno.
+  tentarSondar() {
+    if (!this.querSondar || this.info.ocupado) return;
+    this.querSondar = false;
+    setImmediate(() => { this.sondar().catch(() => {}); });
+  }
+  // Pergunta, um por vez e com tempo limite, os subtipos só de leitura que a
+  // versão ainda não tem no registro. Nunca um pedido que muda a conversa.
+  async sondar(ms = 8000) {
+    const v = this.versaoViva;
+    if (!v || this.motor !== 'claude' || sondando.has(v)) return;
+    sondando.add(v);
+    try {
+      await registroCap.carregado;
+      for (const s of registroCap.faltam(v, capacidades.SONDAVEIS)) {
+        if (this.versaoViva !== v || !this.proc) break;
+        if (this.info.ocupado) { this.querSondar = true; break; } // o usuário mandou outra mensagem: continua no fim do turno
+        try { await this.controle(s, {}, ms, 'sonda'); } catch { /* sem resposta ou "não atende": o registro já anotou o que deu */ }
+      }
+    } finally { sondando.delete(v); }
+  }
+  // O que se sabe do Claude desta conversa: { motor, versao, subtipos, sondaveis }.
+  // subtipos[x] = { atende: true|false, como: 'uso'|'sonda', quando }; subtipo
+  // ausente = ainda não se sabe.
+  capacidades() {
+    if (this.motor !== 'claude') return { motor: this.motor, versao: null, subtipos: {}, sondaveis: [] };
+    const versao = this.versaoViva || (this.initInfo && this.initInfo.versao) || null;
+    return { motor: 'claude', versao, subtipos: versao ? registroCap.daVersao(versao) : {}, sondaveis: [...capacidades.SONDAVEIS] };
   }
 
   // imagens: [{ tipo: 'image/png', dados: '<base64>' }] (coladas ou arrastadas).
@@ -719,11 +797,11 @@ class Conversa {
   // aberto, sobe ele antes (o pedido não precisa de mensagem). Sem resposta em
   // ms, desiste (o Claude antigo que não conhece o pedido responde erro; um
   // travado não segura a tela).
-  controle(subtype, extra = {}, ms = 20000) {
+  controle(subtype, extra = {}, ms = 20000, prefixo = 'cmd') {
     if (this.motor === 'codex') return Promise.reject(new Error('pedido do Claude numa conversa Codex'));
     if (!this.proc) this.iniciar();
     return new Promise((ok, falha) => {
-      const id = `cmd-${subtype}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const id = `${prefixo}-${subtype}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
       const timer = setTimeout(() => { if (this.controles.delete(id)) falha(new Error(`o Claude não respondeu ao ${subtype}`)); }, ms);
       this.controles.set(id, { ok, falha, timer });
       if (!this.escrever({ type: 'control_request', request_id: id, request: { subtype, ...extra } })) {
@@ -1016,6 +1094,9 @@ module.exports = {
   reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },
   // Comandos do "/" feitos pelo app.
   controle: (id, subtype, extra, ms) => pegar(id).controle(subtype, extra, ms),
+  // O que o Claude desta conversa atende (registro por versão do CLI).
+  capacidades: (id) => pegar(id).capacidades(),
+  _registroCapacidades: registroCap, // só para os testes
   codexPedir: (id, metodo, params) => pegar(id).codex(metodo, params),
   estadoComando: (id) => pegar(id).estadoComando(),
   rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),

@@ -125,7 +125,8 @@ Um editor de Markdown no estilo Notion sobre as pastas que você escolher: bloco
 destaques, imagens. Grava sozinho e guarda todas as versões anteriores; apagar uma nota manda para a lixeira do
 sistema. Clique com o botão direito numa pasta para **escondê-la das Notas** (nada é apagado; traga de volta pelo
 menu do espaço vazio › *Pastas escondidas*) ou para **mandá-la para a lixeira**, depois de uma confirmação que diz
-quantas notas e arquivos vão junto.
+quantas notas e arquivos vão junto. Cada pasta é uma aba: o ✕ só **fecha a aba** (a pasta continua no app e no disco) e
+o *+ Pasta* reabre; tirar uma pasta do app é nas ⚙ Configurações.
 
 ### 📚 Repertório
 
@@ -193,9 +194,12 @@ texto, os anexos, os cartões dos agentes).
 - **Traz o que precisa de você.** Quando aparece algo pendente e você não está olhando o app, ele chega com a pergunta
   e as opções (ou a permissão, com *Permitir / Negar*) e você responde ali mesmo. O que espera a sua **aprovação**
   (um recado para outro computador, um pedido avulso que quer gravar) vem do mesmo jeito, com *Aprovar / Negar* e um
-  motivo opcional.
-- **Sabe quando o app está na tela.** Clicar na área de trabalho tira o foco, mas o app continua na sua frente, então
-  o ajudante fica dentro dele. O Wayland não deixa um app ver as outras janelas, então cada ambiente tem o seu jeito:
+  motivo opcional. Se você for direto ao app em vez de responder nele, ele vai embora sozinho (a não ser que você já
+  tenha começado uma resposta ali).
+- **Sabe quando o app está na tela.** Vale o que você enxerga, não onde está o teclado: com o app à vista o ajudante
+  fica dentro dele, mesmo que você esteja digitando em outra janela ou em outro monitor, e se ele já tinha saído vai
+  embora quando o app volta a ficar à vista. O Wayland não deixa um app ver as outras janelas, então cada ambiente
+  tem o seu jeito:
   | Ambiente | Como o app sabe | Preparação |
   |---|---|---|
   | GNOME (Wayland ou X11) | uma extensão pequena do GNOME Shell, só leitura, [`extras/gnome-shell`](extras/gnome-shell) — ela responde só sobre as janelas do próprio app | `extras/gnome-shell/instalar.sh`, depois sair e entrar na sessão |

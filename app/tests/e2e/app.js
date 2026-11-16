@@ -18,7 +18,10 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 // casaExistente: reabre o app na mesma casa temporária de uma abertura anterior
 // (para provar o que sobrevive a reiniciar); a configuração não é regravada.
 // tmux: pasta do tmux privado do app (TMUX_TMPDIR); por padrão, <casa>/tm.
-async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null, tmux = null } = {}) {
+// pasta: abre o app de outra pasta (uma cópia num repositório git temporário,
+// para o teste fazer commit sem tocar no repositório de verdade). env: variáveis
+// a mais para o app (a casa e as marcas de teste continuam valendo).
+async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null, tmux = null, pasta = null, env: envExtra = {} } = {}) {
   const casa = casaExistente || pastaTemporaria('orq-tela-');
   const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
   fs.mkdirSync(path.dirname(cfg), { recursive: true });
@@ -37,7 +40,7 @@ async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null
   // roda os testes de dentro de um tmux, apontaria para o servidor do usuário).
   const tmuxDir = tmux || path.join(casa, 'tm');
   fs.mkdirSync(tmuxDir, { recursive: true });
-  const env = { ...process.env, HOME: casa, TMUX_TMPDIR: tmuxDir, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) };
+  const env = { ...process.env, ...envExtra, HOME: casa, TMUX_TMPDIR: tmuxDir, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) };
   delete env.TMUX;
   delete env.TMUX_PANE;
   // A saída do processo principal fica em <casa>/app.log: quando o teste falha,
@@ -47,7 +50,7 @@ async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null
   // do xvfb-run e sem WAYLAND_DISPLAY, a libwayland acha o wayland-0 sozinha) e
   // a janela de teste vai para a tela de verdade. Com X11 ela fica no DISPLAY.
   delete env.WAYLAND_DISPLAY;
-  const proc = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '..', '..'), '--ozone-platform=x11', '--remote-debugging-port=0', `--user-data-dir=${dados}`], { env, stdio: ['ignore', log, log] });
+  const proc = spawn(process.env.ORQ_ELECTRON, [pasta || path.join(__dirname, '..', '..'), '--ozone-platform=x11', '--remote-debugging-port=0', `--user-data-dir=${dados}`], { env, stdio: ['ignore', log, log] });
   fs.closeSync(log);
   let saiu = false;
   proc.once('exit', () => { saiu = true; });

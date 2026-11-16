@@ -67,6 +67,7 @@ function iniciar() {
   mandar({ t: 'visual', ...aparencia() });
 }
 function mudarLugar(naArea) {
+  if (fora && !naArea) pararVigiaAVista(); // ele estava lá fora e foi embora
   fora = naArea;
   ctx.enviarTela('pet:fora', fora);
 }
@@ -208,15 +209,16 @@ const RECONFERE = TESTE ? 60 : 30000;
 const ESPERA_RESERVA = TESTE ? 120 : 2 * 60 * 1000;
 // O usuário está com o app na tela? true / false, ou null quando não dá para
 // saber (app fora de foco e o ambiente não conta o que está à vista: janelas.js).
-// Clicar na área de trabalho tira o foco, mas o app continua à vista: aí o
-// aviso fica dentro do app.
+// Vale o que o usuário enxerga, não onde está o teclado: com o app à vista (na
+// área de trabalho atual, com a maior parte descoberta) o aviso fica dentro do
+// app, mesmo que ele esteja digitando em outra janela ou em outro monitor.
 async function appNaTela() {
   const j = ctx.janela();
   if (!j || j.isMinimized() || (j.isVisible && !j.isVisible())) return false;
   if (j.isFocused()) return true;
   let e = null;
   try { e = ctx.presenca ? await ctx.presenca() : null; } catch { e = null; }
-  if (e) return !!(e.visivel && e.foco !== 'outro');
+  if (e) return !!e.visivel;
   return null;
 }
 // Pergunta ou permissão de uma conversa do app, como o bichinho traz.
@@ -244,7 +246,7 @@ function pendencias(lista) {
   for (const v of [...vistas]) if (!atuais.has(v)) vistas.delete(v);
   const novas = lista.filter((p) => !vistas.has(p.id));
   for (const p of novas) vistas.add(p.id);
-  if (mostrando && ![...mostrando].some((id) => atuais.has(id))) { mostrando = null; mandar({ t: 'resolvida' }); }
+  if (mostrando && ![...mostrando].some((id) => atuais.has(id))) { mostrando = null; pararVigiaAVista(); mandar({ t: 'resolvida' }); }
   if (novas.length && ler().avisarFora) {
     const ids = novas.map((p) => p.id);
     const t = setTimeout(() => confirmarAviso(ids), ESPERA_AVISO);
@@ -262,10 +264,50 @@ async function confirmarAviso(ids, { reserva = false } = {}) {
   if (!ainda.length) return null;
   iniciar();
   mostrando = new Set(ainda.map((p) => p.id));
+  vigiarAVista();
   const texto = ainda.length === 1 ? ainda[0].texto : `${ainda.length} coisas esperando por você`;
   const msg = { t: 'pendencia', texto, total: atuais.size, conversa: ainda[0].conversa || null, id: ainda[0].id, item: ainda[0].item || null };
   mandar(msg);
   return msg;
+}
+
+// O bichinho está lá fora com um aviso e o usuário foi direto ao app em vez de
+// responder nele: o aviso sai de cena (a pergunta está no app, na frente do
+// usuário). A janelinha só obedece se ele ainda não começou a responder ali.
+// Repete porque o bichinho pode ainda estar chegando quando o app ganha o foco.
+const REPETE_NO_APP = TESTE ? [] : [1500, 3500];
+function appEmFoco() {
+  if (!mostrando) return null;
+  const msg = { t: 'noApp' };
+  mandar(msg);
+  for (const ms of REPETE_NO_APP) {
+    const t = setTimeout(() => { const j = ctx.janela(); if (mostrando && fora && j && j.isFocused()) mandar(msg); }, ms);
+    if (t.unref) t.unref();
+  }
+  return msg;
+}
+
+// Com o aviso lá fora, o app pode passar a ficar à vista sem ganhar o teclado
+// (o usuário trocou de área de trabalho, tirou a janela de cima): a cada poucos
+// segundos, só enquanto o bichinho está lá fora com um aviso, confere; à vista,
+// o aviso sai de cena (a janelinha fica se ele já começou a responder ali).
+const VIGIA_A_VISTA = TESTE ? 0 : 3000; // nos testes de unidade, conferirAVista é chamada à mão
+let relogioAVista = null;
+async function conferirAVista() {
+  if (!mostrando) return null;
+  if ((await appNaTela()) !== true || !mostrando) return null;
+  const msg = { t: 'noApp' };
+  mandar(msg);
+  return msg;
+}
+function pararVigiaAVista() { if (relogioAVista) { clearInterval(relogioAVista); relogioAVista = null; } }
+function vigiarAVista() {
+  if (!VIGIA_A_VISTA || relogioAVista) return;
+  relogioAVista = setInterval(() => {
+    if (!mostrando || !proc) { pararVigiaAVista(); return; }
+    conferirAVista().catch(() => {});
+  }, VIGIA_A_VISTA);
+  if (relogioAVista.unref) relogioAVista.unref();
 }
 
 function reconferir(ids, opc, ms) {
@@ -333,4 +375,4 @@ function atualizarAparencia() { mandar({ t: 'visual', ...aparencia() }); }
 // O usuário escreveu ao orquestrador: o pedido de ação já foi visto.
 function limparAcoes(conversa) { for (const [id, p] of acoes) if (p.conversa === conversa) acoes.delete(id); }
 
-module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, pendenciaDeConversa, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, pendenciaDeConversa, confirmarAviso, appEmFoco, conferirAVista, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };

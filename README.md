@@ -122,6 +122,8 @@ A Notion-style Markdown editor over the folders you choose: blocks, `/` menu, ch
 callouts, images. It autosaves and keeps every previous version; deleting a note sends it to the system trash.
 Right-click a folder to **hide it from Notes** (nothing is deleted; bring it back from the empty-space menu ›
 *Hidden folders*) or to **move it to the trash** after a confirmation that says how many notes and files go with it.
+Each folder is a tab: the ✕ only **closes the tab** (the folder stays in the app and on disk) and *+ Folder* reopens
+it; removing a folder from the app is done in ⚙ Settings.
 
 ### 📚 Library
 
@@ -189,9 +191,12 @@ screen (the input box, attachments, agent cards).
 - **Brings you what needs you.** When something new is pending and you are not looking at the app, it walks in
   with the question and its options (or the permission, with *Allow / Deny*) and you answer right there.
   What waits for your **approval** (a message to another computer, a one-off request that wants to write) comes the
-  same way, with *Approve / Deny* and an optional reason.
-- **Knows when the app is on screen.** Clicking the desktop takes the focus away but the app is still in front of
-  you, so the helper stays inside it. Wayland doesn't let apps see other windows, so each desktop has its own way:
+  same way, with *Approve / Deny* and an optional reason. If you go straight to the app instead of answering it, it
+  leaves on its own (unless you had already started an answer there).
+- **Knows when the app is on screen.** What counts is what you can see, not where the keyboard is: with the app in
+  view the helper stays inside it, even if you are typing in another window or on another monitor, and if it had
+  already walked out it leaves once the app comes into view. Wayland doesn't let apps see other windows, so each
+  desktop has its own way:
   | Desktop | How the app knows | Setup |
   |---|---|---|
   | GNOME (Wayland or X11) | a tiny read-only GNOME Shell extension, [`extras/gnome-shell`](extras/gnome-shell) — it answers only about the app's own windows | `extras/gnome-shell/instalar.sh`, then log out and back in |
@@ -407,7 +412,7 @@ orquestrador/
 ├── examples/             sample configuration and its guide
 ├── extras/gnome-shell/   optional GNOME extension (is the app on screen?)
 ├── hooks/                optional Claude Code signal hook, and the agents' status and message scripts
-└── scripts/              repository hygiene checks and the README screenshot generator
+└── scripts/              repository hygiene checks, the CLI contract checker and the README screenshot generator
 ```
 
 The source is written in Portuguese (identifiers, comments, file names); the interface is translated at
@@ -456,6 +461,33 @@ How the run is kept fast and clean:
 
 The screenshots in this README come from the real app the same way, with made-up data:
 `node scripts/imagens-readme.js` regenerates them (Python 3 with Pillow converts the frames).
+
+### Checking the CLI contract
+
+The tests talk to a fake Claude and a fake Codex, so they stay green even if a CLI update changes the
+messages the app relies on. After every Claude Code or Codex update, run the contract checker against the
+installed CLIs (it is not part of `npm test`):
+
+```bash
+node scripts/contrato-cli.js                # both CLIs
+node scripts/contrato-cli.js --so claude    # just one
+node scripts/contrato-cli.js --ajuda        # all options
+```
+
+It goes through everything listed in `scripts/contrato-cli.json` (each control request subtype, event and
+field the app sends or reads; for Codex, each app-server method, notification and server request) and prints
+a table: *atende* (matches), *NÃO ATENDE* (does not match) or *não deu para saber* (could not tell, with the
+reason). It exits with 1 when something the app depends on does not match, and saves a JSON snapshot per CLI
+and version in `~/.local/share/orq-contrato-cli/` (shapes only, no values; a re-run on the same version gives
+the same snapshot, and a changed one is saved next to the old one, never over it).
+
+The CLIs run locked down: a fresh, empty temporary home (deleted at the end), an environment built from
+scratch (no API key or other variable of yours reaches them), and no network (`unshare -n`; without it the
+script refuses to run, unless you pass `--rede=proxy`). It never logs in, never reads a credential file and
+never sends a prompt to the model: only control requests, plus the local `/clear` and `/rename` commands.
+What would need the model (or would send data out) is checked against the CLI's own files instead: the
+bundled names for Claude, and the JSON schema that `codex app-server generate-json-schema` writes for Codex.
+`--prova <folder>` also runs the CLIs under `strace` and writes down every connection they tried.
 
 ## Versions
 
