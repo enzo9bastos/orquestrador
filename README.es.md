@@ -437,6 +437,10 @@ regresión, listada en [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
 Las imágenes de este README salen de la app real de la misma forma, con datos inventados:
 `node scripts/imagens-readme.js` las regenera (Python 3 con Pillow convierte los cuadros).
 
+## Versiones
+
+Cada versión tiene una etiqueta (`vX.Y.Z`) y una release con las notas en la página Releases del repositorio; las mismas notas están en [CHANGELOG.md](CHANGELOG.md), en inglés. La versión instalada y el commit aparecen en la configuración de la app.
+
 ## Créditos
 
 - Colores inspirados en la guía de marca pública de [Alethe](https://github.com/Kc1t/alethe-agents) (solo los valores

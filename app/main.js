@@ -216,6 +216,12 @@ let reiniciando = false;
 // will-navigate barra toda navegação dela, inclusive o location.reload).
 ipcMain.handle('app:recarregarTela', () => { if (janela) janela.webContents.reload(); return true; });
 ipcMain.handle('app:reiniciar', () => { reiniciando = true; app.relaunch(); app.quit(); return true; });
+// A versão instalada (package.json) e o commit do código que está na pasta do app.
+ipcMain.handle('app:versao', () => new Promise((ok) => {
+  require('child_process').execFile('git', ['rev-parse', '--short', 'HEAD'], { cwd: __dirname, timeout: 5000 }, (erro, saida) => {
+    ok({ versao: app.getVersion(), commit: erro ? null : String(saida).trim() || null });
+  });
+}));
 
 // Fechar = sair do app de vez, como o /exit do terminal: encerra as conversas
 // (a próxima abertura começa do zero) e os terminais.

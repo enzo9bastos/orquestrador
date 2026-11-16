@@ -421,6 +421,10 @@ listed in [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
 The screenshots in this README come from the real app the same way, with made-up data:
 `node scripts/imagens-readme.js` regenerates them (Python 3 with Pillow converts the frames).
 
+## Versions
+
+Each version has a tag (`vX.Y.Z`) and a release with notes on the repository's Releases page; the same notes are in [CHANGELOG.md](CHANGELOG.md). The installed version and its commit show in Settings, next to "Restart the app".
+
 ## Credits
 
 - Colors inspired by the public brand guide of [Alethe](https://github.com/Kc1t/alethe-agents) (color

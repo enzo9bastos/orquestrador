@@ -322,6 +322,10 @@
     if (!window.orq.app) { ev.currentTarget.textContent = 'Este app é anterior a este botão: feche no X'; return; }
     window.orq.app.reiniciar();
   });
+  // A versão instalada (ponte antiga não tem: fica o traço).
+  if (window.orq.app && window.orq.app.versao) {
+    window.orq.app.versao().then((v) => { if (v && v.versao) $('versao-app').textContent = v.commit ? `${v.versao} · ${v.commit}` : v.versao; }).catch(() => {});
+  }
 
   aplicar();
   window.orq.config.ler().then((c) => { config = c; aplicar(); preencher(); window.dispatchEvent(new CustomEvent('orq:config', { detail: config })); });
