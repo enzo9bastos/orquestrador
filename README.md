@@ -453,6 +453,9 @@ How the run is kept fast and clean:
   carry `[lento]` and `[sozinho]`.
 - **Private tmux.** Every app opened by a test talks to a tmux server of its own (`TMUX_TMPDIR` inside
   its throwaway home, `TMUX` unset): tests never see or touch your tmux sessions.
+- **No real AI CLIs.** When `PATH` would find the real `claude` or `codex`, the test app gets the fake
+  ones from `app/tests/unit/` first in `PATH`; `CLAUDE_CONFIG_DIR` and `CODEX_HOME` point inside the
+  throwaway home, and `npm test` drops the ones it inherits.
 - **No leftovers.** Temporary folders are created through `app/tests/temporarias.js`, which deletes the
   folders of each test that passed when the test file finishes. A failed test keeps its folders and
   prints their paths; `ORQ_TESTE_GUARDAR=1` keeps everything. The cleanup only removes folders created by
