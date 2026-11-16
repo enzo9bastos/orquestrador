@@ -4,11 +4,12 @@ Regra: todo bug consertado ganha um teste que falha com o bug e passa com o
 conserto, e entra nesta tabela. `npm test` roda tudo; `npm test -- <área>`
 roda só uma área. A área de cada arquivo de teste está na primeira linha dele
 (`// Área: x`); as de hoje:
-`agentes`, `bichinho`, `cli-real`, `coletor`, `colunas`, `config`,
-`configuracoes`, `conversa`, `demandas`, `desempenho`, `envios`, `hook`,
-`ias`, `idioma`, `janela`, `leitura`, `limpeza`, `menus`, `notas`, `pedido`,
-`permissoes`, `pet`, `recados`, `recarga`, `repertorio`, `seguranca`, `tela`,
-`terminais`, `testes`, `topicos`, `versao`, `voltar`, `workflows`.
+`agentes`, `apagar`, `bichinho`, `cli-real`, `coletor`, `colunas`,
+`confianca`, `config`, `configuracoes`, `conversa`, `demandas`, `desempenho`,
+`envios`, `hook`, `ias`, `idioma`, `janela`, `leitura`, `limpeza`, `menus`,
+`notas`, `pedido`, `permissoes`, `pet`, `recados`, `recarga`, `repertorio`,
+`seguranca`, `tela`, `terminais`, `testes`, `topicos`, `versao`, `voltar`,
+`workflows`.
 
 | Data | Bug | Teste |
 |---|---|---|
@@ -188,3 +189,18 @@ roda só uma área. A área de cada arquivo de teste está na primeira linha del
 | 2026-11-16 | (mesmo caso) a decisão de pedir reinício ignorava mudança fora da tela; git pela metade ou pasta mexida à mão não podem acender a faixa | tests/unit/recarga.test.js › recarga: decisão do principal — pede reinício só com o código de fora da tela mudado e inteiro no disco; › recarga: git pela metade ou pasta mexida à mão não acende a faixa; acende quando o git termina |
 | 2026-11-16 | (mesmo caso, de ponta a ponta) commit só fora da tela no repositório do app aberto não mostrava a faixa; em modo de teste a vigia fica desligada | tests/e2e/recarga-reinicio.e2e.js › recarga: commit só fora da tela acende a faixa de reinício (em modo de teste, só quando pedido) |
 | 2026-11-16 | A sonda de capacidades perguntava ao Claude logo depois do `init`, no meio da primeira resposta; como ela nunca foi provada contra o Claude de verdade com um turno em andamento, agora só pergunta com a conversa parada e para se o usuário mandar outra mensagem (continua no fim do turno) | `unit/capacidades.test.js` ("a sonda espera a resposta terminar; nenhum pedido dela sai no meio do turno") |
+| 2026-11-16 | apagar sem comprovante (ou com um inventado) mandaria o alvo embora | tests/unit/apagar.test.js › apagar: preparar não apaga nada; executar sem comprovante (ou inventado) recusa e nada some |
+| 2026-11-16 | alvo que ganhou ou mudou arquivo depois do custo mostrado seria apagado com o custo velho | tests/unit/apagar.test.js › apagar corrida: o alvo ganhou um arquivo entre preparar e executar → recusa e nada some |
+| 2026-11-16 | o mesmo comprovante apagaria duas vezes (inclusive um arquivo novo com o mesmo nome) | tests/unit/apagar.test.js › apagar corrida: o comprovante vale uma vez só |
+| 2026-11-16 | o comprovante de um alvo apagaria outro | tests/unit/apagar.test.js › apagar corrida: o comprovante de um alvo não serve para outro |
+| 2026-11-16 | lixeira que falha no meio seguiria apagando os outros itens sem dizer o que foi | tests/unit/apagar.test.js › apagar corrida: a lixeira falha no meio de um registro lógico → para, diz o que foi e o que ficou |
+| 2026-11-16 | caminho que passa por link para fora das raízes seria apagado (conferência pelo caminho escrito, não pelo real) | tests/unit/apagar.test.js › apagar recusa: caminho que escapa por link simbólico (conferido pelo caminho real) |
+| 2026-11-16 | gravar por cima sem guardar a versão anterior | tests/unit/apagar.test.js › sobrescrever: o custo diz quantos bytes a versão de agora tem; executar guarda ela antes de gravar |
+| 2026-11-16 | Pasta de projeto aceita uma vez continuava "confiável" depois que um hook, servidor MCP ou regra allow novo entrava no settings/.mcp.json | tests/unit/confianca.test.js › plano: hash muda → pergunta de novo, dizendo o que mudou (hook novo, regra nova, arquivo mudado) |
+| 2026-11-16 | Link para a pasta e pasta diferente com o mesmo nome eram confundidos (identidade pelo caminho pedido, não pelo real) | tests/unit/confianca.test.js › plano: symlink → realpath (o link é a mesma pasta; pasta diferente de mesmo nome não é) |
+| 2026-11-16 | settings.json com JSON inválido deixava a pasta virar "aceita" sem mostrar o que roda | tests/unit/confianca.test.js › JSON inválido: a pasta não vira "aceita" por erro de leitura (incerta, sempre pergunta, nada gravado) |
+| 2026-11-16 | Pasta trocada por outra no mesmo caminho (ou link redirecionado) entre o cartão e a abertura passava como a aceita | tests/unit/confianca.test.js › corrida entre conferir e abrir: conferirNaHora pega mudança, pasta trocada e link redirecionado |
+| 2026-11-16 | FIFO no lugar do .mcp.json travava a verificação; CLAUDE.md enorme era lido inteiro | tests/unit/confianca.test.js › arquivo enorme e FIFO: não travam; config grande demais fica incerta |
+| 2026-11-16 | Trocar o script que o hook chama (.claude/hooks/x.py, $CLAUDE_PROJECT_DIR/scripts) mudava o que roda sem mudar a impressão | tests/unit/confianca.test.js › scripts citados pelos comandos entram na conta ($CLAUDE_PROJECT_DIR, caminho relativo, args do MCP) |
+| 2026-11-16 | Pasta com agente em container tinha o aceite lembrado | tests/unit/confianca.test.js › pasta com agente em container: sempre cartão e o aceite nunca é lembrado |
+| 2026-11-16 | Gravações simultâneas do registro de aceites perdiam aceites; registro estragado era sobrescrito sem cópia | tests/unit/confianca.test.js › registro: modo 600, gravação atômica, versão anterior guardada, 20 aceites ao mesmo tempo não se perdem; › registro estragado: ninguém conta como aceito; na gravação o original fica guardado (.estragado-*) e segue |
