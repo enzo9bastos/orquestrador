@@ -1,7 +1,9 @@
 // Área: demandas [sozinho] (painel resumido que abre a nota .md na aba Notas)
-// [sozinho] desde 16/11: com outros apps de teste rodando ao mesmo tempo, a edição
-// externa da nota e a demanda nova chegam ao disco na hora, mas o cartão não
-// atualiza em 8 s (sozinho, em ~0,2 s). Causa ainda não achada; não é repetição.
+// [sozinho] desde 16/11: com outros apps de teste rodando ao mesmo tempo, o
+// subteste "✓ no cartão" falha: a demanda nova chega ao disco certa na hora, o
+// cartão aparece, mas o progresso dele não chega a "1/2" em 8 s (sozinho, em
+// menos de 0,5 s). Não é o limite de inotify (medido: pico de 92 de 128) nem o
+// claude de verdade (os testes já não o sobem). Causa ainda não achada; não é repetição.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
