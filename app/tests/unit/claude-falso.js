@@ -17,6 +17,8 @@
 //   "/config permissionMode=x" troca o modo: system/status com permissionMode
 //   "/clear"                   init da sessão nova, conversation_reset, fim de turno
 //   "/rename x"                system/session_title_changed com o nome novo
+//   "manda N deltas"           N text_delta ("d0 ", "d1 "…) espalhados em ~1 s, depois a
+//                              mensagem inteira e o fim de turno (0.C5: junção dos envios)
 //   qualquer outra coisa       responde "ok" e termina o turno
 // Pedidos de controle do app: set_model (o próximo init traz o modelo novo),
 // set_permission_mode e interrupt recebem control_response de sucesso.
@@ -149,6 +151,20 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
     sai({ type: 'control_request', request_id: 'p-2', request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'ls' } } });
     setTimeout(() => { texto('terminou sem a resposta'); fim(); }, 100);
     return;
+  }
+  m = /^manda (\d+) deltas$/.exec(t);
+  if (m) {
+    const n = Number(m[1]);
+    const delta = (txt) => sai({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: txt } } });
+    sai({ type: 'stream_event', event: { type: 'message_start' } });
+    let i = 0;
+    const passo = () => { // lotes de ~n/100 por 10 ms: n deltas em cerca de 1 s
+      for (let k = 0; k < Math.max(1, Math.ceil(n / 100)) && i < n; k++, i++) delta(`d${i} `);
+      if (i < n) return setTimeout(passo, 10);
+      texto(Array.from({ length: n }, (_, j) => `d${j} `).join(''));
+      fim();
+    };
+    return passo();
   }
   texto('ok');
   fim();
