@@ -212,3 +212,24 @@ test('capacidades: o registro fica na pasta de cache do app', async () => {
   assert.strictEqual(dado.versoes['2.0.0'].subtipos.get_plan.atende, true);
   assert.strictEqual(dado.versoes['5.0.0'].subtipos.get_hooks_listing.atende, false);
 });
+
+// A sonda nunca foi provada contra o Claude de verdade com um turno em
+// andamento: ela só pergunta com a conversa parada, e para se o usuário mandar
+// outra mensagem no meio (continua quando o turno acabar).
+test('capacidades: a sonda espera a resposta terminar; nenhum pedido dela sai no meio do turno', async (t) => {
+  ambiente(t, { CLAUDE_FALSO_VERSAO: '6.0.0', CLAUDE_FALSO_SEM: '', ORQ_SONDA_CAPACIDADES: '1' });
+  novoLog();
+  const id = conversa.garantir('cap-parada', 'Conversa parada');
+  const c = conversa._pegar(id);
+  t.after(() => c.parar());
+  c.mandar('manda 20 deltas'); // um turno de ~1 s
+  await ate(() => recebidos().some((x) => x.type === 'user'));
+  // Enquanto o turno não acaba, nenhum pedido da sonda.
+  while (turnos(c) === 0) {
+    assert.deepStrictEqual(pedidos().map((p) => p.request.subtype), [], 'a sonda perguntou no meio da resposta');
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  // Turno acabou: agora ela pergunta tudo o que é de leitura.
+  await ate(() => Object.keys(conversa.capacidades(id).subtipos).length === capacidades.SONDAVEIS.length);
+  assert.strictEqual(conversa.capacidades(id).versao, '6.0.0');
+});

@@ -296,6 +296,7 @@ class Conversa {
     this.pedidosEnviados = new Map();
     this.versaoViva = null;
     this.capPendentes = [];
+    this.querSondar = false; // a sonda espera a conversa ficar parada (tentarSondar)
     this.id = id;
     this.titulo = titulo;
     this.sessao = sessao;
@@ -580,6 +581,7 @@ class Conversa {
   // decide se avisa).
   fimDeTurno({ erro = false, duracao = null, texto = null } = {}) {
     this.info.ocupado = false;
+    this.tentarSondar();
     // O turno acabou: pedido que ficou sem resposta não vale mais (o cartão fecha).
     if (this.pendentes.size) {
       for (const id of this.pendentes.keys()) this.enviar('conversa:respondido', id);
@@ -630,7 +632,15 @@ class Conversa {
     registroCap.viu(v);
     for (const [sub, r, como] of this.capPendentes) registroCap.anotar(v, sub, r, como);
     this.capPendentes = [];
-    if (sondaLigada()) setImmediate(() => { this.sondar().catch(() => {}); });
+    if (sondaLigada()) { this.querSondar = true; this.tentarSondar(); }
+  }
+  // A sonda só roda com a conversa parada: nunca no meio de uma resposta (ela
+  // não foi provada contra o Claude de verdade com um turno em andamento).
+  // Quem chama: o init (se a conversa estiver parada) e o fim de cada turno.
+  tentarSondar() {
+    if (!this.querSondar || this.info.ocupado) return;
+    this.querSondar = false;
+    setImmediate(() => { this.sondar().catch(() => {}); });
   }
   // Pergunta, um por vez e com tempo limite, os subtipos só de leitura que a
   // versão ainda não tem no registro. Nunca um pedido que muda a conversa.
@@ -642,6 +652,7 @@ class Conversa {
       await registroCap.carregado;
       for (const s of registroCap.faltam(v, capacidades.SONDAVEIS)) {
         if (this.versaoViva !== v || !this.proc) break;
+        if (this.info.ocupado) { this.querSondar = true; break; } // o usuário mandou outra mensagem: continua no fim do turno
         try { await this.controle(s, {}, ms, 'sonda'); } catch { /* sem resposta ou "não atende": o registro já anotou o que deu */ }
       }
     } finally { sondando.delete(v); }

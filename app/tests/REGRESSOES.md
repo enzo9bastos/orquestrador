@@ -2,8 +2,13 @@
 
 Regra: todo bug consertado ganha um teste que falha com o bug e passa com o
 conserto, e entra nesta tabela. `npm test` roda tudo; `npm test -- <área>`
-roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
-`janela`, `terminais`, `conversa`).
+roda só uma área. A área de cada arquivo de teste está na primeira linha dele
+(`// Área: x`); as de hoje:
+`agentes`, `bichinho`, `cli-real`, `coletor`, `colunas`, `config`,
+`configuracoes`, `conversa`, `demandas`, `desempenho`, `envios`, `hook`,
+`ias`, `idioma`, `janela`, `leitura`, `limpeza`, `menus`, `notas`, `pedido`,
+`permissoes`, `pet`, `recados`, `recarga`, `repertorio`, `seguranca`, `tela`,
+`terminais`, `testes`, `topicos`, `versao`, `voltar`, `workflows`.
 
 | Data | Bug | Teste |
 |---|---|---|
@@ -172,3 +177,14 @@ roda só uma área (`config`, `coletor`, `notas`, `permissoes`, `limpeza`,
 | 2026-11-16 | Pedido: o bichinho saía do app para trazer uma pergunta e, quando o usuário ia direto ao app em vez de responder nele, ficava com o balão por cima do app até a pergunta ser respondida. Agora, quando o app ganha o foco com um aviso lá fora, o bichinho vai embora sozinho; fica se o usuário já começou a responder ali (texto escrito, opção marcada, uma pergunta já respondida) ou se está conversando com ele | `unit/ajudante.test.js` ("o usuário ir ao app manda o bichinho embora"), `e2e/pet.e2e.js` ("quando o usuário vai direto ao app, o aviso sai; resposta começada fica") |
 | 2026-11-16 | Pedido: na aba Notas, o ✕ da aba de uma pasta virava "Tirar?" em vermelho (parecia exclusão) e tirava a pasta do app; com uma pasta só, ela voltava na hora com o nome trocado para "Notas". Agora o ✕ só fecha a aba, num clique: a pasta continua no app e no disco, a aba fechada continua fechada depois de reiniciar, e reabre pelo "+ Pasta" (que lista as fechadas), pelos botões "Reabrir" da tela vazia ou ao abrir uma nota dela. Tirar a pasta do app continua nas Configurações | `e2e/notas.e2e.js` ("o ✕ da aba só fecha a aba…", "fechar a única pasta não a troca de nome…") |
 | 2026-11-16 | Decisão: o bichinho saía do app sempre que outra janela estava com o teclado, mesmo com o app à vista (o usuário via o app num monitor, digitava em outra janela, e o balão vinha por cima do app). Agora vale o que está à vista: com o app na área de trabalho atual e a maior parte descoberta, o aviso fica no app; e se o bichinho já saiu, ele vai embora quando o app volta a ficar à vista, mesmo sem ganhar o teclado (confere a cada 3 s, só enquanto está lá fora com um aviso) | `unit/ajudante.test.js` ("app à vista: o aviso fica no app, mesmo com o teclado em outra janela…", "o app voltar a ficar à vista manda o bichinho embora, mesmo sem o foco") |
+| 2026-11-16 | o Claude falso podia mudar sem querer (versão, roteiro, respostas) e os testes da conversa passavam a testar outra coisa sem ninguém ver | `tests/unit/claude-falso.test.js` › um teste por comportamento do roteiro (28) |
+| 2026-11-16 | o falso respondia o subtipo desconhecido com um texto que o CLI real não usa e sem `error_code`; o caminho "este CLI não tem o subtipo X" não tinha como ser testado | `tests/unit/claude-falso.test.js` › falso: subtipo desconhecido responde como o CLI de verdade (texto + error_code unsupported_request) |
+| 2026-11-16 | não havia como simular um CLI de outra versão nem sem um subtipo específico | `tests/unit/claude-falso.test.js` › falso: $CLAUDE_FALSO_SEM tira subtipos um a um (qualquer um, inclusive set_model e interrupt); o resto segue igual |
+| 2026-11-16 | o app não guardava o que o Claude instalado atende; um pedido "não atendo" se perdia em cada popup | `tests/unit/capacidades.test.js` › capacidades: versão A sem get_plan → depois do 1º init a sonda registra que falta (e que o resto atende) |
+| 2026-11-16 | trocar de versão do CLI precisa refazer o registro sem perder o da versão anterior | `tests/unit/capacidades.test.js` › capacidades: versão B com get_plan → registro diz que tem; trocar de versão refaz o registro e mantém o da anterior |
+| 2026-11-16 | pedido com efeito (set_model, interrupt) não pode ser sondado; tem de ser aprendido no primeiro uso | `tests/unit/capacidades.test.js` › capacidades: pedido com efeito aprende no primeiro uso de verdade (set_model e interrupt sem suporte → "não atende") |
+| 2026-11-16 | O conferidor de contrato aprovava o /ps e o /clean do Codex: o erro "requires experimentalApi capability" (o app não declara a capacidade no initialize) era lido como recusa do pedido de teste | app/tests/unit/contrato-cli.test.js › contrato: método do Codex que só atende com capacidade que o app não declara reprova (achado no 0.167.1) |
+| 2026-11-16 | Publicação que mudava só o código de fora da tela (main.js, conversa.js, bin/) não acendia a faixa "Atualização pronta": o app seguia com o processo principal velho sem avisar | tests/unit/recarga.test.js › recarga: commit só fora da tela pede o reinício (uma vez por mudança); só na tela, não |
+| 2026-11-16 | (mesmo caso) a decisão de pedir reinício ignorava mudança fora da tela; git pela metade ou pasta mexida à mão não podem acender a faixa | tests/unit/recarga.test.js › recarga: decisão do principal — pede reinício só com o código de fora da tela mudado e inteiro no disco; › recarga: git pela metade ou pasta mexida à mão não acende a faixa; acende quando o git termina |
+| 2026-11-16 | (mesmo caso, de ponta a ponta) commit só fora da tela no repositório do app aberto não mostrava a faixa; em modo de teste a vigia fica desligada | tests/e2e/recarga-reinicio.e2e.js › recarga: commit só fora da tela acende a faixa de reinício (em modo de teste, só quando pedido) |
+| 2026-11-16 | A sonda de capacidades perguntava ao Claude logo depois do `init`, no meio da primeira resposta; como ela nunca foi provada contra o Claude de verdade com um turno em andamento, agora só pergunta com a conversa parada e para se o usuário mandar outra mensagem (continua no fim do turno) | `unit/capacidades.test.js` ("a sonda espera a resposta terminar; nenhum pedido dela sai no meio do turno") |
