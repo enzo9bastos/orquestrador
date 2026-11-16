@@ -116,6 +116,8 @@ function criarJanela() {
     Menu.buildFromTemplate(itens).popup({ window: janela });
   });
   janela.on('closed', () => { janela = null; });
+  // O usuário veio ao app: se o bichinho está lá fora com um aviso, ele sai.
+  janela.on('focus', () => ajudante.appEmFoco());
   janela.on('maximize', () => janela.webContents.send('janela:maximizada', true));
   janela.on('unmaximize', () => janela.webContents.send('janela:maximizada', false));
   // Link clicado na conversa nunca troca a página do app.

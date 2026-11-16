@@ -206,3 +206,19 @@ test('pet: aprovação vem com o bichinho e a decisão vai para a aba Recados', 
   assert.deepStrictEqual(decisoes, [['e1', false, 'agora não']]);
   ajudante.pendencias([]);
 });
+
+// Pedido de 2026-11-16: o bichinho saiu para trazer uma pergunta e o usuário
+// foi direto ao app em vez de responder nele: o aviso sai de cena sozinho.
+test('pet: com o aviso lá fora, o usuário ir ao app manda o bichinho embora; sem aviso lá fora, nada', async () => {
+  let foco = false;
+  ajudante.ligar({ janela: () => ({ isFocused: () => foco, isMinimized: () => false }), presenca: async () => ({ foco: 'outro', visivel: false }), conversa: null, enviarTela: () => {} });
+  ajudante.pendencias([]);
+  assert.strictEqual(ajudante.appEmFoco(), null, 'nada lá fora: não manda nada');
+  ajudante.pendencias([{ id: 'f1', texto: 'Pergunta', conversa: 'orquestrador' }]);
+  assert.strictEqual(ajudante.appEmFoco(), null, 'pendência que ainda não saiu com o bichinho: nada');
+  assert.strictEqual((await ajudante.confirmarAviso(['f1'])).id, 'f1', 'app fora de foco: ele sai com a pergunta');
+  foco = true;
+  assert.deepStrictEqual(ajudante.appEmFoco(), { t: 'noApp' }, 'o usuário foi ao app: o aviso sai');
+  ajudante.pendencias([]); // respondida no app
+  assert.strictEqual(ajudante.appEmFoco(), null, 'pendência resolvida: nada a mandar');
+});

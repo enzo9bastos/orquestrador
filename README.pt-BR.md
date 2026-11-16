@@ -193,7 +193,8 @@ texto, os anexos, os cartões dos agentes).
 - **Traz o que precisa de você.** Quando aparece algo pendente e você não está olhando o app, ele chega com a pergunta
   e as opções (ou a permissão, com *Permitir / Negar*) e você responde ali mesmo. O que espera a sua **aprovação**
   (um recado para outro computador, um pedido avulso que quer gravar) vem do mesmo jeito, com *Aprovar / Negar* e um
-  motivo opcional.
+  motivo opcional. Se você for direto ao app em vez de responder nele, ele vai embora sozinho (a não ser que você já
+  tenha começado uma resposta ali).
 - **Sabe quando o app está na tela.** Clicar na área de trabalho tira o foco, mas o app continua na sua frente, então
   o ajudante fica dentro dele. O Wayland não deixa um app ver as outras janelas, então cada ambiente tem o seu jeito:
   | Ambiente | Como o app sabe | Preparação |

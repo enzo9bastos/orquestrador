@@ -311,6 +311,7 @@ function receber(m) {
   else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); passear(); });
   else if (m.t === 'resolvida') { if (aviso) { aviso = false; paraTela({ t: 'falar', texto: 'Já foi resolvido! 👍' }); setTimeout(() => { if (!conversaAberta) sumir(); }, 1600); } }
   else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total, conversa: m.conversa || null, id: m.id || null, item: m.item || null }); passear(); }); }
+  else if (m.t === 'noApp') { if (aviso) paraTela({ t: 'noApp' }); } // o usuário foi ao app em vez de responder aqui
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
   else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido') paraTela(m);

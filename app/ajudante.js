@@ -268,6 +268,22 @@ async function confirmarAviso(ids, { reserva = false } = {}) {
   return msg;
 }
 
+// O bichinho está lá fora com um aviso e o usuário foi direto ao app em vez de
+// responder nele: o aviso sai de cena (a pergunta está no app, na frente do
+// usuário). A janelinha só obedece se ele ainda não começou a responder ali.
+// Repete porque o bichinho pode ainda estar chegando quando o app ganha o foco.
+const REPETE_NO_APP = TESTE ? [] : [1500, 3500];
+function appEmFoco() {
+  if (!mostrando) return null;
+  const msg = { t: 'noApp' };
+  mandar(msg);
+  for (const ms of REPETE_NO_APP) {
+    const t = setTimeout(() => { const j = ctx.janela(); if (mostrando && fora && j && j.isFocused()) mandar(msg); }, ms);
+    if (t.unref) t.unref();
+  }
+  return msg;
+}
+
 function reconferir(ids, opc, ms) {
   const t = setTimeout(() => { confirmarAviso(ids, opc).catch(() => {}); }, ms);
   if (t.unref) t.unref();
@@ -333,4 +349,4 @@ function atualizarAparencia() { mandar({ t: 'visual', ...aparencia() }); }
 // O usuário escreveu ao orquestrador: o pedido de ação já foi visto.
 function limparAcoes(conversa) { for (const [id, p] of acoes) if (p.conversa === conversa) acoes.delete(id); }
 
-module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, pendenciaDeConversa, confirmarAviso, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, pendenciaDeConversa, confirmarAviso, appEmFoco, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };

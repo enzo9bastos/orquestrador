@@ -206,6 +206,7 @@
   }
   function enviarResposta(r) {
     $('pg-acoes').innerHTML = '<span class="nota pensando-pontos">Enviando</span>';
+    pg.enviando = true;
     A.enviar({ t: 'responder', id: pg.id, ...r });
   }
   $('pergunta').addEventListener('click', (ev) => {
@@ -279,7 +280,7 @@
       abrirPergunta(m.id, m.item);
     } else if (m.t === 'respondido') {
       if (!pg) return;
-      if (!m.ok) { desenharPergunta(m.erro); return; }
+      if (!m.ok) { pg.enviando = false; desenharPergunta(m.erro); return; }
       fecharPergunta();
       classe('feliz'); falar('Respondido! 👍', 1400);
       setTimeout(() => { A.enviar({ t: 'avisoFechado' }); A.enviar({ t: 'irEmbora' }); }, 1500);
@@ -288,6 +289,18 @@
       classe('chamando');
       // Só avisar: OK dispensa; abrir o app é opcional.
       falar(m.texto, 0, [['depois', 'OK'], ['ver', 'Abrir no app']]);
+    } else if (m.t === 'noApp') {
+      // O usuário foi direto ao app em vez de responder aqui: o aviso sai de
+      // cena. Fica se ele está conversando com o bichinho ou se já começou a
+      // responder (uma pergunta respondida, opção marcada, texto escrito).
+      if (!$('conversa').hidden) return;
+      if (pg) {
+        const escreveu = [...$('pergunta').querySelectorAll('textarea')].some((e) => e.value.trim());
+        if (pg.enviando || pg.i > 0 || pg.marcadas.size || escreveu) return;
+        fecharPergunta();
+      } else if (!fixo || $('bolha').hidden) return; // nenhum aviso na tela (ainda chegando, ou já dispensado)
+      calar(); classe('chamando', false);
+      A.enviar({ t: 'avisoFechado' }); A.enviar({ t: 'irEmbora' });
     } else if (m.t === 'falar') falar(m.texto, 1800);
     else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }

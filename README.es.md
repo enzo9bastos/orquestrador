@@ -199,7 +199,8 @@ la pantalla (la caja de texto, los adjuntos, las tarjetas de los agentes).
   espacio de trabajo entra por el lado del que viniste — solo en el monitor que de verdad cambió.
 - **Te trae lo que te necesita.** Cuando aparece algo pendiente y no estás mirando la app, llega con la pregunta y sus
   opciones (o el permiso, con *Allow / Deny*) y respondes ahí mismo. Lo que espera tu **aprobación** (un mensaje a otra
-  computadora, un pedido suelto que quiere escribir) llega igual, con *Approve / Deny* y un motivo opcional.
+  computadora, un pedido suelto que quiere escribir) llega igual, con *Approve / Deny* y un motivo opcional. Si vas
+  directo a la app en vez de responderle, se va solo (salvo que ya hubieras empezado una respuesta ahí).
 - **Sabe cuándo la app está en pantalla.** Hacer clic en el escritorio le quita el foco, pero la app sigue frente a ti,
   así que el ayudante se queda dentro de ella. Wayland no deja que una app vea las otras ventanas, así que cada
   escritorio tiene su manera:
