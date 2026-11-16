@@ -407,7 +407,7 @@ orquestrador/
 ├── examples/             sample configuration and its guide
 ├── extras/gnome-shell/   optional GNOME extension (is the app on screen?)
 ├── hooks/                optional Claude Code signal hook, and the agents' status and message scripts
-└── scripts/              repository hygiene checks and the README screenshot generator
+└── scripts/              repository hygiene checks, the CLI contract checker and the README screenshot generator
 ```
 
 The source is written in Portuguese (identifiers, comments, file names); the interface is translated at
@@ -428,6 +428,33 @@ listed in [`app/tests/REGRESSOES.md`](app/tests/REGRESSOES.md).
 
 The screenshots in this README come from the real app the same way, with made-up data:
 `node scripts/imagens-readme.js` regenerates them (Python 3 with Pillow converts the frames).
+
+### Checking the CLI contract
+
+The tests talk to a fake Claude and a fake Codex, so they stay green even if a CLI update changes the
+messages the app relies on. After every Claude Code or Codex update, run the contract checker against the
+installed CLIs (it is not part of `npm test`):
+
+```bash
+node scripts/contrato-cli.js                # both CLIs
+node scripts/contrato-cli.js --so claude    # just one
+node scripts/contrato-cli.js --ajuda        # all options
+```
+
+It goes through everything listed in `scripts/contrato-cli.json` (each control request subtype, event and
+field the app sends or reads; for Codex, each app-server method, notification and server request) and prints
+a table: *atende* (matches), *NÃO ATENDE* (does not match) or *não deu para saber* (could not tell, with the
+reason). It exits with 1 when something the app depends on does not match, and saves a JSON snapshot per CLI
+and version in `~/.local/share/orq-contrato-cli/` (shapes only, no values; a re-run on the same version gives
+the same snapshot, and a changed one is saved next to the old one, never over it).
+
+The CLIs run locked down: a fresh, empty temporary home (deleted at the end), an environment built from
+scratch (no API key or other variable of yours reaches them), and no network (`unshare -n`; without it the
+script refuses to run, unless you pass `--rede=proxy`). It never logs in, never reads a credential file and
+never sends a prompt to the model: only control requests, plus the local `/clear` and `/rename` commands.
+What would need the model (or would send data out) is checked against the CLI's own files instead: the
+bundled names for Claude, and the JSON schema that `codex app-server generate-json-schema` writes for Codex.
+`--prova <folder>` also runs the CLIs under `strace` and writes down every connection they tried.
 
 ## Versions
 
