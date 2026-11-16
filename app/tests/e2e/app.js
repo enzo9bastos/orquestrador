@@ -12,11 +12,13 @@ const { spawn } = require('child_process');
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function abrirApp({ config = {}, arquivos = {} } = {}) {
-  const casa = fs.mkdtempSync(path.join(os.tmpdir(), 'orq-tela-'));
+// casaExistente: reabre o app na mesma casa temporária de uma abertura anterior
+// (para provar o que sobrevive a reiniciar); a configuração não é regravada.
+async function abrirApp({ config = {}, arquivos = {}, casa: casaExistente = null } = {}) {
+  const casa = casaExistente || fs.mkdtempSync(path.join(os.tmpdir(), 'orq-tela-'));
   const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
   fs.mkdirSync(path.dirname(cfg), { recursive: true });
-  fs.writeFileSync(cfg, JSON.stringify(config).replace(/~\//g, `${casa}/`));
+  if (!casaExistente) fs.writeFileSync(cfg, JSON.stringify(config).replace(/~\//g, `${casa}/`));
   for (const [rel, texto] of Object.entries(arquivos)) {
     const abs = path.join(casa, rel);
     fs.mkdirSync(path.dirname(abs), { recursive: true });
