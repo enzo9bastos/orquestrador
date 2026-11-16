@@ -125,7 +125,8 @@ Um editor de Markdown no estilo Notion sobre as pastas que você escolher: bloco
 destaques, imagens. Grava sozinho e guarda todas as versões anteriores; apagar uma nota manda para a lixeira do
 sistema. Clique com o botão direito numa pasta para **escondê-la das Notas** (nada é apagado; traga de volta pelo
 menu do espaço vazio › *Pastas escondidas*) ou para **mandá-la para a lixeira**, depois de uma confirmação que diz
-quantas notas e arquivos vão junto.
+quantas notas e arquivos vão junto. Cada pasta é uma aba: o ✕ só **fecha a aba** (a pasta continua no app e no disco) e
+o *+ Pasta* reabre; tirar uma pasta do app é nas ⚙ Configurações.
 
 ### 📚 Repertório
 

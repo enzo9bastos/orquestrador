@@ -122,6 +122,8 @@ A Notion-style Markdown editor over the folders you choose: blocks, `/` menu, ch
 callouts, images. It autosaves and keeps every previous version; deleting a note sends it to the system trash.
 Right-click a folder to **hide it from Notes** (nothing is deleted; bring it back from the empty-space menu ›
 *Hidden folders*) or to **move it to the trash** after a confirmation that says how many notes and files go with it.
+Each folder is a tab: the ✕ only **closes the tab** (the folder stays in the app and on disk) and *+ Folder* reopens
+it; removing a folder from the app is done in ⚙ Settings.
 
 ### 📚 Library
 

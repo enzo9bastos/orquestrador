@@ -276,4 +276,4 @@ function caminhoDaNota(i, rel) {
   return abs;
 }
 
-module.exports = { escondidas, esconder, mostrar, contarPasta, caminhoDaPasta, localizar, caminhoDaNota, salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome })), arvore, ler, gravar, guardarCopia, criar, vigiar };
+module.exports = { escondidas, esconder, mostrar, contarPasta, caminhoDaPasta, localizar, caminhoDaNota, salvarImagem, adicionarPasta, removerPasta, criarPasta, renomear, caminho, pastas: () => pastas().map((p) => ({ nome: p.nome, id: crypto.createHash('sha1').update(p.caminho).digest('hex').slice(0, 12) })), arvore, ler, gravar, guardarCopia, criar, vigiar };

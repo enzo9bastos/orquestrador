@@ -287,6 +287,10 @@
     "Configure \"pastasNotas\" em ~/.config/orq-app/config.json.": "Set \"pastasNotas\" in ~/.config/orq-app/config.json.",
     "Tirar esta pasta do app (nada é apagado do disco)": "Remove this folder from the app (nothing is deleted from disk)",
     "Tirar pasta": "Remove folder",
+    "Fechar esta aba (a pasta continua no app e no disco; reabra em \"+ Pasta\")": "Close this tab (the folder stays in the app and on disk; reopen it with \"+ Folder\")",
+    "Fechar aba": "Close tab",
+    "Nenhuma pasta aberta": "No folder open",
+    "As pastas continuam no app. Reabra uma aqui ou pelo \"+ Pasta\".": "The folders stay in the app. Reopen one here or with \"+ Folder\".",
     "+ Pasta": "+ Folder",
     "Abrir outra pasta": "Open another folder",
     "Nenhuma pasta aberta. Use \"+ Pasta\" em cima para abrir uma.": "No folder open. Use \"+ Folder\" above to open one.",
@@ -2214,6 +2218,10 @@
     [
       "^Mostrar «(.+)» de novo$",
       "Show «$1» again"
+    ],
+    [
+      "^Reabrir «(.+)»$",
+      "Reopen «$1»"
     ],
     [
       "^«(.+)» voltou para as notas\\.$",

@@ -130,7 +130,8 @@ Un editor de Markdown al estilo Notion sobre las carpetas que elijas: bloques, m
 destacados, imágenes. Guarda solo y conserva todas las versiones anteriores; borrar una nota la manda a la papelera
 del sistema. Clic derecho en una carpeta para **ocultarla de Notes** (no se borra nada; tráela de vuelta desde el menú
 del espacio vacío › *Hidden folders*) o para **mandarla a la papelera**, tras una confirmación que dice cuántas notas
-y archivos van con ella.
+y archivos van con ella. Cada carpeta es una pestaña: la ✕ solo **cierra la pestaña** (la carpeta sigue en la app y en
+el disco) y *+ Folder* la reabre; quitar una carpeta de la app se hace en ⚙ Settings.
 
 ### 📚 Library
 
