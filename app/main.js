@@ -47,6 +47,14 @@ const ORQUESTRADOR = process.env.ORQ_APP_ORQUESTRADOR || 'exec bash';
 let janela;
 const avisados = new Set();
 
+// Testes de tela: o app sai sozinho quando o processo que o abriu morre (teste
+// interrompido, tempo esgotado). Sem isto ficava um app órfão por teste morto,
+// segurando memória e uma porta do DevTools.
+if (process.env.ORQ_APP_E2E === '1' && Number(process.env.ORQ_APP_E2E_PAI) > 0) {
+  const pai = Number(process.env.ORQ_APP_E2E_PAI);
+  setInterval(() => { try { process.kill(pai, 0); } catch { app.exit(0); } }, 1500).unref();
+}
+
 // A versão do código do processo principal quando o app abriu (recarga.js).
 const versaoNoInicio = require('./recarga').versaoDoPrincipal(__dirname);
 let reinicioPedido = false;

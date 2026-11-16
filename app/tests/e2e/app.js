@@ -1,5 +1,10 @@
 // Abre o app de verdade para um teste de tela: casa temporária, porta própria
 // do DevTools, e ajudantes para avaliar código na página e mandar teclas.
+// A porta é escolhida pelo sistema (porta 0) e lida do arquivo que o próprio
+// app grava na casa temporária dele: dois testes nunca caem na mesma porta, e
+// um teste nunca conversa com o app de outro (sorteada entre 400, um app órfão
+// de outra rodada "atendia" no lugar do app do teste). O app de teste também
+// vigia quem o abriu (ORQ_APP_E2E_PAI) e sai sozinho se esse processo morrer.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -17,19 +22,33 @@ async function abrirApp({ config = {}, arquivos = {} } = {}) {
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     fs.writeFileSync(abs, texto);
   }
-  const porta = 9400 + Math.floor(Math.random() * 400);
-  const proc = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '..', '..'), `--remote-debugging-port=${porta}`], {
-    env: { ...process.env, HOME: casa, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1' }, stdio: 'ignore',
+  // Os dados do Electron ficam onde já ficavam (~/.config/orquestrador da casa
+  // temporária), agora dito por extenso: é lá que o app grava a porta.
+  const dados = path.join(casa, '.config', 'orquestrador');
+  const arqPorta = path.join(dados, 'DevToolsActivePort');
+  try { fs.unlinkSync(arqPorta); } catch { /* casa nova, ou reaberta sem o arquivo */ }
+  const proc = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '..', '..'), '--remote-debugging-port=0', `--user-data-dir=${dados}`], {
+    env: { ...process.env, HOME: casa, ORQ_APP_TESTE: '1', ORQ_APP_E2E: '1', ORQ_APP_E2E_PAI: String(process.pid) }, stdio: 'ignore',
   });
+  let saiu = false;
+  proc.once('exit', () => { saiu = true; });
+  const matar = async () => {
+    if (!saiu) proc.kill();
+    for (let i = 0; i < 30 && !saiu; i++) await espera(100);
+    if (!saiu) { proc.kill('SIGKILL'); for (let i = 0; i < 20 && !saiu; i++) await espera(100); }
+  };
   let ws = null;
-  for (let i = 0; i < 150 && !ws; i++) {
+  let porta = 0;
+  for (let i = 0; i < 150 && !ws && !saiu; i++) {
     await espera(100);
     try {
+      if (!porta) porta = Number(fs.readFileSync(arqPorta, 'utf8').split('\n')[0]) || 0;
+      if (!porta) continue;
       const alvos = await (await fetch(`http://127.0.0.1:${porta}/json`)).json();
       ws = (alvos.find((t) => t.type === 'page') || {}).webSocketDebuggerUrl;
     } catch { /* ainda subindo */ }
   }
-  if (!ws) { proc.kill(); throw new Error('o app não abriu'); }
+  if (!ws) { await matar(); throw new Error('o app não abriu'); }
   const sock = new WebSocket(ws);
   await new Promise((r, e) => { sock.onopen = r; sock.onerror = e; });
   let id = 0;
@@ -45,6 +64,8 @@ async function abrirApp({ config = {}, arquivos = {} } = {}) {
 
   const app = {
     casa,
+    porta,
+    pid: proc.pid,
     erros,
     // Avalia uma expressão na página (pode ser assíncrona) e devolve o valor.
     async avaliar(expr) {
@@ -89,7 +110,8 @@ async function abrirApp({ config = {}, arquivos = {} } = {}) {
     ler: (rel) => fs.readFileSync(path.join(casa, rel), 'utf8'),
     escrever: (rel, t) => fs.writeFileSync(path.join(casa, rel), t),
     espera,
-    async fechar() { try { sock.close(); } catch { /* já fechou */ } proc.kill(); await espera(300); },
+    // Fecha e espera o app sair de verdade (não deixa processo para trás).
+    async fechar() { try { sock.close(); } catch { /* já fechou */ } await matar(); },
   };
   // Recarrega com a escuta de erros já ligada, para pegar erro de carregamento.
   await cdp('Runtime.enable');
