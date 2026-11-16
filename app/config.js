@@ -18,6 +18,9 @@ const PADRAO = {
   // { "aba-notas": { "agentes": false, "demandas": true } }. Aba que não está
   // aqui usa o padrão: o orquestrador abre as duas, as demais recolhem.
   colunas: {},
+  // Atalhos que recolhem/abrem as colunas. "" desliga; a combinação segue o
+  // formato de renderer/atalhos-lista.js ("Ctrl+Alt+Comma").
+  atalhosColunas: { agentes: 'Ctrl+Alt+Comma', demandas: 'Ctrl+Alt+Period' },
 
   // Onde estão os projetos. niveis 1: <raiz>/<projeto>; niveis 2:
   // <raiz>/<grupo>/<projeto>. Pastas que casam com ignorar ficam de fora.
@@ -156,6 +159,11 @@ const ABA_COLUNA = /^aba-[a-z-]{1,30}$/;
 const colunaOk = (c) => !!c && typeof c === 'object' && typeof c.agentes === 'boolean' && typeof c.demandas === 'boolean';
 const colunasOk = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && Object.entries(v).every(([a, c]) => ABA_COLUNA.test(a) && colunaOk(c));
 const colunasLimpas = (v) => Object.fromEntries(Object.entries(v).map(([a, c]) => [a, { agentes: c.agentes, demandas: c.demandas }]));
+// Atalhos das colunas: os dois lados, cada um "" (desligado) ou uma combinação
+// válida que não colide com outro atalho do app nem com o outro lado.
+const atalhos = require('./renderer/atalhos-lista');
+const atalhoOk = (c, outro) => c === '' || (typeof c === 'string' && !atalhos.conferir(c, outro));
+const atalhosColunasOk = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && atalhoOk(v.agentes, v.demandas) && atalhoOk(v.demandas, v.agentes);
 const texto = (v) => (typeof v === 'string' ? v.trim() : '');
 // Valida o que a tela de configurações manda; chave desconhecida ou valor
 // inválido é ignorado (devolve a lista do que não foi aceito).
@@ -170,6 +178,7 @@ function validar(m) {
       case 'idioma': aceitar(k, ['pt-BR', 'en'].includes(v), v); break;
       case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
+      case 'atalhosColunas': aceitar(k, atalhosColunasOk(v), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;
       case 'notificacoes': aceitar(k, !!v && typeof v === 'object', () => ({ pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false })); break;
       case 'comandoInicial': case 'comandoDesligar':

@@ -1440,7 +1440,35 @@
     "Abrir a coluna de demandas (Ctrl+Alt+.)": "Open the requests column (Ctrl+Alt+.)",
     "Abrir a coluna de demandas (Ctrl+Alt+.) · 1 precisa de você": "Open the requests column (Ctrl+Alt+.) · 1 needs you",
     "Mostrar a coluna de demandas": "Show the requests column",
-    "Demandas e pedidos": "Requests and approvals"
+    "Demandas e pedidos": "Requests and approvals",
+    "Recolher a coluna de agentes": "Collapse the agents column",
+    "Abrir a coluna de agentes": "Open the agents column",
+    "Abrir a coluna de agentes · 1 precisa de você": "Open the agents column · 1 needs you",
+    "Recolher a coluna de demandas": "Collapse the requests column",
+    "Abrir a coluna de demandas": "Open the requests column",
+    "Abrir a coluna de demandas · 1 precisa de você": "Open the requests column · 1 needs you",
+    "Atalhos": "Shortcuts",
+    "Clique na combinação e aperte as teclas novas (Esc cancela). Precisa de Ctrl, Alt ou Cmd junto com outra tecla. Uma combinação que o app ou o sistema já usa é recusada.": "Click the combination and press the new keys (Esc cancels). It needs Ctrl, Alt or Cmd together with another key. A combination the app or the system already uses is refused.",
+    "Recolher ou abrir os agentes": "Collapse or open the agents",
+    "A coluna da esquerda, com as conversas e os agentes.": "The left column, with the conversations and the agents.",
+    "Recolher ou abrir as demandas": "Collapse or open the requests",
+    "A coluna da direita, com as demandas e o \"Precisa de você\".": "The right column, with the requests and \"Needs you\".",
+    "Voltar ao padrão": "Reset to default",
+    "Aperte as teclas… (Esc cancela)": "Press the keys… (Esc cancels)",
+    "Esta combinação já é usada por": "This combination is already used by",
+    "As duas colunas não podem ter o mesmo atalho.": "The two columns cannot share a shortcut.",
+    "Use Ctrl, Alt ou Cmd junto com outra tecla.": "Use Ctrl, Alt or Cmd together with another key.",
+    "Combinação inválida.": "Invalid combination.",
+    "Não gravei: combinação inválida.": "Didn't save: invalid combination.",
+    "paleta de comandos": "command palette",
+    "chamar o bichinho": "summon the pet",
+    "atalho do repertório": "library shortcut",
+    "edição do texto": "text editing",
+    "selecionar tudo e duplicar": "select all and duplicate",
+    "copiar e colar": "copy and paste",
+    "recurso reservado do app": "a feature reserved by the app",
+    "o sistema": "the system",
+    "Desativar": "Turn off"
   },
   "padroes": [
     [
@@ -2454,6 +2482,46 @@
     [
       "^Abrir a coluna de demandas \\(Ctrl\\+Alt\\+\\.\\) · (\\d+) precisam de você$",
       "Open the requests column (Ctrl+Alt+.) · $1 need you"
+    ],
+    [
+      "^Recolher a coluna de agentes \\((.+)\\)$",
+      "Collapse the agents column ($1)"
+    ],
+    [
+      "^Abrir a coluna de agentes \\((.+)\\)$",
+      "Open the agents column ($1)"
+    ],
+    [
+      "^Abrir a coluna de agentes \\((.+)\\) · 1 precisa de você$",
+      "Open the agents column ($1) · 1 needs you"
+    ],
+    [
+      "^Abrir a coluna de agentes \\((.+)\\) · (\\d+) precisam de você$",
+      "Open the agents column ($1) · $2 need you"
+    ],
+    [
+      "^Abrir a coluna de agentes · (\\d+) precisam de você$",
+      "Open the agents column · $1 need you"
+    ],
+    [
+      "^Recolher a coluna de demandas \\((.+)\\)$",
+      "Collapse the requests column ($1)"
+    ],
+    [
+      "^Abrir a coluna de demandas \\((.+)\\)$",
+      "Open the requests column ($1)"
+    ],
+    [
+      "^Abrir a coluna de demandas \\((.+)\\) · 1 precisa de você$",
+      "Open the requests column ($1) · 1 needs you"
+    ],
+    [
+      "^Abrir a coluna de demandas \\((.+)\\) · (\\d+) precisam de você$",
+      "Open the requests column ($1) · $2 need you"
+    ],
+    [
+      "^Abrir a coluna de demandas · (\\d+) precisam de você$",
+      "Open the requests column · $1 need you"
     ]
   ]
 }

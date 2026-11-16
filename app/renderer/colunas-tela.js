@@ -1,6 +1,7 @@
 // Colunas laterais recolhíveis, no estilo do Obsidian: a de agentes (esquerda)
 // e a de demandas (direita) recolhem por um botão discreto no topo, ou por
-// Ctrl+Alt+, e Ctrl+Alt+. (esquerda e direita). Aberta, a coluna é a mesma de
+// atalho (padrão: Ctrl+Alt+, e Ctrl+Alt+.; dá para trocar, desligar e voltar ao
+// padrão em Configurações › Atalhos). Aberta, a coluna é a mesma de
 // sempre; recolhida, nada some: o botão da lateral mostra quantos pedidos
 // esperam você, e os chips do topo abrem a coluna onde está o que contam.
 //
@@ -13,21 +14,24 @@
   const ABA_CONVERSA = 'aba-orquestrador';
   const padrao = (aba) => (aba === ABA_CONVERSA ? { agentes: true, demandas: true } : { agentes: false, demandas: false });
   const LADOS = {
-    agentes: { botao: 'alternar-agentes', coluna: 'coluna-agentes', classe: 'sem-agentes', tecla: ',', nome: 'agentes' },
-    demandas: { botao: 'alternar-demandas', coluna: 'coluna-demandas', classe: 'sem-demandas', tecla: '.', nome: 'demandas' },
+    agentes: { botao: 'alternar-agentes', coluna: 'coluna-agentes', classe: 'sem-agentes', nome: 'agentes' },
+    demandas: { botao: 'alternar-demandas', coluna: 'coluna-demandas', classe: 'sem-demandas', nome: 'demandas' },
   };
+  const A = window.orqAtalhos;
+  let atalhos = { ...A.PADRAO }; // lado → combinação ("" = desligado)
 
   let salvo = {}; // aba → { agentes, demandas }: só o que o usuário mexeu
   let aba = (document.querySelector('.sub-aba.ativa') || {}).dataset?.aba || ABA_CONVERSA;
   let estado = { ...(salvo[aba] || padrao(aba)) };
   let sinais = { agentes: 0, demandas: 0 };
   let ultimoEstado = null;
+  const vistos = { agentes: 0, demandas: 0 }; // último número mostrado no sinal de cada lado
 
   const texto = (lado) => {
     const L = LADOS[lado];
     const n = sinais[lado];
     const aberta = estado[lado];
-    const base = `${aberta ? 'Recolher' : 'Abrir'} a coluna de ${L.nome} (Ctrl+Alt+${L.tecla})`;
+    const base = `${aberta ? 'Recolher' : 'Abrir'} a coluna de ${L.nome}${atalhos[lado] ? ` (${A.mostrar(atalhos[lado])})` : ''}`;
     return !aberta && n ? `${base} · ${n} ${n === 1 ? 'precisa' : 'precisam'} de você` : base;
   };
 
@@ -44,6 +48,9 @@
       // O sinal só aparece com a coluna fechada: aberta, o que espera já está à vista.
       const sinal = b.querySelector('.sinal-coluna');
       const mostrar = !estado[lado] && sinais[lado] > 0;
+      // Pulsa 3 vezes quando aparece ou o número sobe, e fica parado.
+      if (mostrar && (sinal.hidden || sinais[lado] > vistos[lado])) { sinal.classList.remove('novo'); void sinal.offsetWidth; sinal.classList.add('novo'); }
+      vistos[lado] = mostrar ? sinais[lado] : 0;
       sinal.hidden = !mostrar;
       sinal.textContent = mostrar ? (sinais[lado] > 9 ? '9+' : String(sinais[lado])) : '';
       b.classList.toggle('com-sinal', mostrar);
@@ -108,33 +115,104 @@
   });
   window.addEventListener('orq:detalhe', () => definir('demandas', true));
 
-  // Atalhos: Ctrl+Alt+, e Ctrl+Alt+. (pelo código da tecla, igual em qualquer teclado).
-  // Não colidem com Ctrl+B (negrito), Ctrl+Alt+1..9 (atalhos do repertório), Ctrl+K nem Ctrl+Alt+Espaço.
+  // Atalhos: pelo código da tecla (igual em qualquer teclado). Enquanto a
+  // engrenagem captura uma combinação nova, eles ficam quietos.
+  let capturando = false;
   document.addEventListener('keydown', (ev) => {
-    if (!ev.ctrlKey || !ev.altKey || ev.shiftKey || ev.metaKey) return;
-    const lado = ev.code === 'Comma' ? 'agentes' : ev.code === 'Period' ? 'demandas' : null;
+    if (capturando) return;
+    const c = A.deEvento(ev);
+    if (!c) return;
+    const lado = Object.keys(LADOS).find((l) => atalhos[l] && atalhos[l] === c);
     if (!lado) return;
     ev.preventDefault();
     definir(lado, !estado[lado]);
   }, true);
 
+  // --- Configurações › Atalhos -------------------------------------------------
+  const aviso = (...frases) => {
+    const el = $('atalhos-aviso');
+    el.classList.toggle('erro', frases.length > 0);
+    el.replaceChildren(...frases.flatMap((f, i) => [...(i ? [' '] : []), Object.assign(document.createElement('span'), { textContent: f })]));
+  };
+  function desenharAtalhos() {
+    for (const lado of Object.keys(LADOS)) {
+      const b = document.querySelector(`[data-atalho-mudar="${lado}"]`);
+      b.textContent = atalhos[lado] ? A.mostrar(atalhos[lado]) : 'Desligado';
+      b.classList.toggle('desligado', !atalhos[lado]);
+      document.querySelector(`[data-atalho-desligar="${lado}"]`).disabled = !atalhos[lado];
+      document.querySelector(`[data-atalho-padrao="${lado}"]`).disabled = atalhos[lado] === A.PADRAO[lado];
+    }
+    desenhar();
+  }
+  async function gravarAtalhos(novos) {
+    const antes = atalhos;
+    atalhos = novos;
+    desenharAtalhos();
+    try {
+      const r = await window.orq.config.gravar({ atalhosColunas: novos });
+      if (r && r.recusado && r.recusado.includes('atalhosColunas')) { atalhos = antes; desenharAtalhos(); aviso('Não gravei: combinação inválida.'); }
+    } catch { /* sem o processo principal: vale só nesta abertura */ }
+  }
+  function motivo(c, lado) {
+    const r = A.conferir(c, atalhos[lado === 'agentes' ? 'demandas' : 'agentes']);
+    if (!r) return [];
+    if (r.motivo === 'em-uso') return ['Esta combinação já é usada por', r.usadoPor];
+    if (r.motivo === 'repetida') return ['As duas colunas não podem ter o mesmo atalho.'];
+    if (r.motivo === 'sem-modificador') return ['Use Ctrl, Alt ou Cmd junto com outra tecla.'];
+    return ['Combinação inválida.'];
+  }
+  function capturar(lado, botao) {
+    capturando = true;
+    botao.classList.add('capturando');
+    botao.textContent = 'Aperte as teclas… (Esc cancela)';
+    aviso();
+    const sair = () => { capturando = false; botao.classList.remove('capturando'); document.removeEventListener('keydown', ao, true); botao.removeEventListener('blur', sair); desenharAtalhos(); };
+    function ao(ev) {
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      if (ev.key === 'Escape') { sair(); return; }
+      const c = A.deEvento(ev);
+      if (!c) return; // só um modificador: espera o resto
+      const m = motivo(c, lado);
+      if (m.length) { aviso(...m); botao.textContent = 'Aperte as teclas… (Esc cancela)'; return; }
+      sair();
+      gravarAtalhos({ ...atalhos, [lado]: c });
+    }
+    document.addEventListener('keydown', ao, true);
+    botao.addEventListener('blur', sair);
+  }
+  document.addEventListener('click', (ev) => {
+    const mudar = ev.target.closest('[data-atalho-mudar]');
+    if (mudar) { capturar(mudar.dataset.atalhoMudar, mudar); return; }
+    const desligar = ev.target.closest('[data-atalho-desligar]');
+    if (desligar) { aviso(); gravarAtalhos({ ...atalhos, [desligar.dataset.atalhoDesligar]: '' }); return; }
+    const padrao = ev.target.closest('[data-atalho-padrao]');
+    if (padrao) {
+      const lado = padrao.dataset.atalhoPadrao;
+      const m = motivo(A.PADRAO[lado], lado);
+      if (m.length) { aviso(...m); return; }
+      aviso();
+      gravarAtalhos({ ...atalhos, [lado]: A.PADRAO[lado] });
+    }
+  });
+
   // A transição só liga depois da primeira pintura (sem animar a abertura do
   // app) e nunca nos testes de tela, cuja janela não anima.
   function liberarAnimacao() {
-    if (window.orq.teste) return;
+    if (window.orq.teste) { document.documentElement.classList.add('sem-transicao'); return; }
     requestAnimationFrame(() => document.body.classList.add('colunas-prontas'));
   }
 
   // O que ficou gravado na última vez. Antes de chegar, valem os padrões (abertas).
   window.orq.config.ler().then((c) => {
     if (c && c.colunas && typeof c.colunas === 'object') salvo = c.colunas;
+    if (c && c.atalhosColunas && typeof c.atalhosColunas === 'object') atalhos = { ...atalhos, ...c.atalhosColunas };
     const novo = salvo[aba] || padrao(aba);
     estado = { ...novo };
-    desenhar();
+    desenharAtalhos();
     liberarAnimacao();
   }).catch(liberarAnimacao);
 
   // Os testes e quem precisar ler o estado.
-  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), definir };
-  desenhar();
+  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), atalhos: () => ({ ...atalhos }), definir };
+  desenharAtalhos();
 })();

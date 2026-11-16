@@ -63,6 +63,8 @@ body {
   color: var(--fg);
   display: grid;
   /* Colunas que encolhem junto com a janela, até um mínimo legível. */
+  --larg-leitura: 860px; /* conversa: linha de leitura; cresce com as colunas recolhidas (fim do arquivo) */
+  --larg-nota: 760px;
   --larg-lateral: clamp(210px, 19vw, 272px);
   --larg-inspetor: clamp(250px, 23vw, 340px);
   grid-template-columns: var(--larg-lateral) minmax(0, 1fr) var(--larg-inspetor);
@@ -302,7 +304,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .barra-uso i.alto { background: var(--perigo); }
 .conversa-barra .botao-texto { margin-left: auto; }
 
-.mensagens { flex: 1; min-height: 0; overflow-y: auto; padding: 24px max(24px, calc((100% - 860px) / 2)) 16px; display: flex; flex-direction: column; gap: 18px; }
+.mensagens { flex: 1; min-height: 0; overflow-y: auto; padding: 24px max(24px, calc((100% - var(--larg-leitura)) / 2)) 16px; display: flex; flex-direction: column; gap: 18px; }
 .boas-vindas { margin: auto; display: grid; justify-items: center; gap: 6px; color: var(--fg-3); }
 .boas-vindas strong { color: var(--fg); font-size: 16px; font-weight: 600; }
 .marca-claude { color: var(--claude); font-size: 15px; line-height: 1; }
@@ -368,7 +370,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .outra { min-height: 34px; max-height: 240px; padding: 7px 10px; resize: none; overflow-y: auto; line-height: 1.45; display: block; width: 100%; border-radius: var(--r-sm); border: 1px solid var(--borda); background: var(--bg-elevado); color: var(--fg); font: inherit; }
 .cartao-pedido .acoes { display: flex; gap: 8px; }
 
-.compositor { padding: 10px max(24px, calc((100% - 860px) / 2)) 18px; display: grid; gap: 8px; }
+.compositor { padding: 10px max(24px, calc((100% - var(--larg-leitura)) / 2)) 18px; display: grid; gap: 8px; }
 .trabalhando { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--fg-3); }
 .trabalhando[hidden] { display: none; }
 .trabalhando .botao-texto { margin-left: auto; }
@@ -680,7 +682,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .vazio-nota[hidden], .editor-nota[hidden] { display: none; }
 
 /* A folha: coluna central larga e tipografia de documento. */
-.editor-nota { max-width: 760px; margin: 0 auto; padding: 40px 48px 120px; }
+.editor-nota { max-width: var(--larg-nota); margin: 0 auto; padding: 40px 48px 120px; }
 .editor-nota .tiptap { outline: none; font: 15px/1.7 var(--sans); color: var(--fg); min-height: 60vh; }
 .editor-nota .tiptap > * + * { margin-top: 6px; }
 .editor-nota .tiptap h1 { font-size: 30px; line-height: 1.25; font-weight: 700; margin: 26px 0 8px; letter-spacing: -.01em; }
@@ -786,7 +788,7 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .caminho-nota:empty { display: none; }
 
 /* --- página no estilo Notion ------------------------------------------------ */
-.pagina-nota { max-width: 760px; margin: 0 auto; padding: 56px 48px 140px; }
+.pagina-nota { max-width: var(--larg-nota); margin: 0 auto; padding: 56px 48px 140px; }
 .pagina-nota[hidden] { display: none; }
 .pagina-nota .editor-nota { max-width: none; margin: 0; padding: 0; }
 .titulo-pagina { font: 700 38px/1.2 var(--sans); letter-spacing: -.015em; color: var(--fg); margin: 0 0 18px; outline: none; overflow-wrap: anywhere; }
@@ -1573,10 +1575,37 @@ body.sem-agentes .lateral, body.sem-demandas .inspetor { opacity: 0; visibility:
 .alternar-coluna .sinal-coluna {
   position: absolute; top: 1px; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
   font: 600 9.5px/14px var(--mono); text-align: center; color: #fff; background: var(--esperando);
-  box-shadow: 0 0 0 2px var(--bg-afundado), 0 0 0 4px var(--esperando-suave); animation: pulso-sinal 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 2px var(--bg-afundado), 0 0 0 4px var(--esperando-suave); animation: none;
 }
 @keyframes pulso-sinal { 50% { box-shadow: 0 0 0 2px var(--bg-afundado), 0 0 0 7px transparent; } }
+.alternar-coluna .sinal-coluna.novo { animation: pulso-sinal 1.1s ease-in-out 3; } /* 3 pulsos e para */
 .alternar-coluna .sinal-coluna[hidden] { display: none; }
 button.pilula { cursor: pointer; border: 0; }
 button.pilula:hover { background: var(--painel-hover); color: var(--fg); }
-@media (prefers-reduced-motion: reduce) { body.colunas-prontas, .lateral, .inspetor { transition: none !important; } .alternar-coluna .sinal-coluna { animation: none; } }
+@media (prefers-reduced-motion: reduce) { body.colunas-prontas, .lateral, .inspetor { transition: none !important; } .alternar-coluna .sinal-coluna.novo { animation: none; } }
+
+/* Com colunas recolhidas a conversa e a nota usam o espaço livre, em proporção
+   dele, sem passar de uma linha confortável de ler. Abertas: como sempre. */
+body.sem-agentes, body.sem-demandas { --larg-leitura: min(1180px, max(860px, 60%)); --larg-nota: min(920px, max(760px, 46%)); }
+body.sem-agentes.sem-demandas { --larg-leitura: min(1500px, max(860px, 66%)); --larg-nota: min(1080px, max(760px, 52%)); }
+
+/* --- Configurações › Atalhos -------------------------------------------- */
+.atalho-controles { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.atalho-tecla { min-width: 150px; font: 500 12px var(--mono); justify-content: center; }
+.atalho-tecla.desligado { color: var(--fg-3); font-family: var(--sans); }
+.atalho-tecla.capturando { border-color: var(--claude); box-shadow: 0 0 0 3px var(--claude-suave); color: var(--fg); }
+.atalhos-intro, .atalhos-aviso { padding: 0 18px; }
+.atalhos-aviso { min-height: 1.4em; }
+.atalhos-aviso.erro { color: var(--perigo); }
+
+/* --- barra da nota: aparece ao focar o texto ou passar o mouse, nunca quebra --- */
+.barra-nota { flex-wrap: nowrap; transition: opacity .12s ease; opacity: 0; }
+.notas-corpo:focus-within .barra-nota, .barra-nota:hover, .barra-nota:focus-within { opacity: 1; }
+.barra-nota > * { flex: none; }
+.barra-nota .transbordou { display: none !important; }
+.mais-nota .bolinha-cor { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 8px; border: 1px solid var(--borda-forte); vertical-align: -1px; color: inherit; }
+.mais-nota [data-cor-nota="amarelo"] .bolinha-cor { background: #e9c46a; } .mais-nota [data-cor-nota="azul"] .bolinha-cor { background: #4f8fd1; }
+.mais-nota [data-cor-nota="verde"] .bolinha-cor { background: #4caf7d; } .mais-nota [data-cor-nota="rosa"] .bolinha-cor { background: #d16ba5; }
+.mais-nota [data-cor-nota="roxo"] .bolinha-cor { background: #9065b0; } .mais-nota [data-cor-nota=""] .bolinha-cor { background: linear-gradient(135deg, transparent 45%, var(--perigo) 45% 55%, transparent 55%); }
+@media (prefers-reduced-motion: reduce) { .barra-nota { transition: none; } }
+.sem-transicao .barra-nota { transition: none; } /* testes de tela: a janela não anima */

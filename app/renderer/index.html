@@ -343,6 +343,7 @@
             <button type="button" role="tab" id="config-aba-ias" data-secao-config="ias" aria-controls="config-sec-ias" aria-selected="false" tabindex="-1">IAs conectadas (CLI)</button>
             <button type="button" role="tab" id="config-aba-projetos" data-secao-config="projetos" aria-controls="config-sec-projetos" aria-selected="false" tabindex="-1">Projetos e agentes</button>
             <button type="button" role="tab" id="config-aba-notas" data-secao-config="notas" aria-controls="config-sec-notas" aria-selected="false" tabindex="-1">Notas</button>
+            <button type="button" role="tab" id="config-aba-atalhos" data-secao-config="atalhos" aria-controls="config-sec-atalhos" aria-selected="false" tabindex="-1">Atalhos</button>
             <button type="button" role="tab" id="config-aba-avancado" data-secao-config="avancado" aria-controls="config-sec-avancado" aria-selected="false" tabindex="-1">Avançado</button>
           </nav>
         </div>
@@ -482,6 +483,27 @@
               <input class="campo-config" data-cfg="pastaNotas" placeholder="~/notas">
             </div>
           </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-atalhos" data-secao="atalhos" aria-labelledby="config-aba-atalhos" tabindex="-1" hidden>
+            <h3 class="config-secao">Atalhos</h3>
+            <p class="nota atalhos-intro">Clique na combinação e aperte as teclas novas (Esc cancela). Precisa de Ctrl, Alt ou Cmd junto com outra tecla. Uma combinação que o app ou o sistema já usa é recusada.</p>
+            <div class="config-linha" data-atalho-coluna="agentes">
+              <div><strong>Recolher ou abrir os agentes</strong><span>A coluna da esquerda, com as conversas e os agentes.</span></div>
+              <div class="atalho-controles">
+                <button type="button" class="botao-texto atalho-tecla" data-atalho-mudar="agentes" aria-describedby="atalhos-aviso"></button>
+                <button type="button" class="botao-texto" data-atalho-desligar="agentes">Desativar</button>
+                <button type="button" class="botao-texto" data-atalho-padrao="agentes">Voltar ao padrão</button>
+              </div>
+            </div>
+            <div class="config-linha" data-atalho-coluna="demandas">
+              <div><strong>Recolher ou abrir as demandas</strong><span>A coluna da direita, com as demandas e o "Precisa de você".</span></div>
+              <div class="atalho-controles">
+                <button type="button" class="botao-texto atalho-tecla" data-atalho-mudar="demandas" aria-describedby="atalhos-aviso"></button>
+                <button type="button" class="botao-texto" data-atalho-desligar="demandas">Desativar</button>
+                <button type="button" class="botao-texto" data-atalho-padrao="demandas">Voltar ao padrão</button>
+              </div>
+            </div>
+            <p class="nota atalhos-aviso" id="atalhos-aviso" role="status" aria-live="polite"></p>
+          </div>
           <div class="config-painel" role="tabpanel" id="config-sec-avancado" data-secao="avancado" aria-labelledby="config-aba-avancado" tabindex="-1" hidden>
             <h3 class="config-secao">Avançado</h3>
             <div class="config-linha">
@@ -521,6 +543,7 @@
   </div>
 
   <script src="i18n.js"></script>
+  <script src="atalhos-lista.js"></script>
   <script src="util.js"></script>
   <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
@@ -536,6 +559,7 @@
   <script src="pet.js"></script>
   <script src="editor.bundle.js"></script>
   <script src="notas-tela.js"></script>
+  <script src="barra-nota-tela.js"></script>
   <script src="conversa-tela.js"></script>
   <script src="comandos-tela.js"></script>
   <script src="repertorio-tela.js"></script>

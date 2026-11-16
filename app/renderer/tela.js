@@ -270,10 +270,13 @@ function desenharTopo(r) {
   const n = (est) => r.frentes.filter((f) => f.estado === est).length;
   // Cada chip abre a coluna onde está o que ele conta (colunas-tela.js).
   const pilula = (classe, num, texto, coluna) => `<button type="button" class="pilula" data-abrir-coluna="${coluna}" title="${coluna === 'agentes' ? 'Mostrar a coluna de agentes' : 'Mostrar a coluna de demandas'}"><span class="ponto ${classe}"></span>${num} ${texto}</button>`;
-  trocarHtml($('contagem'),
-    pilula('trabalhando', n('trabalhando'), 'trabalhando', 'agentes') +
-    pilula('esperando', n('esperando'), 'esperando', 'agentes') +
-    pilula('permissao', n('permissao') + r.fila.filter((p) => p.tipo === 'pedido').length, 'pendências', 'demandas'));
+  // Só aparece o chip que tem o que contar: ao chegar a 0, sai só ele.
+  const contar = [
+    ['trabalhando', n('trabalhando'), 'trabalhando', 'agentes'],
+    ['esperando', n('esperando'), 'esperando', 'agentes'],
+    ['permissao', n('permissao') + r.fila.filter((p) => p.tipo === 'pedido').length, 'pendências', 'demandas'],
+  ];
+  trocarHtml($('contagem'), contar.filter(([, num]) => num > 0).map((c) => pilula(...c)).join(''));
 }
 
 function desenharFrentes(r) {
