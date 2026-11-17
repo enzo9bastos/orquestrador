@@ -18,6 +18,8 @@ const codex = require('./conversa-codex');
 const listaComandos = require('./comandos');
 const jsonl = require('./jsonl');
 const shell = require('./shell-usuario');
+const permSempre = require('./permissao-sempre');
+const permissoes = require('./permissoes');
 const capacidades = require('./capacidades');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
@@ -657,7 +659,12 @@ class Conversa {
       }
       case 'control_request':
         if (d.request && d.request.subtype === 'can_use_tool') {
-          const p = { id: d.request_id, ferramenta: d.request.tool_name, entrada: d.request.input, motivo: d.request.decision_reason || null };
+          // motivo: por que o Claude pergunta (pode vir com códigos de cor do terminal: limpa).
+          // sempre: a regra que ele sugere gravar, já conferida (permissao-sempre.js); a sugestão
+          // crua fica só neste processo (propriedade que não viaja para a tela).
+          const motivo = d.request.decision_reason ? String(d.request.decision_reason).replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, 600) : null;
+          const p = { id: d.request_id, ferramenta: d.request.tool_name, entrada: d.request.input, motivo: motivo || null, sempre: permSempre.resumo(d.request.permission_suggestions) };
+          Object.defineProperty(p, 'sugestoes', { value: d.request.permission_suggestions, enumerable: false });
           this.pendentes.set(d.request_id, p);
           this.enviar('conversa:pedido', p);
           avisarLista();
@@ -675,7 +682,7 @@ class Conversa {
         return;
       case 'control_cancel_request':
         // O Claude desistiu de um pedido (ex.: o turno foi interrompido): o cartão fecha.
-        if (this.pendentes.delete(d.request_id)) { this.enviar('conversa:respondido', d.request_id); avisarLista(); }
+        if (this.pendentes.delete(d.request_id)) { this.enviar('conversa:cancelado', d.request_id); this.enviar('conversa:respondido', d.request_id); avisarLista(); }
         return;
       default:
     }
@@ -941,9 +948,25 @@ class Conversa {
       avisarLista();
       return true;
     }
-    const resposta = decisao.permitir
-      ? { behavior: 'allow', updatedInput: decisao.respostas ? { ...p.entrada, answers: decisao.respostas } : p.entrada }
-      : { behavior: 'deny', message: decisao.motivo || 'Negado pelo usuário no app.' };
+    // Pergunta (AskUserQuestion) responde como sempre respondeu. Permissão diz ao Claude qual
+    // foi a decisão: desta vez, sempre (com a regra que ELE sugeriu, no alcance escolhido) ou
+    // negada (com o que a pessoa pede em vez disso, se ela escreveu).
+    const pergunta = p.ferramenta === 'AskUserQuestion';
+    let resposta;
+    if (decisao.permitir) {
+      let sempre = !pergunta && typeof decisao.sempre === 'string' ? permSempre.atualizacao(p.sugestoes, decisao.sempre) : null;
+      if (sempre && decisao.sempre !== 'session') {
+        // A regra vai para um arquivo: a versão de agora dele fica guardada antes.
+        const copia = permissoes.copiaAntes(decisao.sempre, PASTA);
+        if (!copia.ok) { sempre = null; this.registrar({ tipo: 'aviso', texto: `Permiti só desta vez: não consegui guardar a cópia do arquivo de permissões antes de gravar (${copia.erro}).` }); }
+      }
+      resposta = { behavior: 'allow', updatedInput: decisao.respostas ? { ...p.entrada, answers: decisao.respostas } : p.entrada,
+        ...(sempre ? { updatedPermissions: sempre } : {}), ...(pergunta ? {} : { decisionClassification: sempre ? 'user_permanent' : 'user_temporary' }) };
+    } else {
+      const emVez = typeof decisao.emVezDisso === 'string' ? decisao.emVezDisso.replace(/\s+/g, ' ').trim().slice(0, 2000) : '';
+      resposta = { behavior: 'deny', message: decisao.motivo || `Negado pelo usuário no app.${emVez ? ` O que ele pede em vez disso: ${emVez}` : ''}`,
+        ...(pergunta ? {} : { decisionClassification: 'user_reject' }) };
+    }
     this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
     this.enviar('conversa:respondido', reqId);
     avisarLista();

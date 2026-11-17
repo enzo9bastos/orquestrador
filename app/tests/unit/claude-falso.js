@@ -258,6 +258,19 @@ leitor.on('line', (l) => {
     sai({ type: 'control_request', request_id: id, request: { subtype: sub } });
     return;
   }
+  // Pedido de permissão com a regra que o Claude gravaria (forma do 2.1.326) e o motivo
+  // com códigos de cor. A resposta do app volta como texto, para o teste conferir.
+  m = /^pede permissão (com sugestão|docker|sem sugestão)$/.exec(t);
+  if (m) {
+    const docker = m[1] === 'docker';
+    const id = `perm-${Date.now().toString(36)}`;
+    const pedido = { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: docker ? 'docker compose restart web' : 'npm test -- --so-unidade' },
+      decision_reason: '\u001b[33mEste comando não está entre os que o modo roda sozinho.\u001b[0m' };
+    if (m[1] !== 'sem sugestão') pedido.permission_suggestions = [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: docker ? 'docker compose:*' : 'npm test:*' }], behavior: 'allow', destination: 'localSettings' }];
+    esperando.set(id, (r) => { texto(`resposta à permissão: ${JSON.stringify(r.response)}`); fim(); });
+    sai({ type: 'control_request', request_id: id, request: pedido });
+    return;
+  }
   if (t === 'pede e cancela') {
     sai({ type: 'control_request', request_id: 'p-1', request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'ls' } } });
     setTimeout(() => { sai({ type: 'control_cancel_request', request_id: 'p-1' }); texto('cancelado'); fim(); }, 100);

@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('orq', {
     aoParcial: aoConversa('conversa:parcial'),
     aoPedido: aoConversa('conversa:pedido'),
     aoRespondido: aoConversa('conversa:respondido'),
+    aoCancelado: aoConversa('conversa:cancelado'),
     aoInfo: aoConversa('conversa:info'),
     aoTudo: aoConversa('conversa:tudo'),
     aoLista: (fn) => ipcRenderer.on('conversa:lista', (_e, l) => fn(l)),

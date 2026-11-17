@@ -546,17 +546,113 @@
       const conv = listaConversas.find((c) => c.id === ativa);
       // O nome sai igual ao da lista da lateral (lá "Conversa 2" também vira "Conversation 2" em inglês).
       const quem = `<span class="quem-pede">${!conv || conv.orquestrador ? 'O orquestrador' : esc(conv.titulo)}</span>`;
-      el.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span>${quem} <span class="verbo-pedido">${esc(verbo)}:</span> <strong>${esc(alvo)}</strong></div>
-        <pre class="entrada-ferramenta">${esc(curto(corpo, 3000))}</pre>
-        <div class="acoes"><button type="button" class="botao primario" data-permitir="1">Permitir</button>
+      const cabeca = `<div class="titulo-pedido"><span class="ponto permissao"></span>${quem} <span class="verbo-pedido">${esc(verbo)}:</span> <strong>${esc(alvo)}</strong></div>
+        <pre class="entrada-ferramenta">${esc(curto(corpo, 3000))}</pre>`;
+      if (conversaCodex()) {
+        // Codex: as respostas dele (sessão, prefixo, cancelar) entram com o cartão próprio do P2.
+        el.innerHTML = `${cabeca}<div class="acoes"><button type="button" class="botao primario" data-permitir="1">Permitir</button>
           <button type="button" class="botao secundario" data-permitir="0">Negar</button></div>`;
+      } else {
+        // Claude: três saídas (desta vez, sempre com o alcance, negar dizendo o que fazer) e o motivo à vista.
+        el.classList.add('cartao-permissao');
+        el.tabIndex = 0;
+        el.dataset.alvo = alvo;
+        el.dataset.corpo = curto(corpo, 300);
+        el.innerHTML = `${cabeca}${p.motivo ? `<p class="motivo-pedido"><strong>Por que pergunta:</strong> <span data-sem-traducao>${esc(p.motivo)}</span></p>` : ''}<div class="area-permissao"></div>`;
+        permissaoInicio(el, p);
+        el.addEventListener('keydown', (ev) => {
+          if (cfg.teclasNosCartoes === false || ev.ctrlKey || ev.altKey || ev.metaKey || ev.target.closest('input, textarea, select')) return;
+          if (!/^[1-9]$/.test(ev.key)) return;
+          const b = el.querySelectorAll('.saidas-permissao [data-perm]')[Number(ev.key) - 1];
+          if (b) { ev.preventDefault(); b.click(); }
+        });
+      }
     }
     grupo = null;
     caixa.append(el);
     colado = true; rolar();
   }
 
+  // --- cartão de permissão do Claude (plano 6.4) --------------------------------
+  // p.sempre vem do processo principal: null (o Claude não sugeriu regra), { ok: true, textos }
+  // ou { ok: false, motivo, textos } (comando da lista que nunca ganha "sempre").
+  const ALCANCES = {
+    session: { rotulo: 'Só nesta conversa', nota: 'Nada é gravado em arquivo. Vale até você fechar esta conversa.', arquivo: 'nenhum (nada é gravado)', desfazer: 'fechar a conversa, ou /permissions → remover a regra', botao: 'Permitir sempre nesta conversa', fim: 'Permitido sempre nesta conversa' },
+    localSettings: { rotulo: 'Neste projeto', nota: 'Vale para toda conversa aberta nesta pasta.', arquivo: '.claude/settings.local.json desta pasta (só seu, fora do git)', desfazer: '/permissions → remover a regra, ou apagar a linha do arquivo', botao: 'Permitir sempre neste projeto', fim: 'Permitido sempre neste projeto' },
+    userSettings: { rotulo: 'Em todos os seus projetos', nota: 'Vale em qualquer pasta, também no Claude Code fora do app.', arquivo: '~/.claude/settings.json', desfazer: '/permissions → remover a regra, ou apagar a linha do arquivo', botao: 'Permitir sempre em todos os projetos', fim: 'Permitido sempre em todos os seus projetos' },
+  };
+  const pedidoDoCartao = (cartao) => pedidos.get(cartao.dataset.pedido) || {};
+  function permissaoInicio(cartao, p) {
+    const comTeclas = cfg.teclasNosCartoes !== false;
+    const podeSempre = !!(p.sempre && p.sempre.ok);
+    let n = 0;
+    const k = () => (comTeclas ? `<kbd data-sem-traducao>${++n}</kbd> ` : '');
+    cartao.querySelector('.area-permissao').innerHTML = `<div class="acoes saidas-permissao">
+        <button type="button" class="botao primario" data-perm="vez" data-permitir="1">${k()}<span>Permitir desta vez</span></button>
+        ${podeSempre ? `<button type="button" class="botao secundario" data-perm="sempre">${k()}<span>Permitir sempre…</span></button>` : ''}
+        <button type="button" class="botao secundario" data-perm="negar">${k()}<span>Negar…</span></button></div>
+      ${p.sempre && !p.sempre.ok ? `<p class="nota aviso-recusa"><span>Para este tipo de comando o app não oferece "Permitir sempre": cada vez passa por você.</span> <span class="motivo-recusa">(<span>${esc(p.sempre.motivo)}</span>)</span></p>` : ''}
+      ${comTeclas ? `<p class="nota dica-teclas"><span>Com o cartão em foco, as teclas de número escolhem a saída.</span></p>` : ''}`;
+  }
+  function permissaoSempre(cartao, p) {
+    const nome = `alcance-${cartao.dataset.pedido}`;
+    cartao.querySelector('.area-permissao').innerHTML = `<div class="painel-permissao">
+        <h4>Permitir sempre: onde vale?</h4>
+        <div class="alcances">${Object.entries(ALCANCES).map(([v, a], i) => `<label class="alcance"><input type="radio" name="${esc(nome)}" value="${v}"${i === 0 ? ' checked' : ''}><strong>${a.rotulo}</strong><span>${a.nota}</span></label>`).join('')}</div>
+        <dl class="sempre-regra"></dl>
+        <p class="nota sempre-copia" hidden>Antes de o Claude gravar, o app guarda a versão de agora desse arquivo.</p>
+        <div class="acoes"><button type="button" class="botao primario" data-perm="confirmar-sempre"></button><button type="button" class="botao secundario" data-perm="voltar">Voltar</button></div>
+      </div>`;
+    const pintar = () => {
+      const v = cartao.querySelector(`input[name="${CSS.escape(nome)}"]:checked`).value;
+      const a = ALCANCES[v];
+      cartao.querySelector('.sempre-regra').innerHTML = `<dt>Regra</dt><dd data-sem-traducao>${(p.sempre.textos || []).map((x) => `<code>${esc(x)}</code>`).join(' ')}</dd>
+        <dt>Arquivo</dt><dd>${esc(a.arquivo)}</dd><dt>Para desfazer</dt><dd>${esc(a.desfazer)}</dd>`;
+      cartao.querySelector('[data-perm="confirmar-sempre"]').textContent = a.botao;
+      cartao.querySelector('.sempre-copia').hidden = v === 'session';
+    };
+    cartao.querySelector('.alcances').addEventListener('change', pintar);
+    pintar();
+  }
+  function permissaoNegar(cartao) {
+    cartao.querySelector('.area-permissao').innerHTML = `<div class="painel-permissao">
+        <label class="rotulo-negar"><span>O que fazer em vez disso (opcional)</span><textarea class="campo-negar" rows="2" placeholder="ex.: rode só os testes do arquivo que mudou"></textarea></label>
+        <p class="nota">O Claude recebe a recusa junto com este texto e segue por outro caminho.</p>
+        <div class="acoes"><button type="button" class="botao primario" data-perm="confirmar-negar">Negar</button><button type="button" class="botao secundario" data-perm="voltar">Voltar</button></div>
+      </div>`;
+    cartao.querySelector('.campo-negar').focus();
+  }
+  function fecharPermissao(cartao, classe, html) {
+    cartao.classList.add('respondido');
+    cartao.removeAttribute('tabindex');
+    cartao.innerHTML = `<span class="marca-resposta ${classe}" aria-hidden="true">${classe === 'nao' ? '✕' : '✓'}</span>${html}`;
+  }
+  async function clicouNaPermissao(cartao, acao) {
+    const p = pedidoDoCartao(cartao);
+    const alvo = `<code data-sem-traducao>${esc(cartao.dataset.corpo || cartao.dataset.alvo || '')}</code>`;
+    if (acao === 'sempre') return permissaoSempre(cartao, p);
+    if (acao === 'negar') return permissaoNegar(cartao);
+    if (acao === 'voltar') { permissaoInicio(cartao, p); cartao.focus(); return undefined; }
+    if (acao === 'vez') {
+      await C.responder(ativa, cartao.dataset.pedido, { permitir: true });
+      return fecharPermissao(cartao, 'sim', `<span>Permitido desta vez</span> · ${alvo}`);
+    }
+    if (acao === 'confirmar-sempre') {
+      const v = cartao.querySelector('.alcances input:checked').value;
+      await C.responder(ativa, cartao.dataset.pedido, { permitir: true, sempre: v });
+      return fecharPermissao(cartao, 'sim', `<span>${ALCANCES[v].fim}</span> · <span>regra</span> ${(p.sempre.textos || []).map((x) => `<code data-sem-traducao>${esc(x)}</code>`).join(' ')} · <span>para desfazer:</span> <code data-sem-traducao>/permissions</code>`);
+    }
+    if (acao === 'confirmar-negar') {
+      const t = cartao.querySelector('.campo-negar').value.replace(/\s+/g, ' ').trim();
+      await C.responder(ativa, cartao.dataset.pedido, t ? { permitir: false, emVezDisso: t } : { permitir: false });
+      return fecharPermissao(cartao, 'nao', `<span>Negado</span> · ${alvo}${t ? ` · <span>você disse:</span> <span data-sem-traducao>"${esc(curto(t, 300))}"</span>` : ''}`);
+    }
+    return undefined;
+  }
+
   caixa.addEventListener('click', async (ev) => {
+    const perm = ev.target.closest('.cartao-permissao:not(.respondido) [data-perm]');
+    if (perm) { await clicouNaPermissao(perm.closest('.cartao-permissao'), perm.dataset.perm); return; }
     const cr = ev.target.closest('.copiar-resposta');
     if (cr) { copiarResposta(cr); return; }
     if (ev.target.closest('[data-parar-shell]')) { C.shellParar(ativa); return; }
@@ -1410,6 +1506,12 @@
   C.aoPedido((id, p) => {
     if (id === 'orquestrador') pet.definir('chamando', p.ferramenta === 'AskUserQuestion' ? 'Uma pergunta pra você!' : 'Preciso da sua permissão!');
     if (id === ativa) { pedidos.set(p.id, p); cartaoPedido(p); }
+  });
+  // O Claude desistiu do pedido (ex.: o turno foi interrompido): o cartão diz que foi ele.
+  C.aoCancelado((id, reqId) => {
+    if (id !== ativa) return;
+    const c = document.querySelector(`[data-pedido="${CSS.escape(reqId)}"]`);
+    if (c && !c.classList.contains('respondido')) { c.removeAttribute('tabindex'); fecharPedido(c, 'Pedido cancelado pelo Claude: não precisa mais da sua resposta'); }
   });
   C.aoRespondido((id, reqId) => {
     if (id === 'orquestrador') pet.definir('pensando');

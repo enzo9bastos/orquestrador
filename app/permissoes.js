@@ -56,4 +56,20 @@ function gravar(novo) {
   return ler();
 }
 
-module.exports = { ler, gravar };
+// "Permitir sempre" de um cartão de permissão: quem grava a regra é o próprio Claude, no
+// arquivo do alcance escolhido. Antes de o app responder, a versão de agora desse arquivo
+// é copiada (se ele existir). Devolve { ok: true, copia } (copia null = não havia arquivo)
+// ou { ok: false, erro }: sem conseguir copiar, o app não manda o "sempre".
+function copiaAntes(destino, pasta) {
+  const arq = destino === 'userSettings' ? ARQ : destino === 'localSettings' ? path.join(String(pasta || os.homedir()), '.claude', 'settings.local.json') : null;
+  if (!arq) return { ok: false, erro: 'alcance desconhecido' };
+  try {
+    if (!fs.existsSync(arq)) return { ok: true, copia: null };
+    fs.mkdirSync(COPIAS, { recursive: true });
+    const copia = path.join(COPIAS, `${new Date().toISOString().replace(/[:.]/g, '-')}-${destino === 'userSettings' ? 'usuario' : 'projeto-local'}.json`);
+    fs.copyFileSync(arq, copia, fs.constants.COPYFILE_EXCL);
+    return { ok: true, copia };
+  } catch (e) { return { ok: false, erro: e.message }; }
+}
+
+module.exports = { ler, gravar, copiaAntes };

@@ -17,7 +17,7 @@ const MS_TERMINAL = 16;
 const TETO_BYTES = 256 * 1024;
 
 // Eventos de conversa que esvaziam o lote na hora.
-const CANAIS_URGENTES = new Set(['conversa:pedido', 'conversa:respondido', 'conversa:tudo', 'conversa:comandos']);
+const CANAIS_URGENTES = new Set(['conversa:pedido', 'conversa:respondido', 'conversa:cancelado', 'conversa:tudo', 'conversa:comandos']);
 const TIPOS_URGENTES = new Set(['erro', 'fim', 'resultado', 'encerrada', 'resposta', 'pedido', 'limpa', 'aviso']);
 // Canais que não são de uma conversa só (lista, foco) seguem direto.
 const urgente = (canal, dado) => CANAIS_URGENTES.has(canal) || (canal === 'conversa:evento' && !!dado && TIPOS_URGENTES.has(dado.tipo));

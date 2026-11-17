@@ -84,6 +84,10 @@ protocol), so there is no terminal to babysit.
   live only in the orchestrator conversation and show one at a time (a Settings option moves them into the ⋯ menu).
 - **`/exit` ends only that conversation**: its session is kept, the screen clears, the next message starts a new
   session and *Go back to the previous session* undoes it. Closing the app is the window's close button.
+- **Permission card with three answers**: *Allow this time*, *Always allow…* (you pick where it applies: this
+  conversation only, which is the default and writes nothing, this project, or all; the card shows the rule, the
+  file and how to undo it) and *Deny…*, saying what to do instead. The reason for asking is shown. Docker, ssh,
+  network, deletion and `git push` never get "always". With the card focused, keys 1, 2 and 3 answer.
 - **`!` runs a command of yours** (off by default; turn it on in Settings › Advanced): `!docker ps` in the box runs on your computer, in the conversation's folder, and
   shows up as "You ran", with its output. The output goes to Claude with your next message. Only a `!` that you
   typed or pasted yourself and sent with Enter counts; text arriving from an agent's request, a workflow, a

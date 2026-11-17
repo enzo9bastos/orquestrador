@@ -623,6 +623,78 @@ test('4.2: "!" roda só pelo caminho próprio; a saída vai ao modelo com a pró
   assert.strictEqual(doShell().length, 2);
 });
 
+// Plano 6.4: cartão de permissão completo. O pedido leva para a tela a regra que o Claude
+// sugeriu (ou o motivo de não haver "sempre") e o porquê da pergunta, sem códigos de cor.
+// A resposta devolve ao Claude a MESMA sugestão dele com o alcance escolhido; "desta vez" e
+// "negar" continuam como eram, agora dizendo ao Claude qual foi a decisão.
+test('6.4: permissão com "sempre": a regra sugerida vai à tela e volta ao Claude com o alcance escolhido', async (t) => {
+  const c = new conversa._Conversa({ id: 'ps1', titulo: 'Conversa de permissão' });
+  t.after(() => c.parar());
+  let n = 0;
+  const respostaDoApp = () => { const r = recebidos().filter((x) => x.type === 'control_response' && /^perm-/.test(x.response.request_id)).pop(); return r.response.response; };
+  const pedir = async (qual) => { c.mandar(`pede permissão ${qual}`); await ate(() => c.pendentes.size === 1); return [...c.pendentes.values()][0]; };
+  const responder = async (p, decisao) => { assert.strictEqual(c.responder(p.id, decisao), true); n++; await ate(() => turnos(c) === n); return respostaDoApp(); };
+  const SUG = { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'npm test:*' }], behavior: 'allow', destination: 'localSettings' };
+
+  let p = await pedir('com sugestão');
+  assert.deepStrictEqual(p.sempre, { ok: true, textos: ['Bash(npm test:*)'] });
+  assert.strictEqual(p.motivo, 'Este comando não está entre os que o modo roda sozinho.', 'o motivo chega sem os códigos de cor');
+  assert.ok(!JSON.stringify(p).includes('permission_suggestions') && !JSON.stringify(p).includes('addRules'), 'a sugestão crua não viaja para a tela');
+  assert.deepStrictEqual(await responder(p, { permitir: true, sempre: 'session' }),
+    { behavior: 'allow', updatedInput: { command: 'npm test -- --so-unidade' }, updatedPermissions: [{ ...SUG, destination: 'session' }], decisionClassification: 'user_permanent' });
+
+  p = await pedir('com sugestão');
+  assert.deepStrictEqual(await responder(p, { permitir: true }), { behavior: 'allow', updatedInput: { command: 'npm test -- --so-unidade' }, decisionClassification: 'user_temporary' });
+
+  p = await pedir('com sugestão');
+  const negado = await responder(p, { permitir: false, emVezDisso: 'rode só o arquivo que mudou' });
+  assert.deepStrictEqual([negado.behavior, negado.decisionClassification], ['deny', 'user_reject']);
+  assert.match(negado.message, /Negado pelo usuário no app\.[\s\S]*rode só o arquivo que mudou/);
+
+  // Alcance que o app não oferece (o do time, gravado no git): vale como "desta vez".
+  p = await pedir('com sugestão');
+  assert.strictEqual((await responder(p, { permitir: true, sempre: 'projectSettings' })).updatedPermissions, undefined);
+
+  // Comando da lista de recusa: a tela recebe o motivo, e mesmo pedindo "sempre" volta só "desta vez".
+  p = await pedir('docker');
+  assert.deepStrictEqual(p.sempre, { ok: false, motivo: 'docker, tmux ou ssh', textos: ['Bash(docker compose:*)'] });
+  const d = await responder(p, { permitir: true, sempre: 'session' });
+  assert.deepStrictEqual([d.behavior, d.updatedPermissions, d.decisionClassification], ['allow', undefined, 'user_temporary']);
+
+  // Sem sugestão do Claude não há "sempre"; quem responde sem saber disso (o ajudante) continua funcionando.
+  p = await pedir('sem sugestão');
+  assert.strictEqual(p.sempre, null);
+  assert.deepStrictEqual(await responder(p, { permitir: true }), { behavior: 'allow', updatedInput: { command: 'npm test -- --so-unidade' }, decisionClassification: 'user_temporary' });
+  p = await pedir('sem sugestão');
+  assert.strictEqual((await responder(p, { permitir: false })).message, 'Negado pelo usuário no app.');
+});
+
+test('6.4: "sempre" no projeto ou para o usuário guarda antes uma cópia do arquivo que o Claude vai gravar', async (t) => {
+  const os = require('os');
+  const c = new conversa._Conversa({ id: 'ps2', titulo: 'Conversa de permissão 2' });
+  t.after(() => c.parar());
+  const copias = path.join(os.homedir(), '.local', 'share', 'orq-app', 'versoes', 'claude-settings');
+  const quantas = () => { try { return fs.readdirSync(copias).length; } catch { return 0; } };
+  const doUsuario = path.join(os.homedir(), '.claude', 'settings.json');
+  fs.mkdirSync(path.dirname(doUsuario), { recursive: true });
+  const jaHavia = fs.existsSync(doUsuario);
+  if (!jaHavia) fs.writeFileSync(doUsuario, '{"permissions":{"allow":["Bash(ls)"]}}\n');
+  let n = 0;
+  const pedir = async () => { c.mandar('pede permissão com sugestão'); await ate(() => c.pendentes.size === 1); return [...c.pendentes.values()][0]; };
+  const responder = async (p, decisao) => { c.responder(p.id, decisao); n++; await ate(() => turnos(c) === n); };
+  let antes = quantas();
+  await responder(await pedir(), { permitir: true, sempre: 'session' });
+  assert.strictEqual(quantas(), antes, 'só nesta conversa: nada é gravado, nada é copiado');
+  await responder(await pedir(), { permitir: true, sempre: 'userSettings' });
+  assert.strictEqual(quantas(), antes + 1, 'para o usuário: cópia do settings.json antes');
+  const copia = fs.readdirSync(copias).sort().pop();
+  assert.strictEqual(fs.readFileSync(path.join(copias, copia), 'utf8'), fs.readFileSync(doUsuario, 'utf8'));
+  // No projeto: o arquivo ainda não existe na pasta da conversa → nada a copiar, e a resposta vai igual.
+  antes = quantas();
+  await responder(await pedir(), { permitir: true, sempre: 'localSettings' });
+  assert.strictEqual(quantas(), antes);
+});
+
 // Plano 8.8 (X8): o Codex recusa abrir a conversa com a política do app (uma organização
 // pode limitar as políticas permitidas). O app falha fechado: não abre, não tenta outra
 // política, diz por quê, devolve o texto à caixa e não fica preso em "trabalhando".

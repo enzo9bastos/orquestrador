@@ -91,6 +91,10 @@ que no hay ninguna terminal que vigilar.
 - **`/exit` termina solo esa conversación**: la sesión queda guardada, la pantalla se limpia, el siguiente mensaje
   empieza una sesión nueva y *Go back to the previous session* lo deshace. La app se cierra con el botón de cerrar
   de la ventana.
+- **Tarjeta de permiso con tres salidas**: *Allow this time*, *Always allow…* (eliges dónde vale: solo esta
+  conversación, que es lo predeterminado y no escribe nada, este proyecto o todos; la tarjeta muestra la regla, el
+  archivo y cómo deshacerlo) y *Deny…*, diciendo qué hacer en su lugar. El motivo de la pregunta queda a la vista.
+  Docker, ssh, red, borrar y `git push` nunca reciben "siempre". Con la tarjeta enfocada, las teclas 1, 2 y 3 responden.
 - **`!` ejecuta un comando tuyo** (desactivado por defecto; se activa en Settings › Advanced): `!docker ps` en la caja se ejecuta en tu computadora, en la carpeta de la
   conversación, y aparece como "You ran", con la salida. La salida va a Claude junto con tu siguiente mensaje.
   Solo vale el `!` que tú mismo escribiste o pegaste y enviaste con Enter; el texto que llega por un pedido de

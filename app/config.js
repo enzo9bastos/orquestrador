@@ -23,6 +23,8 @@ const PADRAO = {
   // Iniciar e Desligar: 'barra' (um botão na barra da conversa) ou 'menu' (dentro do ⋯).
   iniciarDesligar: 'barra',
   shiftTabTrocaModo: true,
+  // Cartão de permissão em foco: as teclas 1, 2, 3 escolhem a saída.
+  teclasNosCartoes: true,
   // Colunas laterais (agentes à esquerda, demandas à direita) por aba:
   // { "aba-notas": { "agentes": false, "demandas": true } }. Aba que não está
   // aqui usa o padrão: o orquestrador abre as duas, as demais recolhem.
@@ -194,7 +196,7 @@ function validar(m) {
       case 'idioma': aceitar(k, ['pt-BR', 'en'].includes(v), v); break;
       case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
-      case 'mostrarBypass': case 'shiftTabTrocaModo': case 'comandoNaCaixa': aceitar(k, typeof v === 'boolean', v); break;
+      case 'mostrarBypass': case 'shiftTabTrocaModo': case 'comandoNaCaixa': case 'teclasNosCartoes': aceitar(k, typeof v === 'boolean', v); break;
       case 'iniciarDesligar': aceitar(k, ['barra', 'menu'].includes(v), v); break;
       case 'atalhosColunas': aceitar(k, atalhosColunasOk(v), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;

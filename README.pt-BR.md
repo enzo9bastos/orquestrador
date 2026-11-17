@@ -87,6 +87,10 @@ há terminal para vigiar.
   Configurações leva os dois para dentro do menu ⋯).
 - **O `/exit` encerra só aquela conversa**: a sessão fica guardada, a tela limpa, a próxima mensagem começa uma
   sessão nova e *Voltar à sessão anterior* desfaz. Quem fecha o app é o botão de fechar da janela.
+- **Cartão de permissão com três saídas**: *Permitir desta vez*, *Permitir sempre…* (você escolhe onde vale: só
+  esta conversa, que é o padrão e não grava nada, este projeto ou todos; o cartão mostra a regra, o arquivo e como
+  desfazer) e *Negar…*, dizendo o que fazer em vez disso. O motivo da pergunta fica à vista. Docker, ssh, rede,
+  apagar e `git push` nunca ganham "sempre". Com o cartão em foco, as teclas 1, 2 e 3 respondem.
 - **`!` roda um comando seu** (desligado por padrão; liga em Configurações › Avançado): `!docker ps` na caixa roda no seu computador, na pasta da conversa, e aparece como
   "Você rodou", com a saída. A saída vai para o Claude junto com a sua próxima mensagem. Só vale o `!` que você
   mesmo digitou ou colou e enviou com Enter; texto que chega por recado, workflow, atalho ou pelo modelo nunca
