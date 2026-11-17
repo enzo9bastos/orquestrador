@@ -74,7 +74,7 @@ protocol), so there is no terminal to babysit.
   is narrow the chips keep only their icons. Each reply shows its time next to Claude's name.
 - **While Claude works**, an activity strip above the box says what it is doing now, how many tasks run in the
   background and how many of your messages wait, with **Stop** (<kbd>Esc</kbd>). <kbd>Enter</kbd> then **queues**
-  your message (a dashed bubble with *Send now* and *Remove*; the queue moves one message per turn) and
+  your message (a dashed bubble with *Send now* and *Remove*, showing the thumbnails of any screenshots it carries; the queue moves one message per turn) and
   <kbd>Ctrl</kbd>+<kbd>Enter</kbd> **steers**: it interrupts and sends that message first. If you stop Claude
   yourself, the queue waits for you instead of firing.
 - **Esc does one thing at a time**: it closes what is on top (a menu, a popup), and only then interrupts Claude.

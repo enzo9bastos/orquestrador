@@ -969,6 +969,12 @@ class Conversa {
     this.info.filaParada = this.filaParada && this.fila.length > 0;
     this.avisarInfo();
   }
+  // As imagens de uma mensagem que está na fila, para a tela mostrar as miniaturas no balão
+  // dela (o estado que vai à tela a cada atualização leva só a contagem, não as imagens).
+  imagensDaFila(idFila) {
+    const m = this.fila.find((x) => x.id === idFila);
+    return m ? m.imagens.map((i) => ({ tipo: i.tipo, dados: i.dados })) : [];
+  }
   porNaFila(texto, imagens, exibir, ja = false) {
     const m = { id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, texto, imagens: imagens || [], exibir: exibir || null, ja };
     if (ja) { const i = this.fila.findIndex((x) => !x.ja); if (i < 0) this.fila.push(m); else this.fila.splice(i, 0, m); } else this.fila.push(m);
@@ -1576,6 +1582,7 @@ module.exports = {
   encerrarConversa: (id) => { pegar(id).encerrarConversa(); return true; },
   reabrirAnterior: (id) => pegar(id).reabrirAnterior(),
   tirarDaFila: (id, idFila) => pegar(id).tirarDaFila(idFila),
+  filaImagens: (id, idFila) => pegar(id).imagensDaFila(idFila),
   enviarJaDaFila: (id, idFila) => pegar(id).enviarJaDaFila(idFila),
   estadoComando: (id) => pegar(id).estadoComando(),
   rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),

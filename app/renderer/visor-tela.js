@@ -45,7 +45,7 @@
   const fechar = () => { visor.hidden = true; img.removeAttribute('src'); };
 
   document.addEventListener('click', (ev) => {
-    const alvo = ev.target.closest('.balao-imagens img, .anexo img');
+    const alvo = ev.target.closest('.balao-imagens img, .anexo img, .fila-miniaturas img');
     if (alvo && !ev.target.closest('button')) abrir(alvo.src);
   });
   // Nas notas o clique simples seleciona a imagem para editar; o duplo abre o visor.

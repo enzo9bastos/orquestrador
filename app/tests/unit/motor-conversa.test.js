@@ -326,6 +326,24 @@ test('modelo: opusplan vai como apelido (ao vivo e na subida); Fable é o 5.2; o
   assert.strictEqual(c.info.rapido, false);
 });
 
+// Pedido do usuário em 17/11/2026: a mensagem na fila mostra as miniaturas das prints. O estado
+// que vai à tela a cada atualização leva só a contagem; as imagens saem por um pedido à parte.
+test('fila: as imagens de uma mensagem que espera saem por um pedido à parte (o estado leva só a contagem)', async (t) => {
+  const c = new conversa._Conversa({ id: 'fm1', titulo: 'Conversa com prints' });
+  t.after(() => c.parar());
+  c.mandar('trabalha até parar');
+  await ate(() => c.info.ocupado === true);
+  const a = { tipo: 'image/png', dados: 'QUJD' }, b = { tipo: 'image/jpeg', dados: 'REVG' };
+  const r1 = c.daCaixa('com duas', [a, b]);
+  const r2 = c.daCaixa('sem nenhuma', []);
+  assert.deepStrictEqual(c.info.fila.map((x) => [x.texto, x.imagens]), [['com duas', 2], ['sem nenhuma', 0]]);
+  assert.ok(!JSON.stringify(c.info).includes('QUJD'), 'as imagens não viajam no estado');
+  assert.deepStrictEqual(c.imagensDaFila(r1.naFila), [a, b]);
+  assert.deepStrictEqual(c.imagensDaFila(r2.naFila), []);
+  assert.deepStrictEqual(c.imagensDaFila('nao-existe'), []);
+  assert.deepStrictEqual(conversa.filaImagens ? 'tem' : 'falta', 'tem');
+});
+
 // Visto pelo usuário em 17/11/2026: ele mandou uma mensagem enquanto o Claude escrevia a
 // passada automática (turno que o próprio Claude começou) e o balão dele apareceu no meio da
 // resposta. O app não sabia que o Claude estava ocupado, porque não tinha mandado nada.

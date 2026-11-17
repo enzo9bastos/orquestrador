@@ -393,6 +393,8 @@ ipcMain.handle('conversa:fila', (_e, id, acao, idFila) => {
   if (typeof idFila !== 'string') return false;
   return acao === 'tirar' ? conversa.tirarDaFila(id, idFila) : acao === 'ja' ? conversa.enviarJaDaFila(id, idFila) : false;
 });
+// As imagens de uma mensagem da fila (miniaturas no balão dela).
+ipcMain.handle('conversa:filaImagens', (_e, id, idFila) => (typeof idFila === 'string' ? conversa.filaImagens(id, idFila) : []));
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));
 // Voltar a conversa para antes de uma mensagem: devolve { ok, texto } ou

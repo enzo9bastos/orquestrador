@@ -76,7 +76,7 @@ há terminal para vigiar.
   ao lado do nome do Claude.
 - **Enquanto o Claude trabalha**, uma faixa de atividade acima da caixa diz o que ele faz agora, quantas tarefas
   rodam em segundo plano e quantas mensagens suas esperam, com o **Parar** (<kbd>Esc</kbd>). O <kbd>Enter</kbd> passa
-  a **pôr na fila** (balão tracejado com *Enviar já* e *Tirar*; a fila anda uma mensagem por turno) e o
+  a **pôr na fila** (balão tracejado com *Enviar já* e *Tirar*, mostrando as miniaturas das prints que a mensagem leva; a fila anda uma mensagem por turno) e o
   <kbd>Ctrl</kbd>+<kbd>Enter</kbd> **corrige o rumo**: interrompe e manda aquela mensagem na frente. Se você mesmo
   parar o Claude, a fila espera por você em vez de disparar.
 - **O Esc faz uma coisa por vez**: fecha o que está por cima (um menu, um popup) e só depois interrompe o Claude.

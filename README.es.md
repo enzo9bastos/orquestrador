@@ -79,7 +79,7 @@ que no hay ninguna terminal que vigilar.
   hora junto al nombre de Claude.
 - **Mientras Claude trabaja**, una franja de actividad sobre la caja dice qué hace ahora, cuántas tareas corren en
   segundo plano y cuántos mensajes tuyos esperan, con **Stop** (<kbd>Esc</kbd>). <kbd>Enter</kbd> pasa a **poner en
-  cola** (burbuja punteada con *Send now* y *Remove*; la cola avanza un mensaje por turno) y
+  cola** (burbuja punteada con *Send now* y *Remove*, que muestra las miniaturas de las capturas que lleva; la cola avanza un mensaje por turno) y
   <kbd>Ctrl</kbd>+<kbd>Enter</kbd> **corrige el rumbo**: interrumpe y envía ese mensaje primero. Si tú mismo detienes
   a Claude, la cola te espera en vez de dispararse.
 - **Esc hace una cosa a la vez**: cierra lo que está encima (un menú, un popup) y solo después interrumpe a

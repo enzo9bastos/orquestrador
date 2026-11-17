@@ -1116,10 +1116,14 @@
       d.className = `msg-fila${m.ja ? ' ja' : ''}`;
       d.dataset.fila = m.id;
       const estado = m.ja ? 'vai assim que o motor parar' : i.filaParada ? 'na fila, parada (o motor foi interrompido)' : 'na fila';
-      d.innerHTML = `<div class="balao" data-sem-traducao>${esc(m.texto)}${m.imagens ? ` <span class="fila-imagens">🖼 ${m.imagens}</span>` : ''}</div>
+      // Prints da mensagem: as miniaturas (quantas forem), não um símbolo com a contagem.
+      d.innerHTML = `<div class="balao" data-sem-traducao>${esc(m.texto)}${m.imagens ? `<div class="fila-miniaturas" data-quantas="${Number(m.imagens) || 0}"></div>` : ''}</div>
         <div class="fila-acoes"><span>${estado}</span>${m.ja ? '' : `<button type="button" data-fila-ja="${esc(m.id)}" title="Interrompe o que o motor faz e manda esta mensagem agora (na caixa: Ctrl+Enter)">Enviar já</button>`}<button type="button" data-fila-tirar="${esc(m.id)}" title="Tira da fila sem mandar">Tirar ✕</button></div>`;
       caixa.append(d);
+      if (m.imagens) miniaturasNaFila(d, m);
     }
+    // Miniaturas guardadas de mensagens que já saíram da fila não ficam ocupando memória.
+    for (const id of miniaturasDaFila.keys()) if (!fila.some((m) => m.id === id)) miniaturasDaFila.delete(id);
     const q = $('faixa-fila');
     q.hidden = !fila.length;
     q.innerHTML = `<svg class="ico" viewBox="0 0 16 16"><rect x="2" y="3.5" width="12" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m2.5 4.5 5.5 4 5.5-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span data-sem-traducao>${fila.length}</span> <span>na fila</span>`;
@@ -1129,6 +1133,34 @@
     filaDesenhada = fila.length;
   }
   let filaDesenhada = 0;
+  // Miniaturas das prints de uma mensagem na fila. A fila é redesenhada a cada atualização do
+  // estado, e o estado só traz a contagem: a tela pede as imagens ao motor uma vez por
+  // mensagem e guarda. Enquanto chegam, ficam os quadros vazios do tamanho da miniatura.
+  const miniaturasDaFila = new Map(); // id na fila → [endereço da imagem] ou a promessa em andamento
+  const IMAGEM_ACEITA = /^image\/(png|jpeg|gif|webp)$/;
+  function miniaturasNaFila(d, m) {
+    const pintar = (alvo, urls) => {
+      const n = Number(alvo.dataset.quantas) || urls.length;
+      alvo.innerHTML = Array.from({ length: Math.max(n, urls.length) }, (_, i) => (urls[i] ? `<img src="${urls[i]}" alt="imagem na fila">` : '<span class="nota">[imagem]</span>')).join('');
+    };
+    const alvo = d.querySelector('.fila-miniaturas');
+    const tem = miniaturasDaFila.get(m.id);
+    if (Array.isArray(tem)) { pintar(alvo, tem); return; }
+    alvo.innerHTML = Array.from({ length: Number(m.imagens) || 1 }, () => '<span class="miniatura-espera"></span>').join('');
+    if (!tem) {
+      const conversa = ativa;
+      miniaturasDaFila.set(m.id, Promise.resolve(C.filaImagens ? C.filaImagens(conversa, m.id) : []).then((l) => {
+        const urls = (Array.isArray(l) ? l : []).filter((i) => i && IMAGEM_ACEITA.test(i.tipo) && typeof i.dados === 'string' && /^[A-Za-z0-9+/=]+$/.test(i.dados)).map((i) => `data:${i.tipo};base64,${i.dados}`);
+        miniaturasDaFila.set(m.id, urls);
+        return urls;
+      }).catch(() => { miniaturasDaFila.set(m.id, []); return []; }));
+    }
+    // O balão pode ter sido redesenhado enquanto as imagens vinham: pinta o que estiver na tela agora.
+    Promise.resolve(miniaturasDaFila.get(m.id)).then((urls) => {
+      const vivo = caixa.querySelector(`.msg-fila[data-fila="${CSS.escape(m.id)}"] .fila-miniaturas`);
+      if (vivo && Array.isArray(urls)) pintar(vivo, urls);
+    });
+  }
   // Os balões da fila ficam sempre por último, depois do que o motor for escrevendo.
   const filaNoFim = () => { for (const x of caixa.querySelectorAll('.msg-fila')) caixa.append(x); };
   // Com o motor trabalhando a caixa avisa o que o Enter faz, e o botão de enviar vira "pôr na fila".
