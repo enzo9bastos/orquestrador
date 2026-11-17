@@ -709,6 +709,8 @@
     desenharUso(ctx, i.uso5h == null ? null : i.uso5h, i.uso7d == null ? null : i.uso7d, rotuloLongo);
     desenharFaixa(i);
     desenharModo(i);
+    if (ehOrquestrador()) rodadaAberta = i.rodada === true;
+    desenharRodada();
   }
 
   // --- modelo e esforço (botão da barra) ------------------------------------
@@ -736,7 +738,7 @@
   $('botao-modelo').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const abrir = $('menu-modelo').hidden;
-    fecharMenuUso(); fecharMenuModo();
+    fecharMenuUso(); fecharMenuModo(); fecharMenuMais();
     if (abrir) {
       desenharMenu();
       // Posição fixa na janela: a barra corta o que passa dela (overflow), e o
@@ -758,6 +760,74 @@
     fecharMenu();
   });
   document.addEventListener('click', fecharMenu);
+
+  // --- Iniciar / Desligar e o menu ⋯ ---------------------------------------------
+  // Só na conversa do orquestrador, um por vez na barra: Iniciar antes da
+  // rodada, Desligar com ela aberta (info.rodada). Com a opção "No menu ⋯" das
+  // Configurações os dois saem da barra; o ⋯ do orquestrador tem sempre os dois.
+  let rodadaAberta = false;
+  function desenharRodada() {
+    const orq = ehOrquestrador();
+    const naBarra = cfg.iniciarDesligar !== 'menu';
+    $('iniciar-rodada').hidden = !(orq && cfg.comandoInicial && naBarra && !rodadaAberta);
+    // Sem comando de abrir configurado não há como saber da rodada: o Desligar fica sempre.
+    $('desligar').hidden = !(orq && cfg.comandoDesligar && naBarra && (rodadaAberta || !cfg.comandoInicial));
+  }
+  function iniciarRodada() {
+    if (!cfg.comandoInicial) return;
+    colado = true;
+    pet.definir('pensando');
+    C.mandar('orquestrador', cfg.comandoInicial);
+  }
+  function desligarRodada() {
+    colado = true;
+    if (cfg.comandoDesligar) C.mandar('orquestrador', cfg.comandoDesligar);
+  }
+  function fecharMenuMais() { $('menu-mais').hidden = true; $('chip-mais').setAttribute('aria-expanded', 'false'); }
+  // Cada ação é um comando do "/" que já existe: só entra no menu se a lista de
+  // comandos desta conversa tiver o comando (o Codex mostra os dele).
+  const ACOES_MAIS = [['btw', 'Pergunta rápida…'], ['export', 'Exportar…'], ['config', 'Configurações do Claude Code'], ['permissions', 'Permissões'], ['memory', 'Memória'], ['status', 'Status']];
+  function desenharMenuMais() {
+    const orq = ehOrquestrador();
+    const item = (acao, rotulo, extra = '') => `<button type="button" class="item-menu${extra}" role="menuitem" data-acao="${acao}"><span>${rotulo}</span>${acharComando(acao) ? `<span class="atalho" data-sem-traducao>/${acao}</span>` : ''}</button>`;
+    const rodada = orq ? `${cfg.comandoInicial ? item('iniciar', 'Iniciar a rodada') : ''}${cfg.comandoDesligar ? item('desligar', 'Desligar a rodada', ' perigo') : ''}` : '';
+    const comandos = ACOES_MAIS.filter(([c]) => acharComando(c)).map(([c, r]) => item(c, c === 'config' && infoAtual.motor === 'codex' ? 'Preferências do Codex' : r)).join('');
+    $('menu-mais').innerHTML = `${rodada}${rodada && comandos ? '<div class="menu-separador"></div>' : ''}${comandos}<div id="confirma-mais"></div>`;
+  }
+  $('chip-mais').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const abrir = $('menu-mais').hidden;
+    fecharMenu(); fecharMenuUso(); fecharMenuModo();
+    if (!abrir) { fecharMenuMais(); return; }
+    desenharMenuMais();
+    const r = $('chip-mais').getBoundingClientRect();
+    const m = $('menu-mais');
+    m.hidden = false;
+    m.style.left = `${Math.max(8, Math.min(r.right - m.offsetWidth, innerWidth - m.offsetWidth - 8))}px`;
+    m.style.top = `${r.bottom + 6}px`;
+    $('chip-mais').setAttribute('aria-expanded', 'true');
+  });
+  document.addEventListener('click', fecharMenuMais);
+  $('menu-mais').addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.dataset.cancelar != null) { $('confirma-mais').innerHTML = ''; return; }
+    if (b.dataset.confirmar === 'desligar') { fecharMenuMais(); desligarRodada(); return; }
+    const acao = b.dataset.acao;
+    if (acao === 'desligar') {
+      // Como o botão da barra (que confirma no segundo clique), aqui a confirmação mora no menu.
+      $('confirma-mais').innerHTML = '<div class="menu-confirma"><span><strong>Desligar a rodada?</strong> <span>O orquestrador recebe o comando de desligar e encerra a rodada com segurança.</span></span><div class="acoes"><button type="button" class="botao secundario" data-cancelar>Cancelar</button><button type="button" class="botao perigo" data-confirmar="desligar">Desligar</button></div></div>';
+      $('confirma-mais').querySelector('[data-cancelar]').focus();
+      return;
+    }
+    fecharMenuMais();
+    if (acao === 'iniciar') { iniciarRodada(); return; }
+    // A pergunta rápida precisa do texto: o comando fica pronto na caixa para completar.
+    if (acao === 'btw') { entrada.value = '/btw '; entrada.focus(); entrada.setSelectionRange(5, 5); ajustarAltura(); return; }
+    const comando = acharComando(acao);
+    if (comando && window.orqComandos) await window.orqComandos.executar(comando, '', `/${acao}`);
+  });
 
   // --- modo de permissão (chip da barra) ---------------------------------------
   // O chip mostra o modo que o Claude confirmou (info.modo, vindo do
@@ -809,7 +879,7 @@
       <p class="menu-nota"><span>Ctrl+Shift+M troca</span>${cfg.shiftTabTrocaModo === false ? '' : '<span> · Shift+Tab com a caixa vazia</span>'}</p>`;
   }
   function abrirMenuModo() {
-    fecharMenu(); fecharMenuUso();
+    fecharMenu(); fecharMenuUso(); fecharMenuMais();
     desenharMenuModo();
     const r = $('chip-modo').getBoundingClientRect();
     const m = $('menu-modo');
@@ -868,7 +938,7 @@
   $('chip-uso').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const abrir = $('menu-uso').hidden;
-    fecharMenu(); fecharMenuModo();
+    fecharMenu(); fecharMenuModo(); fecharMenuMais();
     if (!abrir) { fecharMenuUso(); return; }
     const r = $('chip-uso').getBoundingClientRect();
     const m = $('menu-uso');
@@ -1096,8 +1166,7 @@
     const atual = l.find((c) => c.id === ativa);
     const aba = document.querySelector('[data-aba="aba-orquestrador"]');
     aba.lastChild.textContent = atual && !atual.orquestrador ? curto(atual.titulo, 24) : 'Orquestrador';
-    $('iniciar-rodada').hidden = !(atual && atual.orquestrador && cfg.comandoInicial);
-    $('desligar').hidden = !(atual && atual.orquestrador && cfg.comandoDesligar);
+    desenharRodada();
     $('palco-pet').hidden = !!(atual && !atual.orquestrador);
     try { desenharAprovacoes(); } catch { /* ainda carregando a tela */ }
     $('entrada').placeholder = atual && !atual.orquestrador
@@ -1571,16 +1640,8 @@
   $('corrigindo-voltar').addEventListener('click', () => voltaPedida && voltarPara(voltaPedida));
   $('corrigindo-cancelar').addEventListener('click', fecharVolta);
   // A rodada não começa sozinha ao abrir o app: começa aqui.
-  $('iniciar-rodada').addEventListener('click', () => {
-    if (!cfg.comandoInicial) return;
-    colado = true;
-    pet.definir('pensando');
-    C.mandar('orquestrador', cfg.comandoInicial);
-  });
-  $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', () => {
-    colado = true;
-    if (cfg.comandoDesligar) C.mandar('orquestrador', cfg.comandoDesligar);
-  }));
+  $('iniciar-rodada').addEventListener('click', iniciarRodada);
+  $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', desligarRodada));
   $('nova-conversa').addEventListener('click', async () => trocar(await C.nova()));
 
   // Configuração mudada na engrenagem: vale na hora (bichinho, comandos).

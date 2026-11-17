@@ -17,6 +17,8 @@ const PADRAO = {
   // Conversa: o modo "sem perguntas" (Bypass) só aparece se ligado aqui, e só
   // nas conversas avulsas; Shift+Tab com a caixa vazia troca o modo de permissão.
   mostrarBypass: false,
+  // Iniciar e Desligar: 'barra' (um botão na barra da conversa) ou 'menu' (dentro do ⋯).
+  iniciarDesligar: 'barra',
   shiftTabTrocaModo: true,
   // Colunas laterais (agentes à esquerda, demandas à direita) por aba:
   // { "aba-notas": { "agentes": false, "demandas": true } }. Aba que não está
@@ -190,6 +192,7 @@ function validar(m) {
       case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
       case 'mostrarBypass': case 'shiftTabTrocaModo': aceitar(k, typeof v === 'boolean', v); break;
+      case 'iniciarDesligar': aceitar(k, ['barra', 'menu'].includes(v), v); break;
       case 'atalhosColunas': aceitar(k, atalhosColunasOk(v), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;
       case 'notificacoes': aceitar(k, !!v && typeof v === 'object', () => ({ pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false })); break;

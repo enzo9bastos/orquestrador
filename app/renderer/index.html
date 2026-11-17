@@ -111,6 +111,10 @@
               <p class="menu-nota">O anel do botão mostra o contexto desta conversa. Se a janela de 5 horas ou a longa passar de 80%, o botão avisa com o número.</p>
             </div>
           </span>
+          <span class="seletor-modelo">
+            <button id="chip-mais" class="chip botao-chip chip-mais" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-mais" title="Mais ações desta conversa" aria-label="Mais ações desta conversa">⋯</button>
+            <div id="menu-mais" class="menu-modelo menu-mais" role="menu" aria-label="Mais ações desta conversa" hidden></div>
+          </span>
           <button id="iniciar-rodada" class="botao-texto iniciar-rodada" type="button" title="Manda o comando que abre a rodada ao orquestrador"><span class="rotulo-botao">Iniciar</span><svg class="ico so-icone" viewBox="0 0 16 16"><path d="M5 3.2v9.6L12.5 8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
           <button id="desligar" class="botao-texto perigo" type="button" title="Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança"><span class="rotulo-botao">Desligar</span><svg class="ico so-icone" viewBox="0 0 16 16"><path d="M8 2.5v5M4.6 4.6a4.8 4.8 0 1 0 6.8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
           <button id="nova-conversa" class="botao-texto sem-margem" type="button" title="Abre outra conversa com o Claude ao lado do orquestrador">+<span class="rotulo-botao"> Nova conversa</span></button>
@@ -422,6 +426,12 @@
             <div class="config-linha">
               <div><strong>Comando que encerra a rodada</strong><span>O botão Desligar manda este comando. Vazio: sem botão.</span></div>
               <input class="campo-config" data-cfg="comandoDesligar" placeholder="/desligar">
+            </div>
+            <div class="config-linha">
+              <div><strong>Botão Iniciar / Desligar</strong><span>Na barra da conversa do orquestrador (um por vez: Iniciar antes da rodada, Desligar com ela aberta) ou dentro do menu ⋯. O menu ⋯ tem sempre os dois.</span></div>
+              <div class="segmentado" id="config-iniciar-desligar">
+                <button type="button" data-v="barra">Na barra</button><button type="button" data-v="menu">No menu ⋯</button>
+              </div>
             </div>
             <div class="config-linha">
               <div><strong>Reiniciar o app</strong><span>Aplica as atualizações. As conversas continuam de onde pararam, com toda a memória; só uma resposta em andamento é interrompida.</span></div>

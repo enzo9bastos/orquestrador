@@ -358,6 +358,13 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .menu-confirma .acoes { display: flex; justify-content: flex-end; gap: 6px; }
 .menu-confirma .botao { height: 26px; padding: 0 10px; font-size: 12px; }
 .so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Menu ⋯ da barra. */
+.chip-mais { font: 600 14px/1 var(--sans); padding: 0 8px; letter-spacing: .04em; }
+.menu-modelo.menu-mais { width: 280px; }
+.menu-mais .item-menu { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 28px; padding: 5px 8px; border-radius: var(--r-sm); color: var(--fg-2); text-align: left; font-size: 12.5px; }
+.menu-mais .item-menu:hover { background: var(--painel-hover); color: var(--fg); }
+.menu-mais .item-menu.perigo:hover { color: var(--perigo); }
+.menu-mais .item-menu .atalho { margin-left: auto; font: 10.5px var(--mono); color: var(--fg-4); }
 /* Bypass ligado: faixa fixa e vermelha em cima da conversa. */
 .faixa-bypass { display: flex; align-items: center; gap: 10px; padding: 6px 16px; background: color-mix(in srgb, var(--perigo) 18%, var(--bg)); border-bottom: 1px solid color-mix(in srgb, var(--perigo) 55%, transparent); color: var(--fg); font-size: 12.5px; }
 .faixa-bypass[hidden] { display: none; }

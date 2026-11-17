@@ -270,7 +270,7 @@ function comandosLocais() {
 }
 
 class Conversa {
-  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null }) {
+  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null, rodada = false }) {
     // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
     // orquestrador segue a "IA do orquestrador" da configuração; trocar de
     // motor guarda a conversa do anterior em sessoesMotor e retoma a do novo.
@@ -284,6 +284,9 @@ class Conversa {
     this.esforco = esforco;
     // Modo de permissão vivo (o que o Claude disse no init ou no system/status).
     this.modo = typeof modo === 'string' && /^\w+$/.test(modo) ? modo : null;
+    // Rodada aberta (só o orquestrador): abre com o comando da rodada, fecha no
+    // fim dela. A barra mostra Iniciar OU Desligar conforme isto.
+    this.rodada = orquestrador && rodada === true;
     this.pedidoModelo = null;  // set_model enviado e ainda sem resposta: { id, chave, ts }
     this.modeloDepois = undefined; // troca pedida enquanto outra esperava resposta
     this.pedidosEsforco = new Set(); // apply_flag_settings ainda sem resposta
@@ -311,7 +314,7 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rotuloLongo: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rotuloLongo: null, ocupado: false };
   }
 
   // O orquestrador segue a IA escolhida na configuração. Só troca parado:
@@ -508,6 +511,7 @@ class Conversa {
         // limpa e fica a divisória; a sessão nova chega pelo init.
         this.eventos = [];
         this.pendentes.clear();
+        this.marcarRodada(false); // conversa limpa: o que a rodada tinha carregado não está mais no contexto
         this.registrar({ tipo: 'limpa' });
         this.enviar('conversa:tudo', this.estado());
         avisarLista();
@@ -691,6 +695,9 @@ class Conversa {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
+    // Comando que abre a rodada (pelo botão ou digitado): a rodada passa a estar aberta.
+    const inicial = config.ler().comandoInicial;
+    if (this.orquestrador && inicial && texto.trim().split(/\s/)[0] === inicial) this.marcarRodada(true);
     // Mensagem de workflow, de tópico aprovado/recusado ou recado de agente (por trás): a
     // resposta não vira notificação.
     this.bastidor = /^<orq-(workflow|topico|recado) /.test(texto);
@@ -896,6 +903,13 @@ class Conversa {
     this.registrar({ tipo: 'limpa' });
   }
 
+  marcarRodada(aberta) {
+    if (!this.orquestrador || this.rodada === !!aberta) return;
+    this.rodada = !!aberta; this.info.rodada = this.rodada;
+    gravarLista();
+    this.avisarInfo();
+  }
+
   guardarModo(m) {
     if (typeof m !== 'string' || !/^\w+$/.test(m)) return;
     // A tela (chip de modo) mostra o que o Claude confirmou.
@@ -925,6 +939,7 @@ class Conversa {
   // próxima abertura o orquestrador começa uma conversa nova (e a rodada, no
   // botão Iniciar) em vez de retomar esta. A conversa continua no histórico do Claude.
   encerrar() {
+    this.rodada = false; this.info.rodada = false; // a rodada acabou com a sessão
     if (this.sessao) { this.anteriores = [...(this.anteriores || []), this.sessao].slice(-20); this.sessao = null; }
     if (this.proc) { this.proc.encerrando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
     this.info.ocupado = false; this.info.contexto = null;
@@ -963,7 +978,7 @@ class Conversa {
 function gravarLista() {
   fs.mkdirSync(CACHE, { recursive: true });
   const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined, modo: c.modo && c.modo !== MODO_APP ? c.modo : undefined,
-    rapido: c.rapido !== null ? c.rapido : undefined, pastasExtras: c.pastasExtras.length ? c.pastasExtras : undefined, forkDe: c.forkDe || undefined }));
+    rapido: c.rapido !== null ? c.rapido : undefined, pastasExtras: c.pastasExtras.length ? c.pastasExtras : undefined, forkDe: c.forkDe || undefined, rodada: c.rodada || undefined }));
   fs.writeFileSync(ARQ_LISTA, JSON.stringify(lista, null, 2) + '\n');
 }
 

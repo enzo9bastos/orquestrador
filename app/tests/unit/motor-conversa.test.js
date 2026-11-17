@@ -261,6 +261,33 @@ test('modo: Bypass nunca no orquestrador; na avulsa só com a opção das Config
   await assert.rejects(() => c.definirModo('bypassPermissions'), /desligado nas Configurações/);
 });
 
+// Plano 1.1 (Iniciar e Desligar, um por vez): a conversa do orquestrador sabe
+// se a rodada está aberta. Abre com o comando da rodada (botão ou digitado) e
+// fecha quando a rodada termina (Desligar) ou a conversa é limpa.
+test('rodada: o comando que abre a rodada marca só o orquestrador; o fim da rodada desmarca; a marca volta ao reabrir o app', async (t) => {
+  const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
+  const base = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+  fs.writeFileSync(cfg, JSON.stringify({ ...base, comandoInicial: '/rodada', comandoDesligar: '/fim' }));
+  const orq = new conversa._Conversa({ id: 'rd-orq', titulo: 'Orquestrador', orquestrador: true });
+  const c = new conversa._Conversa({ id: 'rd-c', titulo: 'Conversa 9' });
+  t.after(() => { fs.writeFileSync(cfg, JSON.stringify(base)); orq.parar(); c.parar(); });
+  assert.strictEqual(orq.info.rodada, false);
+  orq.mandar('uma mensagem qualquer');
+  await ate(() => turnos(orq) === 1);
+  assert.strictEqual(orq.info.rodada, false, 'mensagem comum não abre a rodada');
+  orq.mandar('/rodada agora');
+  assert.strictEqual(orq.info.rodada, true, 'vale também digitado, com argumento');
+  c.mandar('/rodada');
+  assert.strictEqual(c.info.rodada, false, 'conversa avulsa não tem rodada');
+  await ate(() => turnos(orq) === 2);
+  // Reabrindo o app com a rodada aberta: a conversa guardada volta marcada.
+  assert.strictEqual(new conversa._Conversa({ id: 'rd-volta', titulo: 'Orquestrador', orquestrador: true, rodada: true }).info.rodada, true);
+  assert.strictEqual(new conversa._Conversa({ id: 'rd-volta2', titulo: 'Conversa 10', rodada: true }).info.rodada, false);
+  // Desligar: quando o orquestrador termina a resposta, a rodada acaba.
+  orq.mandar('/fim');
+  await ate(() => orq.info.rodada === false);
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });
