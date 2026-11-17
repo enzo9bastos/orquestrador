@@ -786,7 +786,7 @@
       ${l('Trazer de volta a mensagem anterior (caixa vazia)', teclas('↑'))}
       ${l('Buscar nesta conversa', teclas('Ctrl+F'))}
       <h4>Na caixa de texto</h4>
-      ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar nota ou workflow', teclas('@'))}
+      ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar arquivo, nota ou workflow', teclas('@'))}
       ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
       <h4>No app</h4>
       ${l('Paleta de comandos', teclas('Ctrl+K'))}${l('Esta lista', teclas('Ctrl+/'))}
@@ -1557,6 +1557,46 @@
       { rotulo: '@workflow:', desc: 'Mencionar um workflow', origem: 'menção', inserir: '@workflow:', chave: 'workflow', continuar: true },
     ];
   }
+  // "@" solto: os arquivos da pasta da conversa (pedidos ao Claude: os mesmos que o
+  // terminal mostra), as notas e os workflows, em grupos de até 6.
+  const POR_GRUPO = 6;
+  const arquivosPor = new Map(); // busca → caminhos, só da conversa que está na tela
+  let arquivosDe = null, seqArquivos = 0, tArquivos = null, pedindoArquivos = null, dispensada = null;
+  function pedirArquivos(b) {
+    if (!window.orq.conversa.arquivos || conversaCodex() || infoAtual.ocupado) return;
+    if (arquivosDe !== ativa) { arquivosDe = ativa; arquivosPor.clear(); }
+    if (arquivosPor.has(b) || pedindoArquivos === b) return;
+    clearTimeout(tArquivos);
+    // 150 ms depois da última tecla; cada pedido leva um número, e resposta de
+    // pedido antigo não redesenha a lista (só fica guardada para a busca dela).
+    tArquivos = setTimeout(async () => {
+      const seq = ++seqArquivos;
+      const conv = ativa;
+      pedindoArquivos = b;
+      let r = null;
+      try { r = await window.orq.conversa.arquivos(conv, b); } catch { /* sem arquivos desta vez */ }
+      if (pedindoArquivos === b) pedindoArquivos = null;
+      const lista = r && Array.isArray(r.arquivos) ? r.arquivos.map((a) => a.caminho) : [];
+      // Vazio não fica guardado: o Claude leva alguns segundos para indexar a pasta.
+      if (!lista.length || conv !== ativa) return;
+      arquivosPor.set(b, lista);
+      if (arquivosPor.size > 200) arquivosPor.delete(arquivosPor.keys().next().value);
+      if (seq !== seqArquivos || dispensada === entrada.value) return;
+      atualizarSugestoes();
+    }, 150);
+  }
+  function itensDoArroba(b) {
+    const arquivos = infoAtual.ocupado || arquivosDe !== ativa ? [] : (arquivosPor.get(b) || []);
+    const com = (grupo) => (x) => ({ ...x, grupo });
+    return [
+      // O Claude já escolheu o que casa (busca aproximada): estes não passam pelo filtro da lista.
+      ...arquivos.map((p) => ({ rotulo: `@${p}`, desc: p.endsWith('/') ? 'pasta' : '', origem: '', inserir: `@${aspas(p)}`, chave: p, grupo: 'Arquivos', semFiltro: true, continuar: p.endsWith('/') })),
+      ...(b ? itensMencao('nota') : []).map(com('Notas')),
+      com('Notas')(itensMencao('')[0]),
+      ...(b ? itensMencao('workflow') : []).map(com('Workflows')),
+      com('Workflows')(itensMencao('')[1]),
+    ];
+  }
   let faixaToken = null; // [início, fim] do que a sugestão vai substituir
   function atualizarSugestoes() {
     const ate = entrada.value.slice(0, entrada.selectionStart ?? entrada.value.length);
@@ -1568,7 +1608,7 @@
       if (tok.startsWith('//')) { busca = tok.slice(2); itens = itensRepertorio(); if (!repertorioEm) carregarRepertorio().then(atualizarSugestoes); }
       else if (tok.startsWith('@nota:')) { busca = tok.slice(6).replace(/^"/, ''); itens = itensMencao('nota'); }
       else if (tok.startsWith('@workflow:')) { busca = tok.slice(10).replace(/^"/, ''); itens = itensMencao('workflow'); if (!itens.length) itens = [{ rotulo: 'Nenhum workflow ainda', desc: 'Crie um na aba Workflows', origem: '', inserir: tok, chave: '' }]; }
-      else { busca = tok.slice(1); itens = itensMencao(''); }
+      else { busca = tok.slice(1); itens = itensDoArroba(busca); pedirArquivos(busca); }
     } else {
       const c = entrada.value.match(/^\/(\S*)$/);
       if (!c) return fecharSugestoes();
@@ -1576,11 +1616,16 @@
       busca = c[1]; itens = comandosDaConversa();
     }
     const b = busca.toLowerCase();
-    const comecaCom = (x) => x.chave.toLowerCase().startsWith(b) || (x.aliases || []).some((a) => a.toLowerCase().startsWith(b));
+    const comecaCom = (x) => x.semFiltro || x.chave.toLowerCase().startsWith(b) || (x.aliases || []).some((a) => a.toLowerCase().startsWith(b));
     const comeca = itens.filter(comecaCom);
     const contem = itens.filter((x) => !comecaCom(x) && (x.chave + ' ' + (x.desc || '')).toLowerCase().includes(b));
     // /exit sempre por último (e nunca cortado da lista).
-    const achados = [...comeca, ...contem];
+    let achados = [...comeca, ...contem];
+    // Lista em grupos (o "@"): cada grupo junto, na ordem em que aparece, com até 6 itens.
+    if (achados.some((x) => x.grupo)) {
+      const nomes = [...new Set(itens.map((x) => x.grupo))];
+      achados = nomes.flatMap((g) => achados.filter((x) => x.grupo === g).slice(0, POR_GRUPO));
+    }
     const sair = achados.filter(ehExit);
     const bons = achados.filter((x) => !ehExit(x));
     sugestoes = [...bons.slice(0, 400 - sair.length), ...sair];
@@ -1588,7 +1633,7 @@
     // Sem o usuário ter andado com as setas, a seleção é a primeira que não
     // é o /exit (só o /exit na lista: nada selecionado).
     escolhida = navegou ? Math.min(escolhida, sugestoes.length - 1) : sugestoes.findIndex((x) => !ehExit(x));
-    $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
+    $('sugestoes').innerHTML = sugestoes.map((c, i) => `${c.grupo && (i === 0 || sugestoes[i - 1].grupo !== c.grupo) ? `<li class="grupo-sugestao" role="presentation">${esc(c.grupo)}</li>` : ''}<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
       <span class="nome-comando">${esc(c.rotulo)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
       <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
     $('sugestoes').hidden = false;
@@ -1715,6 +1760,7 @@
       if (!c || (ev.key === 'Enter' && ehExit(c))) return;
       completar(escolhida);
     } else if (ev.key === 'Escape') {
+      dispensada = entrada.value; // a lista fechada à mão não reabre quando os arquivos chegam
       fecharSugestoes();
     }
   });

@@ -91,6 +91,9 @@ que no hay ninguna terminal que vigilar.
 - **`/exit` termina solo esa conversación**: la sesión queda guardada, la pantalla se limpia, el siguiente mensaje
   empieza una sesión nueva y *Go back to the previous session* lo deshace. La app se cierra con el botón de cerrar
   de la ventana.
+- **`@` con archivos**: escribir `@` en la caja sugiere los archivos de la carpeta de la conversación (los mismos
+  que Claude Code muestra en la terminal), además de notas y workflows. El archivo elegido va adjunto al mensaje.
+  Mientras Claude trabaja, `@` muestra solo notas y workflows.
 - **Copiar la respuesta**: cada respuesta tiene un botón que copia su texto en Markdown, sin las líneas de
   herramienta (lo mismo que `/copy`). En la última respuesta queda siempre a la vista.
 - **Buscar en la conversación** (Ctrl+F): marca lo encontrado solo en los mensajes de esa conversación; Enter y

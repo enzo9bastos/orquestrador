@@ -744,6 +744,9 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .sugestoes li[aria-selected="true"], .sugestoes li:hover { background: var(--claude-suave); }
 .nome-comando { font: 500 12.5px var(--mono); color: var(--fg); white-space: nowrap; }
 .nome-comando i { font-style: normal; color: var(--fg-4); }
+/* Cabeçalho de grupo na lista do "@" (Arquivos, Notas, Workflows): não se escolhe. */
+.sugestoes li.grupo-sugestao { display: block; padding: 6px 10px 2px; font: 600 10.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-4); cursor: default; }
+.sugestoes li.grupo-sugestao:hover { background: transparent; }
 .sugestoes li[aria-selected="true"] .nome-comando { color: var(--claude); }
 .desc-comando { font-size: 12px; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saida-comando { align-self: stretch; margin: 0; padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--borda); background: var(--bg-afundado); font: 12px/1.55 var(--mono); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }

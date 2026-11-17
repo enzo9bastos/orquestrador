@@ -186,6 +186,21 @@ leitor.on('line', (l) => {
       if (typeof r.user_message_id !== 'string') return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'rewind_files: user_message_id must be a string' } });
       return responde(d, { canRewind: true, filesChanged: ['app/x.js'], insertions: 3, deletions: 1 });
     }
+    if (r.subtype === 'file_suggestions' && !process.env.CLAUDE_FALSO_SEM_CONTROLES) {
+      // Como o real (2.1.326): busca vazia = o que está na raiz; senão o que casa com o
+      // caminho; { suggestions: [{ path }], cwd }. Pasta termina com a barra.
+      // "lixo" e "muitos" devolvem respostas tortas, para o app provar que confere.
+      // $CLAUDE_FALSO_ARQUIVOS_LENTO="e:700": a busca "e" demora 700 ms (resposta velha).
+      const ARQ = ['src/', 'src/botao.css', 'src/botao.test.js', 'src/pedidos/exportar.js', 'LEIAME.md', 'docs/', ...Array.from({ length: 8 }, (_, i) => `docs/guia-${i + 1}.md`)];
+      const q = String(r.query || '').toLowerCase();
+      const lista = q === 'lixo' ? [{ path: 5 }, { path: 'a\nb' }, { path: '' }, null, 'solto', { path: 'bom.txt' }]
+        : q === 'muitos' ? Array.from({ length: 80 }, (_, i) => ({ path: `muitos/arquivo-${i + 1}.txt` }))
+          : (!q ? ARQ.filter((p) => !p.replace(/\/$/, '').includes('/')) : ARQ.filter((p) => p.toLowerCase().includes(q))).map((p) => ({ path: p, score: 1 }));
+      const resposta = { suggestions: lista, cwd: process.cwd() };
+      const lento = /^(.+):(\d+)$/.exec(process.env.CLAUDE_FALSO_ARQUIVOS_LENTO || '');
+      if (lento && lento[1] === q) return setTimeout(() => responde(d, resposta), Number(lento[2]));
+      return responde(d, resposta);
+    }
     if (CONTROLES[r.subtype]) {
       if (process.env.CLAUDE_FALSO_SEM_CONTROLES) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: `Unsupported control request subtype: ${r.subtype}` } });
       return responde(d, CONTROLES[r.subtype](r));

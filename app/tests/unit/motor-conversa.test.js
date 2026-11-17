@@ -532,6 +532,40 @@ test('B4 (Codex): steer e turn/start recusados devolvem o texto à caixa e não 
   assert.strictEqual(c.info.ocupado, true, 'o turno ainda está ativo');
 });
 
+// Plano 4.3 (C11): o "@" da caixa pede ao Claude os arquivos que casam com o que foi
+// digitado (file_suggestions, o mesmo que o terminal mostra). Só com a conversa aberta
+// e parada, e o que o Claude devolve é conferido antes de ir para a tela.
+test('4.3: sugestão de arquivos do "@": só parada e aberta; resposta conferida e limitada', async (t) => {
+  const c = new conversa._Conversa({ id: 'arq1', titulo: 'Conversa de arquivos' });
+  t.after(() => c.parar());
+  const pedidos = () => recebidos().filter((x) => x.type === 'control_request' && x.request && x.request.subtype === 'file_suggestions').length;
+  const antes = pedidos();
+  // Fechada: não sobe o Claude só para autocompletar.
+  assert.deepStrictEqual(await c.sugerirArquivos('bot'), { arquivos: [] });
+  assert.strictEqual(c.proc, null);
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1 && !c.info.ocupado);
+  const r = await c.sugerirArquivos('bot');
+  assert.deepStrictEqual(r.arquivos, [{ caminho: 'src/botao.css' }, { caminho: 'src/botao.test.js' }]);
+  assert.strictEqual(typeof r.cwd, 'string');
+  assert.deepStrictEqual((await c.sugerirArquivos('')).arquivos.map((a) => a.caminho), ['src/', 'LEIAME.md', 'docs/'], 'busca vazia: o que está na raiz');
+  // O que não é caminho de verdade fica fora; no máximo 50.
+  assert.deepStrictEqual((await c.sugerirArquivos('lixo')).arquivos, [{ caminho: 'bom.txt' }]);
+  assert.strictEqual((await c.sugerirArquivos('muitos')).arquivos.length, 50);
+  // Trabalhando: nada é pedido ao Claude no meio do turno.
+  const feitos = pedidos();
+  assert.strictEqual(feitos - antes, 4);
+  c.mandar('trabalha até parar');
+  await ate(() => c.info.ocupado && c.eventos.some((e) => e.tipo === 'assistant' && JSON.stringify(e.message).includes('começando')));
+  assert.deepStrictEqual(await c.sugerirArquivos('bot'), { arquivos: [] });
+  await espera(200);
+  assert.strictEqual(pedidos(), feitos, 'com o motor ocupado não sai pedido');
+  // Conversa do Codex: por enquanto sem arquivos no "@".
+  const x = new conversa._Conversa({ id: 'arq2', titulo: 'X', motor: 'codex' });
+  assert.deepStrictEqual(await x.sugerirArquivos('bot'), { arquivos: [] });
+  assert.strictEqual(x.proc || null, null);
+});
+
 // Plano 8.8 (X8): o Codex recusa abrir a conversa com a política do app (uma organização
 // pode limitar as políticas permitidas). O app falha fechado: não abre, não tenta outra
 // política, diz por quê, devolve o texto à caixa e não fica preso em "trabalhando".

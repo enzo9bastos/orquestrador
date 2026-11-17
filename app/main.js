@@ -416,6 +416,8 @@ ipcMain.handle('cmd:controle', seguro((id, subtype, extra = {}) => {
   if (subtype === 'set_permission_mode' && !conversa.MODOS_DO_CHIP.includes(extra && extra.mode)) throw new Error('modo não liberado por este caminho');
   return conversa.controle(id, subtype, extra && typeof extra === 'object' ? extra : {}, subtype === 'side_question' ? 120000 : 20000);
 }));
+// "@" da caixa: arquivos sugeridos pelo Claude (só leitura; só com a conversa aberta e parada).
+ipcMain.handle('conversa:arquivos', seguro((id, consulta) => conversa.sugerirArquivos(id, typeof consulta === 'string' ? consulta : '')));
 // Chip de modo: troca ao vivo; erro (ex.: Bypass onde não pode) volta como { erro }.
 ipcMain.handle('conversa:modo', seguro(async (id, modo) => { await conversa.definirModo(id, modo); return { ok: true }; }));
 ipcMain.handle('cmd:codex', seguro((id, metodo, params = {}) => {
