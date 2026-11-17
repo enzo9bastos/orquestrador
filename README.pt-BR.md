@@ -91,6 +91,9 @@ há terminal para vigiar.
   esta conversa, que é o padrão e não grava nada, este projeto ou todos; o cartão mostra a regra, o arquivo e como
   desfazer) e *Negar…*, dizendo o que fazer em vez disso. O motivo da pergunta fica à vista. Docker, ssh, rede,
   apagar e `git push` nunca ganham "sempre". Com o cartão em foco, as teclas 1, 2 e 3 respondem.
+- **Servidor MCP pedindo um dado**: vira um cartão que diz qual servidor pede e o quê, com o formulário dele (campo
+  de segredo mascarado) e as saídas *Enviar*, *Recusar* e *Cancelar o pedido*; quando o servidor pede para abrir uma
+  página, o cartão mostra o site antes.
 - **Cartão do plano**: quando o Claude termina de planejar, o plano aparece formatado, com três saídas (*Aprovar e
   seguir em Auto*, *Aprovar e perguntar a cada mudança*, *Continuar planejando…*) e *Editar o plano* para mudar o
   texto antes de aprovar. Respondido, recolhe numa linha com *Ver o plano*.

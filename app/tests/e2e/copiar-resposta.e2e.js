@@ -38,6 +38,11 @@ test('copiar a resposta', async (t) => {
   });
 
   await t.test('na última resposta fica sempre à vista; nas outras, só com o mouse em cima', async () => {
+    // O ponteiro vai para cima da caixa de texto: com vários apps de teste na mesma tela
+    // virtual ele podia estar sobre uma resposta, e o botão dela aparece (falhou assim uma vez).
+    const caixa = await app.avaliar("(() => { const b = document.getElementById('entrada').getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()");
+    await app.mouse('mouseMoved', caixa.x, caixa.y);
+    await app.espera(200);
     const opacidade = (g) => app.avaliar(`getComputedStyle(${grupos}[${g}].querySelector('.copiar-resposta')).opacity`);
     const n = await app.avaliar(`${grupos}.length`);
     assert.strictEqual(await opacidade(n - 1), '1');

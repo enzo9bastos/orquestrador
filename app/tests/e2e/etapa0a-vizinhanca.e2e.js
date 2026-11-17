@@ -37,7 +37,7 @@ require('readline').createInterface({ input: process.stdin }).on('line', (l) => 
   const t = typeof d.message.content === 'string' ? d.message.content : JSON.stringify(d.message.content);
   if (t.includes('PERGUNTA')) sai({ type: 'control_request', request_id: 'cf-q' + (++n), request: { subtype: 'can_use_tool', tool_name: 'AskUserQuestion',
     input: { questions: [{ header: 'Cor', question: 'Qual cor?', multiSelect: false, options: [{ label: 'Azul', description: '' }, { label: 'Verde', description: '' }] }] } } });
-  else if (t.includes('ELICIT')) sai({ type: 'control_request', request_id: 'cf-e' + (++n), request: { subtype: 'elicitation', mcp_server_name: 'x', message: 'Digite a senha' } });
+  else if (t.includes('ELICIT')) sai({ type: 'control_request', request_id: 'cf-e' + (++n), request: { subtype: 'request_user_dialog', dialog_kind: 'x' } });
   else sai({ type: 'result', is_error: false, result: 'ok', duration_ms: 1, modelUsage: {} });
 });
 `, { mode: 0o755 });

@@ -88,6 +88,9 @@ protocol), so there is no terminal to babysit.
   conversation only, which is the default and writes nothing, this project, or all; the card shows the rule, the
   file and how to undo it) and *Deny…*, saying what to do instead. The reason for asking is shown. Docker, ssh,
   network, deletion and `git push` never get "always". With the card focused, keys 1, 2 and 3 answer.
+- **An MCP server asking for information**: becomes a card that says which server asks and for what, with its form
+  (secret fields masked) and the answers *Send*, *Decline* and *Cancel the request*; when the server asks to open a
+  page, the card shows the site first.
 - **Plan card**: when Claude finishes planning, the plan shows up formatted, with three answers (*Approve and
   continue in Auto*, *Approve and ask before each change*, *Keep planning…*) and *Edit the plan* to change the text
   before approving. Once answered it folds into one line with *See the plan*.

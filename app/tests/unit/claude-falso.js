@@ -245,6 +245,27 @@ leitor.on('line', (l) => {
     texto('tarefa de fundo começou');
     return fim();
   }
+  // Pedido de um tipo que o app não atende (existe no Claude 2.1.326; o app não tem tela para ele).
+  if (t === 'pede algo que o app não atende') {
+    esperando.set('nd-1', (r) => { texto(r.subtype === 'error' ? 'seguiu sem o pedido' : 'recebeu o pedido'); fim(); });
+    sai({ type: 'control_request', request_id: 'nd-1', request: { subtype: 'request_user_dialog', dialog_kind: 'falso' } });
+    return;
+  }
+  // Pedido de dado de um servidor MCP (forma do 2.1.326): formulário, página ou formulário torto.
+  m = /^pede dado do MCP( por página| torto)?$/.exec(t);
+  if (m) {
+    const id = `el-${Date.now().toString(36)}`;
+    const pedido = { subtype: 'elicitation', mcp_server_name: 'cofre-da-equipe', message: 'Informe o código para liberar a consulta.' };
+    if (m[1] === ' por página') Object.assign(pedido, { mode: 'url', url: 'https://contas.exemplo.com/autorizar?cliente=agenda' });
+    else if (m[1] === ' torto') Object.assign(pedido, { mode: 'form', requested_schema: { type: 'object', required: ['lista'], properties: { lista: { type: 'array' } } } });
+    else Object.assign(pedido, { mode: 'form', property_order: ['codigo', 'ambiente'], requested_schema: { type: 'object', required: ['codigo'], properties: {
+      ambiente: { type: 'string', title: 'Ambiente', enum: ['homologacao', 'producao'], enumNames: ['Homologação', 'Produção'] },
+      codigo: { type: 'string', title: 'Código de verificação', minLength: 6, maxLength: 6 } } } });
+    // Só a ação volta em texto: o conteúdo (pode ter segredo) fica só no log do falso.
+    esperando.set(id, (r) => { texto(`resposta ao pedido de dado: ${r.subtype === 'error' ? 'erro' : r.response.action}`); fim(); });
+    sai({ type: 'control_request', request_id: id, request: pedido });
+    return;
+  }
   if (t === 'pede elicitation') {
     esperando.set('el-1', (r) => { texto(r.subtype === 'error' ? 'seguiu sem a elicitação' : 'recebeu a elicitação'); fim(); });
     sai({ type: 'control_request', request_id: 'el-1', request: { subtype: 'elicitation', mcp_server_name: 'falso', message: 'Digite o token' } });

@@ -307,7 +307,7 @@ const respostasA = (escritos, reqId) => escritos.filter((o) => o.type === 'contr
 test('0.A5 pedido de controle de tipo estranho (ou sem request) recebe erro na hora e não fica pendente', () => {
   const { c, escritos } = conversaComProcFalso('a5-estranho');
   c.info.ocupado = true;
-  for (const [rid, request] of [['r-elic', { subtype: 'elicitation', message: 'senha?' }], ['r-nada', { subtype: 'xyz_futuro' }], ['r-semsub', {}], ['r-null', null]]) {
+  for (const [rid, request] of [['r-dialogo', { subtype: 'request_user_dialog', dialog_kind: 'x' }], ['r-nada', { subtype: 'xyz_futuro' }], ['r-semsub', {}], ['r-null', null]]) {
     c.tratar({ type: 'control_request', request_id: rid, request });
     const r = respostasA(escritos, rid);
     assert.strictEqual(r.length, 1, `${rid}: nenhuma resposta (a conversa trava esperando)`);

@@ -734,6 +734,60 @@ test('2.3: plano pronto: aprovar leva o modo escolhido (e o plano editado); cont
   assert.deepStrictEqual([r.updatedPermissions, r.updatedInput], [undefined, { command: 'npm test -- --so-unidade' }]);
 });
 
+// P2: pedido de dado de um servidor MCP vira cartão (antes o app recusava na hora).
+// O pedido chega à tela já conferido; a resposta só aceita o que foi pedido, convertido;
+// no modo página, quem abre o endereço é o app, e só o endereço conferido.
+test('P2: pedido de dado do MCP: formulário conferido, aceitar manda só os campos pedidos; recusar e cancelar', async (t) => {
+  const c = new conversa._Conversa({ id: 'el1', titulo: 'Conversa do MCP' });
+  t.after(() => c.parar());
+  let n = 0;
+  const doApp = () => recebidos().filter((x) => x.type === 'control_response' && /^el-/.test(x.response.request_id)).pop().response;
+  const pedir = async (qual = '') => { c.mandar(`pede dado do MCP${qual}`); await ate(() => c.pendentes.size === 1); return [...c.pendentes.values()][0]; };
+  const fim = async () => { n++; await ate(() => turnos(c) === n); return doApp(); };
+
+  let p = await pedir();
+  assert.deepStrictEqual([p.tipo, p.servidor, p.modo, p.ok, p.campos.map((x) => x.nome)], ['elicitacao', 'cofre-da-equipe', 'form', true, ['codigo', 'ambiente']]);
+  assert.strictEqual(p.campos[0].secreto, true);
+  // Preenchimento errado: nada vai ao servidor, o pedido continua aberto e a tela recebe qual campo.
+  const erro = c.responder(p.id, { acao: 'accept', conteudo: { codigo: '12', ambiente: 'producao' } });
+  assert.deepStrictEqual([erro.campo, c.pendentes.size], ['codigo', 1]);
+  assert.match(erro.erro, /pelo menos 6/);
+  assert.strictEqual(c.responder(p.id, { acao: 'accept', conteudo: { codigo: '123456', ambiente: 'producao', intruso: 'x' } }), true);
+  assert.deepStrictEqual((await fim()).response, { action: 'accept', content: { codigo: '123456', ambiente: 'producao' } });
+  assert.ok(!JSON.stringify(c.eventos).includes('123456'), 'o valor não fica nos eventos da conversa');
+
+  p = await pedir();
+  c.responder(p.id, { acao: 'decline' });
+  assert.deepStrictEqual((await fim()).response, { action: 'decline' });
+  p = await pedir();
+  c.responder(p.id, { acao: 'cancel' });
+  assert.deepStrictEqual((await fim()).response, { action: 'cancel' });
+  // Quem responde sem saber que é um pedido de dado (o ajudante, com "permitir") nunca aceita.
+  p = await pedir();
+  c.responder(p.id, { permitir: true });
+  assert.deepStrictEqual((await fim()).response, { action: 'decline' });
+
+  // Formulário que o app não sabe mostrar: o cartão existe, mas aceitar não passa.
+  p = await pedir(' torto');
+  assert.strictEqual(p.ok, false);
+  c.responder(p.id, { acao: 'accept', conteudo: { lista: ['x'] } });
+  assert.deepStrictEqual((await fim()).response, { action: 'decline' });
+
+  // Página: aceitar abre o endereço conferido (e só ele) e responde ao servidor.
+  const abertas = [];
+  conversa.ligarAbrirPagina((u) => abertas.push(u));
+  t.after(() => conversa.ligarAbrirPagina(() => {}));
+  p = await pedir(' por página');
+  assert.deepStrictEqual([p.modo, p.site, p.ok], ['url', 'contas.exemplo.com', true]);
+  c.responder(p.id, { acao: 'accept', url: 'https://outro.exemplo.net/', conteudo: { x: 1 } });
+  assert.deepStrictEqual((await fim()).response, { action: 'accept' });
+  assert.deepStrictEqual(abertas, ['https://contas.exemplo.com/autorizar?cliente=agenda']);
+  p = await pedir(' por página');
+  c.responder(p.id, { acao: 'decline' });
+  await fim();
+  assert.strictEqual(abertas.length, 1, 'recusar não abre nada');
+});
+
 // Plano 8.8 (X8): o Codex recusa abrir a conversa com a política do app (uma organização
 // pode limitar as políticas permitidas). O app falha fechado: não abre, não tenta outra
 // política, diz por quê, devolve o texto à caixa e não fica preso em "trabalhando".
