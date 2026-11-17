@@ -18,6 +18,7 @@ of opening a public issue.
 | Side conversation in "no questions" mode (Bypass) | `claude` with `bypassPermissions`, **only if you turn on the option** in Settings (off by default) and pick the mode in that conversation | Claude edits files and runs commands without asking. The mode is never offered in the orchestrator conversation nor to the desktop helper; the app confirms every time, keeps a red strip on screen while it is on, and a restart goes back to `auto`. The process only starts with `--allow-dangerously-skip-permissions` (which makes the mode selectable, not active) in side conversations and while the option is on |
 | Agents | Claude Code in tmux, ideally inside a dev container | Whatever their own permission settings allow |
 | Workflows | your user | `Command` steps run `bash -lc`; `Claude` steps run `claude -p`; folder triggers react to any file dropped in the watched folder |
+| Detecting installed AI CLIs (Settings → *Connected AIs*) | your user, no shell | Runs each known CLI found on `PATH` with `--version` only and keeps just the version number. The generic name `agent` (Cursor's main shortcut) is run **only** when the real file behind it is `cursor-agent` inside Cursor's own install folder (`~/.local/share/cursor-agent/versions/<version>/`), checked before anything runs; any other `agent` is never executed |
 | Desktop helper | separate Electron process | Can take a screenshot of an area **you** select (saved locally under `~/.cache/orq-app/`); talks to the app over a local socket (mode 600) |
 
 ## Secrets

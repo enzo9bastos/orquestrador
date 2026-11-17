@@ -139,3 +139,61 @@ test('config: iasCaminhos aceita só ids conhecidos com caminho absoluto (~ expa
     assert.deepStrictEqual(config.validar({ iasCaminhos: ruim }).recusado, ['iasCaminhos'], JSON.stringify(ruim));
   }
 });
+
+// Plano 10.1 (O1): o Cursor CLI instala dois atalhos, "agent" (o principal) e
+// "cursor-agent" (o legado), os dois para ~/.local/share/cursor-agent/versions/<v>/cursor-agent
+// (conferido no instalador oficial em 2026-11-17). "agent" é um nome comum: o app só o
+// reconhece, e só o executa, se o arquivo de verdade estiver na instalação do Cursor.
+test('ias (Cursor): um "agent" qualquer no PATH não é reconhecido nem executado', async () => {
+  const pasta = fs.mkdtempSync(path.join(casa, 'bin-agent-'));
+  const marca = path.join(casa, 'agent-rodou.txt');
+  fs.writeFileSync(path.join(pasta, 'agent'), `#!/bin/sh\necho rodou >> '${marca}'\necho "foo 1.0"\n`, { mode: 0o755 });
+  const lista = await ias.listar({ env: { PATH: `${pasta}:/usr/bin:/bin`, HOME: casa }, forcar: true });
+  const cursor = lista.find((c) => c.id === 'cursor');
+  assert.strictEqual(cursor.encontrado, false);
+  assert.strictEqual(cursor.caminho, null);
+  assert.strictEqual(cursor.versao, null);
+  assert.ok(!fs.existsSync(marca), 'o "agent" desconhecido não pode nem ser executado');
+});
+
+test('ias (Cursor): "agent" que aponta para a instalação do Cursor é reconhecido, pelo arquivo de verdade, com a impressão digital', async () => {
+  const versoes = path.join(casa, '.local', 'share', 'cursor-agent', 'versions', '2026.11.13-abc1234');
+  fs.mkdirSync(versoes, { recursive: true });
+  const real = path.join(versoes, 'cursor-agent');
+  fs.writeFileSync(real, '#!/bin/sh\necho "2026.11.13-abc1234"\n', { mode: 0o755 });
+  const pasta = fs.mkdtempSync(path.join(casa, 'bin-cursor-'));
+  fs.symlinkSync(real, path.join(pasta, 'agent'));
+  const cursor = (await ias.listar({ env: { PATH: `${pasta}:/usr/bin:/bin`, HOME: casa }, forcar: true })).find((c) => c.id === 'cursor');
+  assert.strictEqual(cursor.encontrado, true);
+  assert.strictEqual(cursor.caminho, fs.realpathSync(real), 'vale o arquivo de verdade, não o atalho (que pode ser trocado)');
+  assert.strictEqual(cursor.versao, '2026.11.13-abc1234');
+  assert.strictEqual(cursor.via, 'agent');
+  assert.strictEqual(cursor.sha256, require('crypto').createHash('sha256').update(fs.readFileSync(real)).digest('hex'));
+  // O "cursor-agent" no PATH continua valendo primeiro, como antes.
+  fs.writeFileSync(path.join(pasta, 'cursor-agent'), '#!/bin/sh\necho "1.2.3"\n', { mode: 0o755 });
+  const comLegado = (await ias.listar({ env: { PATH: `${pasta}:/usr/bin:/bin`, HOME: casa }, forcar: true })).find((c) => c.id === 'cursor');
+  assert.deepStrictEqual([comLegado.caminho, comLegado.versao, comLegado.via], [path.join(pasta, 'cursor-agent'), '1.2.3', undefined]);
+});
+
+test('ias (Cursor): atalho "agent" para fora da instalação, ou para outro arquivo dela, não vale', async () => {
+  const raiz = path.join(casa, '.local', 'share', 'cursor-agent', 'versions');
+  fs.mkdirSync(path.join(raiz, 'v9'), { recursive: true });
+  const marca = path.join(casa, 'agent-fora-rodou.txt');
+  const corpo = `#!/bin/sh\necho rodou >> '${marca}'\necho "9.9.9"\n`;
+  const fora = path.join(casa, 'fora-cursor-agent');
+  fs.writeFileSync(fora, corpo, { mode: 0o755 });
+  const outro = path.join(raiz, 'v9', 'instalar-coisas');
+  fs.writeFileSync(outro, corpo, { mode: 0o755 });
+  for (const [nome, alvo] of [['fora', fora], ['outro', outro], ['sobe', path.join(raiz, 'v9', '..', '..', '..', '..', '..', 'fora-cursor-agent')]]) {
+    const pasta = fs.mkdtempSync(path.join(casa, `bin-${nome}-`));
+    fs.symlinkSync(alvo, path.join(pasta, 'agent'));
+    const cursor = (await ias.listar({ env: { PATH: `${pasta}:/usr/bin:/bin`, HOME: casa }, forcar: true })).find((c) => c.id === 'cursor');
+    assert.strictEqual(cursor.encontrado, false, nome);
+  }
+  assert.ok(!fs.existsSync(marca), 'nenhum deles foi executado');
+});
+
+test('ias (Cursor): o que o app roda pelo nome é sempre "cursor-agent", nunca "agent" solto', () => {
+  assert.strictEqual(ias.comando('cursor', {}), 'cursor-agent');
+  assert.deepStrictEqual(ias.CANDIDATOS.find((c) => c.id === 'cursor').comando, 'cursor-agent');
+});

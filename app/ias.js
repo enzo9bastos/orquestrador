@@ -11,6 +11,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 
 // suportado: o app já sabe conduzir esta IA como orquestrador.
@@ -23,6 +24,15 @@ const CANDIDATOS = [
   { id: 'aider', nome: 'Aider', comando: 'aider', suportado: false },
   { id: 'qwen', nome: 'Qwen Code', comando: 'qwen', suportado: false },
 ];
+// Outro nome do mesmo CLI. O instalador do Cursor cria dois atalhos em ~/.local/bin:
+// "agent" (o principal) e "cursor-agent" (o legado), os dois para
+// ~/.local/share/cursor-agent/versions/<versão>/cursor-agent (conferido no instalador
+// oficial em 2026-11-17). "agent" é um nome comum demais para ser executado só por estar
+// no PATH: vale só quando o arquivo de verdade é o `arquivo` de dentro da `instalacao`,
+// conferido ANTES de rodar qualquer coisa. O nome próprio ("cursor-agent") vale primeiro.
+const OUTRO_NOME = {
+  cursor: { comando: 'agent', arquivo: 'cursor-agent', instalacao: ['.local', 'share', 'cursor-agent', 'versions'] },
+};
 const IDS = CANDIDATOS.map((c) => c.id);
 const PADRAO = 'claude';
 const TEMPO = 5000; // por candidato; rodam todos ao mesmo tempo
@@ -38,6 +48,32 @@ function acharNoPath(comando, env) {
     } catch { /* não está nesta pasta */ }
   }
   return null;
+}
+
+// O arquivo de verdade por trás do outro nome, se for o da instalação conhecida
+// (<casa>/<instalacao>/<versão>/<arquivo>); senão null, e nada é executado.
+function peloOutroNome(id, env) {
+  const o = OUTRO_NOME[id];
+  const abs = o ? acharNoPath(o.comando, env) : null;
+  if (!abs) return null;
+  try {
+    const real = fs.realpathSync(abs);
+    const raiz = fs.realpathSync(path.join(env.HOME || os.homedir(), ...o.instalacao));
+    if (path.basename(real) !== o.arquivo || path.dirname(path.dirname(real)) !== raiz) return null;
+    return problemaDe(real) ? null : real;
+  } catch { return null; /* atalho quebrado ou instalação que não existe */ }
+}
+
+// Impressão digital do arquivo reconhecido pelo outro nome: quem for rodá-lo depois
+// confere que ainda é o mesmo. Arquivo grande demais fica sem (null).
+function impressaoDe(abs) {
+  return new Promise((resolve) => {
+    try {
+      if (fs.statSync(abs).size > 256 * 1024 * 1024) return resolve(null);
+      const h = crypto.createHash('sha256');
+      fs.createReadStream(abs).on('data', (d) => h.update(d)).on('end', () => resolve(h.digest('hex'))).on('error', () => resolve(null));
+    } catch { resolve(null); }
+  });
 }
 
 // Só o número: "2.1.3 (Claude Code)", "codex-cli 0.40.0", "v1.2.3-beta".
@@ -95,10 +131,16 @@ async function detectar(env, caminhos) {
   return Promise.all(CANDIDATOS.map(async (c) => {
     const escolhido = caminhoEscolhido(c.id, caminhos);
     const problema = escolhido ? problemaDe(escolhido) : null;
-    const caminho = escolhido && !problema ? escolhido : acharNoPath(c.comando, env);
+    let caminho = escolhido && !problema ? escolhido : acharNoPath(c.comando, env);
+    // Pelo outro nome (ex.: "agent" do Cursor): só o arquivo de verdade da instalação
+    // conhecida, com a impressão digital tirada antes de ele rodar.
+    const outro = caminho ? null : peloOutroNome(c.id, env);
+    const sha256 = outro ? await impressaoDe(outro) : null;
+    if (outro) caminho = outro;
     const versao = caminho ? await perguntarVersao(caminho, env) : null;
     const r = { id: c.id, nome: c.nome, comando: c.comando, encontrado: !!caminho, caminho, versao, suportado: c.suportado };
     if (escolhido) Object.assign(r, { escolhido, problema });
+    if (outro) Object.assign(r, { via: OUTRO_NOME[c.id].comando, sha256 });
     return r;
   }));
 }
