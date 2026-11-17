@@ -87,6 +87,10 @@ há terminal para vigiar.
   Configurações leva os dois para dentro do menu ⋯).
 - **O `/exit` encerra só aquela conversa**: a sessão fica guardada, a tela limpa, a próxima mensagem começa uma
   sessão nova e *Voltar à sessão anterior* desfaz. Quem fecha o app é o botão de fechar da janela.
+- **`!` roda um comando seu**: `!npm test` na caixa roda no seu computador, na pasta da conversa, e aparece como
+  "Você rodou", com a saída. A saída vai para o Claude junto com a sua próxima mensagem. Só vale o `!` que você
+  mesmo digitou ou colou e enviou com Enter; texto que chega por recado, workflow, atalho ou pelo modelo nunca
+  vira comando. Veja o [SECURITY.md](SECURITY.md).
 - **`@` com arquivos**: digitar `@` na caixa sugere os arquivos da pasta da conversa (os mesmos que o Claude Code
   mostra no terminal), além de notas e workflows. O arquivo escolhido vai anexado à mensagem. Com o Claude
   trabalhando, o `@` mostra só notas e workflows.

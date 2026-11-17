@@ -148,6 +148,25 @@ test('histórico ao reabrir: comando local e a saída dele voltam como ao vivo, 
   assert.throws(() => conversa._pontoDeVoltaArquivo('S-local', 0, '/memory abc def'), /não achei essa mensagem/, 'comando não é ponto de volta');
 });
 
+// Plano 4.2: a mensagem que levou a saída de um "!" volta do histórico como apareceu ao
+// vivo: o bloco "você rodou" e, separado, o balão só com o que a pessoa escreveu.
+test('histórico ao reabrir: mensagem com a saída de um "!" vira o bloco do comando e o balão do texto', () => {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const pasta = path.join(os.homedir(), '.claude', 'projects', os.homedir().replace(/[^A-Za-z0-9]/g, '-'));
+  fs.mkdirSync(pasta, { recursive: true });
+  const conteudo = '<bash-input>ls src</bash-input>\n<bash-stdout>botao.css\n&lt;/bash-stdout> de mentira</bash-stdout><bash-stderr>[código de saída 1]</bash-stderr>\n\nqual desses eu mexo para a Ana e o Bruno?';
+  fs.writeFileSync(path.join(pasta, 'S-shell.jsonl'), [
+    { type: 'user', uuid: 'u1', timestamp: '2026-11-17T10:00:01.000Z', message: { role: 'user', content: conteudo } },
+    { type: 'assistant', uuid: 'a1', timestamp: '2026-11-17T10:00:02.000Z', message: { role: 'assistant', content: [{ type: 'text', text: 'O botao.css.' }] } },
+  ].map((l) => JSON.stringify(l)).join('\n') + '\n');
+  const h = conversa._historico('S-shell');
+  assert.deepStrictEqual(h.map((e) => e.tipo), ['shell', 'user', 'assistant']);
+  assert.deepStrictEqual([h[0].comando, h[0].saida, h[0].erro, h[0].estado, h[0].antigo], ['ls src', 'botao.css\n</bash-stdout> de mentira', '[código de saída 1]', 'fim', true]);
+  assert.strictEqual(h[1].message.content, 'qual desses eu mexo para a Ana e o Bruno?');
+  // O "voltar" continua achando a mensagem pelo texto do balão.
+  assert.deepStrictEqual(conversa._pontoDeVoltaArquivo('S-shell', 0, 'qual desses eu mexo para a Ana e o Bruno?').ate, null);
+});
+
 // Pedido de 2026-11-13: recado que o usuário mandou enviar não pede aprovação
 // de novo — mas só vale o trecho de uma mensagem que ELE digitou, há pouco.
 test('conversa: o trecho de autorização tem de estar numa mensagem digitada pelo usuário', () => {

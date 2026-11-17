@@ -18,7 +18,7 @@ test('dicas sob a caixa e painel de atalhos', async (t) => {
   await t.test('parado: as dicas dizem o que /, @, Esc e Enter fazem; a caixa não repete isso', async () => {
     assert.strictEqual(await app.visivel('#dicas-caixa'), 'ok');
     const d = await dicas();
-    for (const pedaco of ['/ comandos', '@ arquivo, nota ou workflow', 'Enter envia', 'Shift+Enter quebra linha', '? Atalhos']) assert.ok(d.includes(pedaco), `${pedaco} em "${d}"`);
+    for (const pedaco of ['/ comandos', '@ arquivo, nota ou workflow', '! rodar comando', 'Enter envia', 'Shift+Enter quebra linha', '? Atalhos']) assert.ok(d.includes(pedaco), `${pedaco} em "${d}"`);
     assert.ok(!/Esc/.test(d), 'parado, o Esc não tem o que parar: a dica só aparece com o motor trabalhando');
     assert.strictEqual(await app.avaliar("document.getElementById('entrada').placeholder"), 'Escreva para o orquestrador…');
   });

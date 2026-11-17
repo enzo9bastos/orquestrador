@@ -356,6 +356,8 @@
   }
   function desenharEventoAgora(ev) {
     if (ev.sub) return; // por dentro de um subagente: só o resumo dele aparece
+    if (ev.tipo === 'shell') return blocoShell(ev);
+    if (ev.tipo === 'shell-fim') return atualizarShell(ev);
     // O "Usage: /config" que o Claude mostra vira a lista do popup de configurações.
     if (ev.tipo === 'assistant' && ev.message && Array.isArray(ev.message.content)) {
       for (const b of ev.message.content) if (b.type === 'text' && /^\s*Usage: \/config\b/.test(b.text || '')) aprenderUsoConfig(b.text);
@@ -557,6 +559,7 @@
   caixa.addEventListener('click', async (ev) => {
     const cr = ev.target.closest('.copiar-resposta');
     if (cr) { copiarResposta(cr); return; }
+    if (ev.target.closest('[data-parar-shell]')) { C.shellParar(ativa); return; }
     const bc = ev.target.closest('[data-codigo]');
     if (bc) {
       const texto = bc.closest('.caixa-codigo').querySelector('pre code, pre')?.textContent ?? '';
@@ -764,9 +767,95 @@
     // Dicas fixas sob a caixa: o que o Enter (e o Esc) fazem agora.
     const k = (t) => `<kbd data-sem-traducao>${t}</kbd>`;
     $('dica-esc').hidden = !ocupado;
-    $('dica-enter').innerHTML = ocupado
-      ? `<span>${k('Enter')} <span>põe na fila</span></span><span>${k('Ctrl')}+${k('Enter')} <span>corrige o rumo</span></span>`
-      : `<span>${k('Enter')} <span>envia</span></span><span>${k('Shift')}+${k('Enter')} <span>quebra linha</span></span>`;
+    $('dica-enter').innerHTML = modoShell()
+      ? `<span>${k('Enter')} <span>roda no seu computador, na pasta</span> <code data-sem-traducao>${esc(pastaCurta())}</code></span>`
+      : ocupado
+        ? `<span>${k('Enter')} <span>põe na fila</span></span><span>${k('Ctrl')}+${k('Enter')} <span>corrige o rumo</span></span>`
+        : `<span>${k('Enter')} <span>envia</span></span><span>${k('Shift')}+${k('Enter')} <span>quebra linha</span></span>`;
+  }
+  // "!" no começo da caixa: o que for digitado é um comando para rodar no computador da
+  // pessoa (não uma mensagem). A caixa muda de cor e a dica diz onde ele roda.
+  // E só vale se foi a própria pessoa que pôs o "!" no começo, digitando ou colando: texto
+  // colocado na caixa por código (atalho, repertório, sugestão do ajudante, texto devolvido
+  // depois de um erro) nunca vira comando, mesmo que ela aperte Enter em seguida. A exceção
+  // é um comando que ela mesma já rodou e trouxe de volta (seta para cima, cancelar).
+  let exclamacaoDaPessoa = false, valorDaPessoa = '', shellRecuperado = null;
+  const rodadosNoShell = new Set();
+  const modoShell = () => /^!/.test(entrada.value) && !anexos.length && !arquivosAnexos.length
+    && ((exclamacaoDaPessoa && entrada.value === valorDaPessoa) || entrada.value === shellRecuperado);
+  const pastaCurta = () => String(infoAtual.pasta || '~').replace(/^\/home\/[^/]+/, '~');
+  function desenharModoShell() {
+    const liga = modoShell();
+    const caixaEntrada = document.querySelector('.caixa-entrada');
+    if (caixaEntrada.classList.contains('modo-shell') === liga) return;
+    caixaEntrada.classList.toggle('modo-shell', liga);
+    desenharCaixaOcupada(infoAtual.ocupado === true);
+  }
+  // Bloco "Você rodou": o comando, o estado e a saída. Chega como evento 'shell' (rodando ou
+  // já terminado, se a conversa foi redesenhada) e é atualizado pelo 'shell-fim'.
+  function estadoDoShell(ev) {
+    if (ev.estado !== 'fim') return 'rodando…';
+    if (ev.tempoEsgotado) return 'tempo esgotado: o comando foi encerrado';
+    if (ev.parado) return 'parado';
+    // Comando que terminou na hora não ganha "em 0 s".
+    const tempo = typeof ev.ms === 'number' && ev.ms >= 100 ? ` em ${(ev.ms / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s` : '';
+    return typeof ev.codigo === 'number' && ev.codigo !== 0 ? `saiu com código ${ev.codigo}${tempo}` : `terminou${tempo}`;
+  }
+  function preencherShell(el, ev) {
+    const fim = ev.estado === 'fim';
+    el.dataset.estado = fim ? 'fim' : 'rodando';
+    el.classList.toggle('falhou', fim && (ev.tempoEsgotado || (typeof ev.codigo === 'number' && ev.codigo !== 0)));
+    const cortado = (n) => (n ? `<p class="nota"><span>Saída cortada:</span> <span data-sem-traducao>${Number(n).toLocaleString('pt-BR')}</span> <span>caracteres a mais.</span></p>` : '');
+    const c = ev.cortado || {};
+    el.innerHTML = `<div class="shell-cabeca"><span class="shell-marca" aria-hidden="true">&gt;_</span><span class="shell-titulo">Você rodou</span><code data-sem-traducao>${esc(curto(ev.comando, 400))}</code>
+        <span class="shell-estado">${esc(estadoDoShell(ev))}</span>${fim ? '' : '<button type="button" class="botao-texto" data-parar-shell>Parar</button>'}</div>
+      ${ev.saida ? `<pre class="shell-saida" data-sem-traducao>${esc(String(ev.saida).replace(/\x1b\[[0-9;]*m/g, '').replace(/\n+$/, ''))}</pre>${cortado(c.saida)}` : ''}
+      ${ev.erro ? `<pre class="shell-saida erro" data-sem-traducao>${esc(String(ev.erro).replace(/\x1b\[[0-9;]*m/g, '').replace(/\n+$/, ''))}</pre>${cortado(c.erro)}` : ''}
+      ${fim && !ev.antigo && !conversaCodex() ? '<p class="nota shell-nota">A saída vai para o Claude junto com a sua próxima mensagem.</p>' : ''}`;
+  }
+  function blocoShell(ev) {
+    grupo = null;
+    const el = document.createElement('div');
+    el.className = 'msg-shell';
+    if (ev.id) el.dataset.shell = ev.id;
+    preencherShell(el, ev);
+    caixa.append(el);
+    colado = true; rolar();
+  }
+  function atualizarShell(ev) {
+    const el = ev.id ? caixa.querySelector(`.msg-shell[data-shell="${CSS.escape(ev.id)}"]`) : null;
+    if (el) preencherShell(el, { ...ev, estado: 'fim' }); else blocoShell({ ...ev, estado: 'fim', tipo: 'shell' });
+    rolar();
+  }
+  // Roda o comando da caixa. Várias linhas (em geral uma colagem): confirma antes, e só
+  // o clique de verdade no "Rodar" vale.
+  async function rodarShellDaCaixa(comando, textoDaCaixa) {
+    // O texto volta para a caixa (erro, cancelar): continua sendo o comando que ela escreveu.
+    const devolver = () => { if (entrada.value.trim()) return; shellRecuperado = textoDaCaixa; porNaCaixa(textoDaCaixa); };
+    const rodar = async () => {
+      const r = await C.shell(ativa, comando);
+      if (r && r.erro) { aviso(`Não rodei o comando: ${r.erro}`, 'erro'); devolver(); return; }
+      rodadosNoShell.add(textoDaCaixa);
+      enviados.push(textoDaCaixa); if (enviados.length > 50) enviados.shift();
+      posHistorico = -1;
+    };
+    entrada.value = ''; ajustarAltura(); fecharSugestoes(); desenharModoShell();
+    const linhasDoComando = comando.split('\n').filter((l) => l.trim()).length;
+    if (linhasDoComando < 2) return rodar();
+    grupo = null;
+    const el = document.createElement('div');
+    el.className = 'cartao-pedido confirma-shell';
+    el.innerHTML = `<div class="titulo-pedido"><span class="shell-marca" aria-hidden="true">&gt;_</span><span><span>Rodar estas</span> <strong data-sem-traducao>${linhasDoComando}</strong> <span>linhas no seu computador, na pasta</span> <code data-sem-traducao>${esc(pastaCurta())}</code>?</span></div>
+      <pre class="entrada-ferramenta" data-sem-traducao>${esc(curto(comando, 3000))}</pre>
+      <div class="acoes"><button type="button" class="botao primario" data-rodar>Rodar</button><button type="button" class="botao secundario" data-cancelar>Cancelar</button></div>`;
+    el.addEventListener('click', (ev) => {
+      if (!ev.isTrusted) return; // clique feito por código não roda nem cancela
+      if (ev.target.closest('[data-rodar]')) { el.remove(); rodar(); }
+      else if (ev.target.closest('[data-cancelar]')) { el.remove(); devolver(); }
+    });
+    caixa.append(el);
+    colado = true; rolar();
+    return undefined;
   }
   // --- painel de atalhos ("? Atalhos" e Ctrl+/) -----------------------------------
   // Só o que funciona hoje. Os atalhos que dá para trocar (colunas, Shift+Tab)
@@ -787,6 +876,7 @@
       ${l('Buscar nesta conversa', teclas('Ctrl+F'))}
       <h4>Na caixa de texto</h4>
       ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar arquivo, nota ou workflow', teclas('@'))}
+      ${l('Rodar um comando no seu computador (no começo da caixa)', teclas('!'))}
       ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
       <h4>No app</h4>
       ${l('Paleta de comandos', teclas('Ctrl+K'))}${l('Esta lista', teclas('Ctrl+/'))}
@@ -1772,18 +1862,38 @@
   function ajustarAltura() { entrada.style.height = 'auto'; entrada.style.height = Math.min(entrada.scrollHeight, 220) + 'px'; }
   entrada.addEventListener('input', ajustarAltura);
   entrada.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); enviarAgora = ev.ctrlKey || ev.metaKey; $('compositor').requestSubmit(); }
+    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); enviarAgora = ev.ctrlKey || ev.metaKey; envioDeVerdade = ev.isTrusted === true; $('compositor').requestSubmit(); }
     // Shift+Tab só troca o modo com a caixa vazia (com texto, ele navega como sempre) e se a opção estiver ligada.
     if (ev.key === 'Tab' && ev.shiftKey && !ev.ctrlKey && !ev.altKey && !entrada.value && cfg.shiftTabTrocaModo !== false && !$('chip-modo').hidden) { ev.preventDefault(); proximoModo(); }
   });
   // Ctrl+Enter com o motor trabalhando: "enviar já" (parado, é um envio comum).
   let enviarAgora = false;
+  // O envio veio de uma tecla ou de um clique de verdade da pessoa (e não de código do app,
+  // de um atalho que envia sozinho ou de um teste)? Só assim o "!" roda um comando.
+  let envioDeVerdade = false;
+  $('enviar').addEventListener('click', (ev) => { envioDeVerdade = ev.isTrusted === true; }, true);
+  entrada.addEventListener('beforeinput', (ev) => {
+    if (!ev.isTrusted) return;
+    if (entrada.value !== valorDaPessoa) exclamacaoDaPessoa = false; // o texto mudou por código desde a última tecla dela
+    shellRecuperado = null;
+    const dado = ev.data != null ? ev.data : ev.dataTransfer ? ev.dataTransfer.getData('text/plain') : '';
+    if (entrada.selectionStart === 0 && /^!/.test(dado || '')) exclamacaoDaPessoa = true;
+  });
+  entrada.addEventListener('input', (ev) => {
+    if (ev.isTrusted) { valorDaPessoa = entrada.value; if (!/^!/.test(entrada.value)) exclamacaoDaPessoa = false; }
+    desenharModoShell();
+  });
   $('compositor').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const agora = enviarAgora;
-    enviarAgora = false;
+    const deVerdade = envioDeVerdade;
+    enviarAgora = false; envioDeVerdade = false;
     const t = entrada.value.trim();
     if (!t && !anexos.length && !arquivosAnexos.length) return;
+    // "!comando": roda no computador da pessoa, só quando ELA enviou. Por qualquer outro
+    // caminho o texto segue abaixo como mensagem comum.
+    const comandoShell = deVerdade && modoShell() ? t.slice(1).trim() : '';
+    if (comandoShell) { await rodarShellDaCaixa(comandoShell, t); return; }
     // Ponte antiga (app aberto antes da versão com imagens): ela só leva o
     // texto. Nunca perder imagem em silêncio: avisa e deixa os anexos na caixa.
     if (anexos.length && !window.orq.permissoes) {
@@ -1848,6 +1958,7 @@
     ajustarAltura();
     entrada.focus();
     entrada.setSelectionRange(texto.length, texto.length);
+    desenharModoShell();
   }
   function fecharVolta() { voltaPedida = null; $('corrigindo').hidden = true; }
   async function voltarPara(msg) {
@@ -1864,6 +1975,8 @@
     if (ev.key === 'ArrowUp' && (!entrada.value || posHistorico >= 0) && enviados.length) {
       ev.preventDefault();
       posHistorico = posHistorico < 0 ? enviados.length - 1 : Math.max(0, posHistorico - 1);
+      // Um "!comando" que a pessoa já rodou volta como comando; qualquer outro texto, como texto.
+      shellRecuperado = rodadosNoShell.has(enviados[posHistorico]) ? enviados[posHistorico] : null;
       porNaCaixa(enviados[posHistorico]);
     } else if (ev.key === 'ArrowDown' && posHistorico >= 0) {
       ev.preventDefault();

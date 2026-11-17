@@ -84,6 +84,10 @@ protocol), so there is no terminal to babysit.
   live only in the orchestrator conversation and show one at a time (a Settings option moves them into the ⋯ menu).
 - **`/exit` ends only that conversation**: its session is kept, the screen clears, the next message starts a new
   session and *Go back to the previous session* undoes it. Closing the app is the window's close button.
+- **`!` runs a command of yours**: `!npm test` in the box runs on your computer, in the conversation's folder, and
+  shows up as "You ran", with its output. The output goes to Claude with your next message. Only a `!` that you
+  typed or pasted yourself and sent with Enter counts; text arriving from an agent's request, a workflow, a
+  shortcut or the model never becomes a command. See [SECURITY.md](SECURITY.md).
 - **`@` with files**: typing `@` in the box suggests files from the conversation's folder (the same ones Claude
   Code shows in the terminal), besides notes and workflows. The chosen file goes attached to the message. While
   Claude is working, `@` shows notes and workflows only.

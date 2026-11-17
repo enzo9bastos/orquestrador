@@ -416,6 +416,12 @@ ipcMain.handle('cmd:controle', seguro((id, subtype, extra = {}) => {
   if (subtype === 'set_permission_mode' && !conversa.MODOS_DO_CHIP.includes(extra && extra.mode)) throw new Error('modo não liberado por este caminho');
   return conversa.controle(id, subtype, extra && typeof extra === 'object' ? extra : {}, subtype === 'side_question' ? 120000 : 20000);
 }));
+// "!" da caixa: o ÚNICO caminho que roda um comando digitado pela pessoa. conversa:mandar e
+// conversa:daCaixa nunca interpretam "!" (o texto vai ao motor como texto comum). A tela só
+// chama isto no Enter de verdade da caixa, ou no clique de verdade em "Rodar" quando o
+// comando tem várias linhas; recado, workflow, atalho e pedido do modelo não chegam aqui.
+ipcMain.handle('conversa:shell', seguro((id, comando) => conversa.rodarShell(id, typeof comando === 'string' ? comando : '')));
+ipcMain.handle('conversa:shellParar', seguro((id) => ({ parou: conversa.pararShell(id) })));
 // "@" da caixa: arquivos sugeridos pelo Claude (só leitura; só com a conversa aberta e parada).
 ipcMain.handle('conversa:arquivos', seguro((id, consulta) => conversa.sugerirArquivos(id, typeof consulta === 'string' ? consulta : '')));
 // Chip de modo: troca ao vivo; erro (ex.: Bypass onde não pode) volta como { erro }.

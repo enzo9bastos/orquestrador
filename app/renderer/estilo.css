@@ -744,6 +744,20 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .sugestoes li[aria-selected="true"], .sugestoes li:hover { background: var(--claude-suave); }
 .nome-comando { font: 500 12.5px var(--mono); color: var(--fg); white-space: nowrap; }
 .nome-comando i { font-style: normal; color: var(--fg-4); }
+/* "!" da caixa: comando do usuário. A caixa fica com a borda âmbar; na conversa, o bloco "Você rodou". */
+.caixa-entrada.modo-shell, .caixa-entrada.modo-shell:focus-within { border-color: #d29922; box-shadow: inset 0 0 0 1px color-mix(in srgb, #d29922 55%, transparent); }
+.msg-shell { align-self: stretch; display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, #d29922 40%, var(--borda)); background: color-mix(in srgb, #d29922 6%, transparent); min-width: 0; }
+.msg-shell.falhou { border-color: color-mix(in srgb, var(--perigo) 45%, var(--borda)); }
+.shell-cabeca { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--fg-3); }
+.shell-marca { font: 600 12px var(--mono); color: #d29922; }
+.shell-titulo { color: var(--fg-2); font-weight: 500; }
+.shell-cabeca code { font: 12.5px var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+.shell-estado { margin-left: auto; white-space: nowrap; }
+.shell-cabeca .botao-texto { margin: 0; }
+.shell-saida { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--bg-afundado); border: 1px solid var(--borda); font: 12px/1.45 var(--mono); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+.shell-saida.erro { color: var(--perigo); }
+.msg-shell .nota { margin: 0; font-size: 11.5px; }
+.confirma-shell .titulo-pedido code, .dica-enter code { font: 12px var(--mono); }
 /* Cabeçalho de grupo na lista do "@" (Arquivos, Notas, Workflows): não se escolhe. */
 .sugestoes li.grupo-sugestao { display: block; padding: 6px 10px 2px; font: 600 10.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-4); cursor: default; }
 .sugestoes li.grupo-sugestao:hover { background: transparent; }

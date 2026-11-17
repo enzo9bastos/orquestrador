@@ -159,6 +159,33 @@ test('codex: o pedido de hora que o Codex faz a quem declara a capacidade é ate
   } finally { delete process.env.CODEX_FALSO_PEDE_HORA; c.parar(); }
 });
 
+// Plano 4.2 (X9): o "!" no Codex vai por thread/shellCommand (o próprio Codex roda, na
+// pasta da conversa, sem chamar o modelo). Só pelo caminho próprio; mandar() nunca usa.
+test('codex: "!" roda por thread/shellCommand, vira o bloco "você rodou" e não conta como resposta do Codex', async () => {
+  const c = new conversa._Conversa({ id: 'cxsh', titulo: 'X', motor: 'codex' });
+  const antes = recebidos().length;
+  try {
+    const r = c.rodarShell('echo oi; exit 2');
+    assert.ok(r.id);
+    await ate(() => c.eventos.some((e) => e.tipo === 'shell' && e.estado === 'fim'));
+    const ev = c.eventos.filter((e) => e.tipo === 'shell');
+    assert.strictEqual(ev.length, 1);
+    assert.deepStrictEqual([ev[0].comando, ev[0].saida, ev[0].codigo], ['echo oi; exit 2', 'saída falsa de: echo oi; exit 2\n', 2]);
+    await ate(() => c.info.shell === false && !c.shellRodando);
+    const meus = recebidos().slice(antes);
+    const pedido = meus.find((x) => x.method === 'thread/shellCommand');
+    assert.deepStrictEqual([pedido.params.command, pedido.params.timeoutMs > 0], ['echo oi; exit 2', true]);
+    assert.ok(!meus.some((x) => x.method === 'turn/start'), 'o modelo não foi acionado');
+    assert.ok(!c.eventos.some((e) => e.tipo === 'resultado'), 'não é uma resposta do Codex: sem aviso de "respondeu"');
+    assert.ok(!c.eventos.some((e) => e.tipo === 'assistant' && JSON.stringify(e.message).includes('tool_use')), 'não aparece como "o Codex rodou"');
+    assert.strictEqual(c.info.ocupado, false);
+    // Pelo mandar, "!" é texto: vai ao modelo por turn/start, nunca por shellCommand.
+    c.mandar('!echo por-texto');
+    await ate(() => recebidos().slice(antes).some((x) => x.method === 'turn/start'));
+    assert.strictEqual(recebidos().slice(antes).filter((x) => x.method === 'thread/shellCommand').length, 1);
+  } finally { c.parar(); }
+});
+
 test('codex: trocar a IA do orquestrador guarda a conversa de cada motor', () => {
   const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
   const c = new conversa._Conversa({ id: 'ct', titulo: 'Orquestrador', orquestrador: true, sessao: 'sessao-claude' });

@@ -1643,6 +1643,18 @@
     "só existe na tela do terminal do Claude; nesta conversa ele não roda.": "only exists in Claude's terminal screen; it does not run in this conversation.",
     "Abrir no terminal": "Open in the terminal",
     "Buscar nesta conversa": "Search this conversation",
+    "rodar comando": "run a command",
+    "Rodar um comando no seu computador (no começo da caixa)": "Run a command on your computer (at the start of the box)",
+    "roda no seu computador, na pasta": "runs on your computer, in the folder",
+    "Você rodou": "You ran",
+    "parado": "stopped",
+    "tempo esgotado: o comando foi encerrado": "timed out: the command was ended",
+    "Saída cortada:": "Output cut:",
+    "caracteres a mais.": "more characters.",
+    "A saída vai para o Claude junto com a sua próxima mensagem.": "The output goes to Claude with your next message.",
+    "Rodar estas": "Run these",
+    "linhas no seu computador, na pasta": "lines on your computer, in the folder",
+    "Rodar": "Run",
     "Copiar esta resposta": "Copy this reply",
     "pasta": "folder",
     "Anterior": "Previous",
@@ -2485,6 +2497,26 @@
     [
       "^O Codex não abriu a conversa: (.+?)\\. Nada foi enviado\\.$",
       "Codex did not open the conversation: $1. Nothing was sent."
+    ],
+    [
+      "^terminou em (.+) s$",
+      "finished in $1 s"
+    ],
+    [
+      "^saiu com código (\\d+) em (.+) s$",
+      "exited with code $1 in $2 s"
+    ],
+    [
+      "^saiu com código (\\d+)$",
+      "exited with code $1"
+    ],
+    [
+      "^Não rodei o comando: (.+)$",
+      "Did not run the command: $1"
+    ],
+    [
+      "^O Codex não rodou o comando: (.+)$",
+      "Codex did not run the command: $1"
     ],
     [
       "^O Codex parou \\(código (\\d+)\\)\\. (.*)$",

@@ -46,6 +46,20 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
       ] }] }, model: 'gpt-falso', cwd: '/casa' });
       return pedirHora('th-velho');
     case 'turn/interrupt': return ok({});
+    // Comando do usuário ("!"), como no Codex de verdade (conferido no 0.167.1): responde {}
+    // e abre um turno próprio com um commandExecution de source "userShell", sem chamar o modelo.
+    case 'thread/shellCommand': {
+      ok({});
+      const cmd = String(d.params.command || '');
+      const item = { type: 'commandExecution', id: 'sh1', command: `/bin/bash -lc '${cmd}'`, cwd: '/casa', source: 'userShell', status: 'inProgress', commandActions: [{ type: 'unknown', command: cmd }], aggregatedOutput: null, exitCode: null };
+      const falha = /exit 2/.test(cmd);
+      nota('turn/started', { threadId: d.params.threadId, turn: { id: 'tu-sh', status: 'inProgress' } });
+      nota('item/started', { item });
+      nota('item/commandExecution/outputDelta', { threadId: d.params.threadId, turnId: 'tu-sh', itemId: 'sh1', delta: `saída falsa de: ${cmd}\n` });
+      nota('item/completed', { item: { ...item, status: falha ? 'failed' : 'completed', aggregatedOutput: `saída falsa de: ${cmd}\n`, exitCode: falha ? 2 : 0 } });
+      nota('turn/completed', { threadId: d.params.threadId, turn: { id: 'tu-sh', status: 'completed', durationMs: 5 } });
+      return undefined;
+    }
     // Métodos dos comandos do "/" que o app faz numa conversa Codex.
     case 'thread/compact/start': return ok({});
     case 'review/start': return ok({ turn: { id: 'tu-rev', status: 'inProgress' }, reviewThreadId: d.params.threadId });

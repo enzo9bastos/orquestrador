@@ -566,6 +566,63 @@ test('4.3: sugestão de arquivos do "@": só parada e aberta; resposta conferida
   assert.strictEqual(x.proc || null, null);
 });
 
+// Plano 4.2 (C10): o "!" da caixa roda o comando do usuário por um caminho próprio
+// (rodarShell). mandar() e a fila nunca interpretam "!". A saída vai ao modelo junto com
+// a próxima mensagem DIGITADA (não com recado, workflow ou comando), na marcação que o
+// Claude Code usa no terminal, e o balão mostra só o que a pessoa escreveu.
+test('4.2: "!" roda só pelo caminho próprio; a saída vai ao modelo com a próxima mensagem digitada', async (t) => {
+  const c = new conversa._Conversa({ id: 'sh1', titulo: 'Conversa do shell' });
+  t.after(() => c.parar());
+  const textos = () => recebidos().filter((x) => x.type === 'user').map((x) => x.message.content);
+  const doShell = () => c.eventos.filter((e) => e.tipo === 'shell');
+  // Pelo mandar (recado, workflow, atalho, orquestrador): "!" é texto comum.
+  c.mandar('!echo nao-roda-por-aqui');
+  await ate(() => turnos(c) === 1);
+  assert.strictEqual(textos().at(-1), '!echo nao-roda-por-aqui');
+  assert.deepStrictEqual(doShell(), []);
+  // Pela caixa, sem o caminho próprio: também é texto (quem decide rodar é a tela, no Enter).
+  c.daCaixa('!echo nem-por-aqui');
+  await ate(() => turnos(c) === 2);
+  assert.strictEqual(textos().at(-1), '!echo nem-por-aqui');
+  assert.deepStrictEqual(doShell(), []);
+
+  const antes = textos().length;
+  const r = c.rodarShell('echo oi-do-shell; echo erro-do-shell >&2; exit 2');
+  assert.ok(r.id);
+  assert.strictEqual(c.info.shell, true, 'a tela sabe que há um comando rodando');
+  await ate(() => doShell().some((e) => e.estado === 'fim'));
+  const ev = doShell()[0];
+  assert.deepStrictEqual([ev.comando, ev.saida, ev.erro, ev.codigo], ['echo oi-do-shell; echo erro-do-shell >&2; exit 2', 'oi-do-shell\n', 'erro-do-shell\n', 2]);
+  assert.strictEqual(doShell().length, 1, 'um evento só, que passa de rodando a fim');
+  assert.strictEqual(c.info.shell, false);
+  assert.strictEqual(c.info.ocupado, false, 'o motor não foi acionado');
+  await espera(150);
+  assert.strictEqual(textos().length, antes, 'nada foi ao modelo ainda');
+
+  // Mensagem por trás e comando não levam a saída; ela espera a próxima digitada.
+  c.mandar('<orq-workflow nome="x">\noi\n</orq-workflow>');
+  await ate(() => turnos(c) === 3);
+  assert.ok(!textos().at(-1).includes('<bash-input>'));
+  c.daCaixa('e agora?');
+  await ate(() => turnos(c) === 4);
+  assert.strictEqual(textos().at(-1), '<bash-input>echo oi-do-shell; echo erro-do-shell >&2; exit 2</bash-input>\n<bash-stdout>oi-do-shell</bash-stdout><bash-stderr>erro-do-shell\n[código de saída 2]</bash-stderr>\n\ne agora?');
+  assert.strictEqual(c.eventos.filter((e) => e.tipo === 'user' && e.local).at(-1).message.content, 'e agora?', 'o balão mostra só o que foi digitado');
+  c.daCaixa('mais uma');
+  await ate(() => turnos(c) === 5);
+  assert.strictEqual(textos().at(-1), 'mais uma', 'a saída vai uma vez só');
+
+  // Um por vez; parar encerra.
+  c.rodarShell('echo começou; sleep 30');
+  assert.throws(() => c.rodarShell('echo outro'), /já há um comando/);
+  await espera(300);
+  c.pararShell();
+  await ate(() => doShell().length === 2 && doShell()[1].estado === 'fim');
+  assert.strictEqual(doShell()[1].parado, true);
+  // Comando inválido não vira evento.
+  assert.throws(() => c.rodarShell('   '), /comando vazio/);
+  assert.strictEqual(doShell().length, 2);
+});
+
 // Plano 8.8 (X8): o Codex recusa abrir a conversa com a política do app (uma organização
 // pode limitar as políticas permitidas). O app falha fechado: não abre, não tenta outra
 // política, diz por quê, devolve o texto à caixa e não fica preso em "trabalhando".

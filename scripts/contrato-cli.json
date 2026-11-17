@@ -127,6 +127,8 @@
         "esquemaResposta": "GetAccountRateLimitsResponse", "campos": ["rateLimits.primary.usedPercent", "rateLimits.primary.windowDurationMins", "rateLimits.secondary?"] },
       { "id": "metodo:thread/backgroundTerminals/list", "tipo": "metodo", "depende": true, "onde": "comandos-tela.js /ps", "metodo": "thread/backgroundTerminals/list", "params": { "threadId": "$thread" }, "campos": [] },
       { "id": "metodo:thread/backgroundTerminals/clean", "tipo": "metodo", "depende": true, "onde": "comandos-tela.js /clean", "metodo": "thread/backgroundTerminals/clean", "params": { "threadId": "$thread" }, "campos": [] },
+      { "id": "metodo:thread/shellCommand", "tipo": "metodo", "depende": true, "onde": "conversa.js rodarShell() (\"!\" da caixa numa conversa do Codex; o comando do teste é `true`)",
+        "metodo": "thread/shellCommand", "params": { "threadId": "$thread", "command": "true", "timeoutMs": 5000 }, "campos": [] },
       { "id": "metodo:thread/fork", "tipo": "metodo", "depende": true, "onde": "conversa.js ramificar()", "metodo": "thread/fork", "params": { "threadId": "$thread" }, "campos": ["thread.id"] },
       { "id": "metodo:turn/interrupt", "tipo": "metodo", "depende": true, "onde": "conversa-codex.js interromper()", "metodo": "turn/interrupt", "params": { "threadId": "$thread", "turnId": "orq-contrato-sem-turno" }, "campos": [] },
       { "id": "metodo:thread/resume (conversa que não existe)", "tipo": "metodo", "depende": true, "onde": "conversa-codex.js iniciar() + NAO_ACHOU",

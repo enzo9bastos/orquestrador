@@ -17,6 +17,7 @@ const ias = require('./ias');
 const codex = require('./conversa-codex');
 const listaComandos = require('./comandos');
 const jsonl = require('./jsonl');
+const shell = require('./shell-usuario');
 const capacidades = require('./capacidades');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
@@ -196,7 +197,13 @@ function historicoDoTranscript(sessao, ate = null) {
     try { d = JSON.parse(l); } catch { continue; /* linha cortada */ }
     const ts = Date.parse(d.timestamp) || undefined;
     if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) {
-      lista.push({ tipo: d.type, message: d.message, antigo: true, ts });
+      // Mensagem digitada que levou a saída de comandos "!": o balão volta só com o texto
+      // da pessoa, e cada comando volta como o bloco que apareceu ao vivo (antes dele).
+      const comShell = d.type === 'user' && typeof d.message.content === 'string' && d.message.content.startsWith('<bash-input>') ? shell.separar(d.message.content) : null;
+      if (comShell && comShell.blocos.length) {
+        if (comShell.resto.trim()) lista.push({ tipo: 'user', message: { ...d.message, content: comShell.resto }, antigo: true, ts });
+        for (const b of [...comShell.blocos].reverse()) lista.push({ tipo: 'shell', estado: 'fim', comando: b.comando, saida: b.saida, erro: b.erro, antigo: true, ts });
+      } else lista.push({ tipo: d.type, message: d.message, antigo: true, ts });
     } else if (d.type === 'system' && d.subtype === 'local_command' && typeof d.content === 'string' && !d.isSidechain) {
       // Comando local (/rename, /memory…): o Claude grava o comando e a saída como linhas
       // de sistema (forma do 2.1.326). Viram o mesmo que aparece ao vivo, montado abaixo.
@@ -354,6 +361,10 @@ class Conversa {
     // fila só volta a andar quando ele mandar algo.
     this.fila = [];
     this.filaParada = false;
+    // "!" da caixa: o comando do usuário que está rodando e as saídas que ainda vão ao
+    // modelo (junto com a próxima mensagem digitada). Só na memória.
+    this.shellRodando = null;
+    this.contextoShell = [];
     // Rodada aberta (só o orquestrador): abre com o comando da rodada, fecha no
     // fim dela. A barra mostra Iniciar OU Desligar conforme isto.
     this.rodada = orquestrador && rodada === true;
@@ -384,7 +395,7 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, fila: [], filaParada: false, rotuloLongo: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, fila: [], filaParada: false, shell: false, rotuloLongo: null, ocupado: false };
   }
 
   // O orquestrador segue a IA escolhida na configuração. Só troca parado:
@@ -767,7 +778,10 @@ class Conversa {
   // imagens: [{ tipo: 'image/png', dados: '<base64>' }] (coladas ou arrastadas).
   // exibir: o que aparece no balão quando é diferente do que vai ao Claude
   // (ex.: "@nota:x" no balão; o conteúdo da nota vai junto para o Claude).
-  mandar(texto, imagens = [], exibir = null) {
+  // doUsuario: a mensagem foi digitada na caixa (daCaixa e a fila dela). Só essa leva a
+  // saída dos comandos "!" que a pessoa rodou; recado, workflow, pedido do app e comando
+  // ("/x") nunca levam.
+  mandar(texto, imagens = [], exibir = null, { doUsuario = false } = {}) {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
@@ -793,7 +807,62 @@ class Conversa {
     const mostrado = exibir && !imagens.length ? exibir : content;
     this.registrar({ tipo: 'user', message: { role: 'user', content: mostrado }, local: true });
     if (this.motor === 'codex') return codex.mandar(this, texto, imagens);
-    return this.escrever({ type: 'user', message: { role: 'user', content } });
+    // O que a pessoa rodou com "!" desde a última mensagem vai na frente do texto, na
+    // marcação que o Claude Code usa no terminal. O balão (acima) mostra só o que ela escreveu.
+    const levaShell = doUsuario && this.contextoShell.length && typeof texto === 'string' && texto.trim() && !texto.trim().startsWith('/');
+    const prefixo = levaShell ? `${this.contextoShell.splice(0).map(shell.paraOModelo).join('\n')}\n\n` : '';
+    const paraOMotor = !prefixo ? content : typeof content === 'string' ? prefixo + content
+      : content.map((b) => (b.type === 'text' ? { ...b, text: prefixo + b.text } : b));
+    return this.escrever({ type: 'user', message: { role: 'user', content: paraOMotor } });
+  }
+
+  // --- "!" da caixa: comando do usuário ------------------------------------
+  // O único caminho que roda comando digitado pela pessoa (main.js: conversa:shell,
+  // que a tela só usa no Enter de verdade da caixa). Um por vez, na pasta da
+  // conversa e com o ambiente das conversas (sem as credenciais do cofre).
+  rodarShell(comando) {
+    if (this.shellRodando) throw new Error('já há um comando seu rodando nesta conversa; espere ou pare o que está rodando');
+    if (this.motor === 'codex') {
+      // No Codex quem roda é ele (thread/shellCommand: na pasta da conversa, sem chamar o
+      // modelo). O bloco "você rodou" vem das notificações dele (conversa-codex.js).
+      shell.conferirComando(comando);
+      const marca = { id: `cx${Date.now().toString(36)}`, parar: () => this.interromper() };
+      this.shellRodando = marca;
+      this.info.shell = true;
+      this.avisarInfo();
+      this.codex('thread/shellCommand', { command: comando, timeoutMs: shell.TEMPO }).catch((e) => {
+        if (this.shellRodando !== marca) return;
+        this.shellRodando = null;
+        this.info.shell = false;
+        this.avisarInfo();
+        this.registrar({ tipo: 'erro', texto: `O Codex não rodou o comando: ${e.message}` });
+      });
+      return { id: marca.id };
+    }
+    const exec = shell.rodar(comando, { cwd: PASTA, env: ambienteLimpo() });
+    const id = `sh${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    const ev = { tipo: 'shell', id, comando, estado: 'rodando', pasta: PASTA };
+    this.shellRodando = { id, parar: exec.parar };
+    this.info.shell = true;
+    this.registrar(ev);
+    this.avisarInfo();
+    exec.fim.then((r) => {
+      this.shellRodando = null;
+      this.info.shell = false;
+      // O evento guardado passa a "fim" (quem redesenhar a conversa vê o resultado); a tela
+      // que já mostrava o bloco recebe a atualização por um aviso que não entra na lista.
+      Object.assign(ev, { estado: 'fim', saida: r.saida, erro: r.erro, codigo: r.codigo, cortado: r.cortado, tempoEsgotado: r.tempoEsgotado, parado: r.parado, ms: r.ms });
+      this.contextoShell.push(r);
+      if (this.contextoShell.length > 10) this.contextoShell.shift(); // muitos comandos sem mandar mensagem: ficam os últimos
+      this.enviar('conversa:evento', { ...ev, tipo: 'shell-fim' });
+      this.avisarInfo();
+    });
+    return { id };
+  }
+  pararShell() {
+    if (!this.shellRodando) return false;
+    this.shellRodando.parar();
+    return true;
   }
 
   // --- fila da caixa de texto ----------------------------------------------
@@ -819,19 +888,19 @@ class Conversa {
     if (this.filaParada && !this.fila[0].ja) return false;
     const m = this.fila.shift();
     this.avisarFila();
-    this.mandar(m.texto, m.imagens, m.exibir);
+    this.mandar(m.texto, m.imagens, m.exibir, { doUsuario: true });
     return true;
   }
   daCaixa(texto, imagens = [], exibir = null, { agora = false } = {}) {
     if (!this.info.ocupado) {
-      if (!this.fila.length) { this.mandar(texto, imagens, exibir); return { enviada: true }; }
+      if (!this.fila.length) { this.mandar(texto, imagens, exibir, { doUsuario: true }); return { enviada: true }; }
       // Havia fila parada: esta entra no fim e a fila volta a andar, na ordem.
       const id = this.porNaFila(texto, imagens, exibir);
       this.filaParada = false;
       this.andarFila();
       return { naFila: id };
     }
-    if (agora && this.motor === 'codex') { this.mandar(texto, imagens, exibir); return { enviada: true }; }
+    if (agora && this.motor === 'codex') { this.mandar(texto, imagens, exibir, { doUsuario: true }); return { enviada: true }; }
     const id = this.porNaFila(texto, imagens, exibir, agora);
     if (agora) this.interromperParaEnviar();
     return { naFila: id };
@@ -847,7 +916,7 @@ class Conversa {
     const i = this.fila.findIndex((m) => m.id === id);
     if (i < 0) return false;
     const [m] = this.fila.splice(i, 1);
-    if (this.info.ocupado && this.motor === 'codex') { this.avisarFila(); this.mandar(m.texto, m.imagens, m.exibir); return true; }
+    if (this.info.ocupado && this.motor === 'codex') { this.avisarFila(); this.mandar(m.texto, m.imagens, m.exibir, { doUsuario: true }); return true; }
     m.ja = true;
     const pos = this.fila.findIndex((x) => !x.ja);
     if (pos < 0) this.fila.push(m); else this.fila.splice(pos, 0, m);
@@ -1151,6 +1220,7 @@ class Conversa {
   }
 
   parar() {
+    this.pararShell(); // comando "!" do usuário não fica rodando depois que a conversa fecha
     if (this.proc) { this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
   }
 
@@ -1330,6 +1400,8 @@ module.exports = {
   lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _pontoDeVoltaArquivo: pontoDeVoltaDoArquivo, _arqTranscript: arqTranscript, _historico: historicoDoTranscript,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   sugerirArquivos: (id, consulta) => pegar(id).sugerirArquivos(consulta),
+  rodarShell: (id, comando) => pegar(id).rodarShell(comando),
+  pararShell: (id) => pegar(id).pararShell(),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),

@@ -365,6 +365,14 @@ function notificacao(c, rpc, method, p, ctx) {
     case 'item/started': {
       const it = p.item || {};
       if (it.type === 'agentMessage') { c.enviar('conversa:parcial', null); return; }
+      // Comando que o USUÁRIO rodou com "!" (source "userShell", conferido no 0.167.1):
+      // é o bloco "você rodou", não uma ferramenta do Codex, e o turno dele não é resposta.
+      if (it.type === 'commandExecution' && it.source === 'userShell') {
+        rpc.turnoDoUsuario = rpc.turno;
+        rpc.shell = { tipo: 'shell', id: `cx-${it.id}`, comando: comandoLimpo(it), estado: 'rodando', pasta: it.cwd || null };
+        c.registrar(rpc.shell);
+        return;
+      }
       const uso = usoDeFerramenta(it);
       if (uso) c.registrar({ tipo: 'assistant', message: { role: 'assistant', content: [uso] } });
       return;
@@ -375,6 +383,16 @@ function notificacao(c, rpc, method, p, ctx) {
         if (!it.text) return;
         c.ultimoTexto = it.text;
         c.registrar({ tipo: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: it.text }] } });
+        return;
+      }
+      if (it.type === 'commandExecution' && it.source === 'userShell') {
+        const ev = rpc.shell && rpc.shell.id === `cx-${it.id}` ? rpc.shell : null;
+        if (!ev) return;
+        rpc.shell = null;
+        // O Codex junta saída e erro num texto só.
+        Object.assign(ev, { estado: 'fim', saida: String(it.aggregatedOutput || '').slice(0, 30000), erro: '', codigo: typeof it.exitCode === 'number' ? it.exitCode : null,
+          cortado: { saida: Math.max(0, String(it.aggregatedOutput || '').length - 30000), erro: 0 }, tempoEsgotado: false, parado: it.status === 'declined' || it.status === 'interrupted', ms: it.durationMs || null });
+        c.enviar('conversa:evento', { ...ev, tipo: 'shell-fim' });
         return;
       }
       const res = resultadoDeFerramenta(it);
@@ -405,6 +423,15 @@ function notificacao(c, rpc, method, p, ctx) {
       return;
     case 'turn/completed': {
       const t = p.turn || {};
+      // Turno que foi só o comando "!" do usuário: acaba sem aviso de resposta.
+      if (rpc.turnoDoUsuario && rpc.turnoDoUsuario === (t.id || rpc.turno)) {
+        rpc.turno = null; rpc.turnoDoUsuario = null;
+        if (rpc.shell) { Object.assign(rpc.shell, { estado: 'fim', saida: '', erro: '', codigo: null, parado: true }); c.enviar('conversa:evento', { ...rpc.shell, tipo: 'shell-fim' }); rpc.shell = null; }
+        c.shellRodando = null;
+        c.info.shell = false;
+        c.avisarInfo();
+        return;
+      }
       rpc.turno = null;
       ctx.fimDeTurno(c, {
         erro: t.status === 'failed',
