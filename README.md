@@ -130,7 +130,7 @@ it; removing a folder from the app is done in ⚙ Settings.
 <img src="docs/images/library.png" alt="Library: skills, commands and sub-agents found across AI tools" width="900">
 
 Finds what you created in each AI tool — skills, commands, sub-agents, prompts and workflows from Claude
-Code, Codex, Gemini CLI, OpenCode, Windsurf and Cursor — and lets you add your own shortcuts (optionally
+Code, Codex, Gemini CLI, OpenCode, Qwen Code, Windsurf and Cursor — and lets you add your own shortcuts (optionally
 bound to <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1…9</kbd>). Type `//name` in any conversation to use one;
 skills from other tools are sent with their instructions so any model can follow them.
 

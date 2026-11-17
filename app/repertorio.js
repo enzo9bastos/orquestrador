@@ -31,14 +31,29 @@ const FERRAMENTAS = [
     { tipo: 'prompt', caminho: '~/.codex/prompts', formato: 'md' },
     { tipo: 'skill', caminho: '~/.codex/skills', formato: 'skill' },
   ] },
-  { ferramenta: 'gemini', nome: 'Gemini CLI', locais: [{ tipo: 'comando', caminho: '~/.gemini/commands', formato: 'toml' }] },
+  { ferramenta: 'gemini', nome: 'Gemini CLI', locais: [
+    { tipo: 'comando', caminho: '~/.gemini/commands', formato: 'toml' },
+    { tipo: 'skill', caminho: '~/.gemini/skills', formato: 'skill' },
+    { tipo: 'subagente', caminho: '~/.gemini/agents', formato: 'md' },
+  ] },
+  // OpenCode: a versão 2 usa as pastas no plural e ainda lê as do singular.
   { ferramenta: 'opencode', nome: 'OpenCode', locais: [
+    { tipo: 'comando', caminho: '~/.config/opencode/commands', formato: 'md' },
     { tipo: 'comando', caminho: '~/.config/opencode/command', formato: 'md' },
+    { tipo: 'agente', caminho: '~/.config/opencode/agents', formato: 'md' },
     { tipo: 'agente', caminho: '~/.config/opencode/agent', formato: 'md' },
   ] },
+  // Qwen Code: os comandos passaram a ser Markdown com cabeçalho.
+  { ferramenta: 'qwen', nome: 'Qwen Code', locais: [{ tipo: 'comando', caminho: '~/.qwen/commands', formato: 'md' }] },
   { ferramenta: 'windsurf', nome: 'Windsurf', locais: [{ tipo: 'workflow', caminho: '~/.codeium/windsurf/global_workflows', formato: 'md' }] },
-  { ferramenta: 'cursor', nome: 'Cursor', locais: [{ tipo: 'comando', caminho: '~/.cursor/commands', formato: 'md' }] },
+  { ferramenta: 'cursor', nome: 'Cursor', locais: [
+    { tipo: 'comando', caminho: '~/.cursor/commands', formato: 'md' },
+    { tipo: 'skill', caminho: '~/.cursor/skills', formato: 'skill' },
+  ] },
 ];
+// O caminho de verdade (links resolvidos): duas pastas que são a mesma, ou a
+// mesma skill alcançada por um link, contam uma vez só.
+const real = (p) => { try { return fs.realpathSync(p); } catch { return null; } };
 
 // Fontes: as ferramentas detectadas (config.detectarFerramentas, padrão sim)
 // e as pastas extras de config.fontesRepertorio (formato skill).
@@ -51,8 +66,9 @@ function fontes() {
   for (const f of Array.isArray(c.fontesRepertorio) ? c.fontesRepertorio : []) {
     lista.push({ nome: f.nome, ferramenta: f.ferramenta || 'outra', tipo: 'skill', formato: 'skill', caminho: casa(f.caminho) });
   }
+  // Pasta que é link para outra já listada (ex.: ~/.codex/skills → ~/.agents/skills) não entra de novo.
   const vistos = new Set();
-  return lista.filter((f) => f.caminho && fs.existsSync(f.caminho) && !vistos.has(f.caminho) && vistos.add(f.caminho));
+  return lista.filter((f) => { const r = f.caminho && real(f.caminho); return r && !vistos.has(r) && vistos.add(r); });
 }
 
 // Cabeçalho YAML simples (name/description) de um .md.
@@ -95,6 +111,10 @@ function arquivos(raiz, ext, prefixo = '', nivel = 0) {
 
 function skills() {
   const lista = [];
+  // Mesmo arquivo por dois caminhos, ou o mesmo id em duas pastas da mesma
+  // ferramenta (plural e singular): fica o primeiro, na ordem de FERRAMENTAS.
+  const arquivosVistos = new Set(), idsVistos = new Set();
+  const novo = (id, arq) => { const r = real(arq); if (!r || arquivosVistos.has(r) || idsVistos.has(id)) return false; arquivosVistos.add(r); idsVistos.add(id); return true; };
   for (const f of fontes()) {
     if (f.formato === 'skill') {
       let pastas = [];
@@ -104,6 +124,7 @@ function skills() {
         let texto;
         try { texto = fs.readFileSync(arq, 'utf8'); } catch { continue; }
         const c = cabecalho(texto);
+        if (!novo(`${f.ferramenta}:${f.tipo}:${d.name}`, arq)) continue;
         lista.push({ tipo: f.tipo, id: `${f.ferramenta}:${f.tipo}:${d.name}`, nome: c.name || d.name, descricao: c.description || '', fonte: f.nome, ferramenta: f.ferramenta, arquivo: arq, formato: 'skill' });
       }
     } else {
@@ -112,6 +133,7 @@ function skills() {
         try { texto = fs.readFileSync(a.arquivo, 'utf8'); } catch { continue; }
         const desc = f.formato === 'toml' ? toml(texto).description : (cabecalho(texto).description || '');
         const nome = f.formato === 'md' && f.tipo !== 'comando' && cabecalho(texto).name ? cabecalho(texto).name : a.nome;
+        if (!novo(`${f.ferramenta}:${f.tipo}:${a.nome}`, a.arquivo)) continue;
         lista.push({ tipo: f.tipo, id: `${f.ferramenta}:${f.tipo}:${a.nome}`, nome, descricao: desc, fonte: f.nome, ferramenta: f.ferramenta, arquivo: a.arquivo, formato: f.formato });
       }
     }

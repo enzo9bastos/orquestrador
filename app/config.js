@@ -61,7 +61,7 @@ const PADRAO = {
   pastaTranscript: '-workspace-{projeto}',
 
   // Repertório: o app acha sozinho o que você criou em cada ferramenta de IA
-  // (Claude, Codex, Gemini, OpenCode, Windsurf, Cursor, padrão dos agentes).
+  // (Claude, Codex, Gemini, OpenCode, Qwen, Windsurf, Cursor, padrão dos agentes).
   // fontesRepertorio: pastas extras de skills (cada skill = pasta com SKILL.md).
   detectarFerramentas: true,
   fontesRepertorio: [],

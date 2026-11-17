@@ -138,7 +138,7 @@ el disco) y *+ Folder* la reabre; quitar una carpeta de la app se hace en ⚙ Se
 <img src="docs/images/library.png" alt="Library: skills, comandos y subagentes encontrados en las herramientas de IA" width="900">
 
 Encuentra lo que creaste en cada herramienta de IA — skills, comandos, subagentes, prompts y workflows de Claude
-Code, Codex, Gemini CLI, OpenCode, Windsurf y Cursor — y te deja crear tus propios atajos (opcionalmente con
+Code, Codex, Gemini CLI, OpenCode, Qwen Code, Windsurf y Cursor — y te deja crear tus propios atajos (opcionalmente con
 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1…9</kbd>). Escribe `//nombre` en cualquier conversación para usar uno; las skills
 de otras herramientas se envían con sus instrucciones, para que cualquier modelo pueda seguirlas.
 

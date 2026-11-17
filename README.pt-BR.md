@@ -133,7 +133,7 @@ o *+ Pasta* reabre; tirar uma pasta do app é nas ⚙ Configurações.
 <img src="docs/images/library.png" alt="Repertório: skills, comandos e subagentes achados nas ferramentas de IA" width="900">
 
 Acha o que você criou em cada ferramenta de IA — skills, comandos, subagentes, prompts e workflows do Claude Code,
-Codex, Gemini CLI, OpenCode, Windsurf e Cursor — e deixa você criar os seus próprios atalhos (se quiser, ligados a
+Codex, Gemini CLI, OpenCode, Qwen Code, Windsurf e Cursor — e deixa você criar os seus próprios atalhos (se quiser, ligados a
 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1…9</kbd>). Digite `//nome` em qualquer conversa para usar um; skills de outras
 ferramentas vão com as instruções delas, para qualquer modelo conseguir seguir.
 

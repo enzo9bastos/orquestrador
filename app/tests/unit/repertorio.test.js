@@ -42,3 +42,33 @@ test('repertorio: acha sozinho o que foi criado em cada ferramenta de IA', () =>
   assert.ok(l.skills.some((s) => s.nome === 'git:push' && s.descricao === 'Envia'), 'comando aninhado vira pasta:nome');
   assert.strictEqual(r.conteudo('gemini:comando:teste'), 'rode npm test', 'do TOML vem o prompt');
 });
+
+// Plano 1.5 (O2): pastas que as outras CLIs passaram a usar, e a mesma skill
+// alcançada por dois caminhos (link) aparece uma vez só.
+test('repertorio: lê as pastas novas das outras CLIs e não repete o que chega por link', () => {
+  const { casaTemporaria: nova, escrever: esc } = require('../ajuda');
+  const c = nova({});
+  // OpenCode: plural (atual) e singular (antigo) continuam valendo
+  esc(c, '.config/opencode/commands/revisar.md', '---\ndescription: Revisa\n---\nrevise');
+  esc(c, '.config/opencode/command/antigo.md', 'comando antigo');
+  esc(c, '.config/opencode/agents/planejador.md', '---\ndescription: Planeja\n---\nplaneje');
+  // Gemini: skills e subagentes; Qwen: comandos em Markdown; Cursor: skills
+  esc(c, '.gemini/skills/resumir/SKILL.md', '---\nname: resumir\ndescription: Resume\n---\n');
+  esc(c, '.gemini/agents/pesquisador.md', '---\nname: pesquisador\ndescription: Pesquisa\n---\n');
+  esc(c, '.qwen/commands/testar.md', '---\ndescription: Roda os testes\n---\nrode');
+  esc(c, '.cursor/skills/formatar/SKILL.md', '---\nname: formatar\ndescription: Formata\n---\n');
+  // a mesma skill por dois caminhos: um link dentro da pasta do Cursor e a pasta inteira do Codex como link
+  esc(c, '.agents/skills/comum/SKILL.md', '---\nname: comum\ndescription: De todos\n---\n');
+  fs.symlinkSync(path.join(c, '.agents/skills/comum'), path.join(c, '.cursor/skills/comum'));
+  fs.mkdirSync(path.join(c, '.codex'), { recursive: true });
+  fs.symlinkSync(path.join(c, '.agents/skills'), path.join(c, '.codex/skills'));
+  delete require.cache[require.resolve('../../config')];
+  delete require.cache[require.resolve('../../repertorio')];
+  const r = require('../../repertorio');
+  const l = r.lista();
+  const por = Object.fromEntries(l.conectadas.map((x) => [x.ferramenta, x.tipos]));
+  assert.deepStrictEqual(por, { agentes: { skill: 1 }, gemini: { skill: 1, subagente: 1 }, opencode: { comando: 2, agente: 1 }, qwen: { comando: 1 }, cursor: { skill: 1 } });
+  assert.deepStrictEqual(l.skills.filter((s) => s.nome === 'comum').map((s) => s.id), ['agentes:skill:comum'], 'a skill que chega por link aparece uma vez, na pasta de origem');
+  assert.strictEqual(new Set(l.skills.map((s) => s.id)).size, l.skills.length, 'nenhum id repetido');
+  assert.strictEqual(r.conteudo('qwen:comando:testar').trim().endsWith('rode'), true);
+});

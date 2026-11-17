@@ -155,7 +155,7 @@
     "Onde o orquestrador guarda topicos.md e o diário.": "Where the Orchestrator keeps topicos.md and the journal.",
     "Avançado": "Advanced",
     "Achar o que criei nas ferramentas de IA": "Find what I created in AI tools",
-    "Repertório: skills, comandos, subagentes, prompts e workflows do Claude, Codex, Gemini, OpenCode, Windsurf, Cursor e do padrão dos agentes.": "Library: skills, commands, subagents, prompts and workflows from Claude, Codex, Gemini, OpenCode, Windsurf, Cursor and the agents standard.",
+    "Repertório: skills, comandos, subagentes, prompts e workflows do Claude, Codex, Gemini, OpenCode, Qwen, Windsurf, Cursor e do padrão dos agentes.": "Library: skills, commands, subagents, prompts and workflows from Claude, Codex, Gemini, OpenCode, Qwen, Windsurf, Cursor and the agents standard.",
     "Pastas ignoradas": "Ignored folders",
     "Expressão regular dos nomes de pasta que não são projeto.": "Regular expression for folder names that aren't projects.",
     "Linha da tarefa nos tópicos": "Task line in topics",
