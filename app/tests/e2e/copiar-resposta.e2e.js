@@ -41,12 +41,20 @@ test('copiar a resposta', async (t) => {
     // O ponteiro vai para cima da caixa de texto: com vários apps de teste na mesma tela
     // virtual ele podia estar sobre uma resposta, e o botão dela aparece (falhou assim uma vez).
     const caixa = await app.avaliar("(() => { const b = document.getElementById('entrada').getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()");
-    await app.mouse('mouseMoved', caixa.x, caixa.y);
-    await app.espera(200);
     const opacidade = (g) => app.avaliar(`getComputedStyle(${grupos}[${g}].querySelector('.copiar-resposta')).opacity`);
     const n = await app.avaliar(`${grupos}.length`);
     assert.strictEqual(await opacidade(n - 1), '1');
-    assert.strictEqual(await opacidade(0), '0');
+    // Levar o ponteiro para a caixa uma vez não bastou: outra janela de teste que abre ou fecha
+    // por cima faz o ponteiro de verdade "entrar" de novo nesta e cair sobre uma resposta
+    // (reprovou assim na cópia de teste da v0.8.0). Leva o ponteiro para a caixa e mede; repete
+    // por até 4 s, até a primeira resposta ficar sem o mouse em cima.
+    let primeira = '';
+    for (let i = 0; i < 20 && primeira !== '0'; i++) {
+      await app.mouse('mouseMoved', caixa.x, caixa.y);
+      await app.espera(200);
+      primeira = await opacidade(0);
+    }
+    assert.strictEqual(primeira, '0');
   });
 
   await t.test('/copy copia o mesmo Markdown; /copy 2 copia a resposta anterior', async () => {

@@ -4,6 +4,36 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.8.0 (2026-11-17)
+
+- **Rewind with files.** The ✎ on a message now opens a card under it with three choices:
+  *Conversation only* (the default; Enter confirms), *Conversation and files* and *Files only*.
+  For the files, Claude is asked first what would go back (how many files, how many lines; a
+  file changed after Claude's last edit is flagged). Before anything is restored the app keeps
+  a copy of the files as they are now in a new folder under
+  `~/.local/share/orq-app/versoes/`, and only a real click on the red button restores them.
+  What commands did (files created by scripts, databases, git commits) does not come back.
+  `/rewind` opens the same card. Restore points can be turned off in Settings › Advanced
+  (they apply to conversations opened after this version).
+- **Codex permission cards.** A command or file change from Codex offers what Codex accepts:
+  *Allow this time*, *Allow in this conversation*, *Always allow…* for commands that start the
+  same way (a rule Codex writes to `~/.codex/rules/default.rules`; the app keeps the current
+  version of the file first), *Deny* and *Deny and stop*. Docker, ssh, network, deletion and
+  `git push` never get "in this conversation" or "always".
+- **Codex asking for more access** (folders outside the conversation, the network) is now a
+  card listing exactly what it asks for, granted for this turn or for the conversation. A
+  request the app cannot show in full can only be denied.
+- **An MCP server asking for information through Codex** uses the same card as with Claude.
+- Fix: the permission card said "Always allowed" when the rule had not been written because
+  the copy of the settings file failed. It now says it allowed this time only.
+- Fix: picking "Opus plans, Sonnet executes" in the model menu jumped to "Sonnet 5.5". Claude
+  reports the model in use at the moment (Sonnet outside plan mode) and the app took that as
+  the choice. The choice now stays, on screen and in what is saved.
+- Fix: a message sent while Claude was answering on its own (a scheduled reminder, a background
+  task that finished) went right away and its balloon showed up in the middle of the answer.
+  That turn now counts as "working": the message waits in the queue, goes when Claude
+  finishes, and then gets its answer.
+
 ## 0.7.0 (2026-11-17)
 
 - `@` in the message box also mentions a request, an agent message or an
