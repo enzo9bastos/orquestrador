@@ -755,6 +755,10 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .cartao-permissao .nota { margin: 0; font-size: 12px; }
 .aviso-recusa { padding: 8px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, #d29922 50%, transparent); background: color-mix(in srgb, #d29922 12%, transparent); color: var(--fg-2); }
 .aviso-recusa .motivo-recusa { color: var(--fg-3); }
+.itens-acesso { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12.5px; color: var(--fg-2); }
+.itens-acesso li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
+.itens-acesso code { font: 12px var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+.fora-da-pasta { font-size: 11px; padding: 0 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, #d29922 55%, transparent); color: var(--fg-2); background: color-mix(in srgb, #d29922 12%, transparent); }
 .painel-permissao { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--borda-forte); border-radius: 10px; background: var(--bg); }
 .painel-permissao h4 { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--fg); }
 .alcances { display: grid; gap: 6px; }

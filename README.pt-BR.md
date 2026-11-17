@@ -94,6 +94,13 @@ há terminal para vigiar.
 - **Servidor MCP pedindo um dado**: vira um cartão que diz qual servidor pede e o quê, com o formulário dele (campo
   de segredo mascarado) e as saídas *Enviar*, *Recusar* e *Cancelar o pedido*; quando o servidor pede para abrir uma
   página, o cartão mostra o site antes.
+- **Cartões de permissão do Codex**: um comando ou mudança de arquivo do Codex oferece o que o Codex aceita:
+  *Permitir desta vez*, *Permitir nesta conversa*, *Permitir sempre…* para comandos que começam igual (regra que o
+  próprio Codex grava em `~/.codex/rules/default.rules`; o cartão mostra a regra, o arquivo e como desfazer, e o
+  app guarda antes a versão de agora do arquivo), *Negar* e *Negar e parar*. Quando o Codex pede acesso a mais
+  (pastas fora da conversa, a rede), o cartão lista exatamente o que ele pede e libera só neste turno ou nesta
+  conversa; pedido que o app não consegue mostrar por inteiro só pode ser negado. Servidor MCP pedindo um dado pelo
+  Codex usa o mesmo cartão do Claude.
 - **Cartão do plano**: quando o Claude termina de planejar, o plano aparece formatado, com três saídas (*Aprovar e
   seguir em Auto*, *Aprovar e perguntar a cada mudança*, *Continuar planejando…*) e *Editar o plano* para mudar o
   texto antes de aprovar. Respondido, recolhe numa linha com *Ver o plano*.

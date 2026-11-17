@@ -953,15 +953,11 @@ class Conversa {
     const p = this.pendentes.get(reqId);
     if (!p) return false;
     this.pendentes.delete(reqId);
-    if (this.motor === 'codex') {
-      codex.responder(this, p, decisao);
-      this.enviar('conversa:respondido', reqId);
-      avisarLista();
-      return true;
-    }
-    // Pedido de dado de um servidor MCP: aceitar (com os campos conferidos, ou abrindo a página
-    // conferida), recusar ou cancelar. Quem responde sem dizer a ação (o ajudante, com
-    // "permitir") nunca aceita. Preenchimento errado não vai: o pedido continua aberto.
+    const doCodex = this.motor === 'codex';
+    // Pedido de dado de um servidor MCP (igual nos dois motores): aceitar (com os campos
+    // conferidos, ou abrindo a página conferida), recusar ou cancelar. Quem responde sem dizer
+    // a ação (o ajudante, com "permitir") nunca aceita. Preenchimento errado não vai: o pedido
+    // continua aberto.
     if (p.tipo === 'elicitacao') {
       let resposta = { action: decisao.acao === 'cancel' ? 'cancel' : 'decline' };
       if (decisao.acao === 'accept' && p.ok) {
@@ -971,15 +967,31 @@ class Conversa {
           resposta = { action: 'accept', content: c.conteudo };
         }
       }
-      this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
+      if (doCodex) codex.responderCru(this, p, resposta);
+      else this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
       this.enviar('conversa:respondido', reqId);
       avisarLista();
       return true;
+    }
+    if (doCodex) {
+      // "Sempre" (regra por prefixo, que o Codex grava no arquivo de regras dele): a versão de
+      // agora do arquivo fica guardada antes; sem conseguir guardar, vale só desta vez.
+      let d = decisao || {};
+      let soDestaVez = false;
+      if (d.permitir && d.sempre && p.codex && p.codex.prefixo) {
+        const copia = permissoes.copiaAntesCodex(codex.arquivoDeRegras().arq);
+        if (!copia.ok) { d = { ...d, sempre: false }; soDestaVez = true; this.registrar({ tipo: 'aviso', texto: `Permiti só desta vez: não consegui guardar a cópia do arquivo de regras do Codex antes de gravar (${copia.erro}).` }); }
+      }
+      codex.responder(this, p, d);
+      this.enviar('conversa:respondido', reqId);
+      avisarLista();
+      return soDestaVez ? { ok: true, soDestaVez: true } : true;
     }
     // Pergunta (AskUserQuestion) responde como sempre respondeu. Permissão diz ao Claude qual
     // foi a decisão: desta vez, sempre (com a regra que ELE sugeriu, no alcance escolhido) ou
     // negada (com o que a pessoa pede em vez disso, se ela escreveu).
     const pergunta = p.ferramenta === 'AskUserQuestion';
+    let soDestaVez = false;
     // Plano pronto (ExitPlanMode, entrada { plan } em Markdown): aprovar pode levar o plano
     // editado pela pessoa e o modo em que o Claude segue; "continuar planejando" é uma recusa
     // com o que ajustar. Só os dois modos do cartão passam.
@@ -1000,6 +1012,8 @@ class Conversa {
         const copia = permissoes.copiaAntes(decisao.sempre, PASTA);
         if (!copia.ok) { sempre = null; this.registrar({ tipo: 'aviso', texto: `Permiti só desta vez: não consegui guardar a cópia do arquivo de permissões antes de gravar (${copia.erro}).` }); }
       }
+      // Pediram "sempre" e a regra não foi: a tela precisa dizer "desta vez", não "sempre".
+      soDestaVez = !pergunta && typeof decisao.sempre === 'string' && !sempre;
       resposta = { behavior: 'allow', updatedInput: decisao.respostas ? { ...p.entrada, answers: decisao.respostas } : p.entrada,
         ...(sempre ? { updatedPermissions: sempre } : {}), ...(pergunta ? {} : { decisionClassification: sempre ? 'user_permanent' : 'user_temporary' }) };
     } else {
@@ -1010,7 +1024,7 @@ class Conversa {
     this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
     this.enviar('conversa:respondido', reqId);
     avisarLista();
-    return true;
+    return soDestaVez ? { ok: true, soDestaVez: true } : true;
   }
 
   // Troca modelo e/ou esforço SEM reiniciar o Claude (reiniciar mataria as

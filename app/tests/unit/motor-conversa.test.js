@@ -633,7 +633,10 @@ test('6.4: permissão com "sempre": a regra sugerida vai à tela e volta ao Clau
   let n = 0;
   const respostaDoApp = () => { const r = recebidos().filter((x) => x.type === 'control_response' && /^perm-/.test(x.response.request_id)).pop(); return r.response.response; };
   const pedir = async (qual) => { c.mandar(`pede permissão ${qual}`); await ate(() => c.pendentes.size === 1); return [...c.pendentes.values()][0]; };
-  const responder = async (p, decisao) => { assert.strictEqual(c.responder(p.id, decisao), true); n++; await ate(() => turnos(c) === n); return respostaDoApp(); };
+  // O retorno do motor: true, ou { ok, soDestaVez } quando pediram "sempre" e a regra não foi
+  // (a tela usa isso para dizer "desta vez", e não "sempre").
+  let retorno = null;
+  const responder = async (p, decisao) => { retorno = c.responder(p.id, decisao); assert.ok(retorno === true || (retorno && retorno.ok === true), JSON.stringify(retorno)); n++; await ate(() => turnos(c) === n); return respostaDoApp(); };
   const SUG = { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'npm test:*' }], behavior: 'allow', destination: 'localSettings' };
 
   let p = await pedir('com sugestão');
@@ -642,9 +645,11 @@ test('6.4: permissão com "sempre": a regra sugerida vai à tela e volta ao Clau
   assert.ok(!JSON.stringify(p).includes('permission_suggestions') && !JSON.stringify(p).includes('addRules'), 'a sugestão crua não viaja para a tela');
   assert.deepStrictEqual(await responder(p, { permitir: true, sempre: 'session' }),
     { behavior: 'allow', updatedInput: { command: 'npm test -- --so-unidade' }, updatedPermissions: [{ ...SUG, destination: 'session' }], decisionClassification: 'user_permanent' });
+  assert.strictEqual(retorno, true, 'a regra foi: retorno simples');
 
   p = await pedir('com sugestão');
   assert.deepStrictEqual(await responder(p, { permitir: true }), { behavior: 'allow', updatedInput: { command: 'npm test -- --so-unidade' }, decisionClassification: 'user_temporary' });
+  assert.strictEqual(retorno, true);
 
   p = await pedir('com sugestão');
   const negado = await responder(p, { permitir: false, emVezDisso: 'rode só o arquivo que mudou' });
@@ -654,12 +659,14 @@ test('6.4: permissão com "sempre": a regra sugerida vai à tela e volta ao Clau
   // Alcance que o app não oferece (o do time, gravado no git): vale como "desta vez".
   p = await pedir('com sugestão');
   assert.strictEqual((await responder(p, { permitir: true, sempre: 'projectSettings' })).updatedPermissions, undefined);
+  assert.deepStrictEqual(retorno, { ok: true, soDestaVez: true });
 
   // Comando da lista de recusa: a tela recebe o motivo, e mesmo pedindo "sempre" volta só "desta vez".
   p = await pedir('docker');
   assert.deepStrictEqual(p.sempre, { ok: false, motivo: 'docker, tmux ou ssh', textos: ['Bash(docker compose:*)'] });
   const d = await responder(p, { permitir: true, sempre: 'session' });
   assert.deepStrictEqual([d.behavior, d.updatedPermissions, d.decisionClassification], ['allow', undefined, 'user_temporary']);
+  assert.deepStrictEqual(retorno, { ok: true, soDestaVez: true });
 
   // Sem sugestão do Claude não há "sempre"; quem responde sem saber disso (o ajudante) continua funcionando.
   p = await pedir('sem sugestão');

@@ -98,6 +98,13 @@ que no hay ninguna terminal que vigilar.
 - **Un servidor MCP pidiendo un dato**: se vuelve una tarjeta que dice qué servidor pide y qué, con su formulario
   (campos secretos enmascarados) y las salidas *Send*, *Decline* y *Cancel the request*; cuando el servidor pide abrir
   una página, la tarjeta muestra el sitio antes.
+- **Tarjetas de permiso de Codex**: un comando o cambio de archivo de Codex ofrece lo que Codex acepta: *Allow this
+  time*, *Allow in this conversation*, *Always allow…* para comandos que empiezan igual (regla que el propio Codex
+  escribe en `~/.codex/rules/default.rules`; la tarjeta muestra la regla, el archivo y cómo deshacerla, y la app
+  guarda antes la versión actual del archivo), *Deny* y *Deny and stop*. Cuando Codex pide más acceso (carpetas
+  fuera de la conversación, la red), la tarjeta lista exactamente lo que pide y lo concede solo en este turno o en
+  la conversación; una petición que la app no puede mostrar entera solo se puede negar. Un servidor MCP que pide un
+  dato a través de Codex usa la misma tarjeta que con Claude.
 - **Tarjeta del plan**: cuando Claude termina de planificar, el plan aparece con formato, con tres salidas (*Approve
   and continue in Auto*, *Approve and ask before each change*, *Keep planning…*) y *Edit the plan* para cambiar el
   texto antes de aprobar. Respondida, se pliega en una línea con *See the plan*.

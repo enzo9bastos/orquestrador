@@ -177,9 +177,16 @@
         "campos": ["questions[].id", "questions[].question", "questions[].header?", "questions[].isSecret?", "questions[].isOther?", "questions[].options[].label?", "questions[].options[].description?"],
         "respostas": [{ "answers": { "q1": { "answers": ["Azul"] } } }, { "answers": { "q1": { "answers": [] } } }] },
       { "id": "pedido:item/commandExecution/requestApproval", "tipo": "pedido-servidor", "depende": true, "onde": "conversa-codex.js pedidoDaTela()/respostaAoServidor()", "metodo": "item/commandExecution/requestApproval",
-        "campos": ["command?", "commandActions[].command?", "reason?"], "respostas": [{ "decision": "accept" }, { "decision": "decline" }] },
+        "campos": ["command?", "commandActions[].command?", "reason?", "proposedExecpolicyAmendment?"],
+        "respostas": [{ "decision": "accept" }, { "decision": "acceptForSession" }, { "decision": { "acceptWithExecpolicyAmendment": { "execpolicy_amendment": ["git", "commit"] } } }, { "decision": "decline" }, { "decision": "cancel" }] },
       { "id": "pedido:item/fileChange/requestApproval", "tipo": "pedido-servidor", "depende": true, "onde": "conversa-codex.js pedidoDaTela()/respostaAoServidor()", "metodo": "item/fileChange/requestApproval",
-        "campos": ["grantRoot?", "reason?"], "respostas": [{ "decision": "accept" }, { "decision": "decline" }] }
+        "campos": ["grantRoot?", "reason?"], "respostas": [{ "decision": "accept" }, { "decision": "acceptForSession" }, { "decision": "decline" }, { "decision": "cancel" }] },
+      { "id": "pedido:item/permissions/requestApproval", "tipo": "pedido-servidor", "depende": true, "onde": "conversa-codex.js pedidoDaTela()/itensDeAcesso()/respostaAoServidor()", "metodo": "item/permissions/requestApproval",
+        "campos": ["permissions", "reason?"],
+        "respostas": [{ "permissions": { "fileSystem": { "entries": [{ "access": "write", "path": { "type": "path", "path": "/casa/site/dist" } }] }, "network": { "enabled": true } }, "scope": "turn" },
+          { "permissions": { "network": { "enabled": true } }, "scope": "session" }, { "permissions": {} }] },
+      { "id": "pedido:mcpServer/elicitation/request", "tipo": "pedido-servidor", "depende": true, "onde": "conversa-codex.js pedidoDaTela() + elicitacao.js + conversa.js responder()", "metodo": "mcpServer/elicitation/request",
+        "campos": ["serverName"], "respostas": [{ "action": "accept", "content": { "codigo": "481516" } }, { "action": "decline" }, { "action": "cancel" }] }
     ]
   }
 }

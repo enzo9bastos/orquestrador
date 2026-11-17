@@ -63,13 +63,23 @@ function gravar(novo) {
 function copiaAntes(destino, pasta) {
   const arq = destino === 'userSettings' ? ARQ : destino === 'localSettings' ? path.join(String(pasta || os.homedir()), '.claude', 'settings.local.json') : null;
   if (!arq) return { ok: false, erro: 'alcance desconhecido' };
+  return guardarCopia(arq, COPIAS, `${destino === 'userSettings' ? 'usuario' : 'projeto-local'}.json`);
+}
+function guardarCopia(arq, pasta, nome) {
   try {
     if (!fs.existsSync(arq)) return { ok: true, copia: null };
-    fs.mkdirSync(COPIAS, { recursive: true });
-    const copia = path.join(COPIAS, `${new Date().toISOString().replace(/[:.]/g, '-')}-${destino === 'userSettings' ? 'usuario' : 'projeto-local'}.json`);
+    fs.mkdirSync(pasta, { recursive: true });
+    const copia = path.join(pasta, `${new Date().toISOString().replace(/[:.]/g, '-')}-${nome}`);
     fs.copyFileSync(arq, copia, fs.constants.COPYFILE_EXCL);
     return { ok: true, copia };
   } catch (e) { return { ok: false, erro: e.message }; }
 }
+// "Permitir sempre" de um comando do Codex: quem grava a regra é o próprio Codex, no arquivo
+// de regras dele. A mesma garantia: a versão de agora do arquivo é copiada antes (se existir).
+const COPIAS_CODEX = path.join(os.homedir(), '.local', 'share', 'orq-app', 'versoes', 'codex-regras');
+function copiaAntesCodex(arq) {
+  if (typeof arq !== 'string' || !path.isAbsolute(arq)) return { ok: false, erro: 'arquivo de regras desconhecido' };
+  return guardarCopia(arq, COPIAS_CODEX, 'default.rules');
+}
 
-module.exports = { ler, gravar, copiaAntes };
+module.exports = { ler, gravar, copiaAntes, copiaAntesCodex };

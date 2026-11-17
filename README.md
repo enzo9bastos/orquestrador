@@ -91,6 +91,13 @@ protocol), so there is no terminal to babysit.
 - **An MCP server asking for information**: becomes a card that says which server asks and for what, with its form
   (secret fields masked) and the answers *Send*, *Decline* and *Cancel the request*; when the server asks to open a
   page, the card shows the site first.
+- **Codex permission cards**: a command or file change from Codex offers what Codex accepts: *Allow this time*,
+  *Allow in this conversation*, *Always allow…* for commands that start the same way (a rule Codex itself writes to
+  `~/.codex/rules/default.rules`; the card shows the rule, the file and how to undo it, and the app keeps the
+  current version of the file first), *Deny* and *Deny and stop*. When Codex asks for more access (folders outside
+  the conversation, the network), the card lists exactly what it asks for and grants it for this turn only or for
+  the conversation; a request the app cannot show in full can only be denied. An MCP server asking for information
+  through Codex uses the same card as with Claude.
 - **Plan card**: when Claude finishes planning, the plan shows up formatted, with three answers (*Approve and
   continue in Auto*, *Approve and ask before each change*, *Keep planning…*) and *Edit the plan* to change the text
   before approving. Once answered it folds into one line with *See the plan*.

@@ -232,6 +232,11 @@ function pendenciaDeConversa(c, p) {
   if (p.tipo === 'elicitacao') {
     return { ...base, texto: c.orquestrador ? 'Um servidor que o orquestrador usa pede um dado: responda no app' : `Um servidor que "${c.titulo}" usa pede um dado: responda no app`, item: null };
   }
+  // O Codex pede acesso a mais (pastas, rede): a lista do que ele quer só aparece inteira no
+  // cartão do app. Daqui não se libera o que não foi mostrado.
+  if (p.tipo === 'codex-acesso') {
+    return { ...base, texto: c.orquestrador ? 'O orquestrador pede acesso a mais (pastas ou rede): responda no app' : `"${c.titulo}" pede acesso a mais (pastas ou rede): responda no app`, item: null };
+  }
   if ((p.entrada?.questions || []).some((q) => q && q.isSecret)) {
     return { ...base, texto: c.orquestrador ? 'O orquestrador tem uma pergunta com resposta secreta: responda no app' : `"${c.titulo}" tem uma pergunta com resposta secreta: responda no app`, item: null };
   }

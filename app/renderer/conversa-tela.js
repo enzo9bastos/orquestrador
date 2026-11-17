@@ -540,6 +540,8 @@
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
     } else if (p.tipo === 'elicitacao') {
       cartaoMcp(el, p);
+    } else if (p.tipo === 'codex-acesso') {
+      cartaoAcesso(el, p);
     } else if (p.ferramenta === 'ExitPlanMode' && !conversaCodex() && p.entrada && typeof p.entrada.plan === 'string') {
       cartaoPlano(el, p);
     } else {
@@ -552,8 +554,18 @@
       const quem = `<span class="quem-pede">${!conv || conv.orquestrador ? 'O orquestrador' : esc(conv.titulo)}</span>`;
       const cabeca = `<div class="titulo-pedido"><span class="ponto permissao"></span>${quem} <span class="verbo-pedido">${esc(verbo)}:</span> <strong>${esc(alvo)}</strong></div>
         <pre class="entrada-ferramenta">${esc(curto(corpo, 3000))}</pre>`;
-      if (conversaCodex()) {
-        // Codex: as respostas dele (sessão, prefixo, cancelar) entram com o cartão próprio do P2.
+      if (p.codex) {
+        // Codex (plano 8.2): as respostas que ele aceita. Desta vez, nesta conversa, sempre para
+        // comandos que começam igual (regra que o próprio Codex grava), negar, negar e parar.
+        el.classList.add('cartao-permissao', 'cartao-codex');
+        el.tabIndex = 0;
+        el.dataset.alvo = alvo;
+        el.dataset.corpo = curto(corpo, 300);
+        el.innerHTML = `${cabeca}${p.motivo ? `<p class="motivo-pedido"><strong>Por que pergunta:</strong> <span data-sem-traducao>${esc(p.motivo)}</span></p>` : ''}<div class="area-permissao"></div>`;
+        codexInicio(el, p);
+        teclasDoCartao(el, '.saidas-permissao [data-perm]');
+      } else if (conversaCodex()) {
+        // Pedido do Codex sem os dados do cartão novo (não deve acontecer): as duas saídas de antes.
         el.innerHTML = `${cabeca}<div class="acoes"><button type="button" class="botao primario" data-permitir="1">Permitir</button>
           <button type="button" class="botao secundario" data-permitir="0">Negar</button></div>`;
       } else {
@@ -575,6 +587,101 @@
     grupo = null;
     caixa.append(el);
     colado = true; rolar();
+  }
+
+  // Com o cartão em foco, as teclas de número escolhem a saída (desligável nas Configurações).
+  function teclasDoCartao(el, seletor) {
+    el.addEventListener('keydown', (ev) => {
+      if (cfg.teclasNosCartoes === false || ev.ctrlKey || ev.altKey || ev.metaKey || ev.target.closest('input, textarea, select')) return;
+      if (!/^[1-9]$/.test(ev.key)) return;
+      const b = el.querySelectorAll(seletor)[Number(ev.key) - 1];
+      if (b) { ev.preventDefault(); b.click(); }
+    });
+  }
+  const dicaDasTeclas = () => (cfg.teclasNosCartoes !== false ? '<p class="nota dica-teclas"><span>Com o cartão em foco, as teclas de número escolhem a saída.</span></p>' : '');
+
+  // --- cartões do Codex (planos 8.2 e 8.3) ----------------------------------------------
+  // p.codex vem do processo principal: { tipo: 'comando' | 'arquivo', sessao, prefixo, recusa, arquivo }.
+  //   sessao: pode "nesta conversa". prefixo: o começo de comando que o Codex propôs para
+  //   "sempre" (null = não há "sempre"). recusa: por que o app não oferece (lista de recusa).
+  function codexInicio(cartao, p) {
+    const x = p.codex;
+    let n = 0;
+    const k = () => (cfg.teclasNosCartoes !== false ? `<kbd data-sem-traducao>${++n}</kbd> ` : '');
+    const nota = !x.recusa ? '' : x.sessao ? 'Para este comando o app não oferece "Permitir sempre": o começo de comando que o Codex propôs é aberto demais.'
+      : 'Para este tipo de comando o app não oferece "nesta conversa" nem "sempre": cada vez passa por você.';
+    cartao.querySelector('.area-permissao').innerHTML = `<div class="acoes saidas-permissao">
+        <button type="button" class="botao primario" data-perm="vez" data-permitir="1">${k()}<span>Permitir desta vez</span></button>
+        ${x.sessao ? `<button type="button" class="botao secundario" data-perm="sessao">${k()}<span>Permitir nesta conversa</span></button>` : ''}
+        ${x.prefixo ? `<button type="button" class="botao secundario" data-perm="prefixo">${k()}<span>Permitir sempre…</span></button>` : ''}
+        <button type="button" class="botao secundario" data-perm="negar-ja" data-permitir="0">${k()}<span>Negar</span></button>
+        <button type="button" class="botao secundario" data-perm="parar">${k()}<span>Negar e parar</span></button></div>
+      ${nota ? `<p class="nota aviso-recusa"><span>${nota}</span> <span class="motivo-recusa">(<span>${esc(x.recusa)}</span>)</span></p>` : ''}
+      ${dicaDasTeclas()}`;
+  }
+  function codexSempre(cartao, p) {
+    const comeco = `<code data-sem-traducao>${esc(p.codex.prefixo)}</code>`;
+    cartao.querySelector('.area-permissao').innerHTML = `<div class="painel-permissao">
+        <h4><span>Permitir sempre comandos que começam com</span> ${comeco}<span>?</span></h4>
+        <dl class="sempre-regra"><dt>Regra</dt><dd><span>comandos que começam com</span> ${comeco} <span>(o começo foi proposto pelo Codex)</span></dd>
+          <dt>Arquivo</dt><dd><span>regras do Codex, em</span> <code data-sem-traducao>${esc(p.codex.arquivo || '')}</code></dd>
+          <dt>Vale</dt><dd>em toda conversa do Codex, também fora do app</dd>
+          <dt>Para desfazer</dt><dd>apagar a linha desse arquivo</dd></dl>
+        <p class="nota sempre-copia">É permanente. Antes de o Codex gravar, o app guarda a versão de agora desse arquivo.</p>
+        <div class="acoes"><button type="button" class="botao primario" data-perm="confirmar-prefixo"><span>Permitir sempre</span> ${comeco}</button><button type="button" class="botao secundario" data-perm="voltar">Voltar</button></div>
+      </div>`;
+  }
+  async function clicouNoCodex(cartao, acao, p) {
+    const alvo = `<code data-sem-traducao>${esc(cartao.dataset.corpo || cartao.dataset.alvo || '')}</code>`;
+    const responder = (d) => C.responder(ativa, cartao.dataset.pedido, d);
+    if (acao === 'prefixo') return codexSempre(cartao, p);
+    if (acao === 'voltar') { codexInicio(cartao, p); cartao.focus(); return undefined; }
+    if (acao === 'vez') { await responder({ permitir: true }); return fecharPermissao(cartao, 'sim', `<span>Permitido desta vez</span> · ${alvo}`); }
+    if (acao === 'sessao') {
+      await responder({ permitir: true, sessao: true });
+      return fecharPermissao(cartao, 'sim', `<span>Permitido nesta conversa</span> · <span>${p.codex.tipo === 'comando' ? 'este mesmo comando não pergunta de novo até você fechá-la' : 'o Codex não pergunta de novo pela mesma coisa até você fechá-la'}</span>`);
+    }
+    if (acao === 'confirmar-prefixo') {
+      const r = await responder({ permitir: true, sempre: true });
+      if (r && r.soDestaVez) return fecharPermissao(cartao, 'sim', `<span>Permitido desta vez</span> · ${alvo} · <span>a regra não foi gravada: o app não conseguiu guardar a cópia do arquivo antes</span>`);
+      return fecharPermissao(cartao, 'sim', `<span>Permitido sempre</span> · <span>comandos que começam com</span> <code data-sem-traducao>${esc(p.codex.prefixo)}</code> · <span>o Codex grava a regra em</span> <code data-sem-traducao>${esc(p.codex.arquivo || '')}</code>`);
+    }
+    if (acao === 'negar-ja') { await responder({ permitir: false }); return fecharPermissao(cartao, 'nao', `<span>Negado</span> · ${alvo} · <span>o Codex segue por outro caminho</span>`); }
+    if (acao === 'parar') { await responder({ permitir: false, parar: true }); return fecharPermissao(cartao, 'nao', `<span>Negado e turno parado</span> · ${alvo} · <span>o Codex espera a sua próxima mensagem</span>`); }
+    return undefined;
+  }
+  // O Codex pede acesso a mais (pastas fora da conversa, rede). p.itens: [{ acao, onde }];
+  // p.ok false = o pedido tem uma parte que o app não sabe mostrar: só dá para negar.
+  const ACESSOS = { ler: 'Ler', escrever: 'Escrever em', bloquear: 'Sem acesso a' };
+  const foraDaPasta = (onde) => { const pasta = String(infoAtual.pasta || '').replace(/\/+$/, ''); return !!pasta && onde.startsWith('/') && onde !== pasta && !onde.startsWith(`${pasta}/`); };
+  function cartaoAcesso(el, p) {
+    el.classList.add('cartao-permissao', 'cartao-acesso');
+    el.tabIndex = 0;
+    let n = 0;
+    const k = () => (cfg.teclasNosCartoes !== false ? `<kbd data-sem-traducao>${++n}</kbd> ` : '');
+    const item = (x) => (x.acao === 'rede' ? '<li><span>Usar a rede</span></li>'
+      : `<li><span>${ACESSOS[x.acao] || esc(x.acao)}</span> <code data-sem-traducao>${esc(x.onde)}</code>${foraDaPasta(x.onde) ? ' <span class="fora-da-pasta">fora da pasta desta conversa</span>' : ''}</li>`);
+    el.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span><span><span class="quem-pede">${quemPede()}</span> <span>pede acesso a mais</span></span></div>
+      ${(p.itens || []).length ? `<ul class="itens-acesso">${p.itens.map(item).join('')}</ul>` : ''}
+      ${p.motivo ? `<p class="motivo-pedido"><strong>O Codex explica:</strong> <span data-sem-traducao>${esc(p.motivo)}</span></p>` : ''}
+      <div class="area-permissao">${p.ok ? `<div class="acoes saidas-permissao">
+          <button type="button" class="botao primario" data-acesso="turno">${k()}<span>Liberar só neste turno</span></button>
+          <button type="button" class="botao secundario" data-acesso="sessao">${k()}<span>Liberar nesta conversa</span></button>
+          <button type="button" class="botao secundario" data-acesso="negar">${k()}<span>Negar</span></button></div>
+        <p class="nota"><span>"Só neste turno" vale até o Codex terminar esta resposta. Nenhuma das opções grava arquivo.</span></p>${dicaDasTeclas()}`
+    : `<p class="nota aviso-recusa"><span>Este pedido tem uma parte que o app não sabe mostrar; só dá para negar.</span></p>
+        <div class="acoes saidas-permissao"><button type="button" class="botao primario" data-acesso="negar"><span>Negar</span></button></div>`}</div>`;
+    teclasDoCartao(el, '.saidas-permissao [data-acesso]');
+  }
+  async function clicouNoAcesso(cartao, acao) {
+    const p = pedidoDoCartao(cartao);
+    const resumo = (p.itens || []).map((x) => (x.acao === 'rede' ? '<span>rede</span>' : `<span>${(ACESSOS[x.acao] || x.acao).toLowerCase()}</span> <code data-sem-traducao>${esc(x.onde)}</code>`)).join(' · ');
+    if (acao === 'negar' || !p.ok) {
+      await C.responder(ativa, cartao.dataset.pedido, { permitir: false });
+      return fecharPermissao(cartao, 'nao', '<span>Acesso negado</span> · <span>o Codex continua só com o que já tinha</span>');
+    }
+    await C.responder(ativa, cartao.dataset.pedido, acao === 'sessao' ? { permitir: true, sessao: true } : { permitir: true });
+    return fecharPermissao(cartao, 'sim', `<span>${acao === 'sessao' ? 'Acesso liberado nesta conversa' : 'Acesso liberado só neste turno'}</span> · ${resumo}`);
   }
 
   // --- cartão do pedido de dado de um servidor MCP --------------------------------------
@@ -777,6 +884,7 @@
   }
   async function clicouNaPermissao(cartao, acao) {
     const p = pedidoDoCartao(cartao);
+    if (p.codex) return clicouNoCodex(cartao, acao, p);
     const alvo = `<code data-sem-traducao>${esc(cartao.dataset.corpo || cartao.dataset.alvo || '')}</code>`;
     if (acao === 'sempre') return permissaoSempre(cartao, p);
     if (acao === 'negar') return permissaoNegar(cartao);
@@ -787,7 +895,9 @@
     }
     if (acao === 'confirmar-sempre') {
       const v = cartao.querySelector('.alcances input:checked').value;
-      await C.responder(ativa, cartao.dataset.pedido, { permitir: true, sempre: v });
+      const r = await C.responder(ativa, cartao.dataset.pedido, { permitir: true, sempre: v });
+      // O motor não conseguiu guardar a cópia do arquivo antes: a regra não foi, e a tela diz isso.
+      if (r && r.soDestaVez) return fecharPermissao(cartao, 'sim', `<span>Permitido desta vez</span> · ${alvo} · <span>a regra não foi gravada: o app não conseguiu guardar a cópia do arquivo antes</span>`);
       return fecharPermissao(cartao, 'sim', `<span>${ALCANCES[v].fim}</span> · <span>regra</span> ${(p.sempre.textos || []).map((x) => `<code data-sem-traducao>${esc(x)}</code>`).join(' ')} · <span>para desfazer:</span> <code data-sem-traducao>/permissions</code>`);
     }
     if (acao === 'confirmar-negar') {
@@ -810,6 +920,8 @@
     if (noMcp) { await clicouNoMcp(noMcp.closest('.cartao-mcp'), noMcp.dataset.mcp, ev.isTrusted === true); return; }
     const noPlano = ev.target.closest('.cartao-plano:not(.respondido) [data-plano]');
     if (noPlano) { await clicouNoPlano(noPlano.closest('.cartao-plano'), noPlano.dataset.plano); return; }
+    const noAcesso = ev.target.closest('.cartao-acesso:not(.respondido) [data-acesso]');
+    if (noAcesso) { await clicouNoAcesso(noAcesso.closest('.cartao-acesso'), noAcesso.dataset.acesso); return; }
     const perm = ev.target.closest('.cartao-permissao:not(.respondido) [data-perm]');
     if (perm) { await clicouNaPermissao(perm.closest('.cartao-permissao'), perm.dataset.perm); return; }
     const cr = ev.target.closest('.copiar-resposta');
