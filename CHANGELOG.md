@@ -4,6 +4,18 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.4.3 (2026-11-17)
+
+- Codex: `/ps` and `/stop` work. The app now declares the capability Codex
+  requires for background terminals (checked against Codex 0.167.1: it only
+  adds methods and optional fields) and answers the one request Codex may
+  send to such clients.
+- Library: reads the folders other CLIs use now (OpenCode's plural folders,
+  Gemini skills and agents, Qwen Code commands in Markdown, Cursor skills),
+  and a skill reached through a link is listed once.
+- Tests: the rewind screen test no longer misreads a late log line when many
+  screen files run at once.
+
 ## 0.4.2 (2026-11-17)
 
 - Desktop helper: what counts is what the user can see, not where the
