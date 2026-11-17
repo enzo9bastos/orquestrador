@@ -4,6 +4,20 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.9.0 (2026-11-17)
+
+- Quick question (`/btw`, or ⋯ › Quick question) now opens a drawer over the right-hand column instead of
+  dropping a card in the middle of the conversation. You ask about the conversation while Claude keeps
+  working; the question and the answer stay out of the conversation.
+- A follow-up question sees the earlier ones (the newest 20, as in the terminal). You can stop a question
+  that is waiting, copy an answer as Markdown, ask a failed one again, and clear the list. The list is kept in
+  memory, one per conversation, until the app closes.
+- A notice that Claude Code returns in place of an answer (a sign-in error, for example) is now shown as an
+  error with its detail, not as if it were the answer.
+- `/btw` with no question opens the drawer on the earlier questions. Esc closes the drawer when the keyboard
+  is in it; in the message box, Esc still stops the engine.
+- Claude conversations only: in a Codex conversation `/btw` remains Codex's `/side`.
+
 ## 0.8.1 (2026-11-17)
 
 - A message waiting in the queue now shows the thumbnails of the screenshots it carries
