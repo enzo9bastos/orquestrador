@@ -71,7 +71,8 @@ let enviarTela = () => {};
 let avisar = () => {};
 
 // Modelos e esforços que o botão da barra oferece.
-const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-1' };
+// opusplan é um apelido do próprio Claude Code (Opus no modo plano, Sonnet na execução).
+const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-2', opusplan: 'opusplan' };
 const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // Modo de permissão com que o app sobe o Claude. Num reinício, vale o modo
 // vivo da conversa (init ou system/status) quando ele é mais restritivo que o
@@ -314,7 +315,7 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rotuloLongo: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, rotuloLongo: null, ocupado: false };
   }
 
   // O orquestrador segue a IA escolhida na configuração. Só troca parado:
@@ -853,6 +854,8 @@ class Conversa {
   // guardada e vale em toda subida.
   async rapidoLigar(ligar) {
     this.rapido = !!ligar;
+    this.info.rapido = this.rapido;
+    this.avisarInfo();
     gravarLista();
     const frase = ligar ? 'Modo rápido ligado nesta conversa.' : 'Modo rápido desligado nesta conversa.';
     if (!this.proc) { this.registrar({ tipo: 'aviso', texto: `${frase} Vale a partir da próxima mensagem.` }); return { ok: true, aoVivo: false }; }

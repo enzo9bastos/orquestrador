@@ -631,6 +631,7 @@
   // --- barra de informações ----------------------------------------------
   const nomeModelo = (m) => {
     if (!m) return '—';
+    if (m === 'opusplan') return 'Opus + Sonnet';
     const x = m.match(/claude-([a-z]+)-(\d+)-(\d+)/);
     return x ? `${x[1][0].toUpperCase()}${x[1].slice(1)} ${x[2]}.${x[3]}` : m;
   };
@@ -699,6 +700,9 @@
     $('info-modelo').textContent = nomeModelo(i.modelo);
     desenharEsforco(i.esforco);
     infoAtual = i;
+    const comRapido = [...MODELOS, ...OUTROS_MODELOS].some((x) => x[4] && x[2] === i.modelo);
+    $('selo-rapido').hidden = !(i.rapido === true && comRapido);
+    if (!$('menu-modelo').hidden) { const foco = document.activeElement && (document.activeElement.dataset.passo || document.activeElement.dataset.chave); desenharMenu(); const el = foco && $('menu-modelo').querySelector(`[data-passo="${foco}"], [data-chave="${foco}"]`); if (el && !el.disabled) el.focus(); }
     const janela = i.janela || null;
     const ctx = i.contexto != null && janela ? Math.round((i.contexto / janela) * 100) : null;
     // A janela longa: 7 dias no Claude; no Codex, a do plano (ex.: 30 dias no free).
@@ -714,8 +718,13 @@
   }
 
   // --- modelo e esforço (botão da barra) ------------------------------------
-  const MODELOS = [['opus', 'Opus 5.5', 'claude-opus-5-5'], ['sonnet', 'Sonnet 5.5', 'claude-sonnet-5-5'],
-    ['haiku', 'Haiku 5.5', 'claude-haiku-5-5'], ['fable', 'Fable 5.1', 'claude-fable-5-1']];
+  // [chave, nome, id que o Claude devolve, nome técnico (o apelido do terminal), tem modo rápido]
+  // Conferido na documentação do Claude Code (model-config, fast-mode): os
+  // modelos atuais já têm contexto de 1 milhão, por isso não há interruptor
+  // de "[1m]"; o modo rápido só existe em Opus e Fable.
+  const MODELOS = [['opus', 'Opus 5.5', 'claude-opus-5-5', 'opus', true], ['sonnet', 'Sonnet 5.5', 'claude-sonnet-5-5', 'sonnet', false],
+    ['haiku', 'Haiku 5.5', 'claude-haiku-5-5', 'haiku', false], ['opusplan', 'Opus planeja, Sonnet executa', 'opusplan', 'opusplan', false]];
+  const OUTROS_MODELOS = [['fable', 'Fable 5.2', 'claude-fable-5-2', 'fable', true], ['', 'Padrão da conta', null, 'default', false]];
   const ESFORCOS = [['low', 'Baixo', 1], ['medium', 'Médio', 2], ['high', 'Alto', 3], ['xhigh', 'Extra alto', 4], ['max', 'Máximo', 5]];
   let infoAtual = {};
   function desenharEsforco(e) {
@@ -728,11 +737,34 @@
     const m = infoAtual.modelo || '';
     const codex = infoAtual.motor === 'codex';
     // O Codex usa o modelo da configuração dele; aqui só o esforço muda.
+    const opcao = ([k, nome, id, tecnico]) => `<button type="button" role="menuitemradio" data-modelo="${k}" aria-checked="${!!id && m === id}" aria-pressed="${!!id && m === id}"><span class="marca-radio"></span><span class="opcao-texto"><span>${nome}</span></span><span class="nome-tecnico" data-sem-traducao>${tecnico}</span></button>`;
     $('opcoes-modelo').innerHTML = codex
       ? '<p class="popup-nota">O Codex usa o modelo da configuração dele (~/.codex/config.toml).</p>'
-      : MODELOS.map(([k, nome, id]) => `<button type="button" data-modelo="${k}" aria-pressed="${m === id}">${nome}</button>`).join('');
-    $('opcoes-esforco').innerHTML = ESFORCOS.filter(([k]) => !codex || k !== 'max').map(([k, nome, n]) =>
-      `<button type="button" data-esforco="${k}" aria-pressed="${infoAtual.esforco === k}"><span class="nivel">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'cheio' : ''}"></i>`).join('')}</span>${nome}</button>`).join('');
+      : MODELOS.map(opcao).join('');
+    // "Outros modelos" fica recolhido; abre sozinho se o modelo de agora for um de lá.
+    const emOutros = OUTROS_MODELOS.some((x) => x[2] && x[2] === m);
+    $('outros-modelos').innerHTML = codex ? '' : `<details class="menu-outros"${emOutros ? ' open' : ''}><summary>Outros modelos</summary><div class="menu-opcoes">${OUTROS_MODELOS.map(opcao).join('')}</div></details>`;
+    // Modo rápido: só nos modelos que têm (Opus, Fable).
+    const atual = [...MODELOS, ...OUTROS_MODELOS].find((x) => x[2] && x[2] === m);
+    $('chaves-modelo').innerHTML = !codex && atual && atual[4]
+      ? `<div class="menu-separador"></div><button type="button" class="menu-chave" role="menuitemcheckbox" data-chave="rapido" aria-checked="${infoAtual.rapido === true}"><span class="chave-menu"></span><span class="opcao-texto"><span>Modo rápido</span><small>responde mais depressa; cobrado à parte, em créditos de uso</small></span><span class="nome-tecnico" data-sem-traducao>fastMode</span></button>`
+      : '';
+    // Esforço numa linha: ◂ e ▸ andam um nível (as setas do teclado também); cada barrinha vai direto ao nível dela.
+    const niveis = ESFORCOS.filter(([k]) => !codex || k !== 'max');
+    const pos = niveis.findIndex(([k]) => k === infoAtual.esforco);
+    const nomeAtual = pos >= 0 ? niveis[pos][1] : 'padrão';
+    $('opcoes-esforco').innerHTML = `<button type="button" class="botao-seta" data-passo="-1" aria-label="Menos esforço"${pos === 0 ? ' disabled' : ''}>◂</button>
+      <span class="niveis-esforco">${niveis.map(([k, nome], i) => `<button type="button" class="barra-nivel${pos >= 0 && i <= pos ? ' cheia' : ''}" data-esforco="${k}" aria-pressed="${infoAtual.esforco === k}" title="${nome}" aria-label="${nome}" style="--n:${i}"></button>`).join('')}</span>
+      <span class="nome-esforco">${nomeAtual}</span>
+      <button type="button" class="botao-seta" data-passo="1" aria-label="Mais esforço"${pos === niveis.length - 1 ? ' disabled' : ''}>▸</button>`;
+  }
+  // Um nível de esforço para cima ou para baixo (◂ ▸ do menu e ← → do teclado).
+  async function passoEsforco(d) {
+    const niveis = ESFORCOS.filter(([k]) => infoAtual.motor !== 'codex' || k !== 'max').map(([k]) => k);
+    const pos = niveis.indexOf(infoAtual.esforco);
+    const novo = niveis[Math.max(0, Math.min(niveis.length - 1, (pos < 0 ? (d > 0 ? -1 : niveis.length) : pos) + d))];
+    if (!novo || novo === infoAtual.esforco) return;
+    await C.configurar(ativa, { esforco: novo });
   }
   function fecharMenu() { $('menu-modelo').hidden = true; $('botao-modelo').setAttribute('aria-expanded', 'false'); }
   $('botao-modelo').addEventListener('click', (ev) => {
@@ -755,9 +787,25 @@
     ev.stopPropagation();
     const b = ev.target.closest('button');
     if (!b) return;
-    const o = b.dataset.modelo ? { modelo: b.dataset.modelo } : { esforco: b.dataset.esforco };
-    await C.configurar(ativa, o);
-    fecharMenu();
+    // O esforço e o modo rápido deixam o menu aberto (dá para ajustar de novo); escolher o modelo fecha.
+    if (b.dataset.passo) { await passoEsforco(Number(b.dataset.passo)); return; }
+    if (b.dataset.esforco) { await C.configurar(ativa, { esforco: b.dataset.esforco }); return; }
+    if (b.dataset.chave === 'rapido') {
+      const r = await window.orq.comandos.rapido(ativa, infoAtual.rapido !== true);
+      if (r && r.erro) aviso(`O modo rápido não mudou: ${r.erro}`, 'erro');
+      return;
+    }
+    if (b.dataset.modelo != null) { await C.configurar(ativa, { modelo: b.dataset.modelo || null }); fecharMenu(); }
+  });
+  // Com o menu aberto: ↑ ↓ andam pelas opções; ← → mudam o esforço (como no terminal).
+  document.addEventListener('keydown', (ev) => {
+    if ($('menu-modelo').hidden) return;
+    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') { ev.preventDefault(); passoEsforco(ev.key === 'ArrowRight' ? 1 : -1); return; }
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+    ev.preventDefault();
+    const itens = [...$('menu-modelo').querySelectorAll('#opcoes-modelo button, .menu-outros summary, .menu-outros[open] button, .menu-chave')];
+    const i = itens.indexOf(document.activeElement);
+    (itens[(i + (ev.key === 'ArrowDown' ? 1 : itens.length - 1) + (i < 0 && ev.key === 'ArrowUp' ? 1 : 0)) % itens.length] || itens[0]).focus();
   });
   document.addEventListener('click', fecharMenu);
 

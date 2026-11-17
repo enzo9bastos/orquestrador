@@ -83,13 +83,15 @@
           <span class="chip" title="Pasta"><svg class="ico"><use href="#i-pasta"/></svg><span id="info-pasta">~</span></span>
           <span class="seletor-modelo">
             <button id="botao-modelo" class="chip botao-chip" type="button" title="Trocar modelo e esforço" aria-haspopup="true" aria-expanded="false">
-              <svg class="ico"><use href="#i-estrela"/></svg><span id="info-modelo">—</span>
+              <svg class="ico"><use href="#i-estrela"/></svg><span id="info-modelo">—</span><span class="selo-chip selo-rapido" id="selo-rapido" title="Modo rápido ligado: cobrado à parte, em créditos de uso" hidden>rápido</span>
               <span class="divisor"></span><span id="info-esforco" class="esforco"></span><span class="seta">▾</span></button>
-            <div id="menu-modelo" class="menu-modelo" hidden>
+            <div id="menu-modelo" class="menu-modelo menu-do-modelo" role="menu" aria-label="Modelo e esforço" hidden>
               <div class="menu-titulo">Modelo</div>
               <div class="menu-opcoes" id="opcoes-modelo"></div>
+              <div id="outros-modelos"></div>
+              <div id="chaves-modelo"></div>
               <div class="menu-titulo">Esforço</div>
-              <div class="menu-opcoes" id="opcoes-esforco"></div>
+              <div class="linha-esforco" id="opcoes-esforco"></div>
               <p class="menu-nota">Troca sem reiniciar: o que roda em segundo plano continua. No Claude, só o esforço Máximo reinicia a conversa e encerra o que estiver em segundo plano.</p>
             </div>
           </span>

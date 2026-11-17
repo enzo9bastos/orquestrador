@@ -371,6 +371,16 @@
     "Respondido": "Answered",
     "Contexto": "Context",
     "Uso": "Usage",
+    "Modelo e esforço": "Model and effort",
+    "Opus planeja, Sonnet executa": "Opus plans, Sonnet executes",
+    "Outros modelos": "Other models",
+    "Padrão da conta": "Account default",
+    "Modo rápido": "Fast mode",
+    "responde mais depressa; cobrado à parte, em créditos de uso": "answers faster; billed separately, in usage credits",
+    "Modo rápido ligado: cobrado à parte, em créditos de uso": "Fast mode on: billed separately, in usage credits",
+    "rápido": "fast",
+    "Menos esforço": "Less effort",
+    "Mais esforço": "More effort",
     "Mais ações desta conversa": "More actions for this conversation",
     "Iniciar a rodada": "Start the round",
     "Desligar a rodada": "Shut down the round",
@@ -2296,6 +2306,10 @@
     [
       "^O modo não trocou: (.+)$",
       "The mode didn't change: $1"
+    ],
+    [
+      "^O modo rápido não mudou: (.+)$",
+      "Fast mode didn't change: $1"
     ],
     [
       "^Rodando: (.+)$",

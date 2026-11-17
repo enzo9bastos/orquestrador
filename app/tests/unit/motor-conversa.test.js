@@ -288,6 +288,27 @@ test('rodada: o comando que abre a rodada marca só o orquestrador; o fim da rod
   await ate(() => orq.info.rodada === false);
 });
 
+// Plano 2.1 e 2.4 (menu de modelo): opusplan e Fable 5.2 pelos nomes que a
+// documentação do Claude Code dá; o modo rápido aparece no estado da conversa.
+test('modelo: opusplan vai como apelido (ao vivo e na subida); Fable é o 5.2; o modo rápido entra no estado da tela', async (t) => {
+  const c = new conversa._Conversa({ id: 'mm1', titulo: 'Conversa modelo' });
+  t.after(() => c.parar());
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  assert.strictEqual(c.configurar({ modelo: 'opusplan' }), true);
+  await ate(() => c.info.modelo === 'opusplan');
+  assert.strictEqual(recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'set_model').pop().request.model, 'opusplan');
+  assert.deepStrictEqual(c.argumentos().slice(c.argumentos().indexOf('--model'), c.argumentos().indexOf('--model') + 2), ['--model', 'opusplan']);
+  assert.strictEqual(c.configurar({ modelo: 'fable' }), true);
+  await ate(() => c.info.modelo === 'claude-fable-5-2');
+  assert.strictEqual(c.configurar({ modelo: 'nao-existe' }), false);
+  assert.strictEqual(c.info.rapido, null, 'sem escolha, vale o padrão do Claude');
+  await c.rapidoLigar(true);
+  assert.strictEqual(c.info.rapido, true);
+  await c.rapidoLigar(false);
+  assert.strictEqual(c.info.rapido, false);
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });
