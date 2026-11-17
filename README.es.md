@@ -95,6 +95,9 @@ que no hay ninguna terminal que vigilar.
   conversación, que es lo predeterminado y no escribe nada, este proyecto o todos; la tarjeta muestra la regla, el
   archivo y cómo deshacerlo) y *Deny…*, diciendo qué hacer en su lugar. El motivo de la pregunta queda a la vista.
   Docker, ssh, red, borrar y `git push` nunca reciben "siempre". Con la tarjeta enfocada, las teclas 1, 2 y 3 responden.
+- **Tarjeta del plan**: cuando Claude termina de planificar, el plan aparece con formato, con tres salidas (*Approve
+  and continue in Auto*, *Approve and ask before each change*, *Keep planning…*) y *Edit the plan* para cambiar el
+  texto antes de aprobar. Respondida, se pliega en una línea con *See the plan*.
 - **`!` ejecuta un comando tuyo** (desactivado por defecto; se activa en Settings › Advanced): `!docker ps` en la caja se ejecuta en tu computadora, en la carpeta de la
   conversación, y aparece como "You ran", con la salida. La salida va a Claude junto con tu siguiente mensaje.
   Solo vale el `!` que tú mismo escribiste o pegaste y enviaste con Enter; el texto que llega por un pedido de

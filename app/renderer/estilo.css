@@ -772,6 +772,17 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .campo-negar:focus { outline: none; border-color: var(--claude); box-shadow: inset 0 0 0 1px var(--claude); }
 .cartao-pedido.respondido { flex-wrap: wrap; }
 .marca-resposta.sim { color: var(--ok, #3fb950); } .marca-resposta.nao { color: var(--perigo); }
+/* Cartão do plano: o plano formatado, o editor e a linha recolhida com "Ver o plano". */
+.cartao-plano:focus-visible { outline: 2px solid var(--claude); outline-offset: 2px; }
+.titulo-plano .botao-texto { margin-left: auto; }
+.plano-area { display: grid; gap: 6px; min-width: 0; }
+.plano-texto { padding: 12px 14px; border: 1px solid var(--borda); border-radius: 10px; background: var(--bg); max-height: 360px; overflow: auto; }
+.plano-texto[hidden] { display: none; }
+.plano-editor { width: 100%; min-height: 220px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--borda-forte); background: var(--bg); color: var(--fg); font: 12.5px/1.5 var(--mono); resize: vertical; }
+.plano-editor:focus { outline: none; border-color: var(--claude); box-shadow: inset 0 0 0 1px var(--claude); }
+.cartao-pedido.plano-respondido { display: grid; gap: 8px; }
+.linha-plano { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.linha-plano .botao-texto { margin-left: auto; }
 /* "!" da caixa: comando do usuário. A caixa fica com a borda âmbar; na conversa, o bloco "Você rodou". */
 .caixa-entrada.modo-shell, .caixa-entrada.modo-shell:focus-within { border-color: #d29922; box-shadow: inset 0 0 0 1px color-mix(in srgb, #d29922 55%, transparent); }
 .msg-shell { align-self: stretch; display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, #d29922 40%, var(--borda)); background: color-mix(in srgb, #d29922 6%, transparent); min-width: 0; }

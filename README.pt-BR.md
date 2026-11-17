@@ -91,6 +91,9 @@ há terminal para vigiar.
   esta conversa, que é o padrão e não grava nada, este projeto ou todos; o cartão mostra a regra, o arquivo e como
   desfazer) e *Negar…*, dizendo o que fazer em vez disso. O motivo da pergunta fica à vista. Docker, ssh, rede,
   apagar e `git push` nunca ganham "sempre". Com o cartão em foco, as teclas 1, 2 e 3 respondem.
+- **Cartão do plano**: quando o Claude termina de planejar, o plano aparece formatado, com três saídas (*Aprovar e
+  seguir em Auto*, *Aprovar e perguntar a cada mudança*, *Continuar planejando…*) e *Editar o plano* para mudar o
+  texto antes de aprovar. Respondido, recolhe numa linha com *Ver o plano*.
 - **`!` roda um comando seu** (desligado por padrão; liga em Configurações › Avançado): `!docker ps` na caixa roda no seu computador, na pasta da conversa, e aparece como
   "Você rodou", com a saída. A saída vai para o Claude junto com a sua próxima mensagem. Só vale o `!` que você
   mesmo digitou ou colou e enviou com Enter; texto que chega por recado, workflow, atalho ou pelo modelo nunca

@@ -695,6 +695,45 @@ test('6.4: "sempre" no projeto ou para o usuário guarda antes uma cópia do arq
   assert.strictEqual(quantas(), antes);
 });
 
+// Plano 2.3: cartão do plano (sair do modo Planejar). Três saídas: aprovar e seguir em Auto,
+// aprovar e perguntar a cada mudança, continuar planejando (com o que ajustar). O plano
+// editado pela pessoa volta no lugar do original. O modo depois de aprovar vai na resposta.
+test('2.3: plano pronto: aprovar leva o modo escolhido (e o plano editado); continuar planejando nega dizendo o ajuste', async (t) => {
+  const c = new conversa._Conversa({ id: 'pl1', titulo: 'Conversa do plano' });
+  t.after(() => c.parar());
+  let n = 0;
+  const respostaDoApp = () => recebidos().filter((x) => x.type === 'control_response' && /^perm-/.test(x.response.request_id)).pop().response.response;
+  const pedir = async () => { c.mandar('pede para sair do plano'); await ate(() => c.pendentes.size === 1); return [...c.pendentes.values()][0]; };
+  const responder = async (p, decisao) => { assert.strictEqual(c.responder(p.id, decisao), true); n++; await ate(() => turnos(c) === n); return respostaDoApp(); };
+
+  let p = await pedir();
+  assert.strictEqual(p.ferramenta, 'ExitPlanMode');
+  assert.match(p.entrada.plan, /^# Plano: exportar em CSV/);
+  assert.strictEqual(p.sempre, null, 'plano não tem "permitir sempre"');
+  let r = await responder(p, { permitir: true, modo: 'auto' });
+  assert.deepStrictEqual([r.behavior, r.updatedInput.plan, r.updatedPermissions], ['allow', p.entrada.plan, [{ type: 'setMode', mode: 'auto', destination: 'session' }]]);
+
+  p = await pedir();
+  r = await responder(p, { permitir: true, modo: 'default', plano: '# Plano editado\n\nSem botão novo.' });
+  assert.deepStrictEqual([r.updatedInput.plan, r.updatedPermissions[0].mode], ['# Plano editado\n\nSem botão novo.', 'default']);
+
+  // Modo que o cartão não oferece (ou plano vazio) não passa: aprova sem trocar o modo, com o plano original.
+  p = await pedir();
+  r = await responder(p, { permitir: true, modo: 'bypassPermissions', plano: '   ' });
+  assert.deepStrictEqual([r.behavior, r.updatedPermissions, r.updatedInput.plan], ['allow', undefined, p.entrada.plan]);
+
+  p = await pedir();
+  r = await responder(p, { permitir: false, continuarPlano: true, emVezDisso: 'ponha a exportação no menu' });
+  assert.strictEqual(r.behavior, 'deny');
+  assert.match(r.message, /continuar planejando[\s\S]*ponha a exportação no menu/);
+
+  // O modo só vai em pedido de plano: num comando comum, "modo" é ignorado.
+  c.mandar('pede permissão sem sugestão');
+  await ate(() => c.pendentes.size === 1);
+  r = await responder([...c.pendentes.values()][0], { permitir: true, modo: 'auto', plano: 'x' });
+  assert.deepStrictEqual([r.updatedPermissions, r.updatedInput], [undefined, { command: 'npm test -- --so-unidade' }]);
+});
+
 // Plano 8.8 (X8): o Codex recusa abrir a conversa com a política do app (uma organização
 // pode limitar as políticas permitidas). O app falha fechado: não abre, não tenta outra
 // política, diz por quê, devolve o texto à caixa e não fica preso em "trabalhando".

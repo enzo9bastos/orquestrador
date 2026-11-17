@@ -271,6 +271,14 @@ leitor.on('line', (l) => {
     sai({ type: 'control_request', request_id: id, request: pedido });
     return;
   }
+  // Plano pronto: pede para sair do modo Planejar, com o plano em Markdown (forma do 2.1.326).
+  if (t === 'pede para sair do plano') {
+    const id = `perm-${Date.now().toString(36)}`;
+    esperando.set(id, (r) => { texto(`resposta à permissão: ${JSON.stringify(r.response)}`); fim(); });
+    sai({ type: 'control_request', request_id: id, request: { subtype: 'can_use_tool', tool_name: 'ExitPlanMode',
+      input: { plan: '# Plano: exportar em CSV\n\n## O que muda\n1. Botão **Exportar** na lista.\n2. Função `exportarCsv()`.\n\n## Como conferir\n- `npm test`' } } });
+    return;
+  }
   if (t === 'pede e cancela') {
     sai({ type: 'control_request', request_id: 'p-1', request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'ls' } } });
     setTimeout(() => { sai({ type: 'control_cancel_request', request_id: 'p-1' }); texto('cancelado'); fim(); }, 100);

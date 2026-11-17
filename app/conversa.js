@@ -952,8 +952,20 @@ class Conversa {
     // foi a decisão: desta vez, sempre (com a regra que ELE sugeriu, no alcance escolhido) ou
     // negada (com o que a pessoa pede em vez disso, se ela escreveu).
     const pergunta = p.ferramenta === 'AskUserQuestion';
+    // Plano pronto (ExitPlanMode, entrada { plan } em Markdown): aprovar pode levar o plano
+    // editado pela pessoa e o modo em que o Claude segue; "continuar planejando" é uma recusa
+    // com o que ajustar. Só os dois modos do cartão passam.
+    const plano = p.ferramenta === 'ExitPlanMode';
     let resposta;
-    if (decisao.permitir) {
+    if (plano && decisao.permitir) {
+      const editado = typeof decisao.plano === 'string' && decisao.plano.trim() ? decisao.plano.slice(0, 200000) : null;
+      const modo = ['auto', 'default'].includes(decisao.modo) ? decisao.modo : null;
+      resposta = { behavior: 'allow', updatedInput: editado ? { ...p.entrada, plan: editado } : p.entrada,
+        ...(modo ? { updatedPermissions: [{ type: 'setMode', mode: modo, destination: 'session' }] } : {}), decisionClassification: 'user_temporary' };
+    } else if (plano && decisao.continuarPlano) {
+      const ajuste = typeof decisao.emVezDisso === 'string' ? decisao.emVezDisso.replace(/\s+/g, ' ').trim().slice(0, 2000) : '';
+      resposta = { behavior: 'deny', message: `O usuário ainda não aprovou o plano e quer continuar planejando.${ajuste ? ` Ajuste pedido: ${ajuste}` : ''}`, decisionClassification: 'user_reject' };
+    } else if (decisao.permitir) {
       let sempre = !pergunta && typeof decisao.sempre === 'string' ? permSempre.atualizacao(p.sugestoes, decisao.sempre) : null;
       if (sempre && decisao.sempre !== 'session') {
         // A regra vai para um arquivo: a versão de agora dele fica guardada antes.

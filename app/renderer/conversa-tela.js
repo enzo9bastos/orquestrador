@@ -538,6 +538,8 @@
           <div class="anexos anexos-pergunta" hidden></div>
         </fieldset>`).join('') +
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
+    } else if (p.ferramenta === 'ExitPlanMode' && !conversaCodex() && p.entrada && typeof p.entrada.plan === 'string') {
+      cartaoPlano(el, p);
     } else {
       // Quem pede é a conversa onde o pedido apareceu, no tempo certo: "Ana
       // quer rodar: git push" (e não "O orquestrador pede permissão: Rodou").
@@ -571,6 +573,84 @@
     grupo = null;
     caixa.append(el);
     colado = true; rolar();
+  }
+
+  // --- cartão do plano (plano 2.3): o Claude terminou de planejar e pede para começar ----
+  // O plano vem em Markdown (entrada.plan). Três saídas; "Editar o plano" troca o texto
+  // formatado por um campo com o Markdown, e aprovar manda a versão editada.
+  const quemPede = () => { const conv = listaConversas.find((c) => c.id === ativa); return !conv || conv.orquestrador ? 'O orquestrador' : esc(conv.titulo); };
+  function cartaoPlano(el, p) {
+    el.classList.add('cartao-plano');
+    el.tabIndex = 0;
+    el.innerHTML = `<div class="titulo-pedido titulo-plano"><span class="ponto permissao"></span><span><span class="quem-pede">${quemPede()}</span> <span>terminou o plano e pede para começar</span></span>
+        <button type="button" class="botao-texto" data-plano="editar">Editar o plano</button></div>
+      <div class="plano-area"></div><div class="area-permissao"></div>`;
+    planoTexto(el, p.entrada.plan);
+    planoInicio(el);
+    el.addEventListener('keydown', (ev) => {
+      if (cfg.teclasNosCartoes === false || ev.ctrlKey || ev.altKey || ev.metaKey || ev.target.closest('input, textarea, select')) return;
+      if (!/^[1-9]$/.test(ev.key)) return;
+      const b = el.querySelectorAll('.saidas-plano [data-plano]')[Number(ev.key) - 1];
+      if (b) { ev.preventDefault(); b.click(); }
+    });
+  }
+  function planoTexto(el, markdown, { escondido = false } = {}) {
+    const area = el.querySelector('.plano-area');
+    area.innerHTML = '<div class="md plano-texto" data-sem-traducao></div>';
+    const t = area.firstElementChild;
+    t.innerHTML = md(markdown);
+    t.hidden = escondido;
+    marcarCaminhos(t);
+  }
+  function planoInicio(el) {
+    const comTeclas = cfg.teclasNosCartoes !== false;
+    let n = 0;
+    const k = () => (comTeclas ? `<kbd data-sem-traducao>${++n}</kbd> ` : '');
+    el.querySelector('.area-permissao').innerHTML = `<div class="acoes saidas-permissao saidas-plano">
+        <button type="button" class="botao primario" data-plano="auto">${k()}<span>Aprovar e seguir em Auto</span></button>
+        <button type="button" class="botao secundario" data-plano="perguntar">${k()}<span>Aprovar e perguntar a cada mudança</span></button>
+        <button type="button" class="botao secundario" data-plano="continuar">${k()}<span>Continuar planejando…</span></button></div>
+      <p class="nota"><span>"Seguir em Auto" troca o modo desta conversa para Auto. Nada começa antes de você escolher.</span></p>
+      ${comTeclas ? '<p class="nota dica-teclas"><span>Com o cartão em foco, as teclas de número escolhem a saída.</span></p>' : ''}`;
+  }
+  function fecharPlano(cartao, html, markdown) {
+    cartao.classList.add('respondido', 'plano-respondido');
+    cartao.removeAttribute('tabindex');
+    cartao.innerHTML = `<div class="linha-plano">${html}${markdown ? '<button type="button" class="botao-texto" data-ver-plano>Ver o plano</button>' : ''}</div><div class="plano-area"></div>`;
+    if (markdown) planoTexto(cartao, markdown, { escondido: true });
+  }
+  async function clicouNoPlano(cartao, acao) {
+    const p = pedidoDoCartao(cartao);
+    const original = (p.entrada && p.entrada.plan) || '';
+    const editor = cartao.querySelector('.plano-editor');
+    if (acao === 'editar') {
+      const botao = cartao.querySelector('[data-plano="editar"]');
+      if (editor) { planoTexto(cartao, original); botao.textContent = 'Editar o plano'; return undefined; }
+      cartao.querySelector('.plano-area').innerHTML = '<textarea class="plano-editor" spellcheck="false" data-sem-traducao></textarea><p class="nota"><span>Você edita o texto do plano (Markdown). O Claude segue a versão que você aprovar.</span></p>';
+      cartao.querySelector('.plano-editor').value = original;
+      botao.textContent = 'Descartar a edição';
+      return undefined;
+    }
+    if (acao === 'continuar') {
+      cartao.querySelector('.area-permissao').innerHTML = `<div class="painel-permissao">
+          <label class="rotulo-negar"><span>O que ajustar no plano</span><textarea class="campo-negar" rows="2" placeholder="ex.: sem botão novo; ponha a exportação no menu"></textarea></label>
+          <div class="acoes"><button type="button" class="botao primario" data-plano="mandar-ajuste">Enviar e continuar planejando</button><button type="button" class="botao secundario" data-plano="voltar">Voltar</button></div>
+        </div>`;
+      cartao.querySelector('.campo-negar').focus();
+      return undefined;
+    }
+    if (acao === 'voltar') { planoInicio(cartao); cartao.focus(); return undefined; }
+    if (acao === 'mandar-ajuste') {
+      const t = cartao.querySelector('.campo-negar').value.replace(/\s+/g, ' ').trim();
+      await C.responder(ativa, cartao.dataset.pedido, { permitir: false, continuarPlano: true, emVezDisso: t });
+      return fecharPlano(cartao, `<span class="marca-resposta" aria-hidden="true">↻</span><span>Continua planejando</span>${t ? ` · <span>você pediu:</span> <span data-sem-traducao>"${esc(curto(t, 300))}"</span>` : ''}`, null);
+    }
+    if (acao === 'auto' || acao === 'perguntar') {
+      const editado = editor && editor.value.trim() && editor.value !== original ? editor.value : null;
+      await C.responder(ativa, cartao.dataset.pedido, { permitir: true, modo: acao === 'auto' ? 'auto' : 'default', ...(editado ? { plano: editado } : {}) });
+      return fecharPlano(cartao, `<span class="marca-resposta sim" aria-hidden="true">✓</span><span>${editado ? 'Plano editado por você e aprovado' : 'Plano aprovado'}</span> · <span>${acao === 'auto' ? 'seguindo em Auto (o modo desta conversa mudou)' : 'o Claude pergunta antes de cada mudança'}</span>`, editado || original);
+    }
+    return undefined;
   }
 
   // --- cartão de permissão do Claude (plano 6.4) --------------------------------
@@ -651,6 +731,15 @@
   }
 
   caixa.addEventListener('click', async (ev) => {
+    const verPlano = ev.target.closest('[data-ver-plano]');
+    if (verPlano) {
+      const texto = verPlano.closest('.cartao-plano').querySelector('.plano-texto');
+      texto.hidden = !texto.hidden;
+      verPlano.textContent = texto.hidden ? 'Ver o plano' : 'Recolher o plano';
+      return;
+    }
+    const noPlano = ev.target.closest('.cartao-plano:not(.respondido) [data-plano]');
+    if (noPlano) { await clicouNoPlano(noPlano.closest('.cartao-plano'), noPlano.dataset.plano); return; }
     const perm = ev.target.closest('.cartao-permissao:not(.respondido) [data-perm]');
     if (perm) { await clicouNaPermissao(perm.closest('.cartao-permissao'), perm.dataset.perm); return; }
     const cr = ev.target.closest('.copiar-resposta');
