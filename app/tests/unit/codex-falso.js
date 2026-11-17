@@ -25,11 +25,13 @@ const semCapacidade = (d) => sai({ id: d.id, error: { code: -32600, message: `${
 const pedirHora = (threadId) => { if (experimental && process.env.CODEX_FALSO_PEDE_HORA) sai({ id: 77, method: 'currentTime/read', params: { threadId } }); };
 
 let esperandoResposta = null;
+let idDoPedido = 99; // o pedido que o turno mandou ao app (99, como sempre; os pedidos escolhidos pelo texto contam de 200)
+let pedidosPeloTexto = 199;
 let turnoAtivo = null; // turno começado e ainda não terminado (segurado pela pergunta)
 readline.createInterface({ input: process.stdin }).on('line', (l) => {
   const d = JSON.parse(l);
   log(d);
-  if (d.id != null && !d.method) { if (esperandoResposta && d.id === 99) { const f = esperandoResposta; esperandoResposta = null; f(); } return; }
+  if (d.id != null && !d.method) { if (esperandoResposta && d.id === idDoPedido) { const f = esperandoResposta; esperandoResposta = null; f(); } return; }
   const ok = (result) => sai({ id: d.id, result });
   switch (d.method) {
     case 'initialize': experimental = !!(d.params && d.params.capabilities && d.params.capabilities.experimentalApi); return ok({ userAgent: 'falso' });
@@ -98,6 +100,30 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
         turnoAtivo = null;
         nota('turn/completed', { threadId: 'th', turn: { id: 'tu1', status: 'completed', durationMs: 5 } });
       };
+      // Em vez da pergunta, o turno manda um pedido de aprovação (formas do esquema do 0.167.1):
+      // comando, comando-sem-comeco, comando-docker, comando-aberto, arquivo, acesso, acesso-torto,
+      // mcp, mcp-url. Escolhido por $CODEX_FALSO_PEDIDO ou pelo texto da mensagem ("pedido:nome";
+      // assim um mesmo app pede vários, cada um com o seu número de pedido).
+      const PEDIDOS = {
+        'comando-sem-comeco': ['item/commandExecution/requestApproval', { itemId: 'c9', startedAtMs: 1, command: "/bin/bash -lc 'ls -la relatorios'", commandActions: [{ type: 'unknown', command: 'ls -la relatorios' }] }],
+        'comando-aberto': ['item/commandExecution/requestApproval', { itemId: 'c9', startedAtMs: 1, command: "/bin/bash -lc 'make relatorio'", commandActions: [{ type: 'unknown', command: 'make relatorio' }], proposedExecpolicyAmendment: ['bash'] }],
+        'acesso-torto': ['item/permissions/requestApproval', { itemId: 'p9', startedAtMs: 1, cwd: '/casa', reason: 'preciso de mais', permissions: { fileSystem: { entries: [{ access: 'write', path: { type: 'path', path: '/casa/site/dist' } }, { access: 'executar', path: { type: 'path', path: '/usr/bin' } }] } } }],
+        comando: ['item/commandExecution/requestApproval', { itemId: 'c9', startedAtMs: 1, command: "/bin/bash -lc 'git commit -m ajuste'", commandActions: [{ type: 'unknown', command: 'git commit -m ajuste' }], reason: 'risco médio: grava no histórico do repositório', proposedExecpolicyAmendment: ['git', 'commit'] }],
+        'comando-docker': ['item/commandExecution/requestApproval', { itemId: 'c9', startedAtMs: 1, command: "/bin/bash -lc 'docker compose restart web'", commandActions: [{ type: 'unknown', command: 'docker compose restart web' }], reason: 'risco alto', proposedExecpolicyAmendment: ['docker', 'compose'] }],
+        arquivo: ['item/fileChange/requestApproval', { itemId: 'f9', startedAtMs: 1, grantRoot: '/casa/projeto', reason: 'alterar 2 arquivos' }],
+        acesso: ['item/permissions/requestApproval', { itemId: 'p9', startedAtMs: 1, cwd: '/casa', reason: 'copiar o resultado e baixar uma dependência', permissions: { fileSystem: { entries: [{ access: 'write', path: { type: 'path', path: '/projetos/site/dist' } }, { access: 'read', path: { type: 'path', path: '/casa/docs' } }] }, network: { enabled: true } } }],
+        mcp: ['mcpServer/elicitation/request', { serverName: 'cofre-da-equipe', message: 'Informe o código para liberar a consulta.', mode: 'form', requestedSchema: { type: 'object', required: ['codigo'], properties: { codigo: { type: 'string', title: 'Código de verificação', minLength: 6, maxLength: 6 } } } }],
+        'mcp-url': ['mcpServer/elicitation/request', { serverName: 'agenda', message: 'Entre na sua conta.', mode: 'url', elicitationId: 'e1', url: 'https://contas.exemplo.com/autorizar?cliente=agenda' }],
+      };
+      const peloTexto = (/pedido:([\w-]+)/.exec(JSON.stringify((d.params || {}).input || '')) || [])[1];
+      const qual = process.env.CODEX_FALSO_PEDIDO || peloTexto;
+      idDoPedido = 99;
+      if (qual && PEDIDOS[qual]) {
+        const [metodo, params] = PEDIDOS[qual];
+        if (peloTexto && !process.env.CODEX_FALSO_PEDIDO) idDoPedido = ++pedidosPeloTexto;
+        sai({ id: idDoPedido, method: metodo, params: { ...t, ...params } });
+        return undefined;
+      }
       // CODEX_FALSO_PERGUNTAS (JSON): troca as perguntas do pedido (ex.: uma com isSecret).
       const perguntas = process.env.CODEX_FALSO_PERGUNTAS ? JSON.parse(process.env.CODEX_FALSO_PERGUNTAS)
         : [{ id: 'q1', header: 'Cor', question: 'Qual cor?', isOther: true, isSecret: false, options: [{ label: 'Azul', description: 'a' }, { label: 'Verde', description: 'v' }] }];

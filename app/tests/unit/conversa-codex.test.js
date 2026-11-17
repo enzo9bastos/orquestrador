@@ -45,7 +45,8 @@ test('codex: pergunta com opções vira o cartão do AskUserQuestion e a respost
 
 test('codex: aprovação de comando vira "Permitir?" e a decisão vira accept/decline', () => {
   const p = t.pedidoDaTela('item/commandExecution/requestApproval', { command: "/bin/bash -lc 'docker ps'", reason: 'fora do sandbox' });
-  assert.deepStrictEqual(p, { ferramenta: 'Bash', entrada: { command: 'docker ps' }, motivo: 'fora do sandbox' });
+  // (Desde 17/11/2026 o cartão leva também o que pode ser oferecido; docker é da lista de recusa.)
+  assert.deepStrictEqual(p, { ferramenta: 'Bash', entrada: { command: 'docker ps' }, motivo: 'fora do sandbox', codex: { tipo: 'comando', sessao: false, prefixo: null, recusa: 'docker, tmux ou ssh' } });
   assert.deepStrictEqual(t.respostaAoServidor('item/commandExecution/requestApproval', {}, { permitir: true }), { decision: 'accept' });
   assert.deepStrictEqual(t.respostaAoServidor('item/commandExecution/requestApproval', {}, { permitir: false }), { decision: 'decline' });
   assert.strictEqual(t.pedidoDaTela('item/tool/call', {}), null, 'pedido desconhecido não vira cartão');
@@ -184,6 +185,120 @@ test('codex: "!" roda por thread/shellCommand, vira o bloco "você rodou" e não
     await ate(() => recebidos().slice(antes).some((x) => x.method === 'turn/start'));
     assert.strictEqual(recebidos().slice(antes).filter((x) => x.method === 'thread/shellCommand').length, 1);
   } finally { c.parar(); }
+});
+
+// Plano 8.2 e 8.3 (cartões do Codex, protótipo P2 aprovado em 17/11/2026): as respostas que o
+// Codex aceita (formas do esquema do 0.167.1). "Nesta conversa" e "sempre por prefixo" nunca
+// valem para comando da lista de recusa; "sempre" só existe se o Codex propôs o prefixo.
+test('codex: pedido de permissão de comando vira cartão com o que pode ser oferecido', () => {
+  const M = 'item/commandExecution/requestApproval';
+  const p = t.pedidoDaTela(M, { command: "/bin/bash -lc 'git commit -m ajuste'", commandActions: [{ type: 'unknown', command: 'git commit -m ajuste' }], reason: 'risco médio', proposedExecpolicyAmendment: ['git', 'commit'] });
+  assert.deepStrictEqual([p.ferramenta, p.entrada.command, p.motivo], ['Bash', 'git commit -m ajuste', 'risco médio']);
+  assert.deepStrictEqual(p.codex, { tipo: 'comando', sessao: true, prefixo: 'git commit', recusa: null, arquivo: t.arquivoDeRegras().exibir });
+  assert.match(p.codex.arquivo, /rules\/default\.rules$/);
+  // Sem prefixo proposto pelo Codex: não há "sempre".
+  assert.deepStrictEqual(t.pedidoDaTela(M, { command: "/bin/bash -lc 'ls -la'" }).codex, { tipo: 'comando', sessao: true, prefixo: null, recusa: null });
+  // Lista de recusa: nem "nesta conversa" nem "sempre", com o motivo.
+  assert.deepStrictEqual(t.pedidoDaTela(M, { commandActions: [{ type: 'unknown', command: 'docker compose restart web' }], proposedExecpolicyAmendment: ['docker', 'compose'] }).codex,
+    { tipo: 'comando', sessao: false, prefixo: null, recusa: 'docker, tmux ou ssh' });
+  // Comando comum com prefixo aberto demais: pode "nesta conversa", não pode "sempre".
+  assert.deepStrictEqual(t.pedidoDaTela(M, { commandActions: [{ type: 'unknown', command: 'npm test' }], proposedExecpolicyAmendment: ['bash'] }).codex,
+    { tipo: 'comando', sessao: true, prefixo: null, recusa: 'roda outros programas' });
+  for (const torto of [['git', 5], 'git', [], [''], null]) assert.strictEqual(t.pedidoDaTela(M, { commandActions: [{ type: 'unknown', command: 'git status' }], proposedExecpolicyAmendment: torto }).codex.prefixo, null, JSON.stringify(torto));
+});
+
+test('codex: cada resposta do cartão de comando volta na forma que o Codex aceita', () => {
+  const M = 'item/commandExecution/requestApproval';
+  const comum = { commandActions: [{ type: 'unknown', command: 'git commit -m ajuste' }], proposedExecpolicyAmendment: ['git', 'commit'] };
+  assert.deepStrictEqual(t.respostaAoServidor(M, comum, { permitir: true }), { decision: 'accept' });
+  assert.deepStrictEqual(t.respostaAoServidor(M, comum, { permitir: true, sessao: true }), { decision: 'acceptForSession' });
+  assert.deepStrictEqual(t.respostaAoServidor(M, comum, { permitir: true, sempre: true }), { decision: { acceptWithExecpolicyAmendment: { execpolicy_amendment: ['git', 'commit'] } } });
+  assert.deepStrictEqual(t.respostaAoServidor(M, comum, { permitir: false }), { decision: 'decline' });
+  assert.deepStrictEqual(t.respostaAoServidor(M, comum, { permitir: false, parar: true }), { decision: 'cancel' });
+  // Lista de recusa: pedir "nesta conversa" ou "sempre" vale só desta vez.
+  const docker = { commandActions: [{ type: 'unknown', command: 'docker compose restart web' }], proposedExecpolicyAmendment: ['docker', 'compose'] };
+  assert.deepStrictEqual(t.respostaAoServidor(M, docker, { permitir: true, sessao: true }), { decision: 'accept' });
+  assert.deepStrictEqual(t.respostaAoServidor(M, docker, { permitir: true, sempre: true }), { decision: 'accept' });
+  // Sem prefixo proposto, "sempre" vale só desta vez.
+  assert.deepStrictEqual(t.respostaAoServidor(M, { command: "/bin/bash -lc 'ls'" }, { permitir: true, sempre: true }), { decision: 'accept' });
+  // Mudança de arquivo: sem regra permanente.
+  const F = 'item/fileChange/requestApproval';
+  assert.deepStrictEqual(t.pedidoDaTela(F, { grantRoot: '/casa/projeto', reason: 'alterar' }).codex, { tipo: 'arquivo', sessao: true, prefixo: null, recusa: null });
+  assert.deepStrictEqual(t.respostaAoServidor(F, {}, { permitir: true, sessao: true }), { decision: 'acceptForSession' });
+  assert.deepStrictEqual(t.respostaAoServidor(F, {}, { permitir: true, sempre: true }), { decision: 'accept' });
+  assert.deepStrictEqual(t.respostaAoServidor(F, {}, { permitir: false, parar: true }), { decision: 'cancel' });
+});
+
+test('codex: pedido de acesso a mais lista o que ele quer, e a resposta diz por quanto tempo vale', () => {
+  const M = 'item/permissions/requestApproval';
+  const params = { cwd: '/casa', reason: 'copiar e baixar', permissions: { fileSystem: { entries: [{ access: 'write', path: { type: 'path', path: '/casa/site/dist' } }, { access: 'read', path: { type: 'glob_pattern', pattern: '/casa/docs/**' } },
+    { access: 'deny', path: { type: 'path', path: '/casa/site/dist/segredo' } }, { access: 'read', path: { type: 'special', value: { kind: 'project_roots', subpath: 'docs' } } }, { access: 'write', path: { type: 'special', value: { kind: 'slash_tmp' } } }],
+    write: ['/casa/saida'], read: ['/casa/entrada'], globScanMaxDepth: 3 }, network: { enabled: true } } };
+  const p = t.pedidoDaTela(M, params);
+  assert.deepStrictEqual([p.tipo, p.motivo, p.ok], ['codex-acesso', 'copiar e baixar', true]);
+  assert.deepStrictEqual(p.itens, [{ acao: 'escrever', onde: '/casa/site/dist' }, { acao: 'ler', onde: '/casa/docs/**' }, { acao: 'bloquear', onde: '/casa/site/dist/segredo' },
+    { acao: 'ler', onde: 'as pastas do projeto, em docs' }, { acao: 'escrever', onde: '/tmp' }, { acao: 'escrever', onde: '/casa/saida' }, { acao: 'ler', onde: '/casa/entrada' }, { acao: 'rede' }]);
+  assert.deepStrictEqual(t.respostaAoServidor(M, params, { permitir: true }), { permissions: params.permissions, scope: 'turn' });
+  assert.deepStrictEqual(t.respostaAoServidor(M, params, { permitir: true, sessao: true }), { permissions: params.permissions, scope: 'session' });
+  assert.deepStrictEqual(t.respostaAoServidor(M, params, { permitir: false }), { permissions: {} });
+  assert.deepStrictEqual(t.pedidoDaTela(M, { permissions: { network: { enabled: true } } }).itens, [{ acao: 'rede' }]);
+});
+
+// Liberar concede o pedido inteiro. Então o app só deixa liberar o que mostrou por inteiro:
+// com qualquer parte que ele não saiba mostrar, o cartão só nega (e a resposta nunca concede).
+test('codex: pedido de acesso com uma parte que o app não sabe mostrar só pode ser negado', () => {
+  const M = 'item/permissions/requestApproval';
+  const bom = { access: 'write', path: { type: 'path', path: '/casa/a' } };
+  const tortos = {
+    'entrada nula': { fileSystem: { entries: [bom, null] } },
+    'entrada sem caminho': { fileSystem: { entries: [bom, { access: 'write' }] } },
+    'acesso desconhecido': { fileSystem: { entries: [bom, { access: 'executar', path: { type: 'path', path: '/a' } }] } },
+    'tipo de caminho desconhecido': { fileSystem: { entries: [bom, { access: 'read', path: { type: 'regex', pattern: '.*' } }] } },
+    'especial desconhecido': { fileSystem: { entries: [bom, { access: 'read', path: { type: 'special', value: { kind: 'unknown', path: 'x' } } }] } },
+    'campo a mais na entrada': { fileSystem: { entries: [{ ...bom, recursivo: true }] } },
+    'campo a mais nas pastas': { fileSystem: { entries: [bom], tudo: true } },
+    'campo a mais na rede': { fileSystem: { entries: [bom] }, network: { enabled: true, hosts: ['*'] } },
+    'campo a mais no pedido': { fileSystem: { entries: [bom] }, processos: true },
+    'caminho com quebra de linha': { fileSystem: { entries: [{ access: 'write', path: { type: 'path', path: '/casa/a\n/etc' } }] } },
+    'caminho que não é texto': { fileSystem: { write: [bom.path] } },
+    'itens demais': { fileSystem: { entries: Array.from({ length: 31 }, (_, i) => ({ access: 'read', path: { type: 'path', path: `/casa/${i}` } })) } },
+    'nada pedido': {},
+    'rede desligada, sem pasta': { network: { enabled: false } },
+    'pedido que não é objeto': 'tudo',
+  };
+  for (const [caso, permissions] of Object.entries(tortos)) {
+    assert.strictEqual(t.pedidoDaTela(M, { permissions }).ok, false, caso);
+    assert.deepStrictEqual(t.respostaAoServidor(M, { permissions }, { permitir: true, sessao: true }), { permissions: {} }, caso);
+  }
+  assert.strictEqual(t.pedidoDaTela(M, {}).ok, false);
+  // O que dá para mostrar aparece mesmo assim (a pessoa vê o que foi pedido antes de negar).
+  assert.deepStrictEqual(t.pedidoDaTela(M, { permissions: tortos['entrada nula'] }).itens, [{ acao: 'escrever', onde: '/casa/a' }]);
+});
+
+// O ajudante da área de trabalho só mostra "Permitir" e "Negar": para o pedido de acesso a mais
+// e para o pedido de dado do MCP ele só avisa, e a resposta é dada no cartão do app.
+test('codex: o ajudante não responde pedido de acesso a mais nem pedido de dado do MCP', () => {
+  const ajudante = require('../../ajudante');
+  const orq = { id: 'orquestrador', orquestrador: true, titulo: 'Orquestrador' };
+  const acesso = { id: 'cx-7', ...t.pedidoDaTela('item/permissions/requestApproval', { permissions: { network: { enabled: true } } }) };
+  const a = ajudante.pendenciaDeConversa(orq, acesso);
+  assert.deepStrictEqual([a.item, a.texto], [null, 'O orquestrador pede acesso a mais (pastas ou rede): responda no app']);
+  assert.strictEqual(ajudante.pendenciaDeConversa({ id: 'c1', orquestrador: false, titulo: 'Testes' }, acesso).texto, '"Testes" pede acesso a mais (pastas ou rede): responda no app');
+  const mcp = { id: 'cx-8', ...t.pedidoDaTela('mcpServer/elicitation/request', { serverName: 's', message: 'm', mode: 'form', requestedSchema: { type: 'object', properties: { nome: { type: 'string' } } } }) };
+  assert.strictEqual(ajudante.pendenciaDeConversa(orq, mcp).item, null);
+  // O pedido de comando continua indo ao ajudante, como permissão comum.
+  const cmd = { id: 'cx-9', ...t.pedidoDaTela('item/commandExecution/requestApproval', { commandActions: [{ type: 'unknown', command: 'git status' }] }) };
+  assert.deepStrictEqual([ajudante.pendenciaDeConversa(orq, cmd).item.tipo, ajudante.pendenciaDeConversa(orq, cmd).item.comando], ['permissao', 'git status']);
+});
+
+test('codex: pedido de dado de um servidor MCP usa o mesmo cartão do Claude', () => {
+  const M = 'mcpServer/elicitation/request';
+  const p = t.pedidoDaTela(M, { serverName: 'cofre-da-equipe', message: 'Informe o código.', mode: 'form', requestedSchema: { type: 'object', required: ['codigo'], properties: { codigo: { type: 'string', title: 'Código de verificação' } } } });
+  assert.deepStrictEqual([p.tipo, p.servidor, p.modo, p.ok, p.campos.map((c) => [c.nome, c.secreto])], ['elicitacao', 'cofre-da-equipe', 'form', true, [['codigo', true]]]);
+  const u = t.pedidoDaTela(M, { serverName: 'agenda', message: 'Entre.', mode: 'url', elicitationId: 'e1', url: 'https://contas.exemplo.com/x' });
+  assert.deepStrictEqual([u.modo, u.site, u.ok], ['url', 'contas.exemplo.com', true]);
+  // Formulário de um tipo que o app não mostra: o cartão existe, só para recusar.
+  assert.strictEqual(t.pedidoDaTela(M, { serverName: 's', message: 'm', mode: 'openai/form', requestedSchema: { qualquer: 'coisa' } }).ok, false);
 });
 
 test('codex: trocar a IA do orquestrador guarda a conversa de cada motor', () => {

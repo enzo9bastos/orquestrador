@@ -19,6 +19,7 @@ const listaComandos = require('./comandos');
 const jsonl = require('./jsonl');
 const shell = require('./shell-usuario');
 const permSempre = require('./permissao-sempre');
+const voltarArquivos = require('./voltar-arquivos');
 const permissoes = require('./permissoes');
 const elicitacao = require('./elicitacao');
 const capacidades = require('./capacidades');
@@ -80,6 +81,11 @@ let avisar = () => {};
 // Modelos e esforços que o botão da barra oferece.
 // opusplan é um apelido do próprio Claude Code (Opus no modo plano, Sonnet na execução).
 const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-2', opusplan: 'opusplan' };
+// Escolha que é um apelido: o Claude informa o modelo EM USO no momento (no init e na resposta
+// ao set_model), e não o apelido. Com opusplan é Opus no modo plano e Sonnet fora dele. A
+// escolha continua sendo o apelido: nem a tela nem o que fica guardado trocam para o modelo em uso.
+const EM_USO_DO_APELIDO = { opusplan: /^claude-(opus|sonnet)-/ };
+const eDoApelido = (chave, modelo) => !!(chave && EM_USO_DO_APELIDO[chave] && typeof modelo === 'string' && EM_USO_DO_APELIDO[chave].test(modelo));
 const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // Modo de permissão com que o app sobe o Claude. Num reinício, vale o modo
 // vivo da conversa (init ou system/status) quando ele é mais restritivo que o
@@ -294,7 +300,7 @@ function promptsDoTranscript(linhas) {
 // bate recusa (cortar no lugar errado apagaria a parte certa da conversa).
 // `deTras` entrega as linhas da mais nova à mais antiga e é lido só até o
 // ponto de corte achado (um transcript de 120 MB não é lido inteiro).
-function pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao) {
+function pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao, comUuid = false) {
   const alvo = normal(String(textoBalao || '').split('\n📎')[0]).slice(0, 80);
   const bate = (p) => !alvo || normal(p.texto).includes(alvo);
   const ordem = Number(ordemDoFim || 0);
@@ -323,7 +329,8 @@ function pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao) {
   }
   if (!escolhido) escolhido = primeiroQueBate; // havia menos mensagens que a ordem pedida
   if (!escolhido) throw new Error('não achei essa mensagem no histórico do Claude');
-  return { ate: escolhido.antes === undefined ? null : escolhido.antes, texto: escolhido.texto };
+  // comUuid: também o identificador da mensagem escolhida (é o que o "voltar arquivos" pede).
+  return { ate: escolhido.antes === undefined ? null : escolhido.antes, texto: escolhido.texto, ...(comUuid ? { uuid: escolhido.uuid } : {}) };
 }
 function* deTrasDe(linhas) { for (let i = linhas.length - 1; i >= 0; i--) yield linhas[i]; }
 function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
@@ -331,12 +338,12 @@ function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
 }
 // O mesmo, lendo o transcript do disco de trás para frente. `ate` (conversa já
 // voltada): o transcript vale só até a linha com esse uuid.
-function pontoDeVoltaDoArquivo(sessao, ordemDoFim, textoBalao, ate = null) {
+function pontoDeVoltaDoArquivo(sessao, ordemDoFim, textoBalao, ate = null, comUuid = false) {
   const arq = arqTranscript(sessao);
   if (!arq) throw new Error('não achei essa mensagem no histórico do Claude');
   const limite = ate ? jsonl.fimDaLinhaCom(arq, `"uuid":"${ate}"`) : null;
   const deTras = (function* () { for (const { linha } of jsonl.linhasDeTras(arq, { ate: limite })) yield linha; })();
-  return pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao);
+  return pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao, comUuid);
 }
 
 // Lista de comandos (/…) do autocompletar: fonte única em comandos.js. Antes
@@ -469,6 +476,59 @@ class Conversa {
     return p.texto;
   }
 
+  // --- voltar com os arquivos (plano 7.1) ---------------------------------------------
+  // O ponto escolhido, com o identificador da mensagem (o que o Claude pede para voltar arquivos).
+  pontoParaVoltar(ordemDoFim, textoBalao) {
+    if (this.motor === 'codex') throw new Error('voltar a conversa ainda não funciona com o Codex');
+    const de = this.volta ? this.volta.de : this.sessao;
+    if (!de) throw new Error('esta conversa ainda não tem histórico para voltar');
+    return { de, ...pontoDeVoltaDoArquivo(de, ordemDoFim, textoBalao, this.volta ? this.volta.ate : null, true) };
+  }
+  // Ensaio (nada muda): o que o Claude diz que voltaria nos arquivos.
+  //   { pode: true, lista: [{ caminho, porFora }], mais, menos, bytes }
+  //   { pode: false, motivo: 'desligado' | 'sem-ponto' | 'nada-mudou' | 'sem-resposta', erro? }
+  async ensaioDeArquivos(sessao, uuid) {
+    if (config.ler().pontosDeVolta === false) return { pode: false, motivo: 'desligado' };
+    if (!uuid) return { pode: false, motivo: 'sem-ponto' };
+    let r;
+    try { r = voltarArquivos.conferirResposta(await this.controle('rewind_files', { user_message_id: uuid, dry_run: true }, 8000, 'volta')); } catch (e) { return { pode: false, motivo: 'sem-resposta', erro: String(e.message || e).slice(0, 300) }; }
+    if (!r.pode) return { pode: false, motivo: 'sem-ponto', ...(r.erro ? { erro: r.erro } : {}) };
+    if (!r.lista.length) return { pode: false, motivo: 'nada-mudou' };
+    let escritas = new Map();
+    try { escritas = voltarArquivos.ultimasEscritas(arqTranscript(sessao), uuid, PASTA); } catch { /* sem o histórico, só não marca "mexido por fora" */ }
+    return { pode: true, lista: r.lista.map((f) => ({ caminho: f, porFora: voltarArquivos.mexido(f, escritas, PASTA) })), mais: r.mais, menos: r.menos, bytes: voltarArquivos.tamanho(r.lista, PASTA) };
+  }
+  async voltarEnsaio(ordemDoFim, textoBalao) {
+    const p = this.pontoParaVoltar(ordemDoFim, textoBalao);
+    return { texto: p.texto, arquivos: await this.ensaioDeArquivos(p.de, p.uuid) };
+  }
+  // Volta os arquivos e, com escopo 'tudo', também a conversa. Antes de pedir a volta ao
+  // Claude, guarda os arquivos como estão agora numa pasta nova; sem conseguir guardar,
+  // nada muda. A lista vem de um ensaio feito aqui, na hora (a tela não decide a lista).
+  async voltarComArquivos(ordemDoFim, textoBalao, escopo) {
+    if (!['tudo', 'arquivos'].includes(escopo)) throw new Error('escopo desconhecido');
+    const p = this.pontoParaVoltar(ordemDoFim, textoBalao);
+    const e = await this.ensaioDeArquivos(p.de, p.uuid);
+    if (!e.pode) throw new Error(`não há arquivos para voltar neste ponto (${e.erro || e.motivo}); nada mudou`);
+    const copia = voltarArquivos.copiar(e.lista.map((x) => x.caminho), PASTA, voltarArquivos.destinoNovo());
+    if (!copia.ok) throw new Error(`não consegui guardar a cópia dos arquivos antes de voltar (${copia.erro}); nada mudou`);
+    const onde = voltarArquivos.exibir(copia.pasta);
+    let r;
+    try { r = voltarArquivos.conferirResposta(await this.controle('rewind_files', { user_message_id: p.uuid }, 60000, 'volta')); } catch (err) {
+      const texto = `O Claude não respondeu ao pedido de voltar os arquivos: não sei se eles mudaram. A cópia de como estavam antes ficou em ${onde}.`;
+      this.registrar({ tipo: 'aviso', texto, pasta: copia.pasta });
+      throw new Error(texto);
+    }
+    if (!r.pode) throw new Error(`o Claude não voltou os arquivos${r.erro ? ` (${r.erro})` : ''}. A cópia feita antes ficou em ${onde}.`);
+    const n = r.lista.length || e.lista.length;
+    const resumo = { n, mais: r.lista.length ? r.mais : e.mais, menos: r.lista.length ? r.menos : e.menos, copia: copia.pasta, copiaExibir: onde, bytes: copia.bytes };
+    const texto = escopo === 'tudo' ? this.voltar(ordemDoFim, textoBalao) : p.texto;
+    // Depois de a conversa recarregar (se voltou junto), para a linha ficar à vista.
+    const trecho = String(p.texto || '').replace(/\s+/g, ' ').trim();
+    this.registrar({ tipo: 'aviso', texto: `↩ ${n === 1 ? '1 arquivo voltou' : `${n} arquivos voltaram`} ao que ${n === 1 ? 'era' : 'eram'} antes de «${trecho.length > 60 ? `${trecho.slice(0, 60)}…` : trecho}» (+${resumo.mais} −${resumo.menos} linhas). A cópia de como ${n === 1 ? 'estava' : 'estavam'} ficou em ${onde}.`, pasta: copia.pasta });
+    return { texto, arquivos: resumo };
+  }
+
   iniciar({ primeiraMensagem } = {}) {
     if (this.proc) return;
     this.acertarMotor();
@@ -487,7 +547,11 @@ class Conversa {
 
     // O caminho escolhido na engrenagem (IAs conectadas), se houver e for
     // executável; senão 'claude' do PATH.
-    const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
+    // Fora do terminal o Claude só guarda os pontos de volta dos arquivos (o "voltar arquivos"
+    // do ✎) se nasce com esta variável (conferido no 2.1.326). Desligável nas Configurações.
+    const env = ambienteLimpo();
+    if (config.ler().pontosDeVolta !== false) env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING = '1';
+    const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env, stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
     proc.permiteBypass = args.includes(PERMITE_BYPASS);
     // Pedidos pendentes eram do processo anterior.
@@ -554,14 +618,14 @@ class Conversa {
           this.juntarComandos();
         }
         if (d.subtype === 'init') {
-          info.modelo = d.model; info.pasta = d.cwd;
+          info.modelo = eDoApelido(this.modeloEscolhido, d.model) ? MODELOS[this.modeloEscolhido] : d.model; info.pasta = d.cwd;
           this.initInfo = { versao: d.claude_code_version || null, modelo: d.model, pasta: d.cwd, modo: d.permissionMode || null,
             mcp: Array.isArray(d.mcp_servers) ? d.mcp_servers : [], ferramentas: Array.isArray(d.tools) ? d.tools.length : null,
             estilo: d.output_style || null, chave: d.apiKeySource || null, sessao: d.session_id || null };
           if (this.forkDe && !this.volta) { this.forkDe = null; }
           // Quem manda no modelo é o Claude: se o init diz outro dos modelos
           // do botão (ex.: /model digitado), a escolha guardada acompanha.
-          if (this.modeloEscolhido && MODELOS[this.modeloEscolhido] !== d.model) {
+          if (this.modeloEscolhido && MODELOS[this.modeloEscolhido] !== d.model && !eDoApelido(this.modeloEscolhido, d.model)) {
             const k = Object.keys(MODELOS).find((x) => MODELOS[x] === d.model);
             if (k) { this.modeloEscolhido = k; gravarLista(); }
           }
@@ -620,11 +684,13 @@ class Conversa {
       case 'stream_event': {
         const e = d.event || {};
         if (d.parent_tool_use_id) return;
+        if (e.type === 'message_start') this.turnoDoClaude();
         if (e.type === 'content_block_delta' && e.delta && e.delta.type === 'text_delta') this.enviar('conversa:parcial', e.delta.text);
         if (e.type === 'message_start') this.enviar('conversa:parcial', null);
         return;
       }
       case 'assistant': {
+        if (!d.parent_tool_use_id && d.message.model !== '<synthetic>') this.turnoDoClaude();
         const u = d.message.usage;
         if (u && !d.parent_tool_use_id) {
           info.contexto = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
@@ -701,6 +767,15 @@ class Conversa {
 
   // Fim de turno (Claude ou Codex): a IA parou e espera o usuário (a tela
   // decide se avisa).
+  // Turno que o próprio Claude começou (um lembrete agendado, uma tarefa em segundo plano que
+  // terminou): o app não mandou nada, mas ele está respondendo. Passa a valer "trabalhando":
+  // o que a pessoa mandar pela caixa entra na fila e só vai quando esse turno acabar. Antes a
+  // mensagem ia na hora e o balão dela aparecia no meio da resposta do Claude.
+  turnoDoClaude() {
+    if (this.info.ocupado) return;
+    this.info.ocupado = true;
+    this.avisarInfo();
+  }
   fimDeTurno({ erro = false, duracao = null, texto = null } = {}) {
     this.info.ocupado = false;
     this.tentarSondar();
@@ -953,15 +1028,11 @@ class Conversa {
     const p = this.pendentes.get(reqId);
     if (!p) return false;
     this.pendentes.delete(reqId);
-    if (this.motor === 'codex') {
-      codex.responder(this, p, decisao);
-      this.enviar('conversa:respondido', reqId);
-      avisarLista();
-      return true;
-    }
-    // Pedido de dado de um servidor MCP: aceitar (com os campos conferidos, ou abrindo a página
-    // conferida), recusar ou cancelar. Quem responde sem dizer a ação (o ajudante, com
-    // "permitir") nunca aceita. Preenchimento errado não vai: o pedido continua aberto.
+    const doCodex = this.motor === 'codex';
+    // Pedido de dado de um servidor MCP (igual nos dois motores): aceitar (com os campos
+    // conferidos, ou abrindo a página conferida), recusar ou cancelar. Quem responde sem dizer
+    // a ação (o ajudante, com "permitir") nunca aceita. Preenchimento errado não vai: o pedido
+    // continua aberto.
     if (p.tipo === 'elicitacao') {
       let resposta = { action: decisao.acao === 'cancel' ? 'cancel' : 'decline' };
       if (decisao.acao === 'accept' && p.ok) {
@@ -971,15 +1042,31 @@ class Conversa {
           resposta = { action: 'accept', content: c.conteudo };
         }
       }
-      this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
+      if (doCodex) codex.responderCru(this, p, resposta);
+      else this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
       this.enviar('conversa:respondido', reqId);
       avisarLista();
       return true;
+    }
+    if (doCodex) {
+      // "Sempre" (regra por prefixo, que o Codex grava no arquivo de regras dele): a versão de
+      // agora do arquivo fica guardada antes; sem conseguir guardar, vale só desta vez.
+      let d = decisao || {};
+      let soDestaVez = false;
+      if (d.permitir && d.sempre && p.codex && p.codex.prefixo) {
+        const copia = permissoes.copiaAntesCodex(codex.arquivoDeRegras().arq);
+        if (!copia.ok) { d = { ...d, sempre: false }; soDestaVez = true; this.registrar({ tipo: 'aviso', texto: `Permiti só desta vez: não consegui guardar a cópia do arquivo de regras do Codex antes de gravar (${copia.erro}).` }); }
+      }
+      codex.responder(this, p, d);
+      this.enviar('conversa:respondido', reqId);
+      avisarLista();
+      return soDestaVez ? { ok: true, soDestaVez: true } : true;
     }
     // Pergunta (AskUserQuestion) responde como sempre respondeu. Permissão diz ao Claude qual
     // foi a decisão: desta vez, sempre (com a regra que ELE sugeriu, no alcance escolhido) ou
     // negada (com o que a pessoa pede em vez disso, se ela escreveu).
     const pergunta = p.ferramenta === 'AskUserQuestion';
+    let soDestaVez = false;
     // Plano pronto (ExitPlanMode, entrada { plan } em Markdown): aprovar pode levar o plano
     // editado pela pessoa e o modo em que o Claude segue; "continuar planejando" é uma recusa
     // com o que ajustar. Só os dois modos do cartão passam.
@@ -1000,6 +1087,8 @@ class Conversa {
         const copia = permissoes.copiaAntes(decisao.sempre, PASTA);
         if (!copia.ok) { sempre = null; this.registrar({ tipo: 'aviso', texto: `Permiti só desta vez: não consegui guardar a cópia do arquivo de permissões antes de gravar (${copia.erro}).` }); }
       }
+      // Pediram "sempre" e a regra não foi: a tela precisa dizer "desta vez", não "sempre".
+      soDestaVez = !pergunta && typeof decisao.sempre === 'string' && !sempre;
       resposta = { behavior: 'allow', updatedInput: decisao.respostas ? { ...p.entrada, answers: decisao.respostas } : p.entrada,
         ...(sempre ? { updatedPermissions: sempre } : {}), ...(pergunta ? {} : { decisionClassification: sempre ? 'user_permanent' : 'user_temporary' }) };
     } else {
@@ -1010,7 +1099,7 @@ class Conversa {
     this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
     this.enviar('conversa:respondido', reqId);
     avisarLista();
-    return true;
+    return soDestaVez ? { ok: true, soDestaVez: true } : true;
   }
 
   // Troca modelo e/ou esforço SEM reiniciar o Claude (reiniciar mataria as
@@ -1064,7 +1153,8 @@ class Conversa {
     this.pedidoModelo = null;
     if (r.subtype === 'success') {
       this.modeloEscolhido = chave;
-      this.info.modelo = (r.response && r.response.model) || (chave ? MODELOS[chave] : modeloPadrao()) || this.info.modelo;
+      const dito = r.response && r.response.model;
+      this.info.modelo = (eDoApelido(chave, dito) ? MODELOS[chave] : dito) || (chave ? MODELOS[chave] : modeloPadrao()) || this.info.modelo;
       gravarLista();
       this.avisarInfo();
     } else {
@@ -1470,6 +1560,8 @@ module.exports = {
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),
   voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),
+  voltarEnsaio: (id, ordemDoFim, texto) => pegar(id).voltarEnsaio(ordemDoFim, texto),
+  voltarComArquivos: (id, ordemDoFim, texto, escopo) => pegar(id).voltarComArquivos(ordemDoFim, texto, escopo),
   configurar: (id, o) => pegar(id).configurar(o || {}),
   definirModo: (id, modo) => pegar(id).definirModo(modo),
   MODOS_DO_CHIP,

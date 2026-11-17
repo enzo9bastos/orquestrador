@@ -94,6 +94,13 @@ há terminal para vigiar.
 - **Servidor MCP pedindo um dado**: vira um cartão que diz qual servidor pede e o quê, com o formulário dele (campo
   de segredo mascarado) e as saídas *Enviar*, *Recusar* e *Cancelar o pedido*; quando o servidor pede para abrir uma
   página, o cartão mostra o site antes.
+- **Cartões de permissão do Codex**: um comando ou mudança de arquivo do Codex oferece o que o Codex aceita:
+  *Permitir desta vez*, *Permitir nesta conversa*, *Permitir sempre…* para comandos que começam igual (regra que o
+  próprio Codex grava em `~/.codex/rules/default.rules`; o cartão mostra a regra, o arquivo e como desfazer, e o
+  app guarda antes a versão de agora do arquivo), *Negar* e *Negar e parar*. Quando o Codex pede acesso a mais
+  (pastas fora da conversa, a rede), o cartão lista exatamente o que ele pede e libera só neste turno ou nesta
+  conversa; pedido que o app não consegue mostrar por inteiro só pode ser negado. Servidor MCP pedindo um dado pelo
+  Codex usa o mesmo cartão do Claude.
 - **Cartão do plano**: quando o Claude termina de planejar, o plano aparece formatado, com três saídas (*Aprovar e
   seguir em Auto*, *Aprovar e perguntar a cada mudança*, *Continuar planejando…*) e *Editar o plano* para mudar o
   texto antes de aprovar. Respondido, recolhe numa linha com *Ver o plano*.
@@ -121,7 +128,13 @@ há terminal para vigiar.
   Repertório; `@note:` e `@workflow:` anexam uma nota ou um workflow; blocos de código têm *Copiar* e *▶ Terminal*.
 - **Mandou algo errado?** Passe o mouse na sua mensagem e clique em ✎ para **voltar**: aquela mensagem e tudo o que
   veio depois saem do contexto do Claude (a conversa antiga fica guardada) e o texto volta para a caixa para corrigir.
-  Com a caixa vazia, ↑ / ↓ trazem de volta o que você mandou.
+  O ✎ abre um cartão abaixo da mensagem com três opções: *Só a conversa* (o padrão; Enter confirma), *Conversa e
+  arquivos* e *Só os arquivos*. Para os arquivos, o app pergunta antes ao Claude o que voltaria (quantos arquivos,
+  quantas linhas; arquivo alterado depois da última edição do Claude é marcado), guarda uma cópia de como eles estão
+  agora numa pasta nova em `~/.local/share/orq-app/versoes/`, e só um clique de verdade no botão vermelho volta os
+  arquivos. O que os comandos fizeram (arquivo criado por script, banco de dados, commits do git) não volta. Os
+  pontos de volta podem ser desligados em Configurações › Avançado. Com a caixa vazia, ↑ / ↓ trazem de volta o que
+  você mandou.
 - **Nova conversa** abre conversas paralelas ao lado do orquestrador.
 
 ### 🧭 Agentes

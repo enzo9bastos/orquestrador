@@ -82,6 +82,9 @@ if (process.argv[2] === '--version') { console.log(`${VERSAO} (Claude Code)`); p
 const log = (o) => { if (process.env.CLAUDE_FALSO_LOG) fs.appendFileSync(process.env.CLAUDE_FALSO_LOG, JSON.stringify(o) + '\n'); };
 const sai = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 log({ args: process.argv.slice(2) });
+// O app liga os pontos de volta dos arquivos por uma variável (plano 7.1). Cada subida anota, num
+// arquivo à parte ($CLAUDE_FALSO_LOG.ambiente; o registro principal não muda), se ela veio.
+if (process.env.CLAUDE_FALSO_LOG) fs.appendFileSync(`${process.env.CLAUDE_FALSO_LOG}.ambiente`, JSON.stringify({ pontosDeVolta: process.env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING || null }) + '\n');
 
 const args = process.argv.slice(2);
 const arg = (nome) => { const i = args.indexOf(nome); return i >= 0 ? args[i + 1] : null; };
@@ -104,7 +107,10 @@ const COMANDOS = (() => { try { return JSON.parse(process.env.CLAUDE_FALSO_COMAN
 const esperando = new Map(); // request_id → o que fazer quando a resposta chegar
 const texto = (t) => sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: t }] } });
 const fim = (result = 'ok') => sai({ type: 'result', subtype: 'success', is_error: false, duration_ms: 5, result, session_id: SESSAO });
-const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: modelo, permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS, claude_code_version: VERSAO, tools: ['Bash', 'Read'], mcp_servers: [{ name: 'falso-mcp', status: 'connected' }] });
+// Como o Claude de verdade: opusplan é um apelido. O que ele informa (no init e na resposta ao
+// set_model) é o modelo em uso no momento: Opus no modo plano, Sonnet fora dele.
+const emUso = (m) => (m === 'opusplan' ? (modo === 'plan' ? 'claude-opus-5-5' : 'claude-sonnet-5-5') : m);
+const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: emUso(modelo), permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS, claude_code_version: VERSAO, tools: ['Bash', 'Read'], mcp_servers: [{ name: 'falso-mcp', status: 'connected' }] });
 const HOME = require('os').homedir();
 // Respostas dos pedidos de controle dos comandos do "/".
 // get_settings (formato do 2.1.326): effective = o que está nos arquivos de
@@ -161,7 +167,7 @@ leitor.on('line', (l) => {
     if (SEM.has(r.subtype)) return naoAtende(d, r.subtype);
     if (r.subtype === 'set_model') {
       if (process.env.CLAUDE_FALSO_RECUSA_MODELO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_MODELO } });
-      modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: modelo });
+      modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: emUso(modelo) });
     }
     if (r.subtype === 'set_permission_mode') {
       // Como o Claude de verdade (2.1.326): o Bypass só entra se o processo subiu com a opção que o libera.
@@ -184,6 +190,20 @@ leitor.on('line', (l) => {
     }
     if (r.subtype === 'rewind_files') {
       if (typeof r.user_message_id !== 'string') return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'rewind_files: user_message_id must be a string' } });
+      // $CLAUDE_FALSO_VOLTA (JSON): a resposta ao ensaio e à volta de verdade. Com "escreve", na
+      // volta de verdade (sem dry_run) o falso regrava cada arquivo da lista com esse texto, como
+      // o Claude restaurando. "mudo": não responde (o Claude travado). Sem a variável, o de sempre.
+      // Começando com "/", é o caminho de um arquivo com o JSON (o teste troca a resposta com o app aberto).
+      const cru = !process.env.CLAUDE_FALSO_VOLTA ? '' : !process.env.CLAUDE_FALSO_VOLTA.startsWith('/') ? process.env.CLAUDE_FALSO_VOLTA
+        : (() => { try { return fs.readFileSync(process.env.CLAUDE_FALSO_VOLTA, 'utf8'); } catch { return ''; } })();
+      if (cru) {
+        const { escreve, mudo, ...resposta } = JSON.parse(cru);
+        if (mudo) return undefined;
+        if (!r.dry_run && resposta.canRewind && typeof escreve === 'string') {
+          for (const f of resposta.filesChanged || []) { try { fs.writeFileSync(require('path').resolve(process.cwd(), f), escreve); } catch { /* arquivo de teste que não existe */ } }
+        }
+        return responde(d, resposta);
+      }
       return responde(d, { canRewind: true, filesChanged: ['app/x.js'], insertions: 3, deletions: 1 });
     }
     if (r.subtype === 'file_suggestions' && !process.env.CLAUDE_FALSO_SEM_CONTROLES) {
@@ -236,6 +256,29 @@ leitor.on('line', (l) => {
   if (t === 'trabalha até parar') {
     trabalhando = true;
     return sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'começando…' }] }, session_id: SESSAO });
+  }
+  // "depois começa um turno sozinho": responde e, 300 ms depois, começa um turno por conta
+  // própria, como um lembrete agendado ou uma tarefa em segundo plano que terminou (o app não
+  // mandou nada). O turno dura $CLAUDE_FALSO_TURNO_SOZINHO_MS (1200); mensagem que chega no
+  // meio fica na fila do falso e roda depois dele, como no Claude de verdade.
+  if (t === 'depois começa um turno sozinho') {
+    texto('combinado');
+    fim();
+    setTimeout(() => {
+      trabalhando = true;
+      sai({ type: 'stream_event', event: { type: 'message_start' } });
+      sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'ts1', name: 'Bash', input: { command: 'orq passada', description: 'Passada: agentes e recados' } }] }, session_id: SESSAO });
+      setTimeout(() => {
+        if (!trabalhando) return; // interrompido no meio
+        sai({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'ts1', content: 'nada novo' }] }, session_id: SESSAO });
+        texto('Nada novo desde a última passada.');
+        trabalhando = false;
+        fim();
+        log({ turnoSozinho: 'fim' });
+        soltarFila();
+      }, Number(process.env.CLAUDE_FALSO_TURNO_SOZINHO_MS || 1200));
+    }, 300);
+    return undefined;
   }
   if (t === 'começa tarefa de fundo') {
     const f = require('child_process').spawn('sleep', ['300'], { stdio: 'ignore' });

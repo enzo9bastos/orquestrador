@@ -46,6 +46,15 @@ test('menu de modelo completo', async (t) => {
     assert.strictEqual(linhas(log).filter((o) => o.args).length, subidas, 'nada de reinício');
     await abrir();
     assert.strictEqual(await app.avaliar("document.querySelector('#opcoes-modelo [data-modelo=opusplan]').getAttribute('aria-checked')"), 'true');
+    // Visto pelo usuário em 17/11/2026: o Claude informa o modelo em uso (Sonnet, fora do modo
+    // plano) e o app pulava para "Sonnet 5.5". A escolha tem de continuar a mesma, também
+    // depois de um turno (o init de cada turno vem com o modelo em uso).
+    assert.strictEqual(await app.avaliar("document.querySelector('#opcoes-modelo [data-modelo=sonnet]').getAttribute('aria-checked')"), 'false');
+    await app.avaliar("window.orq.conversa.mandar('orquestrador', 'oi')");
+    await app.esperar("[...document.querySelectorAll('#mensagens .texto-claude')].length > 0 && document.getElementById('parar').hidden", 10000);
+    assert.strictEqual(await app.avaliar("document.getElementById('info-modelo').textContent"), 'Opus + Sonnet');
+    await abrir();
+    assert.deepStrictEqual(await app.avaliar("['opusplan', 'sonnet'].map((m) => document.querySelector(`#opcoes-modelo [data-modelo=${m}]`).getAttribute('aria-checked'))"), ['true', 'false']);
   });
 
   await t.test('Outros modelos: Fable 5.2 pelo id atual; "Padrão da conta" tira a escolha (set_model sem modelo)', async () => {

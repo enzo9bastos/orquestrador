@@ -128,5 +128,28 @@ test('cartão de permissão completo', async (t) => {
     await esperarResposta(6);
   });
 
+  // Antes o cartão dizia "Permitido sempre" mesmo quando o motor não tinha conseguido guardar a
+  // cópia do arquivo e, por isso, permitido só desta vez (conserto de 17/11/2026).
+  await t.test('sem conseguir guardar a cópia do arquivo, o "sempre" vale só desta vez e o cartão diz isso', async () => {
+    const arq = path.join(app.casa, '.claude', 'settings.json');
+    fs.mkdirSync(path.dirname(arq), { recursive: true });
+    if (!fs.existsSync(arq)) fs.writeFileSync(arq, '{}\n');
+    const copias = path.join(app.casa, '.local', 'share', 'orq-app', 'versoes', 'claude-settings');
+    fs.mkdirSync(copias, { recursive: true });
+    fs.chmodSync(copias, 0o500); // só leitura: a cópia falha
+    t.after(() => { try { fs.chmodSync(copias, 0o700); } catch { /* a casa temporária já foi */ } });
+    const antes = respostas().length;
+    await pedir('com sugestão');
+    await clicar('sempre');
+    await app.avaliar(`(() => { const r = ${aberto}.querySelector('.alcances input[value="userSettings"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await clicar('confirmar-sempre');
+    const r = await esperarResposta(antes + 1);
+    assert.deepStrictEqual([r.behavior, r.updatedPermissions, r.decisionClassification], ['allow', undefined, 'user_temporary']);
+    await app.esperar(`!${aberto}`, 8000);
+    assert.match(await app.avaliar(ultimoFechado), /Permitido desta vez[\s\S]*a regra não foi gravada: o app não conseguiu guardar a cópia do arquivo antes/);
+    assert.doesNotMatch(await app.avaliar(ultimoFechado), /Permitido sempre/);
+    fs.chmodSync(copias, 0o700);
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });

@@ -1703,6 +1703,78 @@
     "apaga arquivos": "deletes files",
     "coringa": "wildcard",
     "mais de um comando": "more than one command",
+    "Abrir a pasta": "Open the folder",
+    "Os pontos de volta dos arquivos estão desligados (Configurações › Avançado). Aqui só dá para voltar a conversa.": "File restore points are turned off (Settings › Advanced). Here only the conversation can be rewound.",
+    "O Claude não tem ponto de volta dos arquivos para esta mensagem (a conversa pode ser de antes de o app guardá-los). Aqui só dá para voltar a conversa.": "Claude has no file restore point for this message (the conversation may be from before the app kept them). Here only the conversation can be rewound.",
+    "O Claude não alterou nenhum arquivo depois desta mensagem. Só há a conversa para voltar.": "Claude changed no file after this message. There is only the conversation to rewind.",
+    "Não consegui conferir os arquivos com o Claude agora. Aqui só dá para voltar a conversa.": "I could not check the files with Claude right now. Here only the conversation can be rewound.",
+    "Conferindo com o Claude…": "Checking with Claude…",
+    "Nenhum arquivo mudou depois desta mensagem.": "No file changed after this message.",
+    "Sem ponto de volta dos arquivos nesta conversa.": "No file restore point in this conversation.",
+    "Além disso, 1 arquivo volta ao que era naquele ponto.": "In addition, 1 file goes back to what it was at that point.",
+    "A conversa fica como está; 1 arquivo volta ao que era naquele ponto.": "The conversation stays as it is; 1 file goes back to what it was at that point.",
+    "1 arquivo volta": "1 file goes back",
+    "linhas": "lines",
+    "mexido por fora": "changed from outside",
+    "foi alterado depois da última edição que o Claude fez nele (por você ou por um comando). Ele volta junto: essa alteração sai do arquivo e fica só na cópia.": "was changed after Claude's last edit to it (by you or by a command). It goes back too: that change leaves the file and stays only in the copy.",
+    "foram alterados depois da última edição que o Claude fez neles (por você ou por um comando). Eles voltam junto: essas alterações saem dos arquivos e ficam só na cópia.": "were changed after Claude's last edit to them (by you or by a command). They go back too: those changes leave the files and stay only in the copy.",
+    "Antes de voltar, o app guarda o arquivo como está agora numa pasta nova em": "Before rewinding, the app keeps the file as it is now in a new folder in",
+    ". Não dá para escolher arquivo por arquivo: o Claude volta todos os que mudou.": ". You cannot pick file by file: Claude restores all the ones it changed.",
+    "O que os comandos fizeram": "What commands did",
+    "não volta": "does not come back",
+    ": arquivo criado por script, banco de dados, commits do git.": ": files created by scripts, databases, git commits.",
+    "Voltar a conversa e 1 arquivo": "Rewind the conversation and 1 file",
+    "Voltar 1 arquivo": "Restore 1 file",
+    "Voltar para antes de:": "Rewind to before:",
+    "Só a conversa": "Conversation only",
+    "Só os arquivos": "Files only",
+    "Os arquivos ficam como estão.": "The files stay as they are.",
+    "Esta mensagem e a resposta saem da conversa, e o texto volta para a caixa.": "This message and the answer leave the conversation, and the text goes back to the box.",
+    "Ela e a 1 mensagem sua depois dela saem da conversa, com as respostas.": "It and your 1 message after it leave the conversation, with the answers.",
+    "Guardar pontos de volta dos arquivos": "Keep file restore points",
+    "Ligado: a cada mensagem sua o Claude guarda como estavam os arquivos que ele alterar, e o ✎ de uma mensagem pode voltar também os arquivos, não só a conversa. Desligado: o ✎ volta só a conversa. Vale para conversas abertas depois de mudar.": "On: at each message of yours Claude keeps how the files it changes were, and the ✎ of a message can also restore the files, not only the conversation. Off: the ✎ rewinds the conversation only. Applies to conversations opened after the change.",
+    "Escolha a mensagem. Em seguida você decide se volta só a conversa (ela e tudo depois dela saem da conversa do Claude e o texto volta para a caixa) ou também os arquivos que o Claude alterou.": "Pick the message. Then you decide whether to rewind the conversation only (it and everything after it leave Claude's conversation and the text goes back to the box) or also the files Claude changed.",
+    "Permitir nesta conversa": "Allow in this conversation",
+    "Negar e parar": "Deny and stop",
+    "Para este comando o app não oferece \"Permitir sempre\": o começo de comando que o Codex propôs é aberto demais.": "For this command the app does not offer \"Always allow\": the command start Codex proposed is too broad.",
+    "Para este tipo de comando o app não oferece \"nesta conversa\" nem \"sempre\": cada vez passa por você.": "For this kind of command the app offers neither \"in this conversation\" nor \"always\": each time goes through you.",
+    "Permitir sempre comandos que começam com": "Always allow commands that start with",
+    "comandos que começam com": "commands that start with",
+    "(o começo foi proposto pelo Codex)": "(the start was proposed by Codex)",
+    "regras do Codex, em": "Codex rules, in",
+    "em toda conversa do Codex, também fora do app": "in every Codex conversation, outside the app too",
+    "apagar a linha desse arquivo": "delete the line from that file",
+    "Vale": "Applies",
+    "É permanente. Antes de o Codex gravar, o app guarda a versão de agora desse arquivo.": "It is permanent. Before Codex writes, the app keeps the current version of that file.",
+    "Permitido nesta conversa": "Allowed in this conversation",
+    "este mesmo comando não pergunta de novo até você fechá-la": "this same command will not ask again until you close it",
+    "o Codex não pergunta de novo pela mesma coisa até você fechá-la": "Codex will not ask again for the same thing until you close it",
+    "a regra não foi gravada: o app não conseguiu guardar a cópia do arquivo antes": "the rule was not written: the app could not keep the copy of the file first",
+    "Permitido sempre": "Always allowed",
+    "o Codex grava a regra em": "Codex writes the rule to",
+    "o Codex segue por outro caminho": "Codex goes another way",
+    "Negado e turno parado": "Denied and turn stopped",
+    "o Codex espera a sua próxima mensagem": "Codex waits for your next message",
+    "Usar a rede": "Use the network",
+    "Ler": "Read",
+    "Escrever em": "Write to",
+    "Sem acesso a": "No access to",
+    "ler": "read",
+    "escrever em": "write to",
+    "sem acesso a": "no access to",
+    "fora da pasta desta conversa": "outside this conversation's folder",
+    "pede acesso a mais": "asks for more access",
+    "O Codex explica:": "Codex explains:",
+    "Liberar só neste turno": "Grant for this turn only",
+    "Liberar nesta conversa": "Grant for this conversation",
+    "\"Só neste turno\" vale até o Codex terminar esta resposta. Nenhuma das opções grava arquivo.": "\"This turn only\" lasts until Codex finishes this answer. None of the options writes a file.",
+    "Este pedido tem uma parte que o app não sabe mostrar; só dá para negar.": "This request has a part the app cannot show; it can only be denied.",
+    "Acesso negado": "Access denied",
+    "o Codex continua só com o que já tinha": "Codex continues with only what it already had",
+    "Acesso liberado nesta conversa": "Access granted for this conversation",
+    "Acesso liberado só neste turno": "Access granted for this turn only",
+    "O orquestrador pede acesso a mais (pastas ou rede): responda no app": "The Orchestrator asks for more access (folders or network): answer it in the app",
+    "O Codex pede acesso a mais (pastas ou rede)": "Codex asks for more access (folders or network)",
     "Com o cartão em foco, as teclas de número escolhem a saída.": "With the card focused, the number keys pick the answer.",
     "Permitir sempre: onde vale?": "Always allow: where does it apply?",
     "Só nesta conversa": "Only in this conversation",
@@ -2614,6 +2686,62 @@
     [
       "^Permiti só desta vez: não consegui guardar a cópia do arquivo de permissões antes de gravar \\((.+)\\)\\.$",
       "Allowed this time only: could not keep the copy of the permissions file before writing ($1)."
+    ],
+    [
+      "^Permiti só desta vez: não consegui guardar a cópia do arquivo de regras do Codex antes de gravar \\((.+)\\)\\.$",
+      "Allowed this time only: I could not keep the copy of the Codex rules file before writing ($1)."
+    ],
+    [
+      "^Além disso, (\\d+) arquivos voltam ao que eram naquele ponto\\.$",
+      "In addition, $1 files go back to what they were at that point."
+    ],
+    [
+      "^A conversa fica como está; (\\d+) arquivos voltam ao que eram naquele ponto\\.$",
+      "The conversation stays as it is; $1 files go back to what they were at that point."
+    ],
+    [
+      "^(\\d+) arquivos voltam$",
+      "$1 files go back"
+    ],
+    [
+      "^e mais (\\d+)$",
+      "and $1 more"
+    ],
+    [
+      "^Antes de voltar, o app guarda os (\\d+) arquivos como estão agora numa pasta nova em$",
+      "Before rewinding, the app keeps the $1 files as they are now in a new folder in"
+    ],
+    [
+      "^Voltar a conversa e (\\d+) arquivos$",
+      "Rewind the conversation and $1 files"
+    ],
+    [
+      "^Voltar (\\d+) arquivos$",
+      "Restore $1 files"
+    ],
+    [
+      "^Ela e as (\\d+) mensagens suas depois dela saem da conversa, com as respostas\\.$",
+      "It and your $1 messages after it leave the conversation, with the answers."
+    ],
+    [
+      "^Não deu para voltar os arquivos: (.+)$",
+      "Could not restore the files: $1"
+    ],
+    [
+      "^↩ 1 arquivo voltou ao que era antes de «(.*)» \\(\\+(\\d+) −(\\d+) linhas\\)\\. A cópia de como estava ficou em (.+)\\.$",
+      "↩ 1 file went back to what it was before «$1» (+$2 −$3 lines). The copy of how it was is in $4."
+    ],
+    [
+      "^↩ (\\d+) arquivos voltaram ao que eram antes de «(.*)» \\(\\+(\\d+) −(\\d+) linhas\\)\\. A cópia de como estavam ficou em (.+)\\.$",
+      "↩ $1 files went back to what they were before «$2» (+$3 −$4 lines). The copy of how they were is in $5."
+    ],
+    [
+      "^O Claude não respondeu ao pedido de voltar os arquivos: não sei se eles mudaram\\. A cópia de como estavam antes ficou em (.+)\\.$",
+      "Claude did not answer the request to restore the files: I do not know whether they changed. The copy of how they were before is in $1."
+    ],
+    [
+      "^\"(.+)\" pede acesso a mais \\(pastas ou rede\\): responda no app$",
+      "\"$1\" asks for more access (folders or network): answer it in the app"
     ],
     [
       "^O Codex parou \\(código (\\d+)\\)\\. (.*)$",

@@ -1,4 +1,6 @@
 // Área: voltar (conversa: voltar para antes de uma mensagem)
+// O ✎ abre o cartão de voltar (plano 7.1). Aqui a conversa não tem ponto de volta dos arquivos:
+// só dá para voltar a conversa, como sempre foi. Com arquivos: voltar-arquivos.e2e.js.
 const test = require('node:test');
 const { pastaTemporaria } = require('../temporarias');
 const assert = require('node:assert');
@@ -13,10 +15,10 @@ const { abrirApp } = require('./app');
 const CLAUDE_FALSO = path.join(__dirname, '..', 'unit', 'claude-falso.js');
 function claudeFalso() {
   const log = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
-  Object.assign(process.env, { CLAUDE_FALSO_LOG: log, CLAUDE_FALSO_INIT_NA_SUBIDA: '1', CLAUDE_FALSO_SESSAO_REAL: '1' });
+  Object.assign(process.env, { CLAUDE_FALSO_LOG: log, CLAUDE_FALSO_INIT_NA_SUBIDA: '1', CLAUDE_FALSO_SESSAO_REAL: '1', CLAUDE_FALSO_VOLTA: JSON.stringify({ canRewind: false, error: 'No file checkpoint found for this message.' }) });
   const chamadas = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : [])
     .map((l) => JSON.parse(l)).filter((o) => Array.isArray(o.args)).map((o) => o.args.join(' '));
-  const desligar = () => { for (const k of ['CLAUDE_FALSO_LOG', 'CLAUDE_FALSO_INIT_NA_SUBIDA', 'CLAUDE_FALSO_SESSAO_REAL']) delete process.env[k]; };
+  const desligar = () => { for (const k of ['CLAUDE_FALSO_LOG', 'CLAUDE_FALSO_INIT_NA_SUBIDA', 'CLAUDE_FALSO_SESSAO_REAL', 'CLAUDE_FALSO_VOLTA']) delete process.env[k]; };
   // Espera uma subida com aqueles argumentos. Não conta subidas nem olha "a
   // última": o app mostra o histórico ANTES de o processo novo escrever a
   // linha dele, então com a máquina carregada a linha de um reinício anterior
@@ -55,33 +57,55 @@ test('voltar a conversa para antes de uma mensagem', async (t) => {
   await app.esperar("document.querySelectorAll('#mensagens .msg-voce[data-texto]').length === 3", 8000);
   const clicarEditar = (texto) => app.avaliar(`[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].find((b) => b.dataset.texto === ${JSON.stringify(texto)}).querySelector('.editar-msg').click()`);
 
-  await t.test('✎ na mensagem do meio pede confirmação dizendo quantas saem', async () => {
+  const cartao = "document.querySelector('#mensagens .cartao-volta')";
+  const ensaiado = `!!${cartao} && !${cartao}.querySelector('.volta-sem-ponto').hidden`;
+
+  await t.test('✎ na mensagem do meio abre o cartão dizendo quantas saem; sem ponto de volta, só a conversa', async () => {
     await clicarEditar('me diz onde t');
-    await app.esperar("!document.getElementById('corrigindo').hidden");
-    assert.match(await app.avaliar("document.getElementById('corrigindo-texto').textContent"), /a 1 mensagem sua depois dela/);
-    await app.avaliar("document.getElementById('corrigindo-cancelar').click()");
-    await app.esperar("document.getElementById('corrigindo').hidden");
+    await app.esperar(ensaiado, 8000);
+    const v = await app.avaliar(`(() => { const c = ${cartao}; return { texto: c.innerText.replace(/\\s+/g, ' '), opcoes: [...c.querySelectorAll('.escopos-volta input')].map((i) => [i.value, i.checked, i.disabled]), botao: c.querySelector('[data-volta="confirmar"]').innerText, depoisDoBalao: c.previousElementSibling.dataset.texto }; })()`);
+    assert.match(v.texto, /Voltar para antes de: «me diz onde t»/);
+    assert.match(v.texto, /Ela e a 1 mensagem sua depois dela saem da conversa, com as respostas\. Os arquivos ficam como estão\./);
+    assert.deepStrictEqual(v.opcoes, [['conversa', true, false], ['tudo', false, true], ['arquivos', false, true]]);
+    assert.match(v.texto, /Sem ponto de volta dos arquivos nesta conversa\./);
+    assert.match(v.texto, /O Claude não tem ponto de volta dos arquivos para esta mensagem[\s\S]*Aqui só dá para voltar a conversa\.\s*\(No file checkpoint found for this message\.\)/);
+    assert.strictEqual(v.botao, 'Voltar a conversa');
+    assert.deepStrictEqual(await app.avaliar(`['.volta-arquivos', '.erro-volta'].map((s) => getComputedStyle(${cartao}.querySelector(s)).display)`), ['none', 'none'], 'sem caixa vazia no cartão');
+    assert.strictEqual(v.depoisDoBalao, 'me diz onde t', 'o cartão fica logo abaixo da mensagem');
+    await app.avaliar(`${cartao}.querySelector('[data-volta="cancelar"]').click()`);
+    await app.esperar(`!${cartao}`);
     assert.deepStrictEqual(await baloes(), ['primeira pergunta', 'me diz onde t', 'outra coisa'], 'cancelar não muda nada');
+  });
+
+  await t.test('Esc fecha o cartão sem mudar nada', async () => {
+    await clicarEditar('me diz onde t');
+    await app.esperar(`!!${cartao}`);
+    await app.tecla('Escape', 'Escape', 27);
+    await app.esperar(`!${cartao}`);
+    assert.deepStrictEqual(await baloes(), ['primeira pergunta', 'me diz onde t', 'outra coisa']);
   });
 
   await t.test('confirmar volta: o Claude reabre cortado, numa sessão nova, e o texto vai para a caixa', async () => {
     await clicarEditar('me diz onde t');
-    await app.esperar("!document.getElementById('corrigindo').hidden");
-    await app.avaliar("document.getElementById('corrigindo-voltar').click()");
+    await app.esperar(ensaiado, 8000);
+    await app.avaliar(`${cartao}.querySelector('[data-volta="confirmar"]').click()`);
     await app.esperar("document.getElementById('entrada').value === 'me diz onde t'", 8000);
     assert.ok(await falso.subiuCom((c) => /--resume S1 --resume-session-at a1 --fork-session/.test(c)),
       `o Claude não reabriu cortado; subidas: ${JSON.stringify(falso.chamadas())}`);
     await app.esperar("document.querySelectorAll('#mensagens .msg-voce[data-texto]').length === 1", 8000);
     assert.deepStrictEqual(await baloes(), ['primeira pergunta'], 'a mensagem errada e o que veio depois saem da tela');
+    assert.strictEqual(await app.avaliar(`!!${cartao}`), false, 'o cartão some');
     const lista = JSON.parse(app.ler('.cache/orq-app/conversas-teste.json'));
     assert.deepStrictEqual(lista.find((c) => c.orquestrador).volta, { de: 'S1', ate: 'a1' }, 'a volta fica gravada até a 1ª resposta');
     assert.ok(fs.existsSync(path.join(app.casa, `.claude/projects/${projeto}/S1.jsonl`)), 'o histórico original não é apagado');
   });
 
-  await t.test('✎ na última mensagem volta direto; sendo a primeira da conversa, o Claude recomeça do zero', async () => {
+  await t.test('✎ na última mensagem: Enter no cartão confirma "Só a conversa"; sendo a primeira da conversa, o Claude recomeça do zero', async () => {
     // A volta anterior ainda não teve resposta: a sessão de partida continua a S1.
     await clicarEditar('primeira pergunta');
-    assert.ok(await app.avaliar("document.getElementById('corrigindo').hidden"), 'sem confirmação na última');
+    await app.esperar(`!!${cartao} && document.activeElement === ${cartao}`, 8000);
+    assert.match(await app.avaliar(`${cartao}.innerText.replace(/\\s+/g, ' ')`), /Esta mensagem e a resposta saem da conversa, e o texto volta para a caixa\. Os arquivos ficam como estão\./);
+    await app.tecla('Enter', 'Enter', 13);
     await app.esperar("document.getElementById('entrada').value === 'primeira pergunta'", 8000);
     // Só esta subida vem sem --resume (as anteriores retomam a S1).
     assert.ok(await falso.subiuCom((c) => !/--resume/.test(c)), `o Claude não recomeçou do zero; subidas: ${JSON.stringify(falso.chamadas())}`);

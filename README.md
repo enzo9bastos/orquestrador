@@ -91,6 +91,13 @@ protocol), so there is no terminal to babysit.
 - **An MCP server asking for information**: becomes a card that says which server asks and for what, with its form
   (secret fields masked) and the answers *Send*, *Decline* and *Cancel the request*; when the server asks to open a
   page, the card shows the site first.
+- **Codex permission cards**: a command or file change from Codex offers what Codex accepts: *Allow this time*,
+  *Allow in this conversation*, *Always allow…* for commands that start the same way (a rule Codex itself writes to
+  `~/.codex/rules/default.rules`; the card shows the rule, the file and how to undo it, and the app keeps the
+  current version of the file first), *Deny* and *Deny and stop*. When Codex asks for more access (folders outside
+  the conversation, the network), the card lists exactly what it asks for and grants it for this turn only or for
+  the conversation; a request the app cannot show in full can only be denied. An MCP server asking for information
+  through Codex uses the same card as with Claude.
 - **Plan card**: when Claude finishes planning, the plan shows up formatted, with three answers (*Approve and
   continue in Auto*, *Approve and ask before each change*, *Keep planning…*) and *Edit the plan* to change the text
   before approving. Once answered it folds into one line with *See the plan*.
@@ -117,8 +124,13 @@ protocol), so there is no terminal to babysit.
   misspelled word for suggestions (Portuguese and English); `//skill` uses anything from the Library; `@note:` and
   `@workflow:` attach a note or a workflow; code blocks have *Copy* and *▶ Terminal*.
 - **Sent something wrong?** Hover your message and click ✎ to **rewind**: that message and everything after it
-  leave Claude's context (the old conversation is kept) and the text comes back to the box to fix. With the box
-  empty, ↑ / ↓ bring back what you sent.
+  leave Claude's context (the old conversation is kept) and the text comes back to the box to fix. The ✎ opens a
+  card under the message with three choices: *Conversation only* (the default; Enter confirms), *Conversation and
+  files* and *Files only*. For the files, Claude is asked first what would go back (how many files, how many lines;
+  files changed after Claude's last edit are flagged), the app keeps a copy of the files as they are now in a new
+  folder under `~/.local/share/orq-app/versoes/`, and only a real click on the red button restores them. What
+  commands did (files created by scripts, databases, git commits) does not come back. Restore points can be turned
+  off in Settings › Advanced. With the box empty, ↑ / ↓ bring back what you sent.
 - **New conversation** opens side conversations next to the orchestrator.
 
 ### 🧭 Agents

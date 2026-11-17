@@ -19,6 +19,8 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
+const permSempre = require('./permissao-sempre');
+const elicitacao = require('./elicitacao');
 
 const POLITICA = { approvalPolicy: 'untrusted', approvalsReviewer: 'auto_review', sandbox: 'danger-full-access' };
 // Quando o Codex recusa essa política (uma organização pode limitar as permitidas), o app
@@ -155,15 +157,95 @@ function pedidoDaTela(method, params) {
       motivo: null,
     };
   }
+  // codex: o que o cartão pode oferecer além de "desta vez" e "negar" (esquema do 0.167.1).
+  //   sessao: "nesta conversa" (acceptForSession). prefixo: "sempre" para comandos que
+  //   começam assim (só se o Codex propôs o prefixo). Comando ou prefixo da lista de
+  //   recusa (permissao-sempre.js) não ganha nenhum dos dois; recusa diz o motivo.
   if (method === 'item/commandExecution/requestApproval') {
     const cmd = Array.isArray(params.commandActions) && params.commandActions.length === 1 && params.commandActions[0].command
       ? params.commandActions[0].command : comandoLimpo({ command: params.command || '' });
-    return { ferramenta: 'Bash', entrada: { command: cmd }, motivo: params.reason || null };
+    const proposto = prefixoProposto(params);
+    const recusaDoComando = permSempre.recusaDaRegra({ toolName: 'Bash', ruleContent: String(cmd || '') });
+    const recusaDoPrefixo = proposto ? permSempre.recusaDaRegra({ toolName: 'Bash', ruleContent: `${proposto.join(' ')}:*` }) : null;
+    const prefixo = proposto && !recusaDoComando && !recusaDoPrefixo ? proposto.join(' ') : null;
+    return { ferramenta: 'Bash', entrada: { command: cmd }, motivo: params.reason || null,
+      codex: { tipo: 'comando', sessao: !recusaDoComando, prefixo, recusa: recusaDoComando || recusaDoPrefixo || null, ...(prefixo ? { arquivo: arquivoDeRegras().exibir } : {}) } };
   }
   if (method === 'item/fileChange/requestApproval') {
-    return { ferramenta: 'Edit', entrada: { file_path: params.grantRoot || '' }, motivo: params.reason || 'O Codex quer alterar arquivos.' };
+    return { ferramenta: 'Edit', entrada: { file_path: params.grantRoot || '' }, motivo: params.reason || 'O Codex quer alterar arquivos.',
+      codex: { tipo: 'arquivo', sessao: true, prefixo: null, recusa: null } };
+  }
+  // O Codex pede acesso a mais (pastas fora da conversa, rede): a lista do que ele quer.
+  // ok: false = o pedido tem uma parte que o app não sabe mostrar; o cartão só deixa negar
+  // (liberar concede o pedido inteiro: o app não concede o que não mostrou).
+  if (method === 'item/permissions/requestApproval') {
+    const a = itensDeAcesso(params.permissions);
+    return { ferramenta: 'Acesso', tipo: 'codex-acesso', entrada: {}, itens: a.itens, ok: a.completo && a.itens.length > 0, motivo: params.reason ? String(params.reason).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 600) : null };
+  }
+  // Um servidor MCP pede um dado: o mesmo cartão do Claude (elicitacao.js confere e limita).
+  if (method === 'mcpServer/elicitation/request') {
+    return { ferramenta: 'MCP', tipo: 'elicitacao', entrada: {}, ...elicitacao.normalizar({ mcp_server_name: params.serverName, message: params.message,
+      mode: params.mode === 'url' ? 'url' : 'form', url: params.url, requested_schema: params.mode === 'form' ? params.requestedSchema : params.mode === 'url' ? undefined : 'formato que o app não mostra' }) };
   }
   return null;
+}
+// O prefixo que o Codex propõe para "sempre" (lista de palavras), ou null se não propôs direito.
+function prefixoProposto(params) {
+  const p = params.proposedExecpolicyAmendment;
+  return Array.isArray(p) && p.length && p.length <= 12 && p.every((x) => typeof x === 'string' && x.trim() && x.length <= 200) ? p : null;
+}
+// Onde o Codex grava a regra "sempre" (exec_policy.rs do 0.167.1): rules/default.rules na pasta dele.
+function arquivoDeRegras() {
+  const casa = os.homedir();
+  const arq = path.join(process.env.CODEX_HOME || path.join(casa, '.codex'), 'rules', 'default.rules');
+  return { arq, exibir: arq.startsWith(casa + path.sep) ? `~${arq.slice(casa.length)}` : arq };
+}
+// Pastas e rede que o Codex pede (esquema do 0.167.1):
+//   { itens: [{ acao: 'ler' | 'escrever' | 'bloquear', onde } | { acao: 'rede' }], completo }
+// completo: false quando alguma parte do pedido não coube nesta lista (forma desconhecida,
+// campo a mais, itens demais).
+const ESPECIAIS = { root: 'o computador inteiro (/)', minimal: 'o mínimo do sistema para rodar programas', project_roots: 'as pastas do projeto', tmpdir: 'a pasta temporária do sistema', slash_tmp: '/tmp' };
+const ACOES_DE_ACESSO = { read: 'ler', write: 'escrever', deny: 'bloquear' };
+const MAX_ITENS_DE_ACESSO = 30;
+function itensDeAcesso(permissions) {
+  const itens = [];
+  let completo = true;
+  const so = (o, chaves) => Object.keys(o).every((k) => chaves.includes(k));
+  const texto = (s) => (typeof s === 'string' && s.trim() && s.length <= 400 && !/[\u0000-\u001f\u007f]/.test(s) ? s : null);
+  const ondeDe = (p) => {
+    if (!p || typeof p !== 'object') return null;
+    if (p.type === 'path') return so(p, ['type', 'path']) ? texto(p.path) : null;
+    if (p.type === 'glob_pattern') return so(p, ['type', 'pattern']) ? texto(p.pattern) : null;
+    if (p.type !== 'special' || !so(p, ['type', 'value']) || !p.value || typeof p.value !== 'object') return null;
+    const v = p.value;
+    if (!so(v, ['kind', 'subpath']) || !ESPECIAIS[v.kind]) return null;
+    if (v.subpath === undefined || v.subpath === null) return ESPECIAIS[v.kind];
+    return texto(v.subpath) ? `${ESPECIAIS[v.kind]}, em ${v.subpath}` : null;
+  };
+  const p = permissions;
+  if (!p || typeof p !== 'object' || Array.isArray(p) || !so(p, ['fileSystem', 'network'])) return { itens, completo: false };
+  const fsys = p.fileSystem;
+  if (fsys !== undefined && fsys !== null) {
+    if (typeof fsys !== 'object' || Array.isArray(fsys) || !so(fsys, ['entries', 'read', 'write', 'globScanMaxDepth'])) return { itens, completo: false };
+    for (const [campo, acao] of [['entries', null], ['write', 'escrever'], ['read', 'ler']]) {
+      const lista = fsys[campo];
+      if (lista === undefined || lista === null) continue;
+      if (!Array.isArray(lista)) { completo = false; continue; }
+      for (const e of lista) {
+        const feito = acao ? { acao, onde: texto(e) }
+          : e && typeof e === 'object' && so(e, ['access', 'path']) ? { acao: ACOES_DE_ACESSO[e.access], onde: ondeDe(e.path) } : {};
+        if (feito.acao && feito.onde) itens.push(feito); else completo = false;
+      }
+    }
+    if (fsys.globScanMaxDepth !== undefined && fsys.globScanMaxDepth !== null && !Number.isInteger(fsys.globScanMaxDepth)) completo = false;
+  }
+  const rede = p.network;
+  if (rede !== undefined && rede !== null) {
+    if (typeof rede !== 'object' || Array.isArray(rede) || !so(rede, ['enabled']) || ![true, false, null, undefined].includes(rede.enabled)) completo = false;
+    else if (rede.enabled === true) itens.push({ acao: 'rede' });
+  }
+  if (itens.length > MAX_ITENS_DE_ACESSO) return { itens: itens.slice(0, MAX_ITENS_DE_ACESSO), completo: false };
+  return { itens, completo };
 }
 
 // Decisão do usuário → resposta JSON-RPC para o servidor.
@@ -179,7 +261,16 @@ function respostaAoServidor(method, params, decisao) {
     }
     return { answers };
   }
-  return { decision: decisao.permitir ? 'accept' : 'decline' };
+  if (method === 'item/permissions/requestApproval') {
+    // Liberar concede exatamente o que foi pedido, só neste turno ou nesta conversa; negar não concede nada.
+    const pode = decisao.permitir && (pedidoDaTela(method, params) || {}).ok === true;
+    return pode ? { permissions: params.permissions, scope: decisao.sessao ? 'session' : 'turn' } : { permissions: {} };
+  }
+  if (!decisao.permitir) return { decision: decisao.parar ? 'cancel' : 'decline' };
+  const oferece = (pedidoDaTela(method, params) || {}).codex || {};
+  if (decisao.sempre && oferece.prefixo) return { decision: { acceptWithExecpolicyAmendment: { execpolicy_amendment: prefixoProposto(params) } } };
+  if (decisao.sessao && oferece.sessao) return { decision: 'acceptForSession' };
+  return { decision: 'accept' };
 }
 
 // Uso de contexto: o que entrou no último pedido ao modelo.
@@ -455,13 +546,19 @@ function pedidoDoServidor(c, rpc, d, ctx) {
     return;
   }
   const id = `cx-${d.id}`;
-  const p = { id, ...tela, rpcId: d.id, metodo: d.method, params: d.params };
+  // O cartão inteiro vai à tela; o que é só do protocolo (número do pedido, método, parâmetros
+  // crus) fica neste processo, em propriedades que não viajam.
+  const p = { id, ...tela };
+  for (const [k, v] of [['rpcId', d.id], ['metodo', d.method], ['params', d.params]]) Object.defineProperty(p, k, { value: v, enumerable: false });
   c.pendentes.set(id, p);
-  c.enviar('conversa:pedido', { id, ferramenta: p.ferramenta, entrada: p.entrada, motivo: p.motivo });
+  c.enviar('conversa:pedido', p);
   ctx.avisarLista();
   const q = (p.entrada.questions && p.entrada.questions[0]) || null;
   ctx.avisar({ tipo: 'pedido', id: c.id, titulo: c.titulo, orquestrador: c.orquestrador,
-    texto: q ? `${q.header ? q.header + ': ' : ''}${q.question}` : `Quer usar ${p.ferramenta}${p.entrada.command ? `: ${p.entrada.command}` : ''}` });
+    texto: q ? `${q.header ? q.header + ': ' : ''}${q.question}`
+      : p.tipo === 'elicitacao' ? `O servidor ${p.servidor} (MCP) pede um dado`
+        : p.tipo === 'codex-acesso' ? 'O Codex pede acesso a mais (pastas ou rede)'
+          : `Quer usar ${p.ferramenta}${p.entrada.command ? `: ${p.entrada.command}` : ''}` });
 }
 
 // --- ações da conversa ------------------------------------------------------
@@ -501,6 +598,12 @@ function responder(c, p, decisao) {
   if (!rpc) return false;
   return rpc.escrever({ id: p.rpcId, result: respostaAoServidor(p.metodo, p.params || {}, decisao) });
 }
+// Resposta já montada por quem conhece o pedido (o pedido de dado do MCP, em conversa.js).
+function responderCru(c, p, resultado) {
+  const rpc = c.proc && c.proc.rpc;
+  if (!rpc) return false;
+  return rpc.escrever({ id: p.rpcId, result: resultado });
+}
 
 function interromper(c) {
   const rpc = c.proc && c.proc.rpc;
@@ -510,6 +613,7 @@ function interromper(c) {
 }
 
 module.exports = {
-  iniciar, mandar, responder, interromper, comandosDoCodex, POLITICA, ARGS, ESFORCO, PROMPT_INIT,
-  _t: { comandoLimpo, usoDeFerramenta, resultadoDeFerramenta, eventosDoHistorico, pedidoDaTela, respostaAoServidor, contextoDoUso, cotaDaConta, entradaDoTexto, skillDoCodex },
+  iniciar, mandar, responder, responderCru, interromper, comandosDoCodex, POLITICA, ARGS, ESFORCO, PROMPT_INIT,
+  arquivoDeRegras,
+  _t: { comandoLimpo, usoDeFerramenta, resultadoDeFerramenta, eventosDoHistorico, pedidoDaTela, respostaAoServidor, contextoDoUso, cotaDaConta, entradaDoTexto, skillDoCodex, arquivoDeRegras },
 };

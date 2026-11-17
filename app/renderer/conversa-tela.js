@@ -313,11 +313,17 @@
     caixa.append(el);
   }
 
-  function aviso(texto, tipo = '') {
+  function aviso(texto, tipo = '', pasta = '') {
     grupo = null;
     const el = document.createElement('div');
     el.className = `aviso-conversa ${tipo}`;
     el.textContent = texto;
+    // Aviso que cita uma pasta do app (a cópia feita antes de voltar arquivos): botão para abri-la.
+    if (pasta) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'botao-texto'; b.dataset.abrirPasta = pasta; b.textContent = 'Abrir a pasta';
+      el.append(' ', b);
+    }
     caixa.append(el);
   }
 
@@ -407,7 +413,7 @@
       caixa.append(el);
     } else if (ev.tipo === 'fim' || ev.tipo === 'erro' || ev.tipo === 'aviso') {
       limparRascunho();
-      aviso(ev.texto, ev.tipo === 'erro' ? 'erro' : '');
+      aviso(ev.texto, ev.tipo === 'erro' ? 'erro' : '', ev.tipo === 'aviso' && typeof ev.pasta === 'string' ? ev.pasta : '');
     } else if (ev.tipo === 'limpa') {
       // /clear: o que veio antes saiu da tela; fica a divisória.
       limparRascunho(); grupo = null;
@@ -540,6 +546,8 @@
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
     } else if (p.tipo === 'elicitacao') {
       cartaoMcp(el, p);
+    } else if (p.tipo === 'codex-acesso') {
+      cartaoAcesso(el, p);
     } else if (p.ferramenta === 'ExitPlanMode' && !conversaCodex() && p.entrada && typeof p.entrada.plan === 'string') {
       cartaoPlano(el, p);
     } else {
@@ -552,8 +560,18 @@
       const quem = `<span class="quem-pede">${!conv || conv.orquestrador ? 'O orquestrador' : esc(conv.titulo)}</span>`;
       const cabeca = `<div class="titulo-pedido"><span class="ponto permissao"></span>${quem} <span class="verbo-pedido">${esc(verbo)}:</span> <strong>${esc(alvo)}</strong></div>
         <pre class="entrada-ferramenta">${esc(curto(corpo, 3000))}</pre>`;
-      if (conversaCodex()) {
-        // Codex: as respostas dele (sessão, prefixo, cancelar) entram com o cartão próprio do P2.
+      if (p.codex) {
+        // Codex (plano 8.2): as respostas que ele aceita. Desta vez, nesta conversa, sempre para
+        // comandos que começam igual (regra que o próprio Codex grava), negar, negar e parar.
+        el.classList.add('cartao-permissao', 'cartao-codex');
+        el.tabIndex = 0;
+        el.dataset.alvo = alvo;
+        el.dataset.corpo = curto(corpo, 300);
+        el.innerHTML = `${cabeca}${p.motivo ? `<p class="motivo-pedido"><strong>Por que pergunta:</strong> <span data-sem-traducao>${esc(p.motivo)}</span></p>` : ''}<div class="area-permissao"></div>`;
+        codexInicio(el, p);
+        teclasDoCartao(el, '.saidas-permissao [data-perm]');
+      } else if (conversaCodex()) {
+        // Pedido do Codex sem os dados do cartão novo (não deve acontecer): as duas saídas de antes.
         el.innerHTML = `${cabeca}<div class="acoes"><button type="button" class="botao primario" data-permitir="1">Permitir</button>
           <button type="button" class="botao secundario" data-permitir="0">Negar</button></div>`;
       } else {
@@ -575,6 +593,101 @@
     grupo = null;
     caixa.append(el);
     colado = true; rolar();
+  }
+
+  // Com o cartão em foco, as teclas de número escolhem a saída (desligável nas Configurações).
+  function teclasDoCartao(el, seletor) {
+    el.addEventListener('keydown', (ev) => {
+      if (cfg.teclasNosCartoes === false || ev.ctrlKey || ev.altKey || ev.metaKey || ev.target.closest('input, textarea, select')) return;
+      if (!/^[1-9]$/.test(ev.key)) return;
+      const b = el.querySelectorAll(seletor)[Number(ev.key) - 1];
+      if (b) { ev.preventDefault(); b.click(); }
+    });
+  }
+  const dicaDasTeclas = () => (cfg.teclasNosCartoes !== false ? '<p class="nota dica-teclas"><span>Com o cartão em foco, as teclas de número escolhem a saída.</span></p>' : '');
+
+  // --- cartões do Codex (planos 8.2 e 8.3) ----------------------------------------------
+  // p.codex vem do processo principal: { tipo: 'comando' | 'arquivo', sessao, prefixo, recusa, arquivo }.
+  //   sessao: pode "nesta conversa". prefixo: o começo de comando que o Codex propôs para
+  //   "sempre" (null = não há "sempre"). recusa: por que o app não oferece (lista de recusa).
+  function codexInicio(cartao, p) {
+    const x = p.codex;
+    let n = 0;
+    const k = () => (cfg.teclasNosCartoes !== false ? `<kbd data-sem-traducao>${++n}</kbd> ` : '');
+    const nota = !x.recusa ? '' : x.sessao ? 'Para este comando o app não oferece "Permitir sempre": o começo de comando que o Codex propôs é aberto demais.'
+      : 'Para este tipo de comando o app não oferece "nesta conversa" nem "sempre": cada vez passa por você.';
+    cartao.querySelector('.area-permissao').innerHTML = `<div class="acoes saidas-permissao">
+        <button type="button" class="botao primario" data-perm="vez" data-permitir="1">${k()}<span>Permitir desta vez</span></button>
+        ${x.sessao ? `<button type="button" class="botao secundario" data-perm="sessao">${k()}<span>Permitir nesta conversa</span></button>` : ''}
+        ${x.prefixo ? `<button type="button" class="botao secundario" data-perm="prefixo">${k()}<span>Permitir sempre…</span></button>` : ''}
+        <button type="button" class="botao secundario" data-perm="negar-ja" data-permitir="0">${k()}<span>Negar</span></button>
+        <button type="button" class="botao secundario" data-perm="parar">${k()}<span>Negar e parar</span></button></div>
+      ${nota ? `<p class="nota aviso-recusa"><span>${nota}</span> <span class="motivo-recusa">(<span>${esc(x.recusa)}</span>)</span></p>` : ''}
+      ${dicaDasTeclas()}`;
+  }
+  function codexSempre(cartao, p) {
+    const comeco = `<code data-sem-traducao>${esc(p.codex.prefixo)}</code>`;
+    cartao.querySelector('.area-permissao').innerHTML = `<div class="painel-permissao">
+        <h4><span>Permitir sempre comandos que começam com</span> ${comeco}<span>?</span></h4>
+        <dl class="sempre-regra"><dt>Regra</dt><dd><span>comandos que começam com</span> ${comeco} <span>(o começo foi proposto pelo Codex)</span></dd>
+          <dt>Arquivo</dt><dd><span>regras do Codex, em</span> <code data-sem-traducao>${esc(p.codex.arquivo || '')}</code></dd>
+          <dt>Vale</dt><dd>em toda conversa do Codex, também fora do app</dd>
+          <dt>Para desfazer</dt><dd>apagar a linha desse arquivo</dd></dl>
+        <p class="nota sempre-copia">É permanente. Antes de o Codex gravar, o app guarda a versão de agora desse arquivo.</p>
+        <div class="acoes"><button type="button" class="botao primario" data-perm="confirmar-prefixo"><span>Permitir sempre</span> ${comeco}</button><button type="button" class="botao secundario" data-perm="voltar">Voltar</button></div>
+      </div>`;
+  }
+  async function clicouNoCodex(cartao, acao, p) {
+    const alvo = `<code data-sem-traducao>${esc(cartao.dataset.corpo || cartao.dataset.alvo || '')}</code>`;
+    const responder = (d) => C.responder(ativa, cartao.dataset.pedido, d);
+    if (acao === 'prefixo') return codexSempre(cartao, p);
+    if (acao === 'voltar') { codexInicio(cartao, p); cartao.focus(); return undefined; }
+    if (acao === 'vez') { await responder({ permitir: true }); return fecharPermissao(cartao, 'sim', `<span>Permitido desta vez</span> · ${alvo}`); }
+    if (acao === 'sessao') {
+      await responder({ permitir: true, sessao: true });
+      return fecharPermissao(cartao, 'sim', `<span>Permitido nesta conversa</span> · <span>${p.codex.tipo === 'comando' ? 'este mesmo comando não pergunta de novo até você fechá-la' : 'o Codex não pergunta de novo pela mesma coisa até você fechá-la'}</span>`);
+    }
+    if (acao === 'confirmar-prefixo') {
+      const r = await responder({ permitir: true, sempre: true });
+      if (r && r.soDestaVez) return fecharPermissao(cartao, 'sim', `<span>Permitido desta vez</span> · ${alvo} · <span>a regra não foi gravada: o app não conseguiu guardar a cópia do arquivo antes</span>`);
+      return fecharPermissao(cartao, 'sim', `<span>Permitido sempre</span> · <span>comandos que começam com</span> <code data-sem-traducao>${esc(p.codex.prefixo)}</code> · <span>o Codex grava a regra em</span> <code data-sem-traducao>${esc(p.codex.arquivo || '')}</code>`);
+    }
+    if (acao === 'negar-ja') { await responder({ permitir: false }); return fecharPermissao(cartao, 'nao', `<span>Negado</span> · ${alvo} · <span>o Codex segue por outro caminho</span>`); }
+    if (acao === 'parar') { await responder({ permitir: false, parar: true }); return fecharPermissao(cartao, 'nao', `<span>Negado e turno parado</span> · ${alvo} · <span>o Codex espera a sua próxima mensagem</span>`); }
+    return undefined;
+  }
+  // O Codex pede acesso a mais (pastas fora da conversa, rede). p.itens: [{ acao, onde }];
+  // p.ok false = o pedido tem uma parte que o app não sabe mostrar: só dá para negar.
+  const ACESSOS = { ler: 'Ler', escrever: 'Escrever em', bloquear: 'Sem acesso a' };
+  const foraDaPasta = (onde) => { const pasta = String(infoAtual.pasta || '').replace(/\/+$/, ''); return !!pasta && onde.startsWith('/') && onde !== pasta && !onde.startsWith(`${pasta}/`); };
+  function cartaoAcesso(el, p) {
+    el.classList.add('cartao-permissao', 'cartao-acesso');
+    el.tabIndex = 0;
+    let n = 0;
+    const k = () => (cfg.teclasNosCartoes !== false ? `<kbd data-sem-traducao>${++n}</kbd> ` : '');
+    const item = (x) => (x.acao === 'rede' ? '<li><span>Usar a rede</span></li>'
+      : `<li><span>${ACESSOS[x.acao] || esc(x.acao)}</span> <code data-sem-traducao>${esc(x.onde)}</code>${foraDaPasta(x.onde) ? ' <span class="fora-da-pasta">fora da pasta desta conversa</span>' : ''}</li>`);
+    el.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span><span><span class="quem-pede">${quemPede()}</span> <span>pede acesso a mais</span></span></div>
+      ${(p.itens || []).length ? `<ul class="itens-acesso">${p.itens.map(item).join('')}</ul>` : ''}
+      ${p.motivo ? `<p class="motivo-pedido"><strong>O Codex explica:</strong> <span data-sem-traducao>${esc(p.motivo)}</span></p>` : ''}
+      <div class="area-permissao">${p.ok ? `<div class="acoes saidas-permissao">
+          <button type="button" class="botao primario" data-acesso="turno">${k()}<span>Liberar só neste turno</span></button>
+          <button type="button" class="botao secundario" data-acesso="sessao">${k()}<span>Liberar nesta conversa</span></button>
+          <button type="button" class="botao secundario" data-acesso="negar">${k()}<span>Negar</span></button></div>
+        <p class="nota"><span>"Só neste turno" vale até o Codex terminar esta resposta. Nenhuma das opções grava arquivo.</span></p>${dicaDasTeclas()}`
+    : `<p class="nota aviso-recusa"><span>Este pedido tem uma parte que o app não sabe mostrar; só dá para negar.</span></p>
+        <div class="acoes saidas-permissao"><button type="button" class="botao primario" data-acesso="negar"><span>Negar</span></button></div>`}</div>`;
+    teclasDoCartao(el, '.saidas-permissao [data-acesso]');
+  }
+  async function clicouNoAcesso(cartao, acao) {
+    const p = pedidoDoCartao(cartao);
+    const resumo = (p.itens || []).map((x) => (x.acao === 'rede' ? '<span>rede</span>' : `<span>${(ACESSOS[x.acao] || x.acao).toLowerCase()}</span> <code data-sem-traducao>${esc(x.onde)}</code>`)).join(' · ');
+    if (acao === 'negar' || !p.ok) {
+      await C.responder(ativa, cartao.dataset.pedido, { permitir: false });
+      return fecharPermissao(cartao, 'nao', '<span>Acesso negado</span> · <span>o Codex continua só com o que já tinha</span>');
+    }
+    await C.responder(ativa, cartao.dataset.pedido, acao === 'sessao' ? { permitir: true, sessao: true } : { permitir: true });
+    return fecharPermissao(cartao, 'sim', `<span>${acao === 'sessao' ? 'Acesso liberado nesta conversa' : 'Acesso liberado só neste turno'}</span> · ${resumo}`);
   }
 
   // --- cartão do pedido de dado de um servidor MCP --------------------------------------
@@ -777,6 +890,7 @@
   }
   async function clicouNaPermissao(cartao, acao) {
     const p = pedidoDoCartao(cartao);
+    if (p.codex) return clicouNoCodex(cartao, acao, p);
     const alvo = `<code data-sem-traducao>${esc(cartao.dataset.corpo || cartao.dataset.alvo || '')}</code>`;
     if (acao === 'sempre') return permissaoSempre(cartao, p);
     if (acao === 'negar') return permissaoNegar(cartao);
@@ -787,7 +901,9 @@
     }
     if (acao === 'confirmar-sempre') {
       const v = cartao.querySelector('.alcances input:checked').value;
-      await C.responder(ativa, cartao.dataset.pedido, { permitir: true, sempre: v });
+      const r = await C.responder(ativa, cartao.dataset.pedido, { permitir: true, sempre: v });
+      // O motor não conseguiu guardar a cópia do arquivo antes: a regra não foi, e a tela diz isso.
+      if (r && r.soDestaVez) return fecharPermissao(cartao, 'sim', `<span>Permitido desta vez</span> · ${alvo} · <span>a regra não foi gravada: o app não conseguiu guardar a cópia do arquivo antes</span>`);
       return fecharPermissao(cartao, 'sim', `<span>${ALCANCES[v].fim}</span> · <span>regra</span> ${(p.sempre.textos || []).map((x) => `<code data-sem-traducao>${esc(x)}</code>`).join(' ')} · <span>para desfazer:</span> <code data-sem-traducao>/permissions</code>`);
     }
     if (acao === 'confirmar-negar') {
@@ -810,11 +926,15 @@
     if (noMcp) { await clicouNoMcp(noMcp.closest('.cartao-mcp'), noMcp.dataset.mcp, ev.isTrusted === true); return; }
     const noPlano = ev.target.closest('.cartao-plano:not(.respondido) [data-plano]');
     if (noPlano) { await clicouNoPlano(noPlano.closest('.cartao-plano'), noPlano.dataset.plano); return; }
+    const noAcesso = ev.target.closest('.cartao-acesso:not(.respondido) [data-acesso]');
+    if (noAcesso) { await clicouNoAcesso(noAcesso.closest('.cartao-acesso'), noAcesso.dataset.acesso); return; }
     const perm = ev.target.closest('.cartao-permissao:not(.respondido) [data-perm]');
     if (perm) { await clicouNaPermissao(perm.closest('.cartao-permissao'), perm.dataset.perm); return; }
     const cr = ev.target.closest('.copiar-resposta');
     if (cr) { copiarResposta(cr); return; }
     if (ev.target.closest('[data-parar-shell]')) { C.shellParar(ativa); return; }
+    const abrirP = ev.target.closest('[data-abrir-pasta]');
+    if (abrirP) { if (window.orq.abrirCaminho) window.orq.abrirCaminho(abrirP.dataset.abrirPasta, {}); return; }
     const bc = ev.target.closest('[data-codigo]');
     if (bc) {
       const texto = bc.closest('.caixa-codigo').querySelector('pre code, pre')?.textContent ?? '';
@@ -2153,7 +2273,7 @@
     },
     // As suas mensagens (balões), da mais antiga para a mais nova (o /rewind).
     mensagens: () => [...caixa.querySelectorAll('.msg-voce[data-texto]')].map((m) => m.dataset.texto),
-    voltarPara: (i) => { const b = [...caixa.querySelectorAll('.msg-voce[data-texto]')][i]; return b ? voltarPara(b) : null; },
+    voltarPara: (i) => { const b = [...caixa.querySelectorAll('.msg-voce[data-texto]')][i]; return b ? abrirVolta(b) : null; },
     // Texto da última resposta (n = 1) ou da n-ésima de trás para frente (o /copy).
     resposta: (n = 1) => {
       const grupos = [...caixa.querySelectorAll('.msg-claude')].filter((g) => g.querySelector('.texto-claude:not(.rascunho)'));
@@ -2329,16 +2449,117 @@
     } else if (ev.key === 'Escape' && voltaPedida) fecharVolta();
   });
   entrada.addEventListener('input', () => { if (!entrada.value) posHistorico = -1; });
-  caixa.addEventListener('click', async (ev) => {
-    const b = ev.target.closest('.editar-msg');
-    if (!b) return;
-    const msg = b.closest('.msg-voce');
+  // --- cartão de voltar (plano 7.1): o ✎ abre, logo abaixo da mensagem ------------------
+  // Três alcances: só a conversa (o padrão, como sempre foi), conversa e arquivos, só os
+  // arquivos. Os dois últimos dependem do ensaio que o motor faz com o Claude (quantos
+  // arquivos, quantas linhas); sem ponto de volta ficam desligados, com o motivo. Voltar
+  // arquivos só com um clique de verdade no botão vermelho; a cópia de como eles estão
+  // agora é guardada antes, pelo motor.
+  let cartaoVolta = null; // { el, msg, depois, texto, ensaio }
+  const voltaAberta = () => !!(cartaoVolta && cartaoVolta.el.isConnected);
+  function fecharCartaoVolta() { if (cartaoVolta) { cartaoVolta.el.remove(); cartaoVolta = null; } }
+  const quantos = (n) => (n === 1 ? '1 arquivo' : `${n} arquivos`);
+  const tamanhoLegivel = (b) => (typeof b !== 'number' ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1).replace('.', ',')} MB`);
+  const SEM_PONTO = {
+    desligado: 'Os pontos de volta dos arquivos estão desligados (Configurações › Avançado). Aqui só dá para voltar a conversa.',
+    'sem-ponto': 'O Claude não tem ponto de volta dos arquivos para esta mensagem (a conversa pode ser de antes de o app guardá-los). Aqui só dá para voltar a conversa.',
+    'nada-mudou': 'O Claude não alterou nenhum arquivo depois desta mensagem. Só há a conversa para voltar.',
+    'sem-resposta': 'Não consegui conferir os arquivos com o Claude agora. Aqui só dá para voltar a conversa.',
+  };
+  function pintarVolta() {
+    if (!voltaAberta()) return;
+    const { el, ensaio } = cartaoVolta;
+    const pode = !!(ensaio && ensaio.pode);
+    const n = pode ? ensaio.lista.length : 0;
+    for (const r of el.querySelectorAll('input[value="tudo"], input[value="arquivos"]')) r.disabled = !pode;
+    const sem = !ensaio ? 'Conferindo com o Claude…' : ensaio.motivo === 'nada-mudou' ? 'Nenhum arquivo mudou depois desta mensagem.' : 'Sem ponto de volta dos arquivos nesta conversa.';
+    el.querySelector('[data-nota="tudo"]').textContent = pode ? `Além disso, ${n === 1 ? '1 arquivo volta ao que era' : `${n} arquivos voltam ao que eram`} naquele ponto.` : sem;
+    el.querySelector('[data-nota="arquivos"]').textContent = pode ? `A conversa fica como está; ${n === 1 ? '1 arquivo volta ao que era' : `${n} arquivos voltam ao que eram`} naquele ponto.` : sem;
+    const aviso1 = el.querySelector('.volta-sem-ponto');
+    aviso1.hidden = !ensaio || pode;
+    if (ensaio && !pode) aviso1.innerHTML = `<span>${SEM_PONTO[ensaio.motivo] || SEM_PONTO['sem-resposta']}</span>${ensaio.erro && ensaio.motivo === 'sem-ponto' ? ` <span class="motivo-recusa" data-sem-traducao>(${esc(curto(ensaio.erro, 200))})</span>` : ''}`;
+    const q = el.querySelector('.escopos-volta input:checked').value;
+    const painel = el.querySelector('.volta-arquivos');
+    painel.hidden = q === 'conversa' || !pode;
+    if (pode && !painel.dataset.pintado) {
+      painel.dataset.pintado = '1';
+      const porFora = ensaio.lista.filter((x) => x.porFora);
+      const mostrados = ensaio.lista.slice(0, 12);
+      painel.innerHTML = `<h4><span>${n === 1 ? '1 arquivo volta' : `${n} arquivos voltam`}</span> · <span class="linhas-mais" data-sem-traducao>+${ensaio.mais}</span> <span class="linhas-menos" data-sem-traducao>−${ensaio.menos}</span> <span>linhas</span></h4>
+        <ul class="itens-acesso">${mostrados.map((x) => `<li><code data-sem-traducao>${esc(x.caminho)}</code>${x.porFora ? ' <span class="fora-da-pasta">mexido por fora</span>' : ''}</li>`).join('')}${n > mostrados.length ? `<li><span>e mais ${n - mostrados.length}</span></li>` : ''}</ul>
+        ${porFora.length ? `<p class="nota aviso-recusa"><strong data-sem-traducao>${esc(porFora.slice(0, 5).map((x) => x.caminho).join(', '))}${porFora.length > 5 ? '…' : ''}</strong> <span>${porFora.length === 1 ? 'foi alterado depois da última edição que o Claude fez nele (por você ou por um comando). Ele volta junto: essa alteração sai do arquivo e fica só na cópia.' : 'foram alterados depois da última edição que o Claude fez neles (por você ou por um comando). Eles voltam junto: essas alterações saem dos arquivos e ficam só na cópia.'}</span></p>` : ''}
+        <p class="nota"><span>${n === 1 ? 'Antes de voltar, o app guarda o arquivo como está agora numa pasta nova em' : `Antes de voltar, o app guarda os ${n} arquivos como estão agora numa pasta nova em`}</span> <code data-sem-traducao>~/.local/share/orq-app/versoes/</code>${tamanhoLegivel(ensaio.bytes) ? ` <span data-sem-traducao>(${tamanhoLegivel(ensaio.bytes)})</span>` : ''}<span>. Não dá para escolher arquivo por arquivo: o Claude volta todos os que mudou.</span></p>
+        <p class="nota"><span>O que os comandos fizeram</span> <strong>não volta</strong><span>: arquivo criado por script, banco de dados, commits do git.</span></p>`;
+    }
+    const b = el.querySelector('[data-volta="confirmar"]');
+    b.textContent = q === 'conversa' || !pode ? 'Voltar a conversa' : q === 'tudo' ? `Voltar a conversa e ${quantos(n)}` : `Voltar ${quantos(n)}`;
+    b.className = `botao ${q === 'conversa' || !pode ? 'primario' : 'perigo'}`;
+  }
+  async function abrirVolta(msg) {
+    fecharVolta(); fecharCartaoVolta();
     const baloes = [...caixa.querySelectorAll('.msg-voce[data-texto]')];
     const depois = baloes.length - 1 - baloes.indexOf(msg);
-    if (!depois) { await voltarPara(msg); return; }
-    voltaPedida = msg;
-    $('corrigindo-texto').textContent = `Voltar até esta mensagem? Ela e ${depois === 1 ? 'a 1 mensagem sua depois dela saem' : `as ${depois} mensagens suas depois dela saem`} da conversa do Claude, com as respostas. A conversa antiga fica guardada.`;
-    $('corrigindo').hidden = false;
+    const texto = msg.dataset.texto || '';
+    const el = document.createElement('div');
+    el.className = 'cartao-pedido cartao-volta';
+    el.tabIndex = 0;
+    const nome = `volta-${Date.now().toString(36)}`;
+    const saem = !depois ? 'Esta mensagem e a resposta saem da conversa, e o texto volta para a caixa.' : depois === 1 ? 'Ela e a 1 mensagem sua depois dela saem da conversa, com as respostas.' : `Ela e as ${depois} mensagens suas depois dela saem da conversa, com as respostas.`;
+    el.innerHTML = `<div class="titulo-pedido"><span><span>Voltar para antes de:</span> <strong data-sem-traducao>«${esc(curto(texto.replace(/\s+/g, ' '), 80))}»</strong></span></div>
+      <div class="alcances escopos-volta">
+        <label class="alcance"><input type="radio" name="${nome}" value="conversa" checked><strong>Só a conversa</strong><span><span>${saem}</span> <span>Os arquivos ficam como estão.</span></span></label>
+        <label class="alcance"><input type="radio" name="${nome}" value="tudo" disabled><strong>Conversa e arquivos</strong><span data-nota="tudo"></span></label>
+        <label class="alcance"><input type="radio" name="${nome}" value="arquivos" disabled><strong>Só os arquivos</strong><span data-nota="arquivos"></span></label>
+      </div>
+      <p class="nota aviso-recusa volta-sem-ponto" hidden></p>
+      <div class="painel-permissao volta-arquivos" hidden></div>
+      <p class="erro-mcp erro-volta" role="alert" data-sem-traducao></p>
+      <div class="acoes"><button type="button" class="botao primario" data-volta="confirmar">Voltar a conversa</button><button type="button" class="botao secundario" data-volta="cancelar">Cancelar</button></div>`;
+    msg.after(el);
+    cartaoVolta = { el, msg, depois, texto, ensaio: null };
+    pintarVolta();
+    el.addEventListener('change', pintarVolta);
+    el.focus();
+    el.scrollIntoView({ block: 'nearest' });
+    // O ensaio: o motor pergunta ao Claude o que voltaria nos arquivos (nada muda).
+    let r = null;
+    try { r = await C.voltarEnsaio(ativa, depois, texto); } catch { r = null; }
+    if (!cartaoVolta || cartaoVolta.el !== el) return; // fechado enquanto o Claude respondia
+    cartaoVolta.ensaio = r && r.ok && r.arquivos ? r.arquivos : { pode: false, motivo: 'sem-resposta' };
+    pintarVolta();
+  }
+  async function confirmarVolta(deVerdade) {
+    if (!voltaAberta()) return;
+    const { el, msg, depois, texto, ensaio } = cartaoVolta;
+    const q = el.querySelector('.escopos-volta input:checked').value;
+    if (q === 'conversa' || !(ensaio && ensaio.pode)) { fecharCartaoVolta(); await voltarPara(msg); return; }
+    if (!deVerdade) return; // voltar arquivos só com o clique da pessoa no botão
+    const b = el.querySelector('[data-volta="confirmar"]');
+    b.disabled = true;
+    const r = await C.voltarComArquivos(ativa, depois, texto, q);
+    if (!r || !r.ok) {
+      b.disabled = false;
+      if (voltaAberta() && cartaoVolta.el === el) el.querySelector('.erro-volta').textContent = `Não deu para voltar os arquivos: ${(r && r.erro) || 'erro desconhecido'}`;
+      return;
+    }
+    fecharCartaoVolta();
+    if (q === 'tudo') porNaCaixa(r.texto || texto);
+  }
+  caixa.addEventListener('click', async (ev) => {
+    const v = ev.target.closest('.cartao-volta [data-volta]');
+    if (v) { if (v.dataset.volta === 'cancelar') fecharCartaoVolta(); else await confirmarVolta(ev.isTrusted === true); return; }
+    const b = ev.target.closest('.editar-msg');
+    if (!b) return;
+    await abrirVolta(b.closest('.msg-voce'));
+  });
+  // Enter com o cartão em foco confirma só "Só a conversa" (o caminho rápido de sempre);
+  // voltar arquivos pede o clique no botão vermelho.
+  caixa.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.altKey || ev.metaKey || !voltaAberta()) return;
+    if (ev.target !== cartaoVolta.el && !(ev.target.matches && ev.target.matches('.cartao-volta input[type="radio"]'))) return;
+    if (cartaoVolta.el.querySelector('.escopos-volta input:checked').value !== 'conversa') return;
+    ev.preventDefault();
+    confirmarVolta(false);
   });
   $('corrigindo-voltar').addEventListener('click', () => voltaPedida && voltarPara(voltaPedida));
   $('corrigindo-cancelar').addEventListener('click', fecharVolta);
@@ -2380,6 +2601,7 @@
     // (ex.: cancelar uma confirmação no painel de demandas), nunca uma parada do motor.
     if (foco && foco !== document.body && !foco.closest('#aba-orquestrador')) return;
     if (foco && foco !== entrada && (foco.closest('.xterm, .ProseMirror, [contenteditable="true"]') || foco.matches('input, textarea, select'))) return;
+    if (voltaAberta()) { fecharCartaoVolta(); parar(); return; }
     if (voltaPedida) { fecharVolta(); parar(); return; }
     if (infoAtual.ocupado) { parar(); interromperPorMim(); return; }
     if (entrada.value || infoAtual.motor === 'codex') return;
