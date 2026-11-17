@@ -94,8 +94,10 @@ nela e uma barra de progresso. **Cada demanda aprovada é uma nota em Markdown**
 notas> › Demandas/` — clique no cartão e ela abre na aba Notas, onde ficam o resumo, o checklist e as suas
 *Anotações* (notas livres que o app nunca mexe). Marque uma etapa ou mude a linha `Estado:` da nota e o cartão
 acompanha; demandas concluídas ficam na pasta como "Título - Concluída.md".
-A seta do cartão lista as etapas que faltam sem sair do painel. Passe o mouse no cartão para ver a lixeira: depois de
-um segundo clique a demanda sai do painel e a nota vai para a lixeira do sistema.
+A seta do cartão lista as etapas que faltam sem sair do painel. Passe o mouse no cartão para ver a lixeira: o cartão
+mostra antes **o que some, em números** (a nota, quantos arquivos, o tamanho, e que ela vai para a lixeira do
+sistema), e só o botão *Apagar* de lá apaga. O comando `orq-topico apagar`, que o orquestrador roda, nunca apaga:
+ele deixa um pedido no cartão e você decide ali (*Manter* ou *Apagar…*).
 
 Conforme o trabalho chega, o **orquestrador sugere uma demanda** (título, resumo e etapas previstas) com
 `orq-topico sugerir`; você **aprova ou recusa** no cartão — se quiser, corrigindo o título antes. Só demandas aprovadas

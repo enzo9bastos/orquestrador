@@ -91,8 +91,10 @@ it and a progress bar. **Each approved request is a Markdown note** in `Notes �
 Demandas/` — click the card and it opens in the Notes tab, where the summary, the checklist and your own
 *Anotações* (free notes the app never touches) live. Tick a step or change the `Estado:` line in the note and
 the card follows; finished requests stay in the folder as "Title - Concluída.md".
-The arrow on a card lists the steps still to do without leaving the panel. Hover a card for the trash icon: after a
-second click the request leaves the panel and its note goes to the system trash.
+The arrow on a card lists the steps still to do without leaving the panel. Hover a card for the trash icon: the card
+first shows **what would be lost, in numbers** (the note, how many files, its size, and that it goes to the system
+trash), and only its *Delete* button deletes. The `orq-topico apagar` command, which the orchestrator runs, never
+deletes: it leaves a request on the card and you decide there (*Keep* or *Delete…*).
 
 As work comes in, the **orchestrator suggests a request** (title, summary and planned steps) with
 `orq-topico sugerir`; you **approve or reject** it on the card — fixing the title first if you want. Only approved

@@ -132,12 +132,39 @@ test('demandas: recusada com nota leva a nota junto; sugerida sem nota só sai d
   assert.ok(!topicos.ler().some((x) => x.id === s.id));
 });
 
-test('demandas: orq-topico apagar usa a lixeira do sistema (gio trash)', () => {
+// 16/11/2026 (0.E2, 1ª ligação): o orq-topico é o comando que o orquestrador
+// (um modelo) roda no terminal. Ele deixou de apagar: só deixa o pedido na
+// demanda. Quem apaga é o usuário, no painel, vendo o custo.
+test('demandas: orq-topico apagar não apaga nada: deixa o pedido na demanda e a nota continua na pasta', () => {
   const t = topicos.abrir({ titulo: 'Pelo comando' });
   const bin = pastaTemporaria('orq-teste-gio-');
   const log = path.join(bin, 'log');
   fs.writeFileSync(path.join(bin, 'gio'), `#!/bin/sh\necho "$@" >> "${log}"\n`, { mode: 0o755 });
-  execFileSync(process.execPath, [cli, 'apagar', t.id], { env: { ...process.env, HOME: casa, PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });
-  assert.strictEqual(fs.readFileSync(log, 'utf8').trim(), `trash ${path.join(PASTA, 'Pelo comando.md')}`);
-  assert.ok(!topicos.ler().some((x) => x.id === t.id));
+  const rodar = () => execFileSync(process.execPath, [cli, 'apagar', t.id], { env: { ...process.env, HOME: casa, PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });
+  const saida = rodar();
+  assert.ok(!fs.existsSync(log), 'o comando não pode chamar a lixeira');
+  assert.ok(arquivos().includes('Pelo comando.md'), 'a nota continua na pasta');
+  const depois = topicos.ler().find((x) => x.id === t.id);
+  assert.ok(depois, 'a demanda continua no painel');
+  assert.ok(depois.pedidoApagar > 0, 'a demanda fica com o pedido');
+  assert.match(saida, /nada foi apagado/i);
+  assert.match(saida, /painel Demandas/);
+  // Pedir de novo não troca a data do primeiro pedido nem apaga.
+  rodar();
+  assert.strictEqual(topicos.ler().find((x) => x.id === t.id).pedidoApagar, depois.pedidoApagar);
+  assert.ok(!fs.existsSync(log));
+  assert.throws(() => execFileSync(process.execPath, [cli, 'apagar', '9999'], { env: { ...process.env, HOME: casa }, encoding: 'utf8', stdio: 'pipe' }), /não existe tópico 9999/);
+});
+
+test('demandas: manter tira o pedido de apagar; a demanda, as etapas e a nota ficam como estavam', () => {
+  const t = topicos.abrir({ titulo: 'Fica comigo' });
+  topicos.item(t.id, 'Uma etapa');
+  const antes = lerMd('Fica comigo.md');
+  topicos.pedirApagar(t.id);
+  assert.ok(topicos.ler().find((x) => x.id === t.id).pedidoApagar > 0);
+  const m = topicos.manter(t.id);
+  assert.strictEqual(m.pedidoApagar, undefined);
+  const d = topicos.ler().find((x) => x.id === t.id);
+  assert.deepStrictEqual([d.pedidoApagar, d.estado, d.itens.length], [undefined, 'aberto', 1]);
+  assert.strictEqual(lerMd('Fica comigo.md'), antes, 'o pedido e a desistência não mexem na nota');
 });

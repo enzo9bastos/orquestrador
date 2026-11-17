@@ -177,5 +177,32 @@ test('topicos', async (t) => {
     assert.deepStrictEqual(linhas.slice(nAntes), ['📌 Demanda aprovada: Revisar os backups', '📌 Demanda recusada: Revisar os backups']);
   });
 
+  // O orq-topico apagar só deixa o pedido; o que o usuário decidir no cartão
+  // (Manter, ou Apagar depois de ver o custo) volta ao orquestrador por trás.
+  await t.test('pedido de apagar do orquestrador decidido na tela: Manter e Apagar avisam o orquestrador por trás', async () => {
+    const bastidor = "document.querySelectorAll('#mensagens .msg-bastidor-topico').length";
+    const nAntes = await app.avaliar(bastidor);
+    const id = orq('abrir', 'Demanda a decidir');
+    assert.match(orq('apagar', id), /Nada foi apagado/);
+    const pedido = `[data-topico="${id}"] [data-pedido-apagar]`;
+    await app.esperar(`!!document.querySelector('${pedido}')`, 8000);
+    await app.avaliar(`document.querySelector('${pedido} [data-manter-topico]').click()`);
+    await app.esperar(`${bastidor} === ${nAntes + 1}`, 8000);
+    assert.strictEqual(lerArq().find((x) => x.id === id).pedidoApagar, undefined);
+    orq('apagar', id);
+    await app.esperar(`!!document.querySelector('${pedido}')`, 8000);
+    await app.avaliar(`document.querySelector('${pedido} [data-apagar-topico]').click()`);
+    const custo = `[data-topico="${id}"] [data-apagar-custo]`;
+    await app.esperar(`!!document.querySelector('${custo}')`, 8000);
+    // Sem pasta de notas neste teste: a demanda não tem nota e o custo diz isso.
+    assert.match(await app.avaliar(`document.querySelector('${custo}').innerText`), /Esta demanda não tem nota: nenhum arquivo é apagado\./);
+    await app.avaliar(`document.querySelector('${custo} [data-confirmar-apagar]').click()`);
+    await app.esperar(`${bastidor} === ${nAntes + 2}`, 8000);
+    assert.ok(!lerArq().some((x) => x.id === id));
+    const linhas = await app.avaliar("[...document.querySelectorAll('#mensagens .msg-bastidor-topico summary')].map((s) => s.textContent)");
+    assert.deepStrictEqual(linhas.slice(nAntes), ['📌 Demanda mantida: Demanda a decidir', '📌 Demanda apagada: Demanda a decidir']);
+    assert.match(await app.avaliar("[...document.querySelectorAll('#mensagens .msg-bastidor-topico .msg-bastidor-texto')].at(-2).textContent"), /decidiu manter o tópico #\d+ «Demanda a decidir»: ele continua no painel, não peça de novo para apagar/);
+  });
+
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });

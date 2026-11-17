@@ -919,6 +919,22 @@
     "Resumo da demanda": "Request summary",
     "📌 Demanda aprovada:": "📌 Request approved:",
     "📌 Demanda recusada:": "📌 Request rejected:",
+    "📌 Demanda apagada:": "📌 Request deleted:",
+    "📌 Demanda mantida:": "📌 Request kept:",
+    "Apagar esta demanda?": "Delete this request?",
+    "O que some se apagar": "What is lost when deleting",
+    "Vai para a lixeira do sistema:": "Goes to the system trash:",
+    "1 arquivo": "1 file",
+    "Dá para restaurar pela lixeira, enquanto ela não for esvaziada.": "It can be restored from the trash until the trash is emptied.",
+    "Esta demanda não tem nota: nenhum arquivo é apagado.": "This request has no note: no file is deleted.",
+    "A demanda sai do painel. A lista de antes fica guardada nas versões do app.": "The request leaves the panel. The previous list is kept in the app's saved versions.",
+    "Sem apagar: concluir a demanda. Ela sai das abertas e a nota fica.": "Without deleting: complete the request. It leaves the open list and the note stays.",
+    "Apagar…": "Delete…",
+    "Desistir de apagar": "Cancel deleting",
+    "O orquestrador pediu para apagar esta demanda. Nada foi apagado.": "The orchestrator asked to delete this request. Nothing was deleted.",
+    "Manter": "Keep",
+    "A demanda fica como está e o orquestrador é avisado": "The request stays as it is and the orchestrator is told",
+    "Mostra o que some antes de apagar": "Shows what is lost before deleting",
     "Aparência": "Appearance",
     "Buscar nas configurações": "Search settings",
     "Seções das configurações": "Settings sections",
@@ -956,8 +972,6 @@
     "Mover para a lixeira… (apaga do computador)": "Move to trash… (deletes from the computer)",
     "Apagar demanda": "Delete request",
     "Apagar?": "Delete?",
-    "Confirmar: a demanda sai do painel e a nota vai para a lixeira": "Confirm: the request leaves the panel and its note goes to the trash",
-    "Confirmar: a demanda sai do painel": "Confirm: the request leaves the panel",
     "Concluir demanda": "Finish request",
     "Orientação ou motivo (opcional): vai junto da sua resposta": "Guidance or reason (optional): sent along with your answer",
     "Orientação ou motivo (opcional)": "Guidance or reason (optional)",
@@ -1522,6 +1536,26 @@
     [
       "^📌 Demanda aprovada: (.+)$",
       "📌 Request approved: $1"
+    ],
+    [
+      "^📌 Demanda apagada: (.+)$",
+      "📌 Request deleted: $1"
+    ],
+    [
+      "^📌 Demanda mantida: (.+)$",
+      "📌 Request kept: $1"
+    ],
+    [
+      "^([\\d.,]+) arquivos$",
+      "$1 files"
+    ],
+    [
+      "^Não consegui medir o que seria apagado: (.+)$",
+      "Couldn't measure what would be deleted: $1"
+    ],
+    [
+      "^Não consegui manter: (.+)$",
+      "Couldn't keep it: $1"
     ],
     [
       "^Recusados \\((\\d+)\\)$",

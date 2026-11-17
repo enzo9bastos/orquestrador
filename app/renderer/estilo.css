@@ -1425,6 +1425,14 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .topico:hover .apagar-topico, .apagar-topico:focus-visible, .apagar-topico.confirmando { opacity: 1; }
 .apagar-topico:hover { background: var(--painel-hover); color: var(--perigo); }
 .apagar-topico.confirmando { color: var(--perigo); font-weight: 600; padding: 0 6px; white-space: nowrap; }
+/* Apagar com o custo à vista: o que some, em números, dentro do próprio cartão. */
+.apagar-custo, .apagar-pedido { display: grid; gap: 7px; padding: 8px 9px; border: 1px solid color-mix(in srgb, var(--perigo) 45%, var(--borda)); border-radius: var(--r-sm); background: color-mix(in srgb, var(--perigo) 7%, var(--bg-elevado)); font-size: 12px; line-height: 1.45; color: var(--fg-2); cursor: default; }
+.apagar-custo strong { color: var(--fg); font-weight: 600; }
+.apagar-custo ul { margin: 0; padding-left: 16px; display: grid; gap: 3px; }
+.apagar-custo li { overflow-wrap: anywhere; }
+.apagar-numeros { white-space: nowrap; color: var(--fg); }
+.apagar-pedido { border-style: dashed; }
+.apagar-custo .acoes, .apagar-pedido .acoes { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 
 /* Espécies de cor fixa: detalhes com cor própria e olhos sempre escuros (no
    tema claro o fundo é claro e o olho "furado" sumiria no corpo branco). */
