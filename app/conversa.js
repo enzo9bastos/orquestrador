@@ -71,7 +71,8 @@ let enviarTela = () => {};
 let avisar = () => {};
 
 // Modelos e esforços que o botão da barra oferece.
-const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-1' };
+// opusplan é um apelido do próprio Claude Code (Opus no modo plano, Sonnet na execução).
+const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-2', opusplan: 'opusplan' };
 const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // Modo de permissão com que o app sobe o Claude. Num reinício, vale o modo
 // vivo da conversa (init ou system/status) quando ele é mais restritivo que o
@@ -80,6 +81,13 @@ const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const MODO_APP = 'auto';
 const MODOS_MAIS_RESTRITOS = ['plan', 'dontAsk', 'default', 'acceptEdits'];
 const modoDeSubida = (vivo) => (MODOS_MAIS_RESTRITOS.includes(vivo) ? vivo : MODO_APP);
+// Modos que o chip da barra oferece (o "manual" do Claude responde como default).
+const MODOS_DO_CHIP = ['default', 'acceptEdits', 'auto', 'plan'];
+// Bypass ("sem perguntas"): fora da lista de propósito. Só entra por
+// definirModo, em conversa avulsa e com a opção das Configurações ligada.
+const BYPASS = 'bypassPermissions';
+const PERMITE_BYPASS = '--allow-dangerously-skip-permissions';
+const bypassLigado = () => { try { return config.ler().mostrarBypass === true; } catch { return false; } };
 // Esforços que o Claude aceita ao vivo, só para a sessão (apply_flag_settings
 // { effortLevel }). Os outros ("Máximo" e o padrão) só valem ao subir (--effort).
 // Nunca "/effort": no modo -p ele grava o nível como padrão no settings.json.
@@ -263,7 +271,7 @@ function comandosLocais() {
 }
 
 class Conversa {
-  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null }) {
+  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null, rodada = false }) {
     // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
     // orquestrador segue a "IA do orquestrador" da configuração; trocar de
     // motor guarda a conversa do anterior em sessoesMotor e retoma a do novo.
@@ -277,6 +285,15 @@ class Conversa {
     this.esforco = esforco;
     // Modo de permissão vivo (o que o Claude disse no init ou no system/status).
     this.modo = typeof modo === 'string' && /^\w+$/.test(modo) ? modo : null;
+    // Fila da caixa: o que o usuário manda com o motor trabalhando espera aqui e
+    // vai quando o turno acaba. Cada item: { id, texto, imagens, exibir, ja }.
+    // "ja" = enviar já (vai na frente). filaParada: o usuário parou o motor, e a
+    // fila só volta a andar quando ele mandar algo.
+    this.fila = [];
+    this.filaParada = false;
+    // Rodada aberta (só o orquestrador): abre com o comando da rodada, fecha no
+    // fim dela. A barra mostra Iniciar OU Desligar conforme isto.
+    this.rodada = orquestrador && rodada === true;
     this.pedidoModelo = null;  // set_model enviado e ainda sem resposta: { id, chave, ts }
     this.modeloDepois = undefined; // troca pedida enquanto outra esperava resposta
     this.pedidosEsforco = new Set(); // apply_flag_settings ainda sem resposta
@@ -304,7 +321,7 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, rotuloLongo: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, fila: [], filaParada: false, rotuloLongo: null, ocupado: false };
   }
 
   // O orquestrador segue a IA escolhida na configuração. Só troca parado:
@@ -340,6 +357,8 @@ class Conversa {
     // Modo rápido: no modo -p o Claude só libera com o fastMode nas flags.
     if (this.rapido !== null) args.push('--settings', JSON.stringify({ fastMode: this.rapido }));
     for (const p of this.pastasExtras) args.push('--add-dir', p);
+    // Deixa o Bypass disponível como opção (não liga): só conversa avulsa, só com a opção das Configurações.
+    if (!this.orquestrador && bypassLigado()) args.push(PERMITE_BYPASS);
     // Voltar: abre a sessão original cortada naquele ponto, numa sessão nova
     // (--fork-session); a original fica como estava.
     if (this.volta) args.push('--resume', this.volta.de, '--resume-session-at', this.volta.ate, '--fork-session');
@@ -390,9 +409,12 @@ class Conversa {
     // executável; senão 'claude' do PATH.
     const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
+    proc.permiteBypass = args.includes(PERMITE_BYPASS);
     // Pedidos pendentes eram do processo anterior.
     this.pedidoModelo = null; this.modeloDepois = undefined; this.pedidosEsforco = new Set();
     this.recusarControles('o Claude reiniciou');
+    // O que rodava em segundo plano era do processo anterior.
+    this.info.fundo = 0;
     // A versão é a do processo novo: só vale depois do init dele.
     this.versaoViva = null; this.pedidosEnviados.clear(); this.capPendentes = [];
     let iniciou = false;
@@ -440,6 +462,12 @@ class Conversa {
         if (d.subtype === 'init' && Array.isArray(d.slash_commands)) {
           this.nomesComandos = d.slash_commands.filter((n) => !n.startsWith('__'));
           this.juntarComandos();
+        }
+        // Tarefas em segundo plano (a lista vem em "tasks"): a faixa de atividade
+        // só precisa de quantas são. A tela é avisada quando o número muda.
+        if (d.subtype === 'background_tasks_changed') {
+          const n = Array.isArray(d.tasks) ? d.tasks.length : 0;
+          if ((this.info.fundo || 0) !== n) { this.info.fundo = n; this.avisarInfo(); }
         }
         if (d.subtype === 'commands_changed' && Array.isArray(d.commands)) {
           this.descComandos = new Map(d.commands.map((c) => [c.name, { descricao: c.description || '', dica: c.argumentHint || c.argument_hint || '' }]));
@@ -490,6 +518,7 @@ class Conversa {
         // limpa e fica a divisória; a sessão nova chega pelo init.
         this.eventos = [];
         this.pendentes.clear();
+        this.marcarRodada(false); // conversa limpa: o que a rodada tinha carregado não está mais no contexto
         this.registrar({ tipo: 'limpa' });
         this.enviar('conversa:tudo', this.estado());
         avisarLista();
@@ -593,7 +622,12 @@ class Conversa {
     if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
     this.ultimoTexto = '';
     if (this.desligando) { this.desligando = false; this.encerrar(); return; }
+    this.fimDeTurnoDepois();
+  }
+  fimDeTurnoDepois() {
     if (this.reiniciarDepois) { const porque = this.reiniciarDepois; this.reiniciarDepois = false; this.reiniciar(); if (porque) this.registrar({ tipo: 'aviso', texto: porque === 'esforco' ? AVISO_REINICIO : `A conversa reiniciou. ${AVISO_FUNDO}` }); }
+    // O turno acabou: a próxima mensagem da fila da caixa vai (uma por turno).
+    this.andarFila();
   }
 
   juntarComandos() {
@@ -673,6 +707,9 @@ class Conversa {
     // Comando de desligar no orquestrador: quando ele terminar, a rodada acaba de vez.
     const desligar = config.ler().comandoDesligar;
     if (this.orquestrador && desligar && texto.trim().split(/\s/)[0] === desligar) this.desligando = true;
+    // Comando que abre a rodada (pelo botão ou digitado): a rodada passa a estar aberta.
+    const inicial = config.ler().comandoInicial;
+    if (this.orquestrador && inicial && texto.trim().split(/\s/)[0] === inicial) this.marcarRodada(true);
     // Mensagem de workflow, de tópico aprovado/recusado ou recado de agente (por trás): a
     // resposta não vira notificação.
     this.bastidor = /^<orq-(workflow|topico|recado) /.test(texto);
@@ -692,6 +729,71 @@ class Conversa {
     this.registrar({ tipo: 'user', message: { role: 'user', content: mostrado }, local: true });
     if (this.motor === 'codex') return codex.mandar(this, texto, imagens);
     return this.escrever({ type: 'user', message: { role: 'user', content } });
+  }
+
+  // --- fila da caixa de texto ----------------------------------------------
+  // Só o que o usuário digita na caixa passa por aqui (o resto do app continua
+  // usando mandar). Parado: vai na hora. Trabalhando: espera na fila.
+  // agora (Ctrl+Enter, "enviar já"): no Claude o app interrompe o turno e a
+  // mensagem vai assim que ele para, na frente da fila; nada é escrito no meio
+  // do turno, então "ocupado" continua exato. No Codex vai por turn/steer.
+  avisarFila() {
+    this.info.fila = this.fila.map((m) => ({ id: m.id, texto: String(m.exibir || m.texto || '').slice(0, 2000), imagens: m.imagens.length, ja: m.ja === true }));
+    this.info.filaParada = this.filaParada && this.fila.length > 0;
+    this.avisarInfo();
+  }
+  porNaFila(texto, imagens, exibir, ja = false) {
+    const m = { id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, texto, imagens: imagens || [], exibir: exibir || null, ja };
+    if (ja) { const i = this.fila.findIndex((x) => !x.ja); if (i < 0) this.fila.push(m); else this.fila.splice(i, 0, m); } else this.fila.push(m);
+    this.avisarFila();
+    return m.id;
+  }
+  // A fila anda uma mensagem por turno. Parada pelo usuário, só anda o que ele marcou "enviar já".
+  andarFila() {
+    if (this.info.ocupado || !this.fila.length) return false;
+    if (this.filaParada && !this.fila[0].ja) return false;
+    const m = this.fila.shift();
+    this.avisarFila();
+    this.mandar(m.texto, m.imagens, m.exibir);
+    return true;
+  }
+  daCaixa(texto, imagens = [], exibir = null, { agora = false } = {}) {
+    if (!this.info.ocupado) {
+      if (!this.fila.length) { this.mandar(texto, imagens, exibir); return { enviada: true }; }
+      // Havia fila parada: esta entra no fim e a fila volta a andar, na ordem.
+      const id = this.porNaFila(texto, imagens, exibir);
+      this.filaParada = false;
+      this.andarFila();
+      return { naFila: id };
+    }
+    if (agora && this.motor === 'codex') { this.mandar(texto, imagens, exibir); return { enviada: true }; }
+    const id = this.porNaFila(texto, imagens, exibir, agora);
+    if (agora) this.interromperParaEnviar();
+    return { naFila: id };
+  }
+  tirarDaFila(id) {
+    const i = this.fila.findIndex((m) => m.id === id);
+    if (i < 0) return false;
+    this.fila.splice(i, 1);
+    this.avisarFila();
+    return true;
+  }
+  enviarJaDaFila(id) {
+    const i = this.fila.findIndex((m) => m.id === id);
+    if (i < 0) return false;
+    const [m] = this.fila.splice(i, 1);
+    if (this.info.ocupado && this.motor === 'codex') { this.avisarFila(); this.mandar(m.texto, m.imagens, m.exibir); return true; }
+    m.ja = true;
+    const pos = this.fila.findIndex((x) => !x.ja);
+    if (pos < 0) this.fila.push(m); else this.fila.splice(pos, 0, m);
+    this.avisarFila();
+    if (this.info.ocupado) this.interromperParaEnviar(); else this.andarFila();
+    return true;
+  }
+  // Parada pedida pelo próprio app para entregar o "enviar já": não é o usuário mandando parar tudo.
+  interromperParaEnviar() {
+    if (this.filaParada) { this.filaParada = false; this.avisarFila(); }
+    return this.interromper({ doUsuario: false });
   }
 
   // decisao: { permitir: bool, respostas?: {pergunta: resposta}, motivo?: string }
@@ -828,6 +930,8 @@ class Conversa {
   // guardada e vale em toda subida.
   async rapidoLigar(ligar) {
     this.rapido = !!ligar;
+    this.info.rapido = this.rapido;
+    this.avisarInfo();
     gravarLista();
     const frase = ligar ? 'Modo rápido ligado nesta conversa.' : 'Modo rápido desligado nesta conversa.';
     if (!this.proc) { this.registrar({ tipo: 'aviso', texto: `${frase} Vale a partir da próxima mensagem.` }); return { ok: true, aoVivo: false }; }
@@ -878,16 +982,43 @@ class Conversa {
     this.registrar({ tipo: 'limpa' });
   }
 
+  marcarRodada(aberta) {
+    if (!this.orquestrador || this.rodada === !!aberta) return;
+    this.rodada = !!aberta; this.info.rodada = this.rodada;
+    gravarLista();
+    this.avisarInfo();
+  }
+
   guardarModo(m) {
-    if (typeof m !== 'string' || !/^\w+$/.test(m) || m === this.modo) return;
+    if (typeof m !== 'string' || !/^\w+$/.test(m)) return;
+    // A tela (chip de modo) mostra o que o Claude confirmou.
+    if (this.info.modo !== m) { this.info.modo = m; this.avisarInfo(); }
+    if (m === this.modo) return;
     this.modo = m;
     gravarLista();
+  }
+
+  // Troca o modo de permissão ao vivo (chip da barra). O Claude confirma pelo
+  // system/status, e é isso que a tela mostra.
+  // Bypass: nunca no orquestrador, e só com a opção das Configurações ligada.
+  // O Claude só aceita o modo se o processo subiu com a permissão (conferido
+  // no 2.1.326); a conversa aberta sem ela sobe de novo, na mesma sessão, e
+  // troca em seguida. Num reinício o modo volta ao do app (modoDeSubida).
+  async definirModo(modo) {
+    if (this.motor === 'codex') throw new Error('o modo de permissão é do Claude; no Codex ele vem da configuração do Codex');
+    if (modo === BYPASS) {
+      if (this.orquestrador) throw new Error('o modo sem perguntas nunca vale para o orquestrador');
+      if (!bypassLigado()) throw new Error('o modo sem perguntas está desligado nas Configurações');
+      if (!this.proc || !this.proc.permiteBypass) this.reiniciar();
+    } else if (!MODOS_DO_CHIP.includes(modo)) throw new Error(`modo não oferecido: ${String(modo).slice(0, 40)}`);
+    return this.controle('set_permission_mode', { mode: modo });
   }
 
   // Fim da rodada: o Claude sai, e o id da sessão deixa de ser o atual. Na
   // próxima abertura o orquestrador começa uma conversa nova (e a rodada, no
   // botão Iniciar) em vez de retomar esta. A conversa continua no histórico do Claude.
   encerrar() {
+    this.rodada = false; this.info.rodada = false; // a rodada acabou com a sessão
     if (this.sessao) { this.anteriores = [...(this.anteriores || []), this.sessao].slice(-20); this.sessao = null; }
     if (this.proc) { this.proc.encerrando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
     this.info.ocupado = false; this.info.contexto = null;
@@ -897,13 +1028,46 @@ class Conversa {
     this.registrar({ tipo: 'encerrada' });
   }
 
+  // /exit: fecha só esta conversa. O processo sai, a sessão vai para as
+  // anteriores (dá para voltar a ela), a tela fica limpa e a próxima mensagem
+  // começa uma sessão nova. O app e as outras conversas continuam.
+  encerrarConversa() {
+    const tinhaSessao = !!this.sessao;
+    // O que esperava na fila não dispara numa sessão nova: fica à vista, parado.
+    this.filaParada = this.fila.length > 0;
+    this.eventos = [];
+    this.encerrarSemAviso();
+    this.avisarFila();
+    this.enviar('conversa:tudo', this.estado());
+    this.registrar({ tipo: 'encerrada', conversa: true, podeVoltar: tinhaSessao });
+  }
+  encerrarSemAviso() {
+    this.rodada = false; this.info.rodada = false;
+    if (this.sessao) { this.anteriores = [...(this.anteriores || []), this.sessao].slice(-20); this.sessao = null; }
+    if (this.proc) { this.proc.encerrando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
+    this.info.ocupado = false; this.info.contexto = null; this.info.fundo = 0;
+    this.pendentes.clear();
+    this.volta = null;
+    gravarLista();
+  }
+  // Desfaz o /exit: a última sessão guardada volta a ser a desta conversa (com o histórico dela).
+  reabrirAnterior() {
+    if (this.proc || this.sessao || !(this.anteriores || []).length) return false;
+    this.sessao = this.anteriores.pop();
+    gravarLista();
+    this.iniciar();
+    return true;
+  }
+
   reiniciar() {
     if (this.proc) { this.proc.reiniciando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
     this.pendentes.clear();
     this.iniciar();
   }
 
-  interromper() {
+  // doUsuario (Parar, Esc): o que estava na fila não dispara sozinho depois da parada.
+  interromper({ doUsuario = true } = {}) {
+    if (doUsuario && this.fila.length && !this.filaParada) { this.filaParada = true; this.avisarFila(); }
     if (this.motor === 'codex') return codex.interromper(this);
     return this.escrever({ type: 'control_request', request_id: `int-${Date.now()}`, request: { subtype: 'interrupt' } });
   }
@@ -926,7 +1090,7 @@ class Conversa {
 function gravarLista() {
   fs.mkdirSync(CACHE, { recursive: true });
   const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined, modo: c.modo && c.modo !== MODO_APP ? c.modo : undefined,
-    rapido: c.rapido !== null ? c.rapido : undefined, pastasExtras: c.pastasExtras.length ? c.pastasExtras : undefined, forkDe: c.forkDe || undefined }));
+    rapido: c.rapido !== null ? c.rapido : undefined, pastasExtras: c.pastasExtras.length ? c.pastasExtras : undefined, forkDe: c.forkDe || undefined, rodada: c.rodada || undefined }));
   fs.writeFileSync(ARQ_LISTA, JSON.stringify(lista, null, 2) + '\n');
 }
 
@@ -1091,6 +1255,8 @@ module.exports = {
   interromper: (id) => pegar(id).interromper(),
   voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),
   configurar: (id, o) => pegar(id).configurar(o || {}),
+  definirModo: (id, modo) => pegar(id).definirModo(modo),
+  MODOS_DO_CHIP,
   reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },
   // Comandos do "/" feitos pelo app.
   controle: (id, subtype, extra, ms) => pegar(id).controle(subtype, extra, ms),
@@ -1098,6 +1264,11 @@ module.exports = {
   capacidades: (id) => pegar(id).capacidades(),
   _registroCapacidades: registroCap, // só para os testes
   codexPedir: (id, metodo, params) => pegar(id).codex(metodo, params),
+  daCaixa: (id, texto, imagens, exibir, opcoes) => pegar(id).daCaixa(texto, imagens, exibir, opcoes),
+  encerrarConversa: (id) => { pegar(id).encerrarConversa(); return true; },
+  reabrirAnterior: (id) => pegar(id).reabrirAnterior(),
+  tirarDaFila: (id, idFila) => pegar(id).tirarDaFila(idFila),
+  enviarJaDaFila: (id, idFila) => pegar(id).enviarJaDaFila(idFila),
   estadoComando: (id) => pegar(id).estadoComando(),
   rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),
   pastaExtra: (id, p) => pegar(id).pastaExtra(p),

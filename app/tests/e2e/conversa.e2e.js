@@ -152,10 +152,15 @@ test('conversa', async (t) => {
 
   // Regressão 2026-10-29: mudar o tema com o processo principal antigo (que
   // devolvia só tema e cor) apagava o comando de desligar e sumia o botão.
-  await t.test('regressão: botão Desligar continua depois de uma configuração parcial', async () => {
-    assert.strictEqual(await app.avaliar("document.getElementById('desligar').hidden"), false);
+  // Desde 17/11/2026 a barra mostra um por vez (Iniciar antes da rodada, Desligar
+  // com ela aberta) e o ⋯ traz sempre os dois: a regressão vale para os dois lugares.
+  await t.test('regressão: o botão da rodada e o Desligar do ⋯ continuam depois de uma configuração parcial', async () => {
+    const desligarNoMenu = "(() => { document.getElementById('chip-mais').click(); const tem = !!document.querySelector('#menu-mais [data-acao=desligar]'); document.getElementById('mensagens').click(); return tem; })()";
+    assert.strictEqual(await app.avaliar("document.getElementById('iniciar-rodada').hidden"), false);
+    assert.ok(await app.avaliar(desligarNoMenu));
     await app.avaliar("window.dispatchEvent(new CustomEvent('orq:config', { detail: { tema: 'dark', destaque: '#8b5cf6' } }))");
-    assert.strictEqual(await app.avaliar("document.getElementById('desligar').hidden"), false);
+    assert.strictEqual(await app.avaliar("document.getElementById('iniciar-rodada').hidden"), false);
+    assert.ok(await app.avaliar(desligarNoMenu), 'o comando de desligar não foi apagado');
   });
 
   await t.test('ferramenta vira linha recolhida e recebe o resultado', async () => {
@@ -173,7 +178,7 @@ test('conversa', async (t) => {
   });
 
   // Pedido de 2026-10-30: o app não começa a rodada sozinho; tem o botão Iniciar.
-  await t.test('abrir o app não manda o comando da rodada; o botão Iniciar fica ao lado do Desligar', async () => {
+  await t.test('abrir o app não manda o comando da rodada; o botão Iniciar fica na barra, no lugar que o Desligar ocupa com a rodada aberta', async () => {
     const e = await app.avaliar("window.orq.conversa.abrir('orquestrador')");
     assert.ok(!e.eventos.some((x) => x.tipo === 'user'), 'nada foi mandado ao orquestrador');
     assert.strictEqual(await app.visivel('#iniciar-rodada'), 'ok');
@@ -192,7 +197,10 @@ test('conversa', async (t) => {
     await app.esperar("!document.querySelector('#anexos .anexo-arquivo')");
   });
 
-  await t.test('Desligar pede confirmação no segundo clique', async () => {
+  await t.test('Desligar (que aparece com a rodada aberta) pede confirmação no segundo clique', async () => {
+    assert.ok(await app.avaliar("document.getElementById('desligar').hidden"), 'antes da rodada não há Desligar na barra');
+    await app.avaliar("document.getElementById('iniciar-rodada').click()");
+    await app.esperar("!document.getElementById('desligar').hidden", 8000);
     await app.avaliar("document.getElementById('desligar').click()");
     assert.match(await app.avaliar("document.getElementById('desligar').textContent"), /Confirmar/);
   });

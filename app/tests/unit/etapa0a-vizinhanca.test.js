@@ -633,6 +633,9 @@ test('0.A6 varredura ampla: nenhuma flag que desliga aprovação ou sandbox fora
     ['app/avulso.js', '--dangerously-bypass-approvals-and-sandbox'],
     ['app/conversa-codex.js', "sandbox: 'danger-full-access'"],
     ['app/permissoes.js', "'bypassPermissions'"], // o popup /permissions oferece gravar defaultMode=bypassPermissions no settings do usuário
+    // Chip de modo (17/11/2026): Bypass só com a opção das Configurações, só em conversa avulsa (ver higiene-flags.test.js).
+    ['app/conversa.js', "const BYPASS = 'bypassPermissions';"],
+    ['app/conversa.js', "const PERMITE_BYPASS = '--allow-dangerously-skip-permissions';"],
   ];
   const fora = [];
   for (const rel of arquivos) {

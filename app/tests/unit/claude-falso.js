@@ -17,6 +17,8 @@
 //   "/config permissionMode=x" troca o modo: system/status com permissionMode
 //   "/clear"                   init da sessão nova, conversation_reset, fim de turno
 //   "/rename x"                system/session_title_changed com o nome novo
+//   "trabalha até parar"       começa a responder ("começando…") e fica no turno até
+//                              receber o interrupt; aí termina o turno
 //   "manda N deltas"           N text_delta ("d0 ", "d1 "…) espalhados em ~1 s, depois a
 //                              mensagem inteira e o fim de turno (0.C5: junção dos envios)
 //   "pede controle <subtipo>"  control_request desse subtipo ao app (qualquer um); espera
@@ -90,6 +92,7 @@ if (SESSAO_REAL) SESSAO = args.includes('--fork-session') || !arg('--resume') ? 
 let modelo = arg('--model') || 'claude-falso-1-0';
 let modo = arg('--permission-mode') || 'default';
 let limpezas = 0;
+let trabalhando = false; // turno aberto pelo "trabalha até parar", esperando o interrupt
 const filhos = [];
 process.on('SIGTERM', () => { for (const f of filhos) { try { f.kill(); } catch { /* já saiu */ } } process.exit(143); });
 // Lista do init: ['compact'], ou a de $CLAUDE_FALSO_COMANDOS (JSON).
@@ -100,7 +103,11 @@ const fim = (result = 'ok') => sai({ type: 'result', subtype: 'success', is_erro
 const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: modelo, permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS, claude_code_version: VERSAO, tools: ['Bash', 'Read'], mcp_servers: [{ name: 'falso-mcp', status: 'connected' }] });
 const HOME = require('os').homedir();
 // Respostas dos pedidos de controle dos comandos do "/".
+// get_settings (formato do 2.1.326): effective = o que está nos arquivos de
+// settings (aqui, o ~/.claude/settings.json da casa do teste); applied = o que vale agora.
+const settingsDaCasa = () => { try { return JSON.parse(fs.readFileSync(require('path').join(HOME, '.claude', 'settings.json'), 'utf8')); } catch { return {}; } };
 const CONTROLES = {
+  get_settings: () => ({ effective: settingsDaCasa(), sources: [], applied: { model: modelo, effort: 'high' } }),
   get_status: () => ({ sections: [{ title: 'Sessão', rows: [{ label: 'Versão', value: VERSAO }, { label: 'Modelo', value: modelo }, { label: 'Pasta', value: process.cwd() }] },
     { title: 'Conta', rows: [{ label: 'Login', value: 'ana@exemplo.com' }] }] }),
   get_memory_dialog: () => ({ files: [
@@ -128,10 +135,17 @@ const naoAtende = (d, subtipo) => sai({ type: 'control_response', response: { su
   error: `Unsupported control request subtype: ${subtipo}`, error_code: 'unsupported_request' } });
 if (INIT_NA_SUBIDA) init();
 
-readline.createInterface({ input: process.stdin }).on('line', (l) => {
+// Como o Claude de verdade: mensagem que chega com um turno aberto ("trabalha
+// até parar") fica na fila dele e roda quando o turno acaba (o interrupt
+// encerra o turno e responde { still_queued }, como no 2.1.326).
+const naFilaDoFalso = [];
+const leitor = readline.createInterface({ input: process.stdin });
+const soltarFila = () => { for (const m of naFilaDoFalso.splice(0)) leitor.emit('line', JSON.stringify({ ...m, jaAnotada: true })); };
+leitor.on('line', (l) => {
   let d;
   try { d = JSON.parse(l); } catch { return; }
-  log(d);
+  if (d.jaAnotada) delete d.jaAnotada; else log(d);
+  if (d.type === 'user' && trabalhando) { naFilaDoFalso.push(d); return; }
   if (d.type === 'control_response') {
     const id = d.response && d.response.request_id;
     const f = esperando.get(id);
@@ -145,12 +159,25 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
       if (process.env.CLAUDE_FALSO_RECUSA_MODELO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_MODELO } });
       modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: modelo });
     }
-    if (r.subtype === 'set_permission_mode') { modo = r.mode; responde(d, { mode: modo }); return sai({ type: 'system', subtype: 'status', status: null, permissionMode: modo, session_id: SESSAO }); }
+    if (r.subtype === 'set_permission_mode') {
+      // Como o Claude de verdade (2.1.326): o Bypass só entra se o processo subiu com a opção que o libera.
+      if (r.mode === 'bypassPermissions' && !args.includes('--allow-dangerously-skip-permissions') && !args.includes('--dangerously-skip-permissions')) {
+        return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'Cannot set permission mode to bypassPermissions because the session was not launched with --dangerously-skip-permissions' } });
+      }
+      const novo = r.mode === 'manual' ? 'default' : r.mode;
+      const mudou = novo !== modo;
+      modo = novo; responde(d, { mode: modo });
+      return mudou ? sai({ type: 'system', subtype: 'status', status: null, permissionMode: modo, session_id: SESSAO }) : undefined;
+    }
     if (r.subtype === 'apply_flag_settings') {
       if (process.env.CLAUDE_FALSO_RECUSA_ESFORCO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_ESFORCO } });
       return responde(d);
     }
-    if (r.subtype === 'interrupt') return responde(d);
+    if (r.subtype === 'interrupt') {
+      responde(d, { still_queued: [] });
+      if (trabalhando) { trabalhando = false; fim('interrompido'); soltarFila(); }
+      return undefined;
+    }
     if (r.subtype === 'rewind_files') {
       if (typeof r.user_message_id !== 'string') return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'rewind_files: user_message_id must be a string' } });
       return responde(d, { canRewind: true, filesChanged: ['app/x.js'], insertions: 3, deletions: 1 });
@@ -179,6 +206,10 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
   if (m) { modo = m[1]; sai({ type: 'system', subtype: 'status', status: null, permissionMode: modo, session_id: SESSAO }); return saidaLocal(`Set permissionMode to ${modo}`); }
   m = /^\/rename (.+)$/.exec(t);
   if (m) { sai({ type: 'system', subtype: 'session_title_changed', title: m[1], uuid: 'u-t', session_id: SESSAO }); return saidaLocal(`Session renamed to: ${m[1]}`); }
+  if (t === 'trabalha até parar') {
+    trabalhando = true;
+    return sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'começando…' }] }, session_id: SESSAO });
+  }
   if (t === 'começa tarefa de fundo') {
     const f = require('child_process').spawn('sleep', ['300'], { stdio: 'ignore' });
     filhos.push(f);

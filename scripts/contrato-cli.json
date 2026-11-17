@@ -18,7 +18,7 @@
         "stderr": "No conversation found",
         "estatico": ["--resume-session-at", "--fork-session", "--permission-prompt-tool", "--include-partial-messages", "--add-dir"] },
       { "id": "modelos", "tipo": "estatico", "depende": false, "onde": "conversa.js MODELOS",
-        "estatico": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1"] },
+        "estatico": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-2", "opusplan"] },
 
       { "id": "controle:set_model (padrão)", "tipo": "controle", "depende": true, "onde": "conversa.js pedirModelo()",
         "pedido": { "subtype": "set_model" }, "campos": ["model?"] },
@@ -30,6 +30,8 @@
         "pedido": { "subtype": "apply_flag_settings", "settings": { "fastMode": false } }, "campos": [] },
       { "id": "controle:interrupt", "tipo": "controle", "depende": true, "onde": "conversa.js interromper()",
         "pedido": { "subtype": "interrupt" }, "campos": [] },
+      { "id": "controle:get_settings", "tipo": "controle", "depende": false, "onde": "conversa-tela.js popup do /config (valor atual; sem ele mostra \"—\")",
+        "pedido": { "subtype": "get_settings" }, "campos": ["effective", "sources", "applied"] },
       { "id": "controle:set_permission_mode", "tipo": "controle", "depende": true, "onde": "comandos-tela.js /plan",
         "pedido": { "subtype": "set_permission_mode", "mode": "plan" }, "campos": [] },
       { "id": "controle:get_status", "tipo": "controle", "depende": false, "onde": "comandos-tela.js /status (sem ele, mostra o init)",

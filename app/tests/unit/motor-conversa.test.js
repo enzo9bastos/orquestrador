@@ -184,6 +184,257 @@ test('B2: o modo vivo (status) sobrevive ao /restart; reinício nunca sobe mais 
   assert.strictEqual(c.argumentos()[c.argumentos().indexOf('--permission-mode') + 1], 'plan');
 });
 
+// Plano 1.1 (faixa de atividade): o Claude avisa o que roda em segundo plano
+// (system/background_tasks_changed, com a lista em "tasks"); a conversa guarda
+// só quantas são, para a faixa mostrar.
+test('faixa: o aviso de tarefas em segundo plano do Claude vira a contagem da conversa', () => {
+  const c = new conversa._Conversa({ id: 'fx', titulo: 'Conversa faixa' });
+  const avisos = [];
+  c.avisarInfo = () => avisos.push(c.info.fundo);
+  assert.strictEqual(c.info.fundo || 0, 0);
+  c.tratar({ type: 'system', subtype: 'background_tasks_changed', tasks: [{}, {}] });
+  assert.strictEqual(c.info.fundo, 2);
+  c.tratar({ type: 'system', subtype: 'background_tasks_changed', tasks: [] });
+  assert.strictEqual(c.info.fundo, 0);
+  c.tratar({ type: 'system', subtype: 'background_tasks_changed' });
+  assert.strictEqual(c.info.fundo, 0, 'sem a lista, conta zero');
+  assert.deepStrictEqual(avisos, [2, 0], 'a tela só é avisada quando o número muda');
+});
+
+// Plano 2.2 (chip de modo). Conferido no Claude 2.1.326 de verdade: a troca ao
+// vivo é o set_permission_mode; o Bypass só é aceito se o processo subiu com
+// --allow-dangerously-skip-permissions (senão: "Cannot set permission mode…").
+const pedidosDeModo = () => recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'set_permission_mode').map((x) => x.request.mode);
+test('modo: a troca ao vivo vai por set_permission_mode e a conversa mostra o modo que o Claude confirma', async (t) => {
+  const c = new conversa._Conversa({ id: 'md1', titulo: 'Conversa modo' });
+  t.after(() => c.parar());
+  assert.strictEqual(c.info.modo, 'auto', 'antes de subir, o modo é o do app');
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  await c.definirModo('plan');
+  await ate(() => c.info.modo === 'plan');
+  await c.definirModo('default');
+  await ate(() => c.info.modo === 'default');
+  assert.deepStrictEqual(pedidosDeModo(), ['plan', 'default']);
+  for (const fora of ['dontAsk', 'qualquer', '', null, 'bypassPermissions; rm']) await assert.rejects(() => c.definirModo(fora), /modo não oferecido/);
+  assert.deepStrictEqual(pedidosDeModo(), ['plan', 'default'], 'modo de fora da lista não chega ao Claude');
+});
+
+test('modo: Bypass nunca no orquestrador; na avulsa só com a opção das Configurações, e não sobrevive a um reinício', async (t) => {
+  const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
+  const base = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+  const orq = new conversa._Conversa({ id: 'md-orq', titulo: 'Orquestrador', orquestrador: true });
+  const c = new conversa._Conversa({ id: 'md2', titulo: 'Conversa bypass' });
+  t.after(() => { fs.writeFileSync(cfg, JSON.stringify(base)); c.parar(); orq.parar(); });
+  const permite = (x) => x.argumentos().includes('--allow-dangerously-skip-permissions');
+  // Opção desligada (o padrão): recusa, e ninguém sobe com a permissão.
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  await assert.rejects(() => c.definirModo('bypassPermissions'), /desligado nas Configurações/);
+  assert.deepStrictEqual([permite(c), permite(orq)], [false, false]);
+  // Opção ligada: o orquestrador continua recusando e nunca sobe com a permissão.
+  fs.writeFileSync(cfg, JSON.stringify({ ...base, mostrarBypass: true }));
+  await assert.rejects(() => orq.definirModo('bypassPermissions'), /nunca vale para o orquestrador/);
+  assert.deepStrictEqual([permite(c), permite(orq)], [true, false]);
+  // A conversa aberta antes de ligar a opção não aceita o modo (o Claude recusaria):
+  // ela sobe de novo, na mesma sessão, com a permissão, e só então troca.
+  const sessao = c.sessao;
+  await c.definirModo('bypassPermissions');
+  await ate(() => c.info.modo === 'bypassPermissions');
+  const subidas = recebidos().filter((x) => x.args).map((x) => x.args);
+  assert.strictEqual(subidas.length, 2, 'subiu de novo uma vez');
+  assert.ok(!subidas[0].includes('--allow-dangerously-skip-permissions') && subidas[1].includes('--allow-dangerously-skip-permissions'));
+  assert.deepStrictEqual(subidas[1].slice(subidas[1].indexOf('--resume'), subidas[1].indexOf('--resume') + 2), ['--resume', sessao], 'a conversa é a mesma');
+  assert.strictEqual(subidas[1][subidas[1].indexOf('--permission-mode') + 1], 'auto', 'a subida nunca é em Bypass');
+  assert.deepStrictEqual(pedidosDeModo(), ['bypassPermissions']);
+  // Já com a permissão: voltar ao Auto e ligar de novo não reinicia.
+  await c.definirModo('auto');
+  await ate(() => c.info.modo === 'auto');
+  await c.definirModo('bypassPermissions');
+  await ate(() => c.info.modo === 'bypassPermissions');
+  assert.strictEqual(recebidos().filter((x) => x.args).length, 2);
+  // Reinício: volta ao modo do app (o Bypass não sobrevive).
+  assert.strictEqual(c.argumentos()[c.argumentos().indexOf('--permission-mode') + 1], 'auto');
+  // Opção desligada de novo: recusa e a próxima subida vem sem a permissão.
+  fs.writeFileSync(cfg, JSON.stringify(base));
+  assert.strictEqual(permite(c), false);
+  await assert.rejects(() => c.definirModo('bypassPermissions'), /desligado nas Configurações/);
+});
+
+// Plano 1.1 (Iniciar e Desligar, um por vez): a conversa do orquestrador sabe
+// se a rodada está aberta. Abre com o comando da rodada (botão ou digitado) e
+// fecha quando a rodada termina (Desligar) ou a conversa é limpa.
+test('rodada: o comando que abre a rodada marca só o orquestrador; o fim da rodada desmarca; a marca volta ao reabrir o app', async (t) => {
+  const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
+  const base = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+  fs.writeFileSync(cfg, JSON.stringify({ ...base, comandoInicial: '/rodada', comandoDesligar: '/fim' }));
+  const orq = new conversa._Conversa({ id: 'rd-orq', titulo: 'Orquestrador', orquestrador: true });
+  const c = new conversa._Conversa({ id: 'rd-c', titulo: 'Conversa 9' });
+  t.after(() => { fs.writeFileSync(cfg, JSON.stringify(base)); orq.parar(); c.parar(); });
+  assert.strictEqual(orq.info.rodada, false);
+  orq.mandar('uma mensagem qualquer');
+  await ate(() => turnos(orq) === 1);
+  assert.strictEqual(orq.info.rodada, false, 'mensagem comum não abre a rodada');
+  orq.mandar('/rodada agora');
+  assert.strictEqual(orq.info.rodada, true, 'vale também digitado, com argumento');
+  c.mandar('/rodada');
+  assert.strictEqual(c.info.rodada, false, 'conversa avulsa não tem rodada');
+  await ate(() => turnos(orq) === 2);
+  // Reabrindo o app com a rodada aberta: a conversa guardada volta marcada.
+  assert.strictEqual(new conversa._Conversa({ id: 'rd-volta', titulo: 'Orquestrador', orquestrador: true, rodada: true }).info.rodada, true);
+  assert.strictEqual(new conversa._Conversa({ id: 'rd-volta2', titulo: 'Conversa 10', rodada: true }).info.rodada, false);
+  // Desligar: quando o orquestrador termina a resposta, a rodada acaba.
+  orq.mandar('/fim');
+  await ate(() => orq.info.rodada === false);
+});
+
+// Plano 2.1 e 2.4 (menu de modelo): opusplan e Fable 5.2 pelos nomes que a
+// documentação do Claude Code dá; o modo rápido aparece no estado da conversa.
+test('modelo: opusplan vai como apelido (ao vivo e na subida); Fable é o 5.2; o modo rápido entra no estado da tela', async (t) => {
+  const c = new conversa._Conversa({ id: 'mm1', titulo: 'Conversa modelo' });
+  t.after(() => c.parar());
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  assert.strictEqual(c.configurar({ modelo: 'opusplan' }), true);
+  await ate(() => c.info.modelo === 'opusplan');
+  assert.strictEqual(recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'set_model').pop().request.model, 'opusplan');
+  assert.deepStrictEqual(c.argumentos().slice(c.argumentos().indexOf('--model'), c.argumentos().indexOf('--model') + 2), ['--model', 'opusplan']);
+  assert.strictEqual(c.configurar({ modelo: 'fable' }), true);
+  await ate(() => c.info.modelo === 'claude-fable-5-2');
+  assert.strictEqual(c.configurar({ modelo: 'nao-existe' }), false);
+  assert.strictEqual(c.info.rapido, null, 'sem escolha, vale o padrão do Claude');
+  await c.rapidoLigar(true);
+  assert.strictEqual(c.info.rapido, true);
+  await c.rapidoLigar(false);
+  assert.strictEqual(c.info.rapido, false);
+});
+
+// Plano 4.1 (fila visível): com o motor trabalhando, o que o usuário manda pela
+// caixa fica numa fila do app e vai quando o turno acaba. "Enviar já": no
+// Claude o app interrompe o turno e manda a mensagem assim que ele para (nada
+// é escrito no meio do turno); no Codex vai por turn/steer.
+const mensagens = () => recebidos().filter((x) => x.type === 'user').map((x) => (typeof x.message.content === 'string' ? x.message.content : (x.message.content.find((b) => b.type === 'text') || {}).text));
+const interrupcoes = () => recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'interrupt').length;
+const naFila = (c) => c.info.fila.map((x) => x.texto);
+test('fila: ocupado, a mensagem da caixa espera no app e vai sozinha quando o turno acaba; tirar não manda nada', async (t) => {
+  const c = new conversa._Conversa({ id: 'fl1', titulo: 'Conversa fila' });
+  t.after(() => c.parar());
+  // Parado: a mensagem da caixa vai na hora, sem passar pela fila.
+  assert.deepStrictEqual(c.daCaixa('manda 30 deltas'), { enviada: true });
+  await ate(() => c.info.ocupado && mensagens().length === 1);
+  // Ocupado: fica na fila do app; nada chega ao Claude.
+  const a = c.daCaixa('primeira da fila');
+  const b = c.daCaixa('segunda, que vou tirar');
+  const d = c.daCaixa('terceira');
+  assert.ok(a.naFila && b.naFila && d.naFila);
+  assert.deepStrictEqual(naFila(c), ['primeira da fila', 'segunda, que vou tirar', 'terceira']);
+  assert.deepStrictEqual(mensagens(), ['manda 30 deltas']);
+  assert.strictEqual(c.tirarDaFila(b.naFila), true);
+  assert.strictEqual(c.tirarDaFila('nao-existe'), false);
+  assert.deepStrictEqual(naFila(c), ['primeira da fila', 'terceira']);
+  // O turno acaba: a fila anda sozinha, uma mensagem por turno, na ordem.
+  await ate(() => mensagens().length === 3 && !c.info.ocupado, 10000);
+  assert.deepStrictEqual(mensagens(), ['manda 30 deltas', 'primeira da fila', 'terceira']);
+  assert.deepStrictEqual(naFila(c), []);
+  assert.strictEqual(turnos(c), 3);
+  assert.strictEqual(interrupcoes(), 0);
+});
+
+test('fila: "enviar já" interrompe o turno e a mensagem vai na frente; a parada do usuário segura a fila', async (t) => {
+  const c = new conversa._Conversa({ id: 'fl2', titulo: 'Conversa fila 2' });
+  t.after(() => c.parar());
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado && mensagens().length === 1);
+  c.daCaixa('espera a vez');
+  // Mensagem nova com "enviar já" (Ctrl+Enter): interrompe e vai na frente da fila.
+  assert.ok(c.daCaixa('muda o rumo', [], null, { agora: true }).naFila);
+  assert.deepStrictEqual(c.info.fila.map((x) => [x.texto, !!x.ja]), [['muda o rumo', true], ['espera a vez', false]]);
+  assert.deepStrictEqual(mensagens(), ['trabalha até parar'], 'nada é escrito no meio do turno');
+  await ate(() => mensagens().length === 3 && !c.info.ocupado, 10000);
+  assert.strictEqual(interrupcoes(), 1);
+  assert.deepStrictEqual(mensagens(), ['trabalha até parar', 'muda o rumo', 'espera a vez']);
+  assert.strictEqual(c.info.filaParada, false, 'a parada foi do "enviar já", não do usuário: a fila seguiu');
+  // "Enviar já" numa mensagem que estava na fila.
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado && mensagens().length === 4);
+  c.daCaixa('esta continua esperando');
+  const x = c.daCaixa('esta sai na frente');
+  assert.strictEqual(c.enviarJaDaFila(x.naFila), true);
+  assert.deepStrictEqual(naFila(c), ['esta sai na frente', 'esta continua esperando']);
+  await ate(() => mensagens().length === 6 && !c.info.ocupado, 10000);
+  assert.deepStrictEqual(mensagens().slice(4), ['esta sai na frente', 'esta continua esperando']);
+  // O usuário para o motor (Parar ou Esc): a fila não dispara sozinha depois disso.
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado && mensagens().length === 7);
+  const z = c.daCaixa('não quero que vá sozinha');
+  c.interromper();
+  await ate(() => !c.info.ocupado);
+  await espera(300);
+  assert.deepStrictEqual(naFila(c), ['não quero que vá sozinha'], 'continua na fila, parada');
+  assert.strictEqual(c.info.filaParada, true);
+  assert.strictEqual(mensagens().length, 7);
+  // Mensagem nova com a fila parada: entra no fim e a fila volta a andar, na ordem.
+  assert.ok(c.daCaixa('e mais esta').naFila);
+  await ate(() => mensagens().length === 9 && !c.info.ocupado, 10000);
+  assert.deepStrictEqual(mensagens().slice(7), ['não quero que vá sozinha', 'e mais esta']);
+  assert.strictEqual(c.info.filaParada, false);
+  assert.ok(z.naFila);
+});
+
+test('fila (Codex): ocupado, a mensagem da caixa espera no app; "enviar já" corrige o rumo por turn/steer', async (t) => {
+  const c = new conversa._Conversa({ id: 'fl3', titulo: 'Conversa fila Codex', motor: 'codex' });
+  t.after(() => c.parar());
+  c.daCaixa('oi codex');
+  // Espera o turno estar de fato aberto (a pergunta do Codex falso chegou): só aí
+  // uma mensagem no meio dele é "corrigir o rumo" e não um turno novo.
+  await ate(() => c.info.ocupado && c.pendentes.size === 1);
+  const q = c.daCaixa('fica na fila');
+  assert.ok(q.naFila);
+  assert.ok(!xrecebidos().some((x) => x.method === 'turn/steer'), 'pela fila, nada vai ao Codex no meio do turno');
+  assert.deepStrictEqual(c.daCaixa('corrige agora', [], null, { agora: true }), { enviada: true });
+  await ate(() => xrecebidos().some((x) => x.method === 'turn/steer'));
+  assert.deepStrictEqual(naFila(c), ['fica na fila']);
+});
+
+// D16.3: o /exit fecha só a conversa. O processo sai, a sessão vai para as
+// anteriores, a tela fica limpa e a próxima mensagem começa uma sessão nova.
+// Dá para voltar à sessão que foi encerrada.
+test('/exit: encerra só aquela conversa; a sessão fica guardada, a próxima mensagem começa outra, e dá para voltar', async (t) => {
+  process.env.CLAUDE_FALSO_SESSAO_REAL = '1';
+  const c = new conversa._Conversa({ id: 'ex1', titulo: 'Conversa exit' });
+  const outra = new conversa._Conversa({ id: 'ex2', titulo: 'Outra conversa' });
+  t.after(() => { delete process.env.CLAUDE_FALSO_SESSAO_REAL; c.parar(); outra.parar(); });
+  c.mandar('oi'); outra.mandar('oi');
+  await ate(() => turnos(c) === 1 && turnos(outra) === 1);
+  const sessao = c.sessao;
+  const pidDaOutra = outra.proc.pid;
+  assert.ok(sessao && c.proc);
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado);
+  c.daCaixa('estava na fila');
+  c.encerrarConversa();
+  assert.strictEqual(c.proc, null, 'o processo desta conversa sai');
+  assert.strictEqual(c.sessao, null);
+  assert.deepStrictEqual(c.anteriores.slice(-1), [sessao], 'a sessão fica guardada nas anteriores');
+  assert.deepStrictEqual(c.eventos.map((e) => e.tipo), ['encerrada'], 'a tela fica limpa, só com o aviso');
+  assert.strictEqual(c.eventos[0].podeVoltar, true);
+  assert.deepStrictEqual([c.info.ocupado, c.info.filaParada, c.info.fila.length], [false, true, 1], 'o que estava na fila não dispara numa sessão nova');
+  assert.ok(vivo(pidDaOutra) && outra.proc, 'as outras conversas continuam');
+  // Voltar: a sessão encerrada volta a ser a desta conversa.
+  assert.strictEqual(c.reabrirAnterior(), true);
+  assert.strictEqual(c.sessao, sessao);
+  await ate(() => c.proc && recebidos().filter((x) => x.args).some((a) => a.args.join(' ').includes(`--resume ${sessao}`)));
+  assert.strictEqual(c.reabrirAnterior(), false, 'com a conversa aberta não há o que voltar');
+  // De novo, e agora a próxima mensagem começa uma sessão nova.
+  c.encerrarConversa();
+  c.tirarDaFila(c.info.fila[0].id);
+  c.mandar('recomeçando');
+  await ate(() => c.sessao && c.sessao !== sessao);
+  assert.ok(c.anteriores.includes(sessao));
+  const ultimaSubida = recebidos().filter((x) => x.args).pop().args.join(' ');
+  assert.ok(!ultimaSubida.includes('--resume'), 'sessão nova: sobe sem retomar');
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });

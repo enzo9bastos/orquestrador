@@ -35,6 +35,17 @@ const PERMITIDAS = [
     porque: 'Orquestrador Codex: precisa de tmux e docker, que o sandbox do Codex bloqueia mesmo com o comando aprovado. Roda fora do sandbox, '
       + 'com a política "untrusted" e o revisor automático do Codex (auto_review) decidindo pelo risco. Escolha do usuário em 2026-11-12.',
   },
+  {
+    arquivo: 'conversa.js', flag: 'bypassPermissions', trecho: "const BYPASS = 'bypassPermissions';",
+    porque: 'Modo "sem perguntas" do chip de modo. Só existe se o usuário ligar a opção nas Configurações (mostrarBypass, desligada por padrão); '
+      + 'só em conversa avulsa (definirModo recusa o orquestrador); a tela confirma a cada vez e mostra a faixa vermelha; num reinício o modo volta ao do app. '
+      + 'Escolha do usuário em 2026-11-17 ("quem decide é a pessoa").',
+  },
+  {
+    arquivo: 'conversa.js', flag: '--dangerously-*', trecho: "const PERMITE_BYPASS = '--allow-dangerously-skip-permissions';",
+    porque: 'Não liga o Bypass: só deixa o Claude aceitar o modo se o usuário escolher (sem esta opção de subida o Claude recusa o set_permission_mode). '
+      + 'Entra só na conversa avulsa e só com mostrarBypass ligado; o orquestrador nunca sobe com ela (teste em motor-conversa.test.js).',
+  },
 ];
 
 // Linhas de código (sem os comentários de linha inteira) de cada montador.

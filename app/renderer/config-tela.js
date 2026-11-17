@@ -25,6 +25,7 @@
     raiz.style.setProperty('--esperando', config.destaque);
     raiz.style.setProperty('--esperando-suave', rgba(config.destaque, 0.16));
     document.querySelectorAll('#config-tema button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tema === config.tema));
+    document.querySelectorAll('#config-iniciar-desligar button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === (config.iniciarDesligar === 'menu' ? 'menu' : 'barra'))));
     document.querySelectorAll('#config-cores .amostra').forEach((b) => b.setAttribute('aria-pressed', b.dataset.cor === config.destaque));
     $('cor-livre').value = config.destaque;
   }
@@ -45,7 +46,7 @@
     for (const el of document.querySelectorAll('#config [data-cfg]')) {
       if (el === document.activeElement) continue;
       const v = pegar(el.dataset.cfg);
-      if (el.type === 'checkbox') el.checked = /^canalSemAprovar/.test(el.dataset.cfg) ? v === true : v !== false;
+      if (el.type === 'checkbox') el.checked = /^(canalSemAprovar|mostrarBypass$)/.test(el.dataset.cfg) ? v === true : v !== false;
       else if (el.dataset.cfg === 'ambiente') el.value = Object.entries(v || {}).map(([a, b]) => `${a}=${b}`).join('\n');
       else if (el.dataset.cfg === 'canalContatos') el.value = (v || []).map((c) => `${c.nome}: ${c.caixa}`).join('\n');
       else el.value = v == null ? '' : v;
@@ -219,6 +220,10 @@
     if (b) mudar({ tema: b.dataset.tema });
   });
   $('tema').addEventListener('click', () => mudar({ tema: config.tema === 'dark' ? 'light' : 'dark' }));
+  $('config-iniciar-desligar').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-v]');
+    if (b) mudar({ iniciarDesligar: b.dataset.v });
+  });
 
   // --- seções (navegação à esquerda; em janela estreita, uma fileira) --------
   // Um painel por vez; a última seção aberta fica guardada neste computador.

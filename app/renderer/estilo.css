@@ -314,6 +314,124 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .barra-uso i.medio { background: #f59e0b; } /* alerta de uso: sempre âmbar, não segue o destaque */
 .barra-uso i.alto { background: var(--perigo); }
 .conversa-barra .botao-texto { margin-left: auto; }
+/* Uso: um chip só. O anel mostra o contexto; o aviso aparece quando a janela de 5 h ou a longa passa de 80%. */
+.conversa-barra .espaco-barra { flex: 1 1 auto; min-width: 4px; }
+.conversa-barra .espaco-barra ~ .botao-texto { margin-left: 0; }
+.chip-uso .valor { font-family: var(--sans); color: var(--fg); }
+.anel { --pct: 0; --cor: var(--ativo); width: 13px; height: 13px; border-radius: 50%; flex: none;
+  background: conic-gradient(var(--cor) calc(var(--pct) * 1%), var(--painel-hover) 0);
+  -webkit-mask: radial-gradient(circle, transparent 3.4px, #000 4px); mask: radial-gradient(circle, transparent 3.4px, #000 4px); }
+.anel[data-nivel="medio"] { --cor: #f59e0b; }
+.anel[data-nivel="alto"] { --cor: var(--perigo); }
+.alerta-uso { font: 600 10.5px/1 var(--sans); padding: 2px 5px; border-radius: 3px; }
+.alerta-uso[hidden] { display: none; }
+.alerta-uso.medio { background: color-mix(in srgb, #f59e0b 22%, transparent); color: #f59e0b; } /* alerta de uso: sempre âmbar */
+.alerta-uso.alto { background: color-mix(in srgb, var(--perigo) 20%, transparent); color: var(--perigo); }
+.chip-uso.em-alerta { border-color: color-mix(in srgb, #f59e0b 55%, var(--borda)); }
+.chip-uso.em-alerta.alto { border-color: color-mix(in srgb, var(--perigo) 55%, var(--borda)); }
+.botao-chip[aria-expanded="true"] { border-color: var(--borda-forte); color: var(--fg); background: var(--painel-hover); }
+.menu-modelo.menu-uso { width: 300px; }
+/* Modo de permissão: cor E ícone por modo (nunca só cor). */
+.ico-modo { display: grid; place-items: center; width: 13px; height: 13px; flex: none; color: var(--cor-modo, var(--fg-3)); }
+.ico-modo svg { width: 13px; height: 13px; }
+.chip-modo { border-color: color-mix(in srgb, var(--cor-modo, var(--borda)) 45%, var(--borda)); }
+.chip-modo .rotulo-chip { font-family: var(--sans); color: var(--fg); }
+.modo-default { --cor-modo: var(--fg-3); }
+.modo-acceptEdits { --cor-modo: #3b82f6; }
+.modo-auto { --cor-modo: #10b981; }
+.modo-plan { --cor-modo: #a78bfa; }
+.modo-bypassPermissions { --cor-modo: var(--perigo); }
+.chip-modo.modo-bypassPermissions { background: color-mix(in srgb, var(--perigo) 14%, var(--bg-elevado)); }
+@keyframes piscar-chip { 0% { box-shadow: 0 0 0 0 var(--cor-modo, var(--claude)); } 100% { box-shadow: 0 0 0 7px transparent; } }
+.chip.piscou { animation: piscar-chip .5s ease-out; }
+.menu-modelo.menu-modo { width: 340px; }
+.menu-modo .menu-opcoes button { height: auto; min-height: 30px; padding: 6px 8px; align-items: flex-start; width: 100%; }
+.menu-modo .menu-opcoes button[aria-checked="true"] { background: var(--claude-suave); color: var(--fg); box-shadow: inset 2px 0 0 var(--claude); }
+.menu-modo .menu-opcoes .ico-modo { margin-top: 3px; }
+.opcao-texto { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.opcao-texto small { font-size: 11px; color: var(--fg-3); line-height: 1.35; }
+.nome-tecnico { margin-left: auto; font: 10.5px var(--mono); color: var(--fg-4); align-self: center; white-space: nowrap; }
+.menu-separador { height: 1px; background: var(--borda); margin: 6px 2px; }
+.menu-confirma { margin: 6px 2px 2px; padding: 8px 9px; border-radius: var(--r-sm); border: 1px solid color-mix(in srgb, var(--esperando) 50%, var(--borda)); background: color-mix(in srgb, var(--esperando) 8%, var(--bg-elevado)); display: grid; gap: 7px; font-size: 12px; line-height: 1.45; color: var(--fg-2); }
+.menu-confirma strong { color: var(--fg); }
+.menu-confirma.perigo { border-color: color-mix(in srgb, var(--perigo) 50%, var(--borda)); background: color-mix(in srgb, var(--perigo) 8%, var(--bg-elevado)); }
+.menu-confirma .acoes { display: flex; justify-content: flex-end; gap: 6px; }
+.menu-confirma .botao { height: 26px; padding: 0 10px; font-size: 12px; }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Popup do /config do Claude Code: busca, grupos e a marca do que só vale no terminal. */
+.popup-largo > .config { width: min(640px, 100%); }
+.busca-popup { display: block; width: calc(100% - 36px); margin: 12px 18px 0; }
+.popup-linha[hidden], .popup-corpo .config-secao[hidden] { display: none; }
+.popup-linha .so-terminal { display: block; font-size: 11px; color: var(--fg-4); line-height: 1.35; }
+.rodape-config-claude { border-top: 1px solid var(--borda); padding-top: 10px; }
+/* Dicas fixas sob a caixa e o painel de atalhos. */
+.dicas-caixa { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; min-width: 0; font-size: 11px; color: var(--fg-4); padding: 0 4px; margin-top: -2px; }
+.dicas-caixa [hidden] { display: none; }
+.dicas-caixa .dica-enter { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 4px 14px; }
+.dicas-caixa kbd, .lista-atalhos kbd { font: 10.5px var(--mono); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--borda-forte); color: var(--fg-2); background: var(--bg-afundado); }
+.dica-atalhos { font-size: 11px; color: var(--fg-3); padding: 1px 6px; border-radius: var(--r-sm); border: 1px solid var(--borda); }
+.dica-atalhos:hover { color: var(--fg); border-color: var(--borda-forte); }
+.lista-atalhos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; padding: 4px 18px; }
+.lista-atalhos h4 { grid-column: 1 / -1; margin: 12px 0 4px; font: 600 11px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--fg-4); }
+.linha-atalho { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--borda); font-size: 12.5px; color: var(--fg-2); }
+.linha-atalho .teclas { flex: none; white-space: nowrap; }
+.atalho-desligado { font-size: 11.5px; color: var(--fg-4); }
+.popup-nota .link-config { margin: 0; height: 22px; }
+/* Fila da caixa: balão tracejado no fim da conversa, com "Enviar já" e "Tirar". */
+.msg-fila { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.msg-fila .balao { background: transparent; border: 1px dashed var(--borda-forte); opacity: .75; max-width: var(--lado-voce); white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-fila.ja .balao { border-color: var(--claude); opacity: 1; }
+.fila-acoes { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--fg-4); }
+.fila-acoes button { color: var(--fg-2); font-size: 11.5px; text-decoration: underline; text-decoration-color: var(--borda-forte); text-underline-offset: 2px; }
+.fila-acoes button:hover { color: var(--fg); }
+.fila-acoes button:disabled { opacity: .5; cursor: default; }
+.compositor.ocupada .caixa-entrada { border-style: dashed; }
+/* Menu de modelo: principais à vista, "Outros" recolhido, modo rápido e o esforço numa linha. */
+.menu-modelo.menu-do-modelo { width: 300px; }
+.menu-do-modelo .menu-opcoes button { height: auto; min-height: 30px; padding: 6px 8px; width: 100%; }
+.menu-do-modelo .menu-opcoes button[aria-checked="true"] { background: var(--claude-suave); color: var(--fg); box-shadow: inset 2px 0 0 var(--claude); }
+.marca-radio { flex: none; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--fg-4); }
+[aria-checked="true"] > .marca-radio { border-color: var(--claude); background: radial-gradient(circle, var(--claude) 3px, transparent 3.6px); }
+.menu-outros > summary { list-style: none; cursor: pointer; padding: 6px 8px; border-radius: var(--r-sm); color: var(--fg-3); font-size: 12px; }
+.menu-outros > summary::-webkit-details-marker { display: none; }
+.menu-outros > summary::before { content: '▸'; display: inline-block; width: 14px; font-size: 9px; }
+.menu-outros[open] > summary::before { content: '▾'; }
+.menu-outros > summary:hover { background: var(--painel-hover); color: var(--fg); }
+.menu-chave { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 6px 8px; border-radius: var(--r-sm); color: var(--fg-2); text-align: left; }
+.menu-chave:hover { background: var(--painel-hover); color: var(--fg); }
+.chave-menu { flex: none; width: 26px; height: 15px; margin-top: 2px; border-radius: 999px; background: var(--painel-hover); position: relative; transition: background .12s; }
+.chave-menu::after { content: ''; position: absolute; left: 2px; top: 2px; width: 11px; height: 11px; border-radius: 50%; background: var(--fg-3); transition: transform .12s, background .12s; }
+[aria-checked="true"] > .chave-menu { background: var(--claude); }
+[aria-checked="true"] > .chave-menu::after { transform: translateX(11px); background: #fff; }
+.linha-esforco { display: flex; align-items: center; gap: 8px; padding: 4px 8px 6px; }
+.linha-esforco .botao-seta { flex: none; width: 24px; height: 24px; border-radius: var(--r-sm); border: 1px solid var(--borda); color: var(--fg-2); display: grid; place-items: center; font-size: 10px; }
+.linha-esforco .botao-seta:hover { background: var(--painel-hover); color: var(--fg); }
+.linha-esforco .botao-seta:disabled { opacity: .35; cursor: default; }
+.niveis-esforco { display: inline-flex; align-items: flex-end; gap: 3px; height: 18px; margin-left: auto; }
+.barra-nivel { width: 7px; height: calc(8px + var(--n) * 2.5px); border-radius: 2px; background: var(--painel-hover); padding: 0; }
+.barra-nivel.cheia { background: var(--claude); }
+.barra-nivel:hover { outline: 1px solid var(--borda-forte); }
+.nome-esforco { min-width: 74px; margin-right: auto; color: var(--fg); font-size: 12.5px; }
+.selo-chip { font: 600 9.5px/1 var(--mono); padding: 2px 4px; border-radius: 3px; background: var(--painel); color: var(--fg-2); }
+.selo-chip[hidden] { display: none; }
+.selo-rapido { background: color-mix(in srgb, #f59e0b 22%, transparent); color: #f59e0b; }
+/* Menu ⋯ da barra. */
+.chip-mais { font: 600 14px/1 var(--sans); padding: 0 8px; letter-spacing: .04em; }
+.menu-modelo.menu-mais { width: 280px; }
+.menu-mais .item-menu { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 28px; padding: 5px 8px; border-radius: var(--r-sm); color: var(--fg-2); text-align: left; font-size: 12.5px; }
+.menu-mais .item-menu:hover { background: var(--painel-hover); color: var(--fg); }
+.menu-mais .item-menu.perigo:hover { color: var(--perigo); }
+.menu-mais .item-menu .atalho { margin-left: auto; font: 10.5px var(--mono); color: var(--fg-4); }
+/* Bypass ligado: faixa fixa e vermelha em cima da conversa. */
+.faixa-bypass { display: flex; align-items: center; gap: 10px; padding: 6px 16px; background: color-mix(in srgb, var(--perigo) 18%, var(--bg)); border-bottom: 1px solid color-mix(in srgb, var(--perigo) 55%, transparent); color: var(--fg); font-size: 12.5px; }
+.faixa-bypass[hidden] { display: none; }
+.faixa-bypass .ico { color: var(--perigo); }
+.faixa-bypass .botao-texto { margin-left: auto; }
+.linha-uso { display: grid; grid-template-columns: 74px minmax(0, 1fr) 44px; gap: 10px; align-items: center; padding: 6px 8px; font-size: 12.5px; color: var(--fg-2); }
+.linha-uso[hidden] { display: none; }
+.linha-uso .rotulo { font-family: var(--sans); }
+.linha-uso .barra-uso { width: 100%; height: 6px; }
+.linha-uso .valor { text-align: right; font: 500 11.5px var(--mono); color: var(--fg); }
 
 .mensagens { flex: 1; min-height: 0; overflow-y: auto; padding: 24px calc(max(24px, (100% - var(--larg-leitura)) / 2) - 8px) 16px max(24px, calc((100% - var(--larg-leitura)) / 2)); scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 18px; }
 .boas-vindas { margin: auto; display: grid; justify-items: center; gap: 6px; color: var(--fg-3); }
@@ -390,6 +508,18 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .trabalhando { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--fg-3); }
 .trabalhando[hidden] { display: none; }
 .trabalhando .botao-texto { margin-left: auto; }
+/* Faixa de atividade: o que o motor faz agora, o que roda em segundo plano e o Parar. */
+.faixa-atividade { min-height: 26px; min-width: 0; gap: 12px; }
+.faixa-atividade > * { flex: none; }
+.faixa-atividade .faixa-estado { flex: 0 1 auto; min-width: 0; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.faixa-atividade.parada .pontinhos { display: none; }
+.faixa-item { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--borda); color: var(--fg-2); font-size: 12px; white-space: nowrap; }
+.faixa-item:hover { border-color: var(--borda-forte); background: var(--painel-hover); color: var(--fg); }
+.faixa-item[hidden] { display: none; }
+.faixa-item .ico { width: 12px; height: 12px; }
+.faixa-atividade .botao-texto[hidden] { display: none; }
+.faixa-atividade .botao-texto { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.faixa-atividade kbd { font: 10.5px var(--mono); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--borda-forte); color: var(--fg-2); background: var(--bg-afundado); }
 .pontinhos { display: inline-flex; gap: 3px; }
 .pontinhos i { width: 5px; height: 5px; border-radius: 50%; background: var(--claude); animation: pulo 1.2s ease-in-out infinite; }
 .pontinhos i:nth-child(2) { animation-delay: .15s; }
@@ -1586,7 +1716,12 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
    primeiro os medidores ficam só com o número; se ainda não couber, os botões
    ficam só com ícone (o nome continua na dica). conversa-tela.js mede e põe a
    classe. A reorganização da barra é o passo 1.1. */
-.conversa-barra.apertada .barra-uso { display: none; }
+/* Barra que não cabe encolhe em duas etapas: primeiro saem os nomes da pasta, do
+   modo e do esforço (ficam o ícone e a dica); depois o nome do modelo e os
+   rótulos dos botões. O número do uso fica sempre. */
+.conversa-barra.apertada #info-pasta, .conversa-barra.apertada .chip-modo .rotulo-chip, .conversa-barra.apertada #info-esforco { display: none; }
+.conversa-barra.apertada #botao-modelo .divisor { display: none; }
+.conversa-barra.muito-apertada #info-modelo { display: none; }
 .conversa-barra.muito-apertada .rotulo-botao { display: none; }
 .conversa-barra.muito-apertada .so-icone { display: block; }
 

@@ -328,6 +328,10 @@
   }
   function desenharEventoAgora(ev) {
     if (ev.sub) return; // por dentro de um subagente: só o resumo dele aparece
+    // O "Usage: /config" que o Claude mostra vira a lista do popup de configurações.
+    if (ev.tipo === 'assistant' && ev.message && Array.isArray(ev.message.content)) {
+      for (const b of ev.message.content) if (b.type === 'text' && /^\s*Usage: \/config\b/.test(b.text || '')) aprenderUsoConfig(b.text);
+    }
     if (ev.tipo === 'user') {
       const c = ev.message.content;
       // Texto do usuário ao vivo já virou balão na hora de mandar (ev.local); o
@@ -355,6 +359,14 @@
       limparRascunho();
       if (ev.erro) aviso(ev.texto || 'O turno terminou com erro.', 'erro');
       grupo = null;
+    } else if (ev.tipo === 'encerrada' && ev.conversa) {
+      // /exit: só esta conversa foi encerrada; a tela fica limpa, com o caminho de volta.
+      limparRascunho(); grupo = null;
+      const el = document.createElement('div');
+      el.className = 'rodada-encerrada conversa-encerrada';
+      el.innerHTML = `<strong>Conversa encerrada</strong><span>A sessão desta conversa foi fechada e está guardada. O app continua aberto, e a próxima mensagem começa uma sessão nova.</span>
+        ${ev.podeVoltar ? '<button type="button" class="botao secundario" data-voltar-sessao>Voltar à sessão anterior</button>' : ''}`;
+      caixa.append(el);
     } else if (ev.tipo === 'encerrada') {
       limparRascunho(); grupo = null;
       const el = document.createElement('div');
@@ -541,6 +553,13 @@
       return;
     }
     if (ev.target.closest('[data-nova-rodada]')) { trocar('orquestrador'); return; }
+    const voltar = ev.target.closest('[data-voltar-sessao]');
+    if (voltar) {
+      voltar.disabled = true;
+      const r = await window.orq.comandos.reabrir(ativa);
+      if (!r || r.erro || !r.ok) { voltar.disabled = false; aviso(`Não consegui voltar à sessão anterior${r && r.erro ? `: ${r.erro}` : '.'}`, 'erro'); }
+      return;
+    }
     const ap = ev.target.closest('.cartao-aprovacao:not(.respondido)');
     if (ap) { const d = ev.target.closest('[data-decidir]'); if (d) decidirAprovacao(ap, d.dataset.decidir === '1'); return; }
     const cartao = ev.target.closest('.cartao-pedido');
@@ -631,14 +650,145 @@
   // --- barra de informações ----------------------------------------------
   const nomeModelo = (m) => {
     if (!m) return '—';
+    if (m === 'opusplan') return 'Opus + Sonnet';
     const x = m.match(/claude-([a-z]+)-(\d+)-(\d+)/);
     return x ? `${x[1][0].toUpperCase()}${x[1].slice(1)} ${x[2]}.${x[3]}` : m;
   };
+  // Uma linha do popover de uso (Contexto, 5 h, a janela longa).
   function medidor(el, rotulo, pct, extra = '') {
     if (pct == null) { el.hidden = true; return; }
     el.hidden = false;
     const nivel = pct >= 80 ? 'alto' : pct >= 50 ? 'medio' : 'baixo';
-    el.innerHTML = `<span class="rotulo">${rotulo}</span><span class="barra-uso"><i class="${nivel}" style="width:${Math.min(pct, 100)}%"></i></span><span class="valor">${pct}%${extra}</span>`;
+    el.innerHTML = `<span class="rotulo">${rotulo}</span><span class="barra-uso"><i class="${nivel}" style="width:${Math.min(pct, 100)}%"></i></span><span class="valor" data-sem-traducao>${pct}%${extra}</span>`;
+  }
+  // O chip de uso: um anel com o contexto. Se a janela de 5 h ou a longa passa
+  // de 80%, o chip mostra qual e quanto, sem precisar abrir (95% ou mais: vermelho).
+  const tr = (x) => (window.orqI18n && window.orqI18n.t ? window.orqI18n.t(x) : x);
+  function desenharUso(ctx, h5, longo, rotuloLongoPt) {
+    const rotuloLongo = tr(rotuloLongoPt);
+    const chip = $('chip-uso');
+    const tem = [ctx, h5, longo].some((v) => v != null);
+    chip.hidden = !tem;
+    if (!tem) { fecharMenuUso(); return; }
+    const anel = $('anel-uso');
+    anel.style.setProperty('--pct', String(Math.min(ctx || 0, 100)));
+    anel.dataset.nivel = ctx == null ? 'vazio' : ctx >= 90 ? 'alto' : ctx >= 75 ? 'medio' : 'baixo';
+    // Sem o contexto ainda (conversa nova), o número é o da janela que houver.
+    chip.querySelector('.valor').textContent = ctx != null ? `${ctx}%` : h5 != null ? `5 h ${h5}%` : `${rotuloLongo} ${longo}%`;
+    const pior = Math.max(h5 == null ? -1 : h5, longo == null ? -1 : longo);
+    const alerta = $('alerta-uso');
+    const nivel = pior >= 95 ? 'alto' : pior >= 80 ? 'medio' : '';
+    alerta.hidden = !nivel || ctx == null;
+    alerta.className = `alerta-uso ${nivel}`;
+    alerta.textContent = nivel ? `${(h5 == null ? -1 : h5) >= (longo == null ? -1 : longo) ? '5 h' : rotuloLongo} ${pior}%` : '';
+    chip.classList.toggle('em-alerta', !!nivel);
+    chip.classList.toggle('alto', nivel === 'alto');
+    chip.title = [ctx != null ? `${tr('Contexto')} ${ctx}%` : '', h5 != null ? `5 h ${h5}%` : '', longo != null ? `${rotuloLongo} ${longo}%` : ''].filter(Boolean).join(' · ');
+  }
+  // Faixa de atividade (no lugar do "Pensando… Parar"): o que o motor faz
+  // agora, o que roda em segundo plano e o Parar. Parada e sem nada, some.
+  let fazendoAgora = '';
+  const FAZENDO = { Bash: 'Rodando', Read: 'Lendo', Edit: 'Editando', MultiEdit: 'Editando', Write: 'Escrevendo', Grep: 'Buscando', Glob: 'Procurando arquivos', Agent: 'Com um ajudante', Task: 'Com um ajudante', WebFetch: 'Lendo uma página', WebSearch: 'Buscando na web' };
+  // Roda a cada ferramenta que o motor começa a usar na conversa da frente.
+  function faixaFerramenta(nome, entrada) {
+    if (nome === 'AskUserQuestion') return;
+    const verbo = FAZENDO[nome] || 'Usando uma ferramenta';
+    const detalhe = FAZENDO[nome] && !['Agent', 'Task', 'WebSearch', 'Glob'].includes(nome) ? resumoFerramenta(nome, entrada)[1] : '';
+    fazendoAgora = detalhe ? `${verbo}: ${detalhe}` : `${verbo}…`;
+    if (infoAtual.ocupado) $('trabalhando-texto').textContent = fazendoAgora;
+  }
+  // Fila da caixa: o que foi mandado com o motor trabalhando espera aqui, no fim
+  // da conversa (onde vai cair), em balão tracejado com "Enviar já" e "Tirar".
+  function desenharFila(i) {
+    caixa.querySelectorAll('.msg-fila').forEach((x) => x.remove());
+    const fila = Array.isArray(i.fila) ? i.fila : [];
+    for (const m of fila) {
+      const d = document.createElement('div');
+      d.className = `msg-fila${m.ja ? ' ja' : ''}`;
+      d.dataset.fila = m.id;
+      const estado = m.ja ? 'vai assim que o motor parar' : i.filaParada ? 'na fila, parada (o motor foi interrompido)' : 'na fila';
+      d.innerHTML = `<div class="balao" data-sem-traducao>${esc(m.texto)}${m.imagens ? ` <span class="fila-imagens">🖼 ${m.imagens}</span>` : ''}</div>
+        <div class="fila-acoes"><span>${estado}</span>${m.ja ? '' : `<button type="button" data-fila-ja="${esc(m.id)}" title="Interrompe o que o motor faz e manda esta mensagem agora (na caixa: Ctrl+Enter)">Enviar já</button>`}<button type="button" data-fila-tirar="${esc(m.id)}" title="Tira da fila sem mandar">Tirar ✕</button></div>`;
+      caixa.append(d);
+    }
+    const q = $('faixa-fila');
+    q.hidden = !fila.length;
+    q.innerHTML = `<svg class="ico" viewBox="0 0 16 16"><rect x="2" y="3.5" width="12" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m2.5 4.5 5.5 4 5.5-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span data-sem-traducao>${fila.length}</span> <span>na fila</span>`;
+    q.setAttribute('aria-label', `${fila.length} ${tr('na fila')}`);
+    // Só acompanha o fim da conversa quando a fila cresce (quem rolou para cima não é puxado a cada atualização).
+    if (fila.length > filaDesenhada) rolar();
+    filaDesenhada = fila.length;
+  }
+  let filaDesenhada = 0;
+  // Os balões da fila ficam sempre por último, depois do que o motor for escrevendo.
+  const filaNoFim = () => { for (const x of caixa.querySelectorAll('.msg-fila')) caixa.append(x); };
+  // Com o motor trabalhando a caixa avisa o que o Enter faz, e o botão de enviar vira "pôr na fila".
+  const LUGAR_OCUPADO = 'Trabalhando: Enter põe na fila · Ctrl+Enter corrige o rumo agora';
+  let lugarParado = null;
+  function desenharCaixaOcupada(ocupado) {
+    if (ocupado) { if (entrada.placeholder !== LUGAR_OCUPADO) lugarParado = entrada.placeholder; entrada.placeholder = LUGAR_OCUPADO; }
+    else if (entrada.placeholder === LUGAR_OCUPADO && lugarParado != null) entrada.placeholder = lugarParado;
+    $('compositor').classList.toggle('ocupada', !!ocupado);
+    $('enviar').title = ocupado ? 'Pôr na fila (Enter) · Ctrl+Enter corrige o rumo agora' : 'Enviar (Enter)';
+    // Dicas fixas sob a caixa: o que o Enter (e o Esc) fazem agora.
+    const k = (t) => `<kbd data-sem-traducao>${t}</kbd>`;
+    $('dica-esc').hidden = !ocupado;
+    $('dica-enter').innerHTML = ocupado
+      ? `<span>${k('Enter')} <span>põe na fila</span></span><span>${k('Ctrl')}+${k('Enter')} <span>corrige o rumo</span></span>`
+      : `<span>${k('Enter')} <span>envia</span></span><span>${k('Shift')}+${k('Enter')} <span>quebra linha</span></span>`;
+  }
+  // --- painel de atalhos ("? Atalhos" e Ctrl+/) -----------------------------------
+  // Só o que funciona hoje. Os atalhos que dá para trocar (colunas, Shift+Tab)
+  // aparecem como estão nas Configurações.
+  function abrirAtalhos() {
+    const A = window.orqAtalhos;
+    const colunas = { ...(A ? A.PADRAO : {}), ...(cfg.atalhosColunas || {}) };
+    const combo = (c) => (c ? (A ? A.mostrar(c) : c).split('+').map((p) => `<kbd data-sem-traducao>${esc(p === 'Comma' ? ',' : p === 'Period' ? '.' : p)}</kbd>`).join('+') : '<span class="atalho-desligado">desativado</span>');
+    const teclas = (t) => t.split('+').map((p) => `<kbd data-sem-traducao>${esc(p)}</kbd>`).join('+');
+    const l = (rotulo, html) => `<div class="linha-atalho"><span>${rotulo}</span><span class="teclas">${html}</span></div>`;
+    abrirPopup('Atalhos', `<div class="lista-atalhos">
+      <h4>Na conversa</h4>
+      ${l('Enviar', teclas('Enter'))}${l('Quebrar linha', teclas('Shift+Enter'))}${l('Parar o motor', teclas('Esc'))}
+      ${l('Voltar a conversa (parado, com a caixa vazia)', `${teclas('Esc')} ${teclas('Esc')}`)}
+      ${l('Com o motor trabalhando: pôr na fila', teclas('Enter'))}${l('Com o motor trabalhando: corrigir o rumo', teclas('Ctrl+Enter'))}
+      ${l('Trocar o modo de permissão', teclas('Ctrl+Shift+M'))}${cfg.shiftTabTrocaModo === false ? '' : l('Trocar o modo, com a caixa vazia', teclas('Shift+Tab'))}
+      ${l('Trazer de volta a mensagem anterior (caixa vazia)', teclas('↑'))}
+      <h4>Na caixa de texto</h4>
+      ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar nota ou workflow', teclas('@'))}
+      ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
+      <h4>No app</h4>
+      ${l('Paleta de comandos', teclas('Ctrl+K'))}${l('Esta lista', teclas('Ctrl+/'))}
+      ${l('Recolher ou abrir os agentes', combo(colunas.agentes))}${l('Recolher ou abrir as demandas', combo(colunas.demandas))}
+      ${l('Chamar o bichinho', teclas('Ctrl+Alt+Espaço'))}${l('Atalhos do repertório', `${teclas('Ctrl+Alt+1')} … ${teclas('9')}`)}
+    </div>
+    <p class="popup-nota"><span>Os atalhos das colunas e o Shift+Tab mudam em</span> <button type="button" class="botao-texto link-config" data-abrir-config-atalhos>Configurações › Atalhos</button></p>`);
+    $('popup-corpo').querySelector('[data-abrir-config-atalhos]').addEventListener('click', () => {
+      fecharPopup();
+      $('abrir-config').click();
+      const aba = document.querySelector('[data-secao-config="atalhos"]');
+      if (aba) aba.click();
+    });
+    $('fechar-popup').focus();
+  }
+  $('abrir-atalhos').addEventListener('click', abrirAtalhos);
+  document.addEventListener('keydown', (ev) => {
+    if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && (ev.code === 'Slash' || ev.key === '/')) { ev.preventDefault(); if (popup.hidden) abrirAtalhos(); }
+  });
+  function desenharFaixa(i) {
+    const fundo = Number(i.fundo) || 0;
+    const f = $('trabalhando');
+    const naFila = Array.isArray(i.fila) ? i.fila.length : 0;
+    desenharFila(i);
+    desenharCaixaOcupada(i.ocupado);
+    f.hidden = !(i.ocupado || fundo > 0 || naFila > 0);
+    f.classList.toggle('parada', !i.ocupado);
+    if (!i.ocupado) fazendoAgora = '';
+    $('trabalhando-texto').textContent = i.ocupado ? (fazendoAgora || 'Pensando…') : i.filaParada ? 'Parado, com mensagens na fila' : 'Parado';
+    $('parar').hidden = !i.ocupado;
+    const g = $('faixa-fundo');
+    g.hidden = !fundo;
+    g.innerHTML = `<svg class="ico" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 3v2.6h-2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-sem-traducao>${fundo}</span> <span>em segundo plano</span>`;
+    g.setAttribute('aria-label', `${fundo} ${tr('em segundo plano')}`);
   }
   function desenharInfo(i) {
     // Pasta: as duas últimas partes ("…/pai/pasta"); o caminho inteiro na dica.
@@ -649,17 +799,31 @@
     $('info-modelo').textContent = nomeModelo(i.modelo);
     desenharEsforco(i.esforco);
     infoAtual = i;
+    const comRapido = [...MODELOS, ...OUTROS_MODELOS].some((x) => x[4] && x[2] === i.modelo);
+    $('selo-rapido').hidden = !(i.rapido === true && comRapido);
+    if (!$('menu-modelo').hidden) { const foco = document.activeElement && (document.activeElement.dataset.passo || document.activeElement.dataset.chave); desenharMenu(); const el = foco && $('menu-modelo').querySelector(`[data-passo="${foco}"], [data-chave="${foco}"]`); if (el && !el.disabled) el.focus(); }
     const janela = i.janela || null;
-    medidor($('info-contexto'), 'Contexto', i.contexto != null && janela ? Math.round((i.contexto / janela) * 100) : null);
-    medidor($('info-5h'), '5 h', i.uso5h);
+    const ctx = i.contexto != null && janela ? Math.round((i.contexto / janela) * 100) : null;
     // A janela longa: 7 dias no Claude; no Codex, a do plano (ex.: 30 dias no free).
-    medidor($('info-7d'), i.rotuloLongo || '7 dias', i.uso7d);
-    $('trabalhando').hidden = !i.ocupado;
+    const rotuloLongo = i.rotuloLongo || '7 dias';
+    medidor($('info-contexto'), 'Contexto', ctx);
+    medidor($('info-5h'), '5 h', i.uso5h);
+    medidor($('info-7d'), rotuloLongo, i.uso7d);
+    desenharUso(ctx, i.uso5h == null ? null : i.uso5h, i.uso7d == null ? null : i.uso7d, rotuloLongo);
+    desenharFaixa(i);
+    desenharModo(i);
+    if (ehOrquestrador()) rodadaAberta = i.rodada === true;
+    desenharRodada();
   }
 
   // --- modelo e esforço (botão da barra) ------------------------------------
-  const MODELOS = [['opus', 'Opus 5.5', 'claude-opus-5-5'], ['sonnet', 'Sonnet 5.5', 'claude-sonnet-5-5'],
-    ['haiku', 'Haiku 5.5', 'claude-haiku-5-5'], ['fable', 'Fable 5.1', 'claude-fable-5-1']];
+  // [chave, nome, id que o Claude devolve, nome técnico (o apelido do terminal), tem modo rápido]
+  // Conferido na documentação do Claude Code (model-config, fast-mode): os
+  // modelos atuais já têm contexto de 1 milhão, por isso não há interruptor
+  // de "[1m]"; o modo rápido só existe em Opus e Fable.
+  const MODELOS = [['opus', 'Opus 5.5', 'claude-opus-5-5', 'opus', true], ['sonnet', 'Sonnet 5.5', 'claude-sonnet-5-5', 'sonnet', false],
+    ['haiku', 'Haiku 5.5', 'claude-haiku-5-5', 'haiku', false], ['opusplan', 'Opus planeja, Sonnet executa', 'opusplan', 'opusplan', false]];
+  const OUTROS_MODELOS = [['fable', 'Fable 5.2', 'claude-fable-5-2', 'fable', true], ['', 'Padrão da conta', null, 'default', false]];
   const ESFORCOS = [['low', 'Baixo', 1], ['medium', 'Médio', 2], ['high', 'Alto', 3], ['xhigh', 'Extra alto', 4], ['max', 'Máximo', 5]];
   let infoAtual = {};
   function desenharEsforco(e) {
@@ -672,16 +836,40 @@
     const m = infoAtual.modelo || '';
     const codex = infoAtual.motor === 'codex';
     // O Codex usa o modelo da configuração dele; aqui só o esforço muda.
+    const opcao = ([k, nome, id, tecnico]) => `<button type="button" role="menuitemradio" data-modelo="${k}" aria-checked="${!!id && m === id}" aria-pressed="${!!id && m === id}"><span class="marca-radio"></span><span class="opcao-texto"><span>${nome}</span></span><span class="nome-tecnico" data-sem-traducao>${tecnico}</span></button>`;
     $('opcoes-modelo').innerHTML = codex
       ? '<p class="popup-nota">O Codex usa o modelo da configuração dele (~/.codex/config.toml).</p>'
-      : MODELOS.map(([k, nome, id]) => `<button type="button" data-modelo="${k}" aria-pressed="${m === id}">${nome}</button>`).join('');
-    $('opcoes-esforco').innerHTML = ESFORCOS.filter(([k]) => !codex || k !== 'max').map(([k, nome, n]) =>
-      `<button type="button" data-esforco="${k}" aria-pressed="${infoAtual.esforco === k}"><span class="nivel">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'cheio' : ''}"></i>`).join('')}</span>${nome}</button>`).join('');
+      : MODELOS.map(opcao).join('');
+    // "Outros modelos" fica recolhido; abre sozinho se o modelo de agora for um de lá.
+    const emOutros = OUTROS_MODELOS.some((x) => x[2] && x[2] === m);
+    $('outros-modelos').innerHTML = codex ? '' : `<details class="menu-outros"${emOutros ? ' open' : ''}><summary>Outros modelos</summary><div class="menu-opcoes">${OUTROS_MODELOS.map(opcao).join('')}</div></details>`;
+    // Modo rápido: só nos modelos que têm (Opus, Fable).
+    const atual = [...MODELOS, ...OUTROS_MODELOS].find((x) => x[2] && x[2] === m);
+    $('chaves-modelo').innerHTML = !codex && atual && atual[4]
+      ? `<div class="menu-separador"></div><button type="button" class="menu-chave" role="menuitemcheckbox" data-chave="rapido" aria-checked="${infoAtual.rapido === true}"><span class="chave-menu"></span><span class="opcao-texto"><span>Modo rápido</span><small>responde mais depressa; cobrado à parte, em créditos de uso</small></span><span class="nome-tecnico" data-sem-traducao>fastMode</span></button>`
+      : '';
+    // Esforço numa linha: ◂ e ▸ andam um nível (as setas do teclado também); cada barrinha vai direto ao nível dela.
+    const niveis = ESFORCOS.filter(([k]) => !codex || k !== 'max');
+    const pos = niveis.findIndex(([k]) => k === infoAtual.esforco);
+    const nomeAtual = pos >= 0 ? niveis[pos][1] : 'padrão';
+    $('opcoes-esforco').innerHTML = `<button type="button" class="botao-seta" data-passo="-1" aria-label="Menos esforço"${pos === 0 ? ' disabled' : ''}>◂</button>
+      <span class="niveis-esforco">${niveis.map(([k, nome], i) => `<button type="button" class="barra-nivel${pos >= 0 && i <= pos ? ' cheia' : ''}" data-esforco="${k}" aria-pressed="${infoAtual.esforco === k}" title="${nome}" aria-label="${nome}" style="--n:${i}"></button>`).join('')}</span>
+      <span class="nome-esforco">${nomeAtual}</span>
+      <button type="button" class="botao-seta" data-passo="1" aria-label="Mais esforço"${pos === niveis.length - 1 ? ' disabled' : ''}>▸</button>`;
+  }
+  // Um nível de esforço para cima ou para baixo (◂ ▸ do menu e ← → do teclado).
+  async function passoEsforco(d) {
+    const niveis = ESFORCOS.filter(([k]) => infoAtual.motor !== 'codex' || k !== 'max').map(([k]) => k);
+    const pos = niveis.indexOf(infoAtual.esforco);
+    const novo = niveis[Math.max(0, Math.min(niveis.length - 1, (pos < 0 ? (d > 0 ? -1 : niveis.length) : pos) + d))];
+    if (!novo || novo === infoAtual.esforco) return;
+    await C.configurar(ativa, { esforco: novo });
   }
   function fecharMenu() { $('menu-modelo').hidden = true; $('botao-modelo').setAttribute('aria-expanded', 'false'); }
   $('botao-modelo').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const abrir = $('menu-modelo').hidden;
+    fecharMenuUso(); fecharMenuModo(); fecharMenuMais();
     if (abrir) {
       desenharMenu();
       // Posição fixa na janela: a barra corta o que passa dela (overflow), e o
@@ -698,70 +886,280 @@
     ev.stopPropagation();
     const b = ev.target.closest('button');
     if (!b) return;
-    const o = b.dataset.modelo ? { modelo: b.dataset.modelo } : { esforco: b.dataset.esforco };
-    await C.configurar(ativa, o);
-    fecharMenu();
+    // O esforço e o modo rápido deixam o menu aberto (dá para ajustar de novo); escolher o modelo fecha.
+    if (b.dataset.passo) { await passoEsforco(Number(b.dataset.passo)); return; }
+    if (b.dataset.esforco) { await C.configurar(ativa, { esforco: b.dataset.esforco }); return; }
+    if (b.dataset.chave === 'rapido') {
+      const r = await window.orq.comandos.rapido(ativa, infoAtual.rapido !== true);
+      if (r && r.erro) aviso(`O modo rápido não mudou: ${r.erro}`, 'erro');
+      return;
+    }
+    if (b.dataset.modelo != null) { await C.configurar(ativa, { modelo: b.dataset.modelo || null }); fecharMenu(); }
+  });
+  // Com o menu aberto: ↑ ↓ andam pelas opções; ← → mudam o esforço (como no terminal).
+  document.addEventListener('keydown', (ev) => {
+    if ($('menu-modelo').hidden) return;
+    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') { ev.preventDefault(); passoEsforco(ev.key === 'ArrowRight' ? 1 : -1); return; }
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+    ev.preventDefault();
+    const itens = [...$('menu-modelo').querySelectorAll('#opcoes-modelo button, .menu-outros summary, .menu-outros[open] button, .menu-chave')];
+    const i = itens.indexOf(document.activeElement);
+    (itens[(i + (ev.key === 'ArrowDown' ? 1 : itens.length - 1) + (i < 0 && ev.key === 'ArrowUp' ? 1 : 0)) % itens.length] || itens[0]).focus();
   });
   document.addEventListener('click', fecharMenu);
+
+  // --- Iniciar / Desligar e o menu ⋯ ---------------------------------------------
+  // Só na conversa do orquestrador, um por vez na barra: Iniciar antes da
+  // rodada, Desligar com ela aberta (info.rodada). Com a opção "No menu ⋯" das
+  // Configurações os dois saem da barra; o ⋯ do orquestrador tem sempre os dois.
+  let rodadaAberta = false;
+  function desenharRodada() {
+    const orq = ehOrquestrador();
+    const naBarra = cfg.iniciarDesligar !== 'menu';
+    $('iniciar-rodada').hidden = !(orq && cfg.comandoInicial && naBarra && !rodadaAberta);
+    // Sem comando de abrir configurado não há como saber da rodada: o Desligar fica sempre.
+    $('desligar').hidden = !(orq && cfg.comandoDesligar && naBarra && (rodadaAberta || !cfg.comandoInicial));
+  }
+  function iniciarRodada() {
+    if (!cfg.comandoInicial) return;
+    colado = true;
+    pet.definir('pensando');
+    C.mandar('orquestrador', cfg.comandoInicial);
+  }
+  function desligarRodada() {
+    colado = true;
+    if (cfg.comandoDesligar) C.mandar('orquestrador', cfg.comandoDesligar);
+  }
+  function fecharMenuMais() { $('menu-mais').hidden = true; $('chip-mais').setAttribute('aria-expanded', 'false'); }
+  // Cada ação é um comando do "/" que já existe: só entra no menu se a lista de
+  // comandos desta conversa tiver o comando (o Codex mostra os dele).
+  const ACOES_MAIS = [['btw', 'Pergunta rápida…'], ['export', 'Exportar…'], ['config', 'Configurações do Claude Code'], ['permissions', 'Permissões'], ['memory', 'Memória'], ['status', 'Status'], ['exit', 'Encerrar esta conversa']];
+  function desenharMenuMais() {
+    const orq = ehOrquestrador();
+    const item = (acao, rotulo, extra = '') => `<button type="button" class="item-menu${extra}" role="menuitem" data-acao="${acao}"><span>${rotulo}</span>${acharComando(acao) ? `<span class="atalho" data-sem-traducao>/${acao}</span>` : ''}</button>`;
+    const rodada = orq ? `${cfg.comandoInicial ? item('iniciar', 'Iniciar a rodada') : ''}${cfg.comandoDesligar ? item('desligar', 'Desligar a rodada', ' perigo') : ''}` : '';
+    const comandos = ACOES_MAIS.filter(([c]) => acharComando(c)).map(([c, r]) => item(c, c === 'config' && infoAtual.motor === 'codex' ? 'Preferências do Codex' : r)).join('');
+    $('menu-mais').innerHTML = `${rodada}${rodada && comandos ? '<div class="menu-separador"></div>' : ''}${comandos}<div id="confirma-mais"></div>`;
+  }
+  $('chip-mais').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const abrir = $('menu-mais').hidden;
+    fecharMenu(); fecharMenuUso(); fecharMenuModo();
+    if (!abrir) { fecharMenuMais(); return; }
+    desenharMenuMais();
+    const r = $('chip-mais').getBoundingClientRect();
+    const m = $('menu-mais');
+    m.hidden = false;
+    m.style.left = `${Math.max(8, Math.min(r.right - m.offsetWidth, innerWidth - m.offsetWidth - 8))}px`;
+    m.style.top = `${r.bottom + 6}px`;
+    $('chip-mais').setAttribute('aria-expanded', 'true');
+  });
+  document.addEventListener('click', fecharMenuMais);
+  $('menu-mais').addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.dataset.cancelar != null) { $('confirma-mais').innerHTML = ''; return; }
+    if (b.dataset.confirmar === 'desligar') { fecharMenuMais(); desligarRodada(); return; }
+    const acao = b.dataset.acao;
+    if (acao === 'desligar') {
+      // Como o botão da barra (que confirma no segundo clique), aqui a confirmação mora no menu.
+      $('confirma-mais').innerHTML = '<div class="menu-confirma"><span><strong>Desligar a rodada?</strong> <span>O orquestrador recebe o comando de desligar e encerra a rodada com segurança.</span></span><div class="acoes"><button type="button" class="botao secundario" data-cancelar>Cancelar</button><button type="button" class="botao perigo" data-confirmar="desligar">Desligar</button></div></div>';
+      $('confirma-mais').querySelector('[data-cancelar]').focus();
+      return;
+    }
+    fecharMenuMais();
+    if (acao === 'iniciar') { iniciarRodada(); return; }
+    // A pergunta rápida precisa do texto: o comando fica pronto na caixa para completar.
+    if (acao === 'btw') { entrada.value = '/btw '; entrada.focus(); entrada.setSelectionRange(5, 5); ajustarAltura(); return; }
+    const comando = acharComando(acao);
+    if (comando && window.orqComandos) await window.orqComandos.executar(comando, '', `/${acao}`);
+  });
+
+  // --- modo de permissão (chip da barra) ---------------------------------------
+  // O chip mostra o modo que o Claude confirmou (info.modo, vindo do
+  // system/status) e troca ao vivo. Cor E ícone por modo, nunca só cor.
+  const ICO_MODO = {
+    default: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 6.6a1.6 1.6 0 1 1 2.3 1.5c-.5.3-.8.6-.8 1.1M8 11.2v.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    acceptEdits: '<svg viewBox="0 0 16 16"><path d="M3 13l.6-2.7 7.1-7.1 2.1 2.1-7.1 7.1z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    auto: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg>',
+    plan: '<svg viewBox="0 0 16 16"><path d="M2.5 4.2 6 2.7l4 1.5 3.5-1.5v9.1L10 13.3l-4-1.5-3.5 1.5zM6 2.7v9.1M10 4.2v9.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    bypassPermissions: '<svg viewBox="0 0 16 16"><path d="M9 2 4 9h3.5L7 14l5-7H8.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  };
+  // [modo do Claude, nome no menu, explicação, nome curto no chip]
+  const MODOS = [
+    ['default', 'Perguntar sempre', 'pede antes de editar ou rodar', 'Perguntar'],
+    ['acceptEdits', 'Aceitar edições', 'edita sozinho, pergunta antes de rodar', 'Aceitar edições'],
+    ['auto', 'Auto', 'decide sozinho o que é seguro', 'Auto'],
+    ['plan', 'Planejar', 'só lê e propõe um plano', 'Planejar'],
+  ];
+  const BYPASS = ['bypassPermissions', 'Sem perguntas (Bypass)', 'roda tudo sem pedir; desliga quando a conversa reinicia', 'Sem perguntas'];
+  const modoDaTela = () => (infoAtual.modo === 'manual' ? 'default' : infoAtual.modo || 'auto');
+  const conversaAtual = () => listaConversas.find((c) => c.id === ativa) || null;
+  const ehOrquestrador = () => { const c = conversaAtual(); return !!(c && c.orquestrador); };
+  // O Bypass só é oferecido em conversa avulsa e com a opção das Configurações ligada.
+  const ofereceBypass = () => cfg.mostrarBypass === true && !ehOrquestrador();
+  function desenharModo(i) {
+    const chip = $('chip-modo');
+    chip.hidden = i.motor === 'codex'; // no Codex o modo é o da configuração dele
+    const m = i.modo === 'manual' ? 'default' : i.modo || 'auto';
+    const linha = [...MODOS, BYPASS].find((x) => x[0] === m);
+    chip.className = `chip botao-chip chip-modo modo-${m}`;
+    $('ico-modo').innerHTML = ICO_MODO[m] || ICO_MODO.default;
+    // Modo que o chip não oferece (ex.: dontAsk, posto pelo /config): aparece com o nome do Claude.
+    $('rotulo-modo').textContent = linha ? linha[3] : m;
+    if (!linha) $('rotulo-modo').setAttribute('data-sem-traducao', ''); else $('rotulo-modo').removeAttribute('data-sem-traducao');
+    // Com a barra apertada o nome some do chip: a dica e o leitor de tela continuam dizendo o modo.
+    const dica = `${tr('Modo de permissão')}: ${linha ? tr(linha[3]) : m} (${tr('Ctrl+Shift+M troca')})`;
+    chip.title = dica; chip.setAttribute('aria-label', dica);
+    $('faixa-bypass').hidden = m !== 'bypassPermissions' || i.motor === 'codex';
+    if (chip.hidden) fecharMenuModo();
+  }
+  function fecharMenuModo() { $('menu-modo').hidden = true; $('chip-modo').setAttribute('aria-expanded', 'false'); }
+  function desenharMenuModo() {
+    const atual = modoDaTela();
+    const linha = ([k, nome, desc]) => `<button type="button" role="menuitemradio" aria-checked="${atual === k}" data-modo="${k}" class="modo-${k}"><span class="ico-modo">${ICO_MODO[k]}</span><span class="opcao-texto"><span>${nome}</span><small>${desc}</small></span><span class="nome-tecnico" data-sem-traducao>${k}</span></button>`;
+    $('menu-modo').innerHTML = `<div class="menu-titulo">Modo de permissão</div>
+      <div class="menu-opcoes">${MODOS.map(linha).join('')}</div>
+      ${ofereceBypass() ? `<div class="menu-separador"></div><div class="menu-opcoes">${linha(BYPASS)}</div>` : ''}
+      <div id="confirma-modo"></div>
+      <p class="menu-nota"><span>Ctrl+Shift+M troca</span>${cfg.shiftTabTrocaModo === false ? '' : '<span> · Shift+Tab com a caixa vazia</span>'}</p>`;
+  }
+  function abrirMenuModo() {
+    fecharMenu(); fecharMenuUso(); fecharMenuMais();
+    desenharMenuModo();
+    const r = $('chip-modo').getBoundingClientRect();
+    const m = $('menu-modo');
+    m.hidden = false;
+    m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8))}px`;
+    m.style.top = `${r.bottom + 6}px`;
+    $('chip-modo').setAttribute('aria-expanded', 'true');
+  }
+  $('chip-modo').addEventListener('click', (ev) => { ev.stopPropagation(); if ($('menu-modo').hidden) abrirMenuModo(); else fecharMenuModo(); });
+  document.addEventListener('click', fecharMenuModo);
+  async function trocarModo(k) {
+    fecharMenuModo();
+    const r = await C.modo(ativa, k);
+    if (r && r.erro) { aviso(`O modo não trocou: ${r.erro}`, 'erro'); return; }
+    // O chip muda quando o Claude confirma (info.modo); aqui só o aviso para quem usa leitor de tela.
+    const linha = [...MODOS, BYPASS].find((x) => x[0] === k);
+    $('anuncio-modo').textContent = `${tr('Modo')}: ${linha ? tr(linha[3]) : k}`;
+    const chip = $('chip-modo');
+    chip.classList.remove('piscou'); void chip.offsetWidth; chip.classList.add('piscou');
+  }
+  // Pedido de troca: no orquestrador, sair do Auto pede confirmação; o Bypass
+  // confirma sempre. A confirmação mora dentro do menu.
+  function pedirModo(k) {
+    if (k === modoDaTela()) { fecharMenuModo(); return; }
+    const precisa = k === 'bypassPermissions' ? 'bypass' : ehOrquestrador() && k !== 'auto' ? 'orquestrador' : '';
+    if (!precisa) { trocarModo(k); return; }
+    if ($('menu-modo').hidden) abrirMenuModo();
+    const linha = [...MODOS, BYPASS].find((x) => x[0] === k);
+    $('confirma-modo').innerHTML = precisa === 'bypass'
+      ? `<div class="menu-confirma perigo"><span><strong>Ligar "Sem perguntas"?</strong> <span>O Claude vai editar arquivos e rodar comandos nesta pasta sem pedir. Vale só nesta conversa e desliga quando ela reiniciar.</span></span><div class="acoes"><button type="button" class="botao secundario" data-cancelar>Cancelar</button><button type="button" class="botao perigo" data-confirmar="${k}">Ligar nesta conversa</button></div></div>`
+      : `<div class="menu-confirma"><span><strong>Tirar o orquestrador do Auto?</strong> <span>Fora do Auto, a rodada para a cada comando de tmux ou docker até você responder.</span></span><div class="acoes"><button type="button" class="botao secundario" data-cancelar>Cancelar</button><button type="button" class="botao primario" data-confirmar="${k}"><span>Trocar para</span> <span>${linha[3]}</span></button></div></div>`;
+    $('confirma-modo').querySelector('[data-cancelar]').focus();
+  }
+  $('menu-modo').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.dataset.confirmar) trocarModo(b.dataset.confirmar);
+    else if (b.dataset.cancelar != null) $('confirma-modo').innerHTML = '';
+    else if (b.dataset.modo) pedirModo(b.dataset.modo);
+  });
+  $('sair-bypass').addEventListener('click', () => trocarModo('auto'));
+  // Ctrl+Shift+M (sempre) e Shift+Tab (caixa vazia, se a opção estiver ligada)
+  // andam pelos quatro modos. O Bypass nunca entra no ciclo.
+  function proximoModo() {
+    if ($('chip-modo').hidden) return;
+    const ordem = MODOS.map((m) => m[0]);
+    pedirModo(ordem[(ordem.indexOf(modoDaTela()) + 1) % ordem.length]);
+  }
+  document.addEventListener('keydown', (ev) => {
+    if (ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === 'm') { ev.preventDefault(); proximoModo(); }
+  });
+
+  // --- uso (chip da barra): contexto, 5 h e a janela longa num popover ---------
+  function fecharMenuUso() { $('menu-uso').hidden = true; $('chip-uso').setAttribute('aria-expanded', 'false'); }
+  $('chip-uso').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const abrir = $('menu-uso').hidden;
+    fecharMenu(); fecharMenuModo(); fecharMenuMais();
+    if (!abrir) { fecharMenuUso(); return; }
+    const r = $('chip-uso').getBoundingClientRect();
+    const m = $('menu-uso');
+    m.hidden = false;
+    m.style.left = `${Math.max(8, Math.min(r.right - m.offsetWidth, innerWidth - m.offsetWidth - 8))}px`;
+    m.style.top = `${r.bottom + 6}px`;
+    $('chip-uso').setAttribute('aria-expanded', 'true');
+  });
+  $('menu-uso').addEventListener('click', (ev) => ev.stopPropagation());
+  document.addEventListener('click', fecharMenuUso);
+  // "N em segundo plano" abre a lista de tarefas, onde dá para ver a saída e parar.
+  $('faixa-fundo').addEventListener('click', async () => {
+    const item = acharComando('tasks');
+    if (item && window.orqComandos) await window.orqComandos.executar(item, '', '/tasks');
+  });
 
   // --- popups: /config e /permissions ---------------------------------------
   const popup = $('popup');
   function abrirPopup(titulo, html) {
+    popup.classList.remove('popup-largo');
     $('popup-titulo').textContent = titulo;
     $('popup-corpo').innerHTML = html;
     popup.hidden = false;
   }
-  const fecharPopup = () => { popup.hidden = true; };
+  const fecharPopup = () => { popup.hidden = true; popup.classList.remove('popup-largo'); };
   $('fechar-popup').addEventListener('click', fecharPopup);
   popup.addEventListener('mousedown', (ev) => { if (ev.target === popup) fecharPopup(); });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !popup.hidden) fecharPopup(); });
 
-  // Opções do /config do Claude Code. Cada mudança vira "/config chave=valor"
-  // mandado à conversa (o Claude responde confirmando, na própria conversa).
-  const SIM_NAO = ['true', 'false'];
-  const OPCOES_CONFIG = [
-    ['model', 'Modelo padrão', ['default', 'sonnet', 'opus', 'haiku', 'fable', 'best', 'sonnet[1m]', 'opus[1m]', 'fable[1m]', 'opusplan']],
-    ['permissionMode', 'Modo de permissão', ['default', 'plan', 'acceptEdits', 'auto', 'dontAsk']],
-    ['outputStyle', 'Estilo de resposta', ['default', 'Proactive', 'Concise', 'Explanatory', 'Learning']],
-    ['thinking', 'Pensamento estendido', SIM_NAO],
-    ['autoCompact', 'Compactar sozinho', SIM_NAO],
-    ['checkpoints', 'Pontos de restauração', SIM_NAO],
-    ['recap', 'Resumo ao voltar (recap)', SIM_NAO],
-    ['promptSuggestionEnabled', 'Sugestão de prompt', SIM_NAO],
-    ['language', 'Idioma das respostas', null],
-    ['theme', 'Tema do terminal', ['auto', 'dark', 'light', 'light-daltonized', 'dark-daltonized', 'light-ansi', 'dark-ansi']],
-    ['timeFormat', 'Formato de hora', ['auto', '12-hour', '24-hour', '24-hour-utc']],
-    ['notifChannel', 'Canal de notificação', ['auto', 'iterm2', 'terminal_bell', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled']],
-    ['inputNeededNotifEnabled', 'Avisar quando precisar de você', SIM_NAO],
-    ['agentPushNotifEnabled', 'Notificação push dos agentes', SIM_NAO],
-    ['remoteControl', 'Controle remoto', ['true', 'false', 'default']],
-    ['editor', 'Modo do editor', ['normal', 'vim']],
-    ['gitignore', 'Respeitar .gitignore', SIM_NAO],
-    ['autoConnectIde', 'Conectar à IDE sozinho', SIM_NAO],
-    ['externalEditorContext', 'Contexto do editor externo', SIM_NAO],
-    ['prStatus', 'Status do PR', SIM_NAO],
-    ['progressBar', 'Barra de progresso', SIM_NAO],
-    ['autoScroll', 'Rolar sozinho', SIM_NAO],
-    ['copyFullResponse', 'Copiar resposta inteira', SIM_NAO],
-    ['copyOnSelect', 'Copiar ao selecionar', SIM_NAO],
-    ['reduceMotion', 'Reduzir animações', SIM_NAO],
-    ['tips', 'Dicas', SIM_NAO],
-    ['defaultToAgentsView', 'Abrir na visão de agentes', SIM_NAO],
-    ['leftArrowOpensAgents', 'Seta ← abre agentes', SIM_NAO],
-    ['switchModelsOnFlag', 'Trocar modelo ao ser sinalizado', ['Switch automatically', 'Ask each time']],
-  ];
+  // /config do Claude Code. As chaves vêm do texto "Usage: /config" do próprio
+  // CLI (config-claude.js): o da versão conferida por último ou, quando o CLI em
+  // uso mostra o dele na conversa, esse. O valor atual aparece onde o Claude
+  // informa (get_settings e o modo vivo); onde não informa fica "—". Cada
+  // mudança vira "/config chave=valor" mandado à conversa (ele confirma ali).
+  const CC = window.orqConfigClaude;
+  let usoConfig = CC.USO_CONFERIDO;
+  // O Claude mostrou o "Usage: /config" dele (o /config sem argumento, ou com chave errada): a lista passa a ser a dele.
+  function aprenderUsoConfig(texto) { if (CC.chavesDoUso(texto).length) usoConfig = texto; }
   function abrirPopupConfig() {
-    abrirPopup('Configurações do Claude', `<p class="popup-nota">Cada mudança é mandada ao Claude desta conversa como <code>/config chave=valor</code>; ele confirma na conversa.</p>` +
-      OPCOES_CONFIG.map(([k, nome, ops]) => `<label class="popup-linha"><span><strong>${esc(nome)}</strong><code>${esc(k)}</code></span>
-        ${ops ? `<select data-config="${esc(k)}"><option value="">—</option>${ops.map((o) => `<option>${esc(o)}</option>`).join('')}</select>`
-              : `<input data-config="${esc(k)}" type="text" placeholder="ex.: português">`}</label>`).join(''));
+    const grupos = CC.agrupar(CC.chavesDoUso(usoConfig));
+    const linha = (it) => `<label class="popup-linha" data-busca="${esc(`${it.rotulo} ${it.chave}`.toLowerCase())}"><span><strong${it.semRotulo ? ' data-sem-traducao' : ''}>${esc(it.rotulo)}</strong><code>${esc(it.chave)}</code>${it.soTerminal ? '<small class="so-terminal">só na tela do terminal do Claude Code; aqui a mudança é gravada, mas não se vê</small>' : ''}</span>
+        ${it.opcoes ? `<select data-config="${esc(it.chave)}" data-sem-traducao><option value="">—</option>${it.opcoes.map((o) => `<option>${esc(o)}</option>`).join('')}</select>`
+                    : `<input data-config="${esc(it.chave)}" type="text" placeholder="ex.: português">`}</label>`;
+    abrirPopup('Configurações do Claude Code', `<input type="search" id="busca-config-claude" class="campo-config busca-popup" placeholder="Buscar configuração" aria-label="Buscar configuração" autocomplete="off">
+      <p class="popup-nota">Cada mudança é mandada ao Claude desta conversa como <code>/config chave=valor</code>; ele confirma na conversa.</p>
+      ${grupos.map((g) => `<h3 class="config-secao">${g.grupo}</h3>${g.itens.map(linha).join('')}`).join('')}
+      <p class="popup-nota rodape-config-claude"><span>O valor aparece onde o Claude Code informa; "—" é sem informação. Estas são as configurações do Claude Code, não as do app:</span> <button type="button" class="botao-texto link-config" data-abrir-config-app>Configurações do app</button></p>`);
+    $('popup').classList.add('popup-largo');
+    const corpo = $('popup-corpo');
+    $('busca-config-claude').addEventListener('input', (ev) => {
+      const q = ev.target.value.trim().toLowerCase();
+      corpo.querySelectorAll('.popup-linha').forEach((l) => { l.hidden = !!q && !l.dataset.busca.includes(q); });
+      corpo.querySelectorAll('.config-secao').forEach((h) => { let n = h.nextElementSibling, tem = false; while (n && n.classList.contains('popup-linha')) { if (!n.hidden) tem = true; n = n.nextElementSibling; } h.hidden = !tem; });
+    });
+    corpo.querySelector('[data-abrir-config-app]').addEventListener('click', () => { fecharPopup(); $('abrir-config').click(); });
+    // Os valores atuais chegam em seguida (o popup já abre com as chaves).
+    const conversaDoPopup = ativa;
+    const preencher = (settings) => {
+      if (popup.hidden || ativa !== conversaDoPopup || !$('busca-config-claude')) return;
+      for (const el of corpo.querySelectorAll('[data-config]')) {
+        const v = CC.valorAtual(el.dataset.config, { settings, info: infoAtual });
+        if (v === undefined || el.closest('.popup-linha').classList.contains('mudou')) continue;
+        if (el.tagName === 'SELECT' && ![...el.options].some((o) => o.value === v)) el.add(new Option(v, v));
+        el.value = v;
+      }
+    };
+    preencher(null);
+    if (window.orq.comandos && window.orq.comandos.controle) window.orq.comandos.controle(conversaDoPopup, 'get_settings', {}).then((r) => { if (r && !r.erro) preencher(r); }).catch(() => {});
   }
   $('popup-corpo').addEventListener('change', async (ev) => {
     const el = ev.target.closest('[data-config]');
     if (!el || !el.value) return;
-    const v = /\s/.test(el.value) ? `"${el.value}"` : el.value;
-    await C.mandar(ativa, `/config ${el.dataset.config}=${v}`);
     el.closest('.popup-linha').classList.add('mudou');
+    await C.mandar(ativa, `/config ${el.dataset.config}=${CC.valorParaComando(el.value)}`);
   });
 
   // /permissions: regras allow/ask/deny do ~/.claude/settings.json.
@@ -849,6 +1247,8 @@
       pet.definir(ev.erro ? 'erro' : 'pronto');
     } else if (ev.tipo === 'fim' || ev.tipo === 'erro') {
       pet.definir('livre');
+    } else if (ev.tipo === 'encerrada' && ev.conversa) {
+      pet.definir('livre');
     } else if (ev.tipo === 'encerrada') {
       pet.definir('livre');
       pet.classe('acenando'); pet.falar('Tchau! Até a próxima rodada.', 3000);
@@ -857,14 +1257,19 @@
   }
 
   // Eventos de conversas que não estão na tela só mexem na lista da lateral.
-  C.aoTudo((id, r) => { if (id === ativa) redesenharTudo(r); });
+  C.aoTudo((id, r) => { if (id === ativa) { redesenharTudo(r); if (r.info) desenharFila(r.info); } });
   C.aoEvento((id, ev) => {
     if (id !== ativa) return;
     caixa.querySelector('.boas-vindas')?.remove();
-    desenharEvento(ev); rolar();
+    desenharEvento(ev); filaNoFim(); rolar();
     // Mensagem que o motor não aceitou: o texto volta para a caixa vazia.
     if (ev.devolver && !entrada.value.trim()) porNaCaixa(ev.devolver);
     if (id === 'orquestrador' && !ev.sub) petReage(ev);
+    // Faixa de atividade: a ferramenta em uso; quando o resultado dela chega, volta a "Pensando…".
+    if (!ev.sub && !ev.antigo && ev.message && Array.isArray(ev.message.content)) {
+      if (ev.tipo === 'assistant') for (const b of ev.message.content) { if (b.type === 'tool_use') faixaFerramenta(b.name, b.input || {}); }
+      else if (ev.tipo === 'user' && ev.message.content.some((b) => b.type === 'tool_result')) { fazendoAgora = ''; if (infoAtual.ocupado) $('trabalhando-texto').textContent = 'Pensando…'; }
+    }
   });
   let agendado = false;
   C.aoParcial((id, t) => {
@@ -910,13 +1315,13 @@
     const atual = l.find((c) => c.id === ativa);
     const aba = document.querySelector('[data-aba="aba-orquestrador"]');
     aba.lastChild.textContent = atual && !atual.orquestrador ? curto(atual.titulo, 24) : 'Orquestrador';
-    $('iniciar-rodada').hidden = !(atual && atual.orquestrador && cfg.comandoInicial);
-    $('desligar').hidden = !(atual && atual.orquestrador && cfg.comandoDesligar);
+    desenharRodada();
     $('palco-pet').hidden = !!(atual && !atual.orquestrador);
     try { desenharAprovacoes(); } catch { /* ainda carregando a tela */ }
     $('entrada').placeholder = atual && !atual.orquestrador
-      ? (atual.motor === 'codex' ? 'Escreva para o Codex…  (Enter envia · Shift+Enter quebra linha)' : 'Escreva para o Claude…  (Enter envia · Shift+Enter quebra linha)')
-      : 'Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)';
+      ? (atual.motor === 'codex' ? 'Escreva para o Codex…' : 'Escreva para o Claude…')
+      : 'Escreva para o orquestrador…';
+    desenharCaixaOcupada(infoAtual.ocupado === true);
   }
   C.aoLista(desenharLista);
   // Paleta Ctrl+K: conversas (com pergunta pendente = esperando você) e comandos.
@@ -1286,10 +1691,16 @@
   function ajustarAltura() { entrada.style.height = 'auto'; entrada.style.height = Math.min(entrada.scrollHeight, 220) + 'px'; }
   entrada.addEventListener('input', ajustarAltura);
   entrada.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('compositor').requestSubmit(); }
+    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); enviarAgora = ev.ctrlKey || ev.metaKey; $('compositor').requestSubmit(); }
+    // Shift+Tab só troca o modo com a caixa vazia (com texto, ele navega como sempre) e se a opção estiver ligada.
+    if (ev.key === 'Tab' && ev.shiftKey && !ev.ctrlKey && !ev.altKey && !entrada.value && cfg.shiftTabTrocaModo !== false && !$('chip-modo').hidden) { ev.preventDefault(); proximoModo(); }
   });
+  // Ctrl+Enter com o motor trabalhando: "enviar já" (parado, é um envio comum).
+  let enviarAgora = false;
   $('compositor').addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    const agora = enviarAgora;
+    enviarAgora = false;
     const t = entrada.value.trim();
     if (!t && !anexos.length && !arquivosAnexos.length) return;
     // Ponte antiga (app aberto antes da versão com imagens): ela só leva o
@@ -1328,9 +1739,20 @@
       e.enviar = `${e.enviar}${e.enviar ? '\n\n' : ''}Arquivos anexados (leia do disco):\n${arquivos.map((a) => `- ${a.caminho}`).join('\n')}`;
       e.exibir = `${e.exibir || t}${t ? '\n' : ''}📎 ${arquivos.map((a) => a.nome).join(', ')}`;
     }
-    await C.mandar(ativa, e.enviar, imagens, e.exibir);
+    await C.daCaixa(ativa, e.enviar, imagens, e.exibir, { agora });
   });
-  $('parar').addEventListener('click', () => C.interromper(ativa));
+  caixa.addEventListener('click', async (ev) => {
+    const ja = ev.target.closest('[data-fila-ja]'), tirar = ev.target.closest('[data-fila-tirar]');
+    if (ja) { ja.disabled = true; await C.fila(ativa, 'ja', ja.dataset.filaJa); }
+    else if (tirar) { tirar.disabled = true; await C.fila(ativa, 'tirar', tirar.dataset.filaTirar); }
+  });
+  $('faixa-fila').addEventListener('click', () => { const q = caixa.querySelector('.msg-fila'); if (q) q.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+  // Interromper (botão Parar ou Esc): a tela diz o que isso significa.
+  function interromperPorMim() {
+    C.interromper(ativa);
+    aviso('Interrompido por você. Arquivos já alterados continuam alterados.');
+  }
+  $('parar').addEventListener('click', interromperPorMim);
 
   // --- corrigir mensagem enviada ---------------------------------------------
   // ✎ no balão: VOLTA a conversa para antes daquela mensagem — ela e tudo o
@@ -1383,17 +1805,55 @@
   $('corrigindo-voltar').addEventListener('click', () => voltaPedida && voltarPara(voltaPedida));
   $('corrigindo-cancelar').addEventListener('click', fecharVolta);
   // A rodada não começa sozinha ao abrir o app: começa aqui.
-  $('iniciar-rodada').addEventListener('click', () => {
-    if (!cfg.comandoInicial) return;
-    colado = true;
-    pet.definir('pensando');
-    C.mandar('orquestrador', cfg.comandoInicial);
-  });
-  $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', () => {
-    colado = true;
-    if (cfg.comandoDesligar) C.mandar('orquestrador', cfg.comandoDesligar);
-  }));
+  $('iniciar-rodada').addEventListener('click', iniciarRodada);
+  $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', desligarRodada));
   $('nova-conversa').addEventListener('click', async () => trocar(await C.nova()));
+
+  // --- pilha única do Esc -----------------------------------------------------------
+  // Cada Esc faz UMA coisa, a primeira que valer, nesta ordem:
+  //   1. menu da barra aberto (ou a confirmação dentro dele) → fecha só isso;
+  //   2. lista de sugestões, popup, Configurações, paleta, visor → fecha quem está
+  //      por cima (cada um tem o próprio ouvinte; aqui só se garante que o Esc para ali);
+  //   3. "corrigindo" (voltar a conversa) → cancela;
+  //   4. motor ocupado → interrompe;
+  //   5. parado e com a caixa vazia, Esc Esc (em 0,6 s) → abre o voltar na última mensagem.
+  // Nunca interrompe com o foco num terminal ou num campo que não é a caixa da
+  // conversa, nem fora da aba da conversa: um Esc dentro do terminal pararia o
+  // orquestrador no meio de um comando. O texto da caixa nunca é apagado.
+  const POR_CIMA = '#popup:not([hidden]), #config:not([hidden]), .paleta-fundo:not([hidden]), #visor-imagem:not([hidden]), #guarda-roupa:not([hidden])';
+  const MENUS_DA_BARRA = [['menu-modelo', fecharMenu, 'botao-modelo'], ['menu-modo', fecharMenuModo, 'chip-modo'], ['menu-uso', fecharMenuUso, 'chip-uso'], ['menu-mais', fecharMenuMais, 'chip-mais']];
+  let ultimoEsc = 0;
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape' || ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return;
+    const parar = () => { ev.preventDefault(); ev.stopPropagation(); };
+    for (const [id, fechar, botao] of MENUS_DA_BARRA) {
+      if ($(id).hidden) continue;
+      const confirmando = $(id).querySelector('.menu-confirma');
+      if (confirmando) confirmando.parentElement.innerHTML = ''; else { fechar(); $(botao).focus(); }
+      parar();
+      return;
+    }
+    if (!$('sugestoes').hidden || document.querySelector(POR_CIMA)) return; // o dono fecha
+    if (!$('aba-orquestrador').classList.contains('ativa')) return;
+    const foco = document.activeElement;
+    // Foco fora da conversa (as colunas dos lados, a barra de cima): o Esc é de quem está lá
+    // (ex.: cancelar uma confirmação no painel de demandas), nunca uma parada do motor.
+    if (foco && foco !== document.body && !foco.closest('#aba-orquestrador')) return;
+    if (foco && foco !== entrada && (foco.closest('.xterm, .ProseMirror, [contenteditable="true"]') || foco.matches('input, textarea, select'))) return;
+    if (voltaPedida) { fecharVolta(); parar(); return; }
+    if (infoAtual.ocupado) { parar(); interromperPorMim(); return; }
+    if (entrada.value || infoAtual.motor === 'codex') return;
+    const agora = Date.now();
+    if (agora - ultimoEsc >= 600) { ultimoEsc = agora; return; }
+    ultimoEsc = 0;
+    // Esc Esc: pede a confirmação de voltar para antes da última mensagem (nada muda sem o "Voltar").
+    const ultima = [...caixa.querySelectorAll('.msg-voce[data-texto]')].pop();
+    if (!ultima) return;
+    parar();
+    voltaPedida = ultima;
+    $('corrigindo-texto').textContent = 'Voltar para antes da sua última mensagem? Ela e a resposta saem da conversa do Claude, e o texto volta para a caixa. A conversa antiga fica guardada.';
+    $('corrigindo').hidden = false;
+  }, true);
 
   // Configuração mudada na engrenagem: vale na hora (bichinho, comandos).
   window.addEventListener('orq:config', (ev) => {

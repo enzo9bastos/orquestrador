@@ -46,7 +46,7 @@
     <div class="controles-janela" aria-label="Janela">
       <button id="janela-min" type="button" title="Minimizar" aria-label="Minimizar"><svg viewBox="0 0 12 12"><path d="M2.5 6h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
       <button id="janela-max" type="button" title="Maximizar" aria-label="Maximizar"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
-      <button id="janela-fechar" class="fechar" type="button" title="Fechar o app e encerrar tudo, como o /exit: a próxima abertura começa uma rodada nova" aria-label="Fechar"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+      <button id="janela-fechar" class="fechar" type="button" title="Fechar o app e encerrar tudo: a próxima abertura começa uma rodada nova" aria-label="Fechar"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     </div>
   </header>
 
@@ -74,23 +74,49 @@
     </div>
     <div class="painel-corpo">
       <section id="aba-orquestrador" class="aba ativa conversa" aria-label="Conversa com o orquestrador">
+        <div id="faixa-bypass" class="faixa-bypass" role="status" hidden>
+          <svg class="ico" viewBox="0 0 16 16"><path d="M9 2 4 9h3.5L7 14l5-7H8.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          <span><strong>Sem perguntas:</strong> <span>o Claude roda tudo sem pedir. Vale só até esta conversa reiniciar.</span></span>
+          <button type="button" class="botao-texto" id="sair-bypass">Voltar ao Auto</button>
+        </div>
         <header class="conversa-barra">
           <span class="chip" title="Pasta"><svg class="ico"><use href="#i-pasta"/></svg><span id="info-pasta">~</span></span>
           <span class="seletor-modelo">
             <button id="botao-modelo" class="chip botao-chip" type="button" title="Trocar modelo e esforço" aria-haspopup="true" aria-expanded="false">
-              <svg class="ico"><use href="#i-estrela"/></svg><span id="info-modelo">—</span>
+              <svg class="ico"><use href="#i-estrela"/></svg><span id="info-modelo">—</span><span class="selo-chip selo-rapido" id="selo-rapido" title="Modo rápido ligado: cobrado à parte, em créditos de uso" hidden>rápido</span>
               <span class="divisor"></span><span id="info-esforco" class="esforco"></span><span class="seta">▾</span></button>
-            <div id="menu-modelo" class="menu-modelo" hidden>
+            <div id="menu-modelo" class="menu-modelo menu-do-modelo" role="menu" aria-label="Modelo e esforço" hidden>
               <div class="menu-titulo">Modelo</div>
               <div class="menu-opcoes" id="opcoes-modelo"></div>
+              <div id="outros-modelos"></div>
+              <div id="chaves-modelo"></div>
               <div class="menu-titulo">Esforço</div>
-              <div class="menu-opcoes" id="opcoes-esforco"></div>
+              <div class="linha-esforco" id="opcoes-esforco"></div>
               <p class="menu-nota">Troca sem reiniciar: o que roda em segundo plano continua. No Claude, só o esforço Máximo reinicia a conversa e encerra o que estiver em segundo plano.</p>
             </div>
           </span>
-          <span class="chip medidor" id="info-contexto" title="Contexto usado nesta conversa"></span>
-          <span class="chip medidor" id="info-5h" title="Uso da janela de 5 horas"></span>
-          <span class="chip medidor" id="info-7d" title="Uso da janela de 7 dias"></span>
+          <span class="seletor-modelo">
+            <button id="chip-modo" class="chip botao-chip chip-modo" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-modo">
+              <span class="ico-modo" id="ico-modo"></span><span class="rotulo-chip" id="rotulo-modo"></span><span class="seta">▾</span></button>
+            <div id="menu-modo" class="menu-modelo menu-modo" role="menu" aria-label="Modo de permissão" hidden></div>
+          </span>
+          <span id="anuncio-modo" class="so-leitor" aria-live="polite" data-sem-traducao></span>
+          <span class="espaco-barra" aria-hidden="true"></span>
+          <span class="seletor-modelo">
+            <button id="chip-uso" class="chip botao-chip chip-uso" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-uso" hidden>
+              <span class="anel" id="anel-uso"></span><span class="valor" data-sem-traducao></span><span class="alerta-uso" id="alerta-uso" data-sem-traducao hidden></span><span class="seta">▾</span></button>
+            <div id="menu-uso" class="menu-modelo menu-uso" hidden>
+              <div class="menu-titulo">Uso</div>
+              <div class="linha-uso" id="info-contexto" title="Contexto usado nesta conversa"></div>
+              <div class="linha-uso" id="info-5h" title="Uso da janela de 5 horas"></div>
+              <div class="linha-uso" id="info-7d" title="Uso da janela de 7 dias"></div>
+              <p class="menu-nota">O anel do botão mostra o contexto desta conversa. Se a janela de 5 horas ou a longa passar de 80%, o botão avisa com o número.</p>
+            </div>
+          </span>
+          <span class="seletor-modelo">
+            <button id="chip-mais" class="chip botao-chip chip-mais" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-mais" title="Mais ações desta conversa" aria-label="Mais ações desta conversa">⋯</button>
+            <div id="menu-mais" class="menu-modelo menu-mais" role="menu" aria-label="Mais ações desta conversa" hidden></div>
+          </span>
           <button id="iniciar-rodada" class="botao-texto iniciar-rodada" type="button" title="Manda o comando que abre a rodada ao orquestrador"><span class="rotulo-botao">Iniciar</span><svg class="ico so-icone" viewBox="0 0 16 16"><path d="M5 3.2v9.6L12.5 8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
           <button id="desligar" class="botao-texto perigo" type="button" title="Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança"><span class="rotulo-botao">Desligar</span><svg class="ico so-icone" viewBox="0 0 16 16"><path d="M8 2.5v5M4.6 4.6a4.8 4.8 0 1 0 6.8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
           <button id="nova-conversa" class="botao-texto sem-margem" type="button" title="Abre outra conversa com o Claude ao lado do orquestrador">+<span class="rotulo-botao"> Nova conversa</span></button>
@@ -99,15 +125,24 @@
           <div id="mensagens" class="mensagens" aria-live="polite"></div>
         </div>
         <form id="compositor" class="compositor">
-          <div id="trabalhando" class="trabalhando" hidden><span class="pontinhos"><i></i><i></i><i></i></span><span id="trabalhando-texto">Pensando…</span>
-            <button id="parar" class="botao-texto" type="button">Parar</button></div>
+          <div id="trabalhando" class="trabalhando faixa-atividade" hidden><span class="pontinhos"><i></i><i></i><i></i></span><span id="trabalhando-texto" class="faixa-estado" aria-live="polite">Pensando…</span>
+            <button id="faixa-fundo" class="faixa-item" type="button" title="Ver o que roda em segundo plano e parar (/tasks)" hidden></button>
+            <button id="faixa-fila" class="faixa-item" type="button" title="Mostrar as mensagens que esperam na fila" hidden></button>
+            <button id="parar" class="botao-texto" type="button" title="Interrompe o que o motor está fazendo (Esc)"><span>Parar</span> <kbd data-sem-traducao>Esc</kbd></button></div>
           <ul id="sugestoes" class="sugestoes" role="listbox" hidden></ul>
           <div id="anexos" class="anexos" hidden></div>
           <div id="corrigindo" class="corrigindo" hidden><span id="corrigindo-texto"></span> <button id="corrigindo-voltar" class="botao-texto" type="button">Voltar</button><button id="corrigindo-cancelar" class="botao-texto" type="button">Cancelar (Esc)</button></div>
           <div class="caixa-entrada">
             <button id="anexar" class="botao-anexar" type="button" title="Anexar arquivo ou imagem (também dá para arrastar ou colar)" aria-label="Anexar arquivo ou imagem"><svg class="ico" viewBox="0 0 16 16"><path d="M10.5 4.5 5.4 9.6a1.6 1.6 0 0 0 2.3 2.3l5.4-5.4a3 3 0 0 0-4.2-4.2L3.4 7.8a4.4 4.4 0 0 0 6.2 6.2l4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            <textarea id="entrada" rows="1" placeholder="Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)"></textarea>
+            <textarea id="entrada" rows="1" placeholder="Escreva para o orquestrador…"></textarea>
             <button id="enviar" class="botao-enviar" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-enviar"/></svg></button>
+          </div>
+          <div class="dicas-caixa" id="dicas-caixa">
+            <span><kbd data-sem-traducao>/</kbd> <span>comandos</span></span>
+            <span><kbd data-sem-traducao>@</kbd> <span>nota ou workflow</span></span>
+            <span id="dica-esc" hidden><kbd data-sem-traducao>Esc</kbd> <span>para o motor</span></span>
+            <span class="dica-enter" id="dica-enter"></span>
+            <button type="button" class="dica-atalhos" id="abrir-atalhos" title="Todos os atalhos (Ctrl+/)">? <span>Atalhos</span></button>
           </div>
         </form>
       </section>
@@ -403,6 +438,12 @@
               <input class="campo-config" data-cfg="comandoDesligar" placeholder="/desligar">
             </div>
             <div class="config-linha">
+              <div><strong>Botão Iniciar / Desligar</strong><span>Na barra da conversa do orquestrador (um por vez: Iniciar antes da rodada, Desligar com ela aberta) ou dentro do menu ⋯. O menu ⋯ tem sempre os dois.</span></div>
+              <div class="segmentado" id="config-iniciar-desligar">
+                <button type="button" data-v="barra">Na barra</button><button type="button" data-v="menu">No menu ⋯</button>
+              </div>
+            </div>
+            <div class="config-linha">
               <div><strong>Reiniciar o app</strong><span>Aplica as atualizações. As conversas continuam de onde pararam, com toda a memória; só uma resposta em andamento é interrompida.</span></div>
               <button type="button" class="botao-texto" id="reiniciar-app">Reiniciar mantendo as conversas</button>
             </div>
@@ -495,6 +536,10 @@
           <div class="config-painel" role="tabpanel" id="config-sec-atalhos" data-secao="atalhos" aria-labelledby="config-aba-atalhos" tabindex="-1" hidden>
             <h3 class="config-secao">Atalhos</h3>
             <p class="nota atalhos-intro">Clique na combinação e aperte as teclas novas (Esc cancela). Precisa de Ctrl, Alt ou Cmd junto com outra tecla. Uma combinação que o app ou o sistema já usa é recusada.</p>
+            <div class="config-linha">
+              <div><strong>Shift+Tab troca o modo de permissão</strong><span>Com a caixa de texto vazia, como no terminal. Ctrl+Shift+M troca sempre.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="shiftTabTrocaModo"><span></span></label>
+            </div>
             <div class="config-linha" data-atalho-coluna="agentes">
               <div><strong>Recolher ou abrir os agentes</strong><span>A coluna da esquerda, com as conversas e os agentes.</span></div>
               <div class="atalho-controles">
@@ -515,6 +560,10 @@
           </div>
           <div class="config-painel" role="tabpanel" id="config-sec-avancado" data-secao="avancado" aria-labelledby="config-aba-avancado" tabindex="-1" hidden>
             <h3 class="config-secao">Avançado</h3>
+            <div class="config-linha">
+              <div><strong>Modo "Sem perguntas" (Bypass)</strong><span>Mostra o modo no menu de permissão das conversas avulsas. Nele o Claude edita arquivos e roda comandos sem pedir: confirma a cada vez, fica com a faixa vermelha e desliga quando a conversa reinicia. Nunca vale para o orquestrador.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="mostrarBypass"><span></span></label>
+            </div>
             <div class="config-linha">
               <div><strong>Achar o que criei nas ferramentas de IA</strong><span>Repertório: skills, comandos, subagentes, prompts e workflows do Claude, Codex, Gemini, OpenCode, Qwen, Windsurf, Cursor e do padrão dos agentes.</span></div>
               <label class="chave"><input type="checkbox" data-cfg="detectarFerramentas"><span></span></label>
@@ -553,6 +602,7 @@
 
   <script src="i18n.js"></script>
   <script src="atalhos-lista.js"></script>
+  <script src="config-claude.js"></script>
   <script src="util.js"></script>
   <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>

@@ -15,6 +15,7 @@ of opening a public issue.
 | Orchestrator conversation on Codex | `codex app-server` **outside the Codex sandbox** (`sandbox: 'danger-full-access'`), approval policy `untrusted`, with Codex's automatic reviewer (`approvalsReviewer: 'auto_review'`) | The orchestrator needs `tmux` and `docker`, which the Codex sandbox blocks even for an approved command. Read-only commands run directly; the reviewer decides the rest by risk, and a denial shows up in the conversation |
 | Side request to Codex (`orq-recado pedir … --motor codex`) | `codex exec --dangerously-bypass-approvals-and-sandbox` **inside a throwaway container** | Codex's own sandbox does not work inside a container, so it runs without approvals or sandbox there. The limits come from Docker: the container is removed at the end (`--rm`), uses the dev container's firewall, and mounts the project read-only unless you approved writing |
 | Side conversations and terminals | your user | Same as above for conversations; terminals are plain shells |
+| Side conversation in "no questions" mode (Bypass) | `claude` with `bypassPermissions`, **only if you turn on the option** in Settings (off by default) and pick the mode in that conversation | Claude edits files and runs commands without asking. The mode is never offered in the orchestrator conversation nor to the desktop helper; the app confirms every time, keeps a red strip on screen while it is on, and a restart goes back to `auto`. The process only starts with `--allow-dangerously-skip-permissions` (which makes the mode selectable, not active) in side conversations and while the option is on |
 | Agents | Claude Code in tmux, ideally inside a dev container | Whatever their own permission settings allow |
 | Workflows | your user | `Command` steps run `bash -lc`; `Claude` steps run `claude -p`; folder triggers react to any file dropped in the watched folder |
 | Desktop helper | separate Electron process | Can take a screenshot of an area **you** select (saved locally under `~/.cache/orq-app/`); talks to the app over a local socket (mode 600) |
@@ -38,8 +39,9 @@ of opening a public issue.
 No flag that turns off approvals or the sandbox (`--dangerously-*`, `--yolo`, `--force`, `bypassPermissions`,
 `danger-full-access`, approval policy `never`) goes in silently. A test
 (`app/tests/unit/higiene-flags.test.js`) scans the code that builds the AI command lines and fails on any such
-flag outside a named list, where each exception says why. Today the list has the two rows above: the Codex
-orchestrator outside the sandbox with `auto_review`, and the Codex side request inside its container.
+flag outside a named list, where each exception says why. Today the list has the three rows above: the Codex
+orchestrator outside the sandbox with `auto_review`, the Codex side request inside its container, and the
+"no questions" mode of a side conversation, which only exists behind a Settings option that is off by default.
 
 ## Known limits
 

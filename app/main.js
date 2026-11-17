@@ -372,6 +372,19 @@ ipcMain.handle('conversa:mandar', (_e, id, texto, imagens = [], exibir = null) =
   if (!t && !imgs.length) return false;
   return conversa.mandar(id, t, imgs, typeof exibir === 'string' ? exibir : null);
 });
+// O que o usuário manda pela caixa de texto: parado vai na hora; com o motor
+// trabalhando espera na fila do app (agora: "enviar já", na frente da fila).
+ipcMain.handle('conversa:daCaixa', (_e, id, texto, imagens = [], exibir = null, opcoes = null) => {
+  ajudante.limparAcoes(id);
+  const imgs = (Array.isArray(imagens) ? imagens : []).filter((i) => i && TIPOS_IMAGEM.includes(i.tipo) && typeof i.dados === 'string' && i.dados.length < 7_000_000).slice(0, 6);
+  const t = typeof texto === 'string' ? texto.trim() : '';
+  if (!t && !imgs.length) return false;
+  return conversa.daCaixa(id, t, imgs, typeof exibir === 'string' ? exibir : null, { agora: !!(opcoes && opcoes.agora === true) });
+});
+ipcMain.handle('conversa:fila', (_e, id, acao, idFila) => {
+  if (typeof idFila !== 'string') return false;
+  return acao === 'tirar' ? conversa.tirarDaFila(id, idFila) : acao === 'ja' ? conversa.enviarJaDaFila(id, idFila) : false;
+});
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));
 // Voltar a conversa para antes de uma mensagem: devolve { ok, texto } ou
@@ -393,14 +406,18 @@ const comandosApp = require('./comandos-app');
 const seguro = (fn) => async (_e, ...a) => { try { return await fn(...a); } catch (e) { return { erro: String((e && e.message) || e) }; } };
 // Só os pedidos que os comandos usam: a tela não manda pedido qualquer ao motor.
 const CONTROLES = ['get_status', 'get_memory_dialog', 'get_skills_dialog', 'get_hooks_listing', 'export_conversation', 'get_plan',
-  'get_workspace_diff', 'side_question', 'submit_feedback', 'stop_task', 'background_tasks', 'get_task_output', 'set_permission_mode', 'mcp_status'];
+  'get_workspace_diff', 'side_question', 'submit_feedback', 'stop_task', 'background_tasks', 'get_task_output', 'set_permission_mode', 'mcp_status', 'get_settings'];
 const METODOS_CODEX = ['thread/compact/start', 'review/start', 'thread/name/set', 'thread/list', 'thread/archive', 'thread/backgroundTerminals/list',
   'thread/backgroundTerminals/clean', 'mcpServerStatus/list', 'skills/list', 'hooks/list', 'account/rateLimits/read', 'config/read'];
 const pastaDa = (id) => { const e = conversa.estadoComando(id); return (e.init && e.init.pasta) || e.info.pasta || conversa.PASTA; };
 ipcMain.handle('cmd:controle', seguro((id, subtype, extra = {}) => {
   if (!CONTROLES.includes(subtype)) throw new Error(`pedido não liberado: ${subtype}`);
+  // O modo só passa por aqui se for um dos do chip; o Bypass tem caminho próprio (conversa:modo), com as regras dele.
+  if (subtype === 'set_permission_mode' && !conversa.MODOS_DO_CHIP.includes(extra && extra.mode)) throw new Error('modo não liberado por este caminho');
   return conversa.controle(id, subtype, extra && typeof extra === 'object' ? extra : {}, subtype === 'side_question' ? 120000 : 20000);
 }));
+// Chip de modo: troca ao vivo; erro (ex.: Bypass onde não pode) volta como { erro }.
+ipcMain.handle('conversa:modo', seguro(async (id, modo) => { await conversa.definirModo(id, modo); return { ok: true }; }));
 ipcMain.handle('cmd:codex', seguro((id, metodo, params = {}) => {
   if (!METODOS_CODEX.includes(metodo)) throw new Error(`método não liberado: ${metodo}`);
   return conversa.codexPedir(id, metodo, params && typeof params === 'object' ? params : {});
@@ -410,6 +427,9 @@ ipcMain.handle('cmd:rapido', seguro((id, ligar) => conversa.rapido(id, !!ligar))
 ipcMain.handle('cmd:pastaExtra', seguro((id, p) => ({ pasta: conversa.pastaExtra(id, p) })));
 ipcMain.handle('cmd:threadNova', seguro((id) => conversa.threadNova(id)));
 ipcMain.handle('cmd:pausar', seguro((id) => conversa.pausar(id)));
+// /exit: fecha só aquela conversa (o app continua); reabrir desfaz.
+ipcMain.handle('cmd:encerrar', seguro((id) => ({ ok: conversa.encerrarConversa(id) })));
+ipcMain.handle('cmd:reabrir', seguro((id) => ({ ok: conversa.reabrirAnterior(id) })));
 ipcMain.handle('cmd:ramificar', seguro(async (id, msg) => ({ id: await conversa.ramificar(id, typeof msg === 'string' ? msg.slice(0, 20000) : '') })));
 ipcMain.handle('cmd:retomar', seguro((sessao, motor, titulo) => ({ id: conversa.retomar(sessao, motor, titulo) })));
 ipcMain.handle('cmd:memoria', seguro(async (id) => {

@@ -35,8 +35,8 @@ test('0.B11: com o bichinho ligado e a barra cheia, o Parar fica visível e clic
     assert.strictEqual(await app.visivel('#parar'), 'ok');
   });
 
-  await t.test('a barra cabe: Nova conversa, Desligar e Iniciar inteiros', async () => {
-    for (const b of ['#nova-conversa', '#desligar', '#iniciar-rodada', '#botao-modelo']) assert.strictEqual(await app.visivel(b), 'ok', b);
+  await t.test('a barra cabe: Nova conversa, o botão da rodada, o ⋯ e o modelo inteiros', async () => {
+    for (const b of ['#nova-conversa', '#iniciar-rodada', '#chip-mais', '#chip-modo', '#botao-modelo']) assert.strictEqual(await app.visivel(b), 'ok', b);
   });
 
   await t.test('sem a faixa, o bichinho desce de novo até a caixa', async () => {

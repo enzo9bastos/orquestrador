@@ -65,9 +65,27 @@ protocol), so there is no terminal to babysit.
   **Allow / Deny** on permission requests, `/command` autocomplete.
 - The conversation follows the free space (up to 1200 px wide): answers on the left, your messages on the right,
   each side leaving a margin for the other; running text stops at a comfortable reading width.
-- Model and effort switcher, context and usage meters (5-hour and 7-day windows) in the top bar; each reply shows
-  its time next to Claude's name (with the date when it is from another day).
-- **Start** sends your round-opening command (e.g. a skill of yours); **Shut down** ends the round safely.
+- **The conversation bar** has four chips and a ⋯ menu: the folder; the **model and effort** (the main models,
+  "Opus plans, Sonnet executes", effort with the arrows, and a fast-mode switch on models that have it); the
+  **permission mode** (Ask, Accept edits, Auto, Plan — switched live, also with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>
+  or <kbd>Shift</kbd>+<kbd>Tab</kbd> on an empty box); and **usage** in one chip (a ring with the context; the
+  5-hour and 7-day windows inside, and a badge on the chip when one goes past 80%). The ⋯ menu gathers quick
+  question, export, Claude Code settings, permissions, memory, status and *End this conversation*. When the window
+  is narrow the chips keep only their icons. Each reply shows its time next to Claude's name.
+- **While Claude works**, an activity strip above the box says what it is doing now, how many tasks run in the
+  background and how many of your messages wait, with **Stop** (<kbd>Esc</kbd>). <kbd>Enter</kbd> then **queues**
+  your message (a dashed bubble with *Send now* and *Remove*; the queue moves one message per turn) and
+  <kbd>Ctrl</kbd>+<kbd>Enter</kbd> **steers**: it interrupts and sends that message first. If you stop Claude
+  yourself, the queue waits for you instead of firing.
+- **Esc does one thing at a time**: it closes what is on top (a menu, a popup), and only then interrupts Claude.
+  It never interrupts while you are in a terminal or in another field. The row under the box always says what the
+  keys do, and *? Shortcuts* (<kbd>Ctrl</kbd>+<kbd>/</kbd>) lists them all.
+- **Start** sends your round-opening command (e.g. a skill of yours); **Shut down** ends the round safely. They
+  live only in the orchestrator conversation and show one at a time (a Settings option moves them into the ⋯ menu).
+- **`/exit` ends only that conversation**: its session is kept, the screen clears, the next message starts a new
+  session and *Go back to the previous session* undoes it. Closing the app is the window's close button.
+- **"No questions" (Bypass) mode** only exists if you turn it on in Settings › Advanced, only in side
+  conversations, confirms every time and keeps a red strip on screen. See [SECURITY.md](SECURITY.md).
 - Paste, drag or attach (📎) screenshots and files — images go as images, other files by their path; right-click a
   misspelled word for suggestions (Portuguese and English); `//skill` uses anything from the Library; `@note:` and
   `@workflow:` attach a note or a workflow; code blocks have *Copy* and *▶ Terminal*.
@@ -271,6 +289,9 @@ in [`examples/CONFIGURATION.md`](examples/CONFIGURATION.md).
 | `raizProjetos`, `niveis` | Where your projects are: `<root>/<project>` or `<root>/<group>/<project>` |
 | `pastasNotas` | Folders the notes editor opens |
 | `comandoInicial`, `comandoDesligar` | Commands sent by the **Start** and **Shut down** buttons |
+| `iniciarDesligar` | Where Start / Shut down live: `"barra"` (on the conversation bar, the default) or `"menu"` (inside the ⋯ menu) |
+| `shiftTabTrocaModo` | <kbd>Shift</kbd>+<kbd>Tab</kbd> on an empty box switches the permission mode (default `true`) |
+| `mostrarBypass` | Offers the "No questions" (Bypass) mode in side conversations (default `false`; see [SECURITY.md](SECURITY.md)) |
 | `linhaTarefa`, `comandoOrdem` | Regular expressions that tell the app what each agent is working on |
 | `ambiente` | Extra environment variables for the app's conversations and terminals |
 | `iaOrquestrador`, `iaAgentes` | Which AI CLI runs the orchestrator (`claude` or `codex`) and the new agents |
