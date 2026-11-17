@@ -1643,6 +1643,7 @@
     "só existe na tela do terminal do Claude; nesta conversa ele não roda.": "only exists in Claude's terminal screen; it does not run in this conversation.",
     "Abrir no terminal": "Open in the terminal",
     "Buscar nesta conversa": "Search this conversation",
+    "Copiar esta resposta": "Copy this reply",
     "Anterior": "Previous",
     "Próxima": "Next",
     "Anterior (Shift+Enter)": "Previous (Shift+Enter)",

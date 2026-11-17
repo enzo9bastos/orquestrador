@@ -87,6 +87,8 @@ há terminal para vigiar.
   Configurações leva os dois para dentro do menu ⋯).
 - **O `/exit` encerra só aquela conversa**: a sessão fica guardada, a tela limpa, a próxima mensagem começa uma
   sessão nova e *Voltar à sessão anterior* desfaz. Quem fecha o app é o botão de fechar da janela.
+- **Copiar a resposta**: cada resposta tem um botão que copia o texto dela em Markdown, sem as linhas de
+  ferramenta (o mesmo que o `/copy`). Na última resposta ele fica sempre à vista.
 - **Buscar na conversa** (Ctrl+F): marca o que achou só nas mensagens daquela conversa; Enter e Shift+Enter andam
   entre os achados e o Esc fecha a barra sem parar o motor.
 - **Comando que só existe no terminal**: quando o Claude responde que um comando "isn't available in this

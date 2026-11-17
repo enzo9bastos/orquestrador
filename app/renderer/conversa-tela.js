@@ -38,7 +38,8 @@
     const ms = horaEvento === undefined ? Date.now() : horaEvento;
     // Quem responde: o Claude ou o Codex (motor da conversa aberta).
     const autor = infoAtual.motor === 'codex' ? '<span class="marca-claude marca-codex">◎</span>Codex' : '<span class="marca-claude">✳</span>Claude';
-    grupo.innerHTML = `<div class="autor">${autor}${ms ? `<time class="hora-msg" data-sem-traducao title="${esc(new Date(ms).toLocaleString('pt-BR'))}">${esc(horario(ms))}</time>` : ''}</div>`;
+    grupo.innerHTML = `<div class="autor">${autor}${ms ? `<time class="hora-msg" data-sem-traducao title="${esc(new Date(ms).toLocaleString('pt-BR'))}">${esc(horario(ms))}</time>` : ''}
+      <button type="button" class="copiar-resposta" title="Copiar esta resposta" aria-label="Copiar esta resposta"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.500 3v5A1.500 1.500 0 0 0 4 9.500h.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span class="feito" aria-hidden="true">✓</span></button></div>`;
     caixa.append(grupo);
     return grupo;
   }
@@ -186,10 +187,24 @@
     el.append(pre);
   }
 
+  // O Markdown de cada bloco de texto, como o motor escreveu: é o que o botão de
+  // copiar e o /copy levam (não o texto já desenhado).
+  const fonteMd = new WeakMap();
+  const markdownDoGrupo = (g) => [...g.querySelectorAll('.texto-claude:not(.rascunho)')]
+    .map((x) => String(fonteMd.has(x) ? fonteMd.get(x) : x.innerText).trim()).filter(Boolean).join('\n\n');
+  async function copiarResposta(botao) {
+    const texto = markdownDoGrupo(botao.closest('.msg-claude'));
+    if (!texto) return;
+    try { await navigator.clipboard.writeText(texto); } catch (e) { aviso(`Não consegui copiar: ${e.message}`, 'erro'); return; }
+    botao.classList.add('copiado');
+    botao.title = 'Copiado';
+    setTimeout(() => { botao.classList.remove('copiado'); botao.title = 'Copiar esta resposta'; }, 1500);
+  }
   function textoClaude(t) {
     if (!t.trim()) return;
     const el = document.createElement('div');
     el.className = 'md texto-claude';
+    fonteMd.set(el, t);
     el.innerHTML = md(t);
     marcarCaminhos(el);
     linkificarDominios(el);
@@ -540,6 +555,8 @@
   }
 
   caixa.addEventListener('click', async (ev) => {
+    const cr = ev.target.closest('.copiar-resposta');
+    if (cr) { copiarResposta(cr); return; }
     const bc = ev.target.closest('[data-codigo]');
     if (bc) {
       const texto = bc.closest('.caixa-codigo').querySelector('pre code, pre')?.textContent ?? '';
@@ -1287,14 +1304,17 @@
     }
   });
   let agendado = false;
-  C.aoParcial((id, t) => {
-    if (id !== ativa) return;
-    if (t == null) { limparRascunho(); if (id === 'orquestrador') pet.definir('pensando'); return; }
+  function desenharParcial(t) {
     rascunhoTexto += t;
     if (!rascunho) { rascunho = document.createElement('div'); rascunho.className = 'md texto-claude rascunho'; noGrupo(rascunho); }
     if (agendado) return;
     agendado = true;
     requestAnimationFrame(() => { agendado = false; if (rascunho) { rascunho.innerHTML = md(rascunhoTexto); rolar(); } });
+  }
+  C.aoParcial((id, t) => {
+    if (id !== ativa) return;
+    if (t == null) { limparRascunho(); if (id === 'orquestrador') pet.definir('pensando'); return; }
+    desenharParcial(t);
   });
   C.aoPedido((id, p) => {
     if (id === 'orquestrador') pet.definir('chamando', p.ferramenta === 'AskUserQuestion' ? 'Uma pergunta pra você!' : 'Preciso da sua permissão!');
@@ -1659,7 +1679,7 @@
     resposta: (n = 1) => {
       const grupos = [...caixa.querySelectorAll('.msg-claude')].filter((g) => g.querySelector('.texto-claude:not(.rascunho)'));
       const g = grupos[grupos.length - Math.max(1, Number(n) || 1)];
-      return g ? [...g.querySelectorAll('.texto-claude:not(.rascunho)')].map((x) => x.innerText.trim()).join('\n\n') : null;
+      return g ? markdownDoGrupo(g) : null;
     },
   };
   // Atalhos com tecla (Ctrl+Alt+1..9): enviam direto ou só escrevem na caixa.
@@ -1986,5 +2006,5 @@
     new MutationObserver(agendarAjuste).observe(barra, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
   }
 
-  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, caminhosAbertos, expandir: (t) => expandir(t) };
+  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, desenharParcial, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, caminhosAbertos, expandir: (t) => expandir(t) };
 })();

@@ -84,6 +84,8 @@ protocol), so there is no terminal to babysit.
   live only in the orchestrator conversation and show one at a time (a Settings option moves them into the ⋯ menu).
 - **`/exit` ends only that conversation**: its session is kept, the screen clears, the next message starts a new
   session and *Go back to the previous session* undoes it. Closing the app is the window's close button.
+- **Copy the reply**: each reply has a button that copies its text as Markdown, without the tool lines (the same
+  as `/copy`). On the last reply it is always visible.
 - **Search the conversation** (Ctrl+F): highlights matches in that conversation's messages only; Enter and
   Shift+Enter move between them and Esc closes the bar without stopping the engine.
 - **A command that only exists in the terminal**: when Claude answers that a command "isn't available in this
