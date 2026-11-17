@@ -122,6 +122,14 @@ que no hay ninguna terminal que vigilar.
   herramienta (lo mismo que `/copy`). En la última respuesta queda siempre a la vista.
 - **Buscar en la conversación** (Ctrl+F): marca lo encontrado solo en los mensajes de esa conversación; Enter y
   Shift+Enter se mueven entre los resultados y Esc cierra la barra sin parar el motor.
+- **Pregunta rápida** (`/btw`, o ⋯ › *Quick question*): un panel sobre la columna derecha donde preguntas sobre
+  la conversación mientras Claude sigue trabajando. La pregunta y la respuesta no entran en la conversación; Claude
+  responde solo con lo que ya está en ella (sin ejecutar comandos ni leer archivos). La pregunta siguiente ve las
+  anteriores; puedes detener una pregunta, copiar una respuesta o vaciar la lista, que vive en memoria hasta cerrar
+  la app. Un aviso que Claude Code devuelve en lugar de la respuesta (un error de inicio de sesión, por ejemplo) se
+  muestra como error, no como respuesta. Esc cierra el panel cuando el teclado está en él; en la caja de mensaje,
+  Esc sigue deteniendo el motor. Solo en conversaciones de Claude: en una de Codex, `/btw` sigue siendo el `/side`
+  de Codex.
 - **Comando que solo existe en la terminal**: cuando Claude responde que un comando "isn't available in this
   environment", la app explica qué significa y ofrece *Open in the terminal*, que pega en la terminal de la app
   Claude con una copia de la conversación y el comando. Nada se ejecuta hasta que pulses Enter allí.

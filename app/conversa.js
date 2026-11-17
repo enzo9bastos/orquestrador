@@ -23,6 +23,7 @@ const voltarArquivos = require('./voltar-arquivos');
 const permissoes = require('./permissoes');
 const elicitacao = require('./elicitacao');
 const capacidades = require('./capacidades');
+const perguntaDeLado = require('./pergunta-de-lado');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
 const TESTE = process.env.ORQ_APP_TESTE === '1';
@@ -386,6 +387,8 @@ class Conversa {
     this.pedidosEsforco = new Set(); // apply_flag_settings ainda sem resposta
     // Comandos do "/" que o app faz por pedido de controle: request_id → { ok, falha, timer }.
     this.controles = new Map();
+    // Pergunta rápida (/btw): as perguntas e respostas desta conversa, só na memória.
+    this.lado = { trocas: [], pendente: null, n: 0 };
     // Modo rápido (/fast): true/false escolhido aqui; null = o padrão do Claude.
     this.rapido = typeof rapido === 'boolean' ? rapido : null;
     // Pastas extras de trabalho (/add-dir), passadas em toda subida.
@@ -642,6 +645,12 @@ class Conversa {
           this.avisarInfo();
         }
         if (d.subtype === 'status' && d.permissionMode) this.guardarModo(d.permissionMode);
+        // Andamento de um pedido do app que demora: hoje, só a pergunta rápida (/btw).
+        if (d.subtype === 'control_request_progress') {
+          const p = this.lado.pendente;
+          const a = p && p.reqId && d.request_id === p.reqId ? perguntaDeLado.conferirAndamento(d) : null;
+          if (a) { p.andamento = a; this.ladoAvisar(); }
+        }
         // Tarefas em segundo plano (o /tasks do app).
         if (d.subtype === 'task_started' && d.task_id) this.tarefas.set(d.task_id, { id: d.task_id, descricao: d.description || '', tipo: d.subagent_type || d.task_type || '', status: 'running', inicio: Date.now() });
         if ((d.subtype === 'task_notification' || d.subtype === 'task_updated') && d.task_id) {
@@ -1192,7 +1201,8 @@ class Conversa {
   // aberto, sobe ele antes (o pedido não precisa de mensagem). Sem resposta em
   // ms, desiste (o Claude antigo que não conhece o pedido responde erro; um
   // travado não segura a tela).
-  controle(subtype, extra = {}, ms = 20000, prefixo = 'cmd') {
+  // aoMandar(id): quem pede fica sabendo o número do pedido (para poder desistir dele).
+  controle(subtype, extra = {}, ms = 20000, prefixo = 'cmd', aoMandar = null) {
     if (this.motor === 'codex') return Promise.reject(new Error('pedido do Claude numa conversa Codex'));
     if (!this.proc) this.iniciar();
     return new Promise((ok, falha) => {
@@ -1201,9 +1211,67 @@ class Conversa {
       this.controles.set(id, { ok, falha, timer });
       if (!this.escrever({ type: 'control_request', request_id: id, request: { subtype, ...extra } })) {
         this.controles.delete(id); clearTimeout(timer); falha(new Error('o Claude não está aberto'));
-      }
+      } else if (aoMandar) aoMandar(id);
     });
   }
+  // --- pergunta rápida (/btw; pergunta-de-lado.js) -------------------------------
+  // Uma pergunta sobre a conversa que o Claude responde sem entrar nela e sem parar o
+  // que está fazendo. As perguntas e respostas ficam só aqui, na memória: não vão para a
+  // conversa nem para o disco, e somem quando o app fecha (como no terminal).
+  ladoEstado() {
+    const p = this.lado.pendente;
+    return {
+      motor: this.motor,
+      trocas: this.lado.trocas.map((t) => ({ ...t })),
+      pendente: p ? { id: p.id, pergunta: p.pergunta, desde: p.desde, andamento: p.andamento } : null,
+    };
+  }
+  ladoAvisar() { this.enviar('conversa:lado', this.ladoEstado()); }
+  // { ok: true, troca } com a resposta, ou { ok: false, erro } (a pergunta nem saiu) ou
+  // { ok: false, troca } (saiu e não teve resposta: troca.erro diz por quê).
+  async ladoPerguntar(texto) {
+    if (this.motor === 'codex') return { ok: false, erro: 'a pergunta rápida é do Claude; numa conversa do Codex, use o /side' };
+    const c = perguntaDeLado.conferirPergunta(texto);
+    if (!c.ok) return c;
+    if (this.lado.pendente) return { ok: false, erro: 'espere a resposta da pergunta anterior, ou pare ela' };
+    const p = { id: ++this.lado.n, pergunta: c.pergunta, desde: Date.now(), andamento: null, reqId: null, parada: false };
+    const troca = { id: p.id, pergunta: p.pergunta, quando: p.desde };
+    this.lado.pendente = p;
+    this.ladoAvisar();
+    try {
+      const pedido = { question: p.pergunta, history: perguntaDeLado.historico(this.lado.trocas) };
+      const r = perguntaDeLado.conferirResposta(await this.controle('side_question', pedido, perguntaDeLado.ESPERA_MS, 'lado', (id) => { p.reqId = id; }));
+      if (r.ok) Object.assign(troca, { resposta: r.resposta, reserva: r.reserva });
+      else Object.assign(troca, { erro: r.motivo, detalhe: r.detalhe });
+    } catch (e) {
+      const m = p.parada ? { motivo: 'parada', detalhe: '' } : perguntaDeLado.motivoDoErro(e);
+      // O app desistiu de esperar: o Claude também para de gastar com a pergunta.
+      if (m.motivo === 'demorou' && p.reqId) this.escrever({ type: 'control_cancel_request', request_id: p.reqId });
+      Object.assign(troca, { erro: m.motivo, detalhe: m.detalhe });
+    }
+    troca.ms = Date.now() - p.desde;
+    if (this.lado.pendente === p) this.lado.pendente = null;
+    this.lado.trocas.push(troca);
+    if (this.lado.trocas.length > perguntaDeLado.MAX_TROCAS) this.lado.trocas = this.lado.trocas.slice(-perguntaDeLado.MAX_TROCAS);
+    this.ladoAvisar();
+    return { ok: !troca.erro, troca: { ...troca } };
+  }
+  // Desiste da pergunta que está esperando resposta. O Claude confirma com um erro no
+  // pedido; se ele não confirmar em 3 s, o app fecha a espera por conta própria.
+  ladoParar() {
+    const p = this.lado.pendente;
+    if (!p || !p.reqId || p.parada) return false;
+    p.parada = true;
+    this.escrever({ type: 'control_cancel_request', request_id: p.reqId });
+    const t = setTimeout(() => {
+      const ctl = this.controles.get(p.reqId);
+      if (ctl && this.controles.delete(p.reqId)) { clearTimeout(ctl.timer); ctl.falha(new Error('Side question cancelled')); }
+    }, 3000);
+    if (t.unref) t.unref();
+    return true;
+  }
+  // Esvazia a lista das perguntas já respondidas (a que está esperando continua).
+  ladoLimpar() { this.lado.trocas = []; this.ladoAvisar(); return true; }
   // "@" da caixa: os arquivos que o Claude sugere para o que foi digitado (o mesmo que o
   // terminal mostra; conferido no 2.1.326: { suggestions: [{ path }], cwd }, pasta termina
   // com a barra). Só com a conversa aberta e parada: autocompletar não sobe o Claude nem
@@ -1583,6 +1651,11 @@ module.exports = {
   reabrirAnterior: (id) => pegar(id).reabrirAnterior(),
   tirarDaFila: (id, idFila) => pegar(id).tirarDaFila(idFila),
   filaImagens: (id, idFila) => pegar(id).imagensDaFila(idFila),
+  // Pergunta rápida (/btw).
+  ladoEstado: (id) => pegar(id).ladoEstado(),
+  ladoPerguntar: (id, texto) => pegar(id).ladoPerguntar(texto),
+  ladoParar: (id) => pegar(id).ladoParar(),
+  ladoLimpar: (id) => pegar(id).ladoLimpar(),
   enviarJaDaFila: (id, idFila) => pegar(id).enviarJaDaFila(idFila),
   estadoComando: (id) => pegar(id).estadoComando(),
   rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),

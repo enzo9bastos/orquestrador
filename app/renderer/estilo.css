@@ -1812,10 +1812,6 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .estado-failed { color: var(--perigo); font-size: 11.5px; }
 .estado-completed, .estado-stopped { color: var(--fg-4); font-size: 11.5px; }
 .mais { color: #16a34a; } .menos { color: var(--perigo); }
-/* Cartão de um comando na conversa (a resposta do /btw). */
-.cartao-comando { margin: 8px 0 8px 32px; padding: 10px 14px; border-radius: var(--r-md, 10px); border: 1px dashed var(--borda-forte); background: var(--bg-afundado); }
-.cartao-comando .cartao-titulo { font: 600 10px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--claude); margin-bottom: 4px; }
-.cartao-comando .cartao-pergunta { font-size: 13px; color: var(--fg-2); margin-bottom: 6px; }
 /* Link na conversa: dica com o endereço de verdade e confirmação de domínio. */
 .mensagens a[href] { cursor: pointer; }
 .dica-link { position: fixed; z-index: 60; max-width: min(520px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; pointer-events: none;
@@ -1899,3 +1895,46 @@ body.sem-agentes.sem-demandas { --larg-nota: min(1080px, max(760px, 52%)); }
 #faixa-reinicio > span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #faixa-reinicio > button { flex: none; }
 #faixa-reinicio .botao, #faixa-reinicio .botao-texto { padding: 2px 9px; font-size: 12px; }
+
+/* --- gaveta da pergunta rápida (/btw; lado-tela.js) ----------------------- */
+/* Fica na mesma célula da coluna da direita, por cima dela e com a mesma largura: a
+   conversa continua inteira na tela. Com a coluna recolhida, a gaveta aberta guarda o
+   lugar da coluna (o conteúdo da coluna continua escondido). */
+.gaveta-lado {
+  grid-area: inspetor; z-index: 5; min-width: 0; min-height: 0;
+  /* A coluna de dentro tem a largura da gaveta, nunca a do conteúdo (senão o campo empurra o ✕ para fora). */
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto;
+  background: var(--bg); border-left: 1px solid var(--borda-forte); box-shadow: -10px 0 28px rgba(0, 0, 0, .22);
+}
+.gaveta-lado[hidden] { display: none; }
+body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); }
+.gaveta-cabeca { display: flex; align-items: center; gap: 8px; height: var(--barra); padding: 0 8px 0 14px; border-bottom: 1px solid var(--borda); }
+.gaveta-cabeca strong { color: var(--fg); font-weight: 600; white-space: nowrap; }
+.gaveta-conversa { flex: 1; min-width: 0; color: var(--fg-3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gaveta-cabeca .botao-texto { margin-left: 0; flex: none; }
+.gaveta-fechar { flex: none; width: 26px; height: 26px; border-radius: var(--r-sm); color: var(--fg-3); }
+.gaveta-fechar:hover { background: var(--painel-hover); color: var(--fg); }
+.gaveta-nota { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.5; color: var(--fg-3); border-bottom: 1px solid var(--borda); }
+.gaveta-trocas { overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 14px; }
+.gaveta-vazio { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--fg-3); }
+.gaveta-vazio[hidden] { display: none; }
+.troca { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.troca-pergunta { align-self: flex-end; max-width: 92%; padding: 6px 10px; border-radius: 12px 12px 4px 12px; background: var(--painel); color: var(--fg); font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gaveta-lado .md { max-width: none; padding: 0; font-size: 13px; line-height: 1.55; }
+.gaveta-lado .md > :last-child { margin-bottom: 0; }
+.gaveta-lado .md pre { padding: 8px 10px; }
+.troca-esperando { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--fg-3); }
+.troca-esperando .botao-texto { margin-left: auto; }
+.troca-erro { padding: 6px 10px; border-radius: var(--r-md); border: 1px solid color-mix(in srgb, var(--esperando) 45%, transparent); background: var(--esperando-suave); color: var(--fg-2); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.troca-detalhe { display: block; margin-top: 2px; color: var(--fg-3); font: 12px/1.4 var(--mono); }
+.troca-detalhe:empty { display: none; }
+.troca-reserva { font-size: 12px; color: var(--fg-3); overflow-wrap: anywhere; }
+.troca-acoes { display: flex; gap: 6px; }
+.troca-acoes .botao-texto { margin-left: 0; height: 22px; padding: 0 8px; font-size: 11.5px; }
+.gaveta-form { padding: 8px 12px 12px; border-top: 1px solid var(--borda); }
+.gaveta-form .caixa-entrada { padding: 6px 6px 6px 12px; }
+.gaveta-form textarea { font-size: 13px; max-height: 140px; min-width: 0; }
+.gaveta-form .botao { flex: none; }
+.gaveta-form .botao:disabled { opacity: .45; cursor: default; }
+.gaveta-aviso { margin: 0 0 6px; font-size: 12px; color: var(--esperando); }
+.gaveta-aviso[hidden] { display: none; }

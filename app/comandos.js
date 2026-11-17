@@ -40,7 +40,7 @@ const CLAUDE = [
   ['background', A, 'Manda para o fundo o que está rodando em primeiro plano', '[mensagem]', { aliases: ['bg'] }],
   ['branch', A, 'Cria um ramo desta conversa, numa conversa nova', '[nome]'],
   ['brief', X, 'Liga ou desliga o modo só-resumo', ''],
-  ['btw', A, 'Pergunta de lado, sem interromper a conversa', '<pergunta>'],
+  ['btw', A, 'Pergunta rápida sobre a conversa, sem interromper o Claude', '[pergunta]'],
   ['bug', A, 'Relata um problema à Anthropic', '[relato]', { aliases: ['share'], acao: 'feedback' }],
   ['cd', X, 'Move a sessão para outra pasta de trabalho', '<pasta>'],
   ['chrome', X, 'Configurações do Claude no Chrome', ''],

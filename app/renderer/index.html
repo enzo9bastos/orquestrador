@@ -363,6 +363,26 @@
     </details>
   </aside>
 
+  <!-- Pergunta rápida (/btw; lado-tela.js): gaveta por cima da coluna da direita. A conversa
+       continua na tela e o Claude continua trabalhando; nada daqui entra na conversa. -->
+  <aside id="gaveta-lado" class="gaveta-lado" aria-label="Pergunta rápida" hidden>
+    <header class="gaveta-cabeca">
+      <strong>Pergunta rápida</strong>
+      <span id="gaveta-lado-conversa" class="gaveta-conversa" data-sem-traducao></span>
+      <button type="button" class="botao-texto" id="gaveta-lado-limpar" hidden>Limpar</button>
+      <button type="button" class="gaveta-fechar" id="gaveta-lado-fechar" title="Fechar (Esc)" aria-label="Fechar a pergunta rápida">✕</button>
+    </header>
+    <p class="gaveta-nota" id="gaveta-lado-nota">Pergunte sobre esta conversa sem interromper o Claude. Ele responde só com o que já está na conversa, sem rodar comandos nem ler arquivos. A pergunta e a resposta não entram na conversa e somem ao fechar o app. Usa um pouco do seu limite.</p>
+    <div id="gaveta-lado-trocas" class="gaveta-trocas" role="log" aria-live="polite" aria-label="Perguntas e respostas"></div>
+    <form id="gaveta-lado-form" class="gaveta-form" autocomplete="off">
+      <p id="gaveta-lado-aviso" class="gaveta-aviso" role="status" hidden></p>
+      <div class="caixa-entrada">
+        <textarea id="gaveta-lado-texto" rows="1" placeholder="Pergunte sem interromper…" aria-label="Pergunta rápida"></textarea>
+        <button type="submit" class="botao primario" id="gaveta-lado-enviar">Perguntar</button>
+      </div>
+    </form>
+  </aside>
+
   <div id="palco-pet" class="pet-palco"></div>
 
   <div id="popup" class="config-fundo" hidden>
@@ -641,6 +661,7 @@
   <script src="barra-nota-tela.js"></script>
   <script src="conversa-tela.js"></script>
   <script src="busca-conversa.js"></script>
+  <script src="lado-tela.js"></script>
   <script src="comandos-tela.js"></script>
   <script src="repertorio-tela.js"></script>
   <script src="workflows-tela.js"></script>

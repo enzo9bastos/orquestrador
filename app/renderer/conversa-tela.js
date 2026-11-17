@@ -1500,8 +1500,12 @@
     }
     fecharMenuMais();
     if (acao === 'iniciar') { iniciarRodada(); return; }
-    // A pergunta rápida precisa do texto: o comando fica pronto na caixa para completar.
-    if (acao === 'btw') { entrada.value = '/btw '; entrada.focus(); entrada.setSelectionRange(5, 5); ajustarAltura(); return; }
+    // Pergunta rápida: abre a gaveta, com o teclado no campo dela. Na conversa do Codex o
+    // comando é outro (abre no terminal): fica pronto na caixa para completar, como antes.
+    if (acao === 'btw') {
+      if (!conversaCodex() && window.orqLado) { window.orqLado.abrir(); return; }
+      entrada.value = '/btw '; entrada.focus(); entrada.setSelectionRange(5, 5); ajustarAltura(); return;
+    }
     const comando = acharComando(acao);
     if (comando && window.orqComandos) await window.orqComandos.executar(comando, '', `/${acao}`);
   });
@@ -1874,6 +1878,7 @@
 
   async function trocar(id) {
     ativa = id;
+    if (window.orqLado) window.orqLado.trocou(id); // a gaveta da pergunta rápida acompanha a conversa da tela
     desenharLista(listaConversas);
     const aba = document.querySelector('[data-aba="aba-orquestrador"]');
     if (!aba.classList.contains('ativa')) aba.click();
@@ -2282,6 +2287,7 @@
     mandar: async (texto) => { const e = await expandir(texto); return C.mandar(ativa, e.enviar, [], e.exibir); },
     // Para os comandos do "/" (comandos-tela.js).
     ativa: () => ativa,
+    titulo: () => { const c = listaConversas.find((x) => x.id === ativa); return c ? c.titulo || '' : ''; },
     motor: () => (conversaCodex() ? 'codex' : 'claude'),
     info: () => infoAtual,
     comandos: () => comandosPor.get(ativa) || [],
@@ -2293,16 +2299,6 @@
     abrirMenuModelo: () => $('botao-modelo').click(),
     anexarArquivo: () => $('anexar').click(),
     trocar: (id) => trocar(id),
-    // Um cartão na conversa (resposta de /btw, por exemplo): fica na tela, não no histórico.
-    cartao: (html, classe = '') => {
-      grupo = null;
-      const el = document.createElement('div');
-      el.className = `cartao-comando ${classe}`.trim();
-      el.innerHTML = html;
-      caixa.append(el);
-      colado = true; rolar();
-      return el;
-    },
     // As suas mensagens (balões), da mais antiga para a mais nova (o /rewind).
     mensagens: () => [...caixa.querySelectorAll('.msg-voce[data-texto]')].map((m) => m.dataset.texto),
     voltarPara: (i) => { const b = [...caixa.querySelectorAll('.msg-voce[data-texto]')][i]; return b ? abrirVolta(b) : null; },

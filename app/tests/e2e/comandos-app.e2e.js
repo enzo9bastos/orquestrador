@@ -82,11 +82,14 @@ test('comandos do Claude: cada jeito funciona de verdade', async (t) => {
     await fecharPopup(app);
   });
 
-  await t.test('(b) /btw: pergunta de lado vira cartão com a resposta, sem entrar na conversa', async () => {
+  await t.test('(b) /btw: a pergunta rápida vai por pedido de controle e a resposta aparece na gaveta, sem entrar na conversa', async () => {
     await enviar(app, '/btw qual o arquivo?');
-    await app.esperar("[...document.querySelectorAll('.cartao-btw .cartao-resposta')].some((e) => /resposta de lado para: qual o arquivo\\?/.test(e.textContent))", 8000);
+    await app.esperar("[...document.querySelectorAll('#gaveta-lado .troca-resposta')].some((e) => /resposta de lado para: qual o arquivo\\?/.test(e.textContent))", 8000);
     assert.strictEqual(pedidos(log, 'side_question')[0].request.question, 'qual o arquivo?');
     assert.ok(!linhas(log).some((o) => o.type === 'user' && /btw/.test(JSON.stringify(o.message.content))), 'o /btw foi como mensagem');
+    assert.strictEqual(await app.avaliar("/resposta de lado/.test(document.getElementById('mensagens').innerText)"), false, 'a resposta apareceu no meio da conversa');
+    // Fecha a gaveta: os próximos comandos são da caixa da conversa (pergunta-rapida.e2e.js cobre a gaveta).
+    await app.avaliar("document.getElementById('gaveta-lado-fechar').click()");
   });
 
   await t.test('(b) /skill-doctor ordena as skills pelo custo em tokens', async () => {

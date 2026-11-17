@@ -55,12 +55,14 @@ test('menu ⋯ e o botão de Iniciar/Desligar', async (t) => {
     });
   }
 
-  await t.test('⋯ › Pergunta rápida deixa o /btw pronto na caixa para completar', async () => {
+  await t.test('⋯ › Pergunta rápida abre a gaveta da pergunta rápida, com o teclado no campo dela', async () => {
     await abrirMais();
     await app.avaliar("document.querySelector('#menu-mais [data-acao=btw]').click()");
-    assert.strictEqual(await app.avaliar("document.getElementById('entrada').value"), '/btw ');
-    assert.ok(await app.avaliar("document.activeElement === document.getElementById('entrada')"));
-    await app.avaliar("(() => { const e = document.getElementById('entrada'); e.value = ''; e.dispatchEvent(new Event('input')); })()");
+    await app.esperar("!document.getElementById('gaveta-lado').hidden");
+    assert.ok(await app.avaliar("document.activeElement === document.getElementById('gaveta-lado-texto')"));
+    assert.strictEqual(await app.avaliar("document.getElementById('entrada').value"), '', 'o comando não precisa mais passar pela caixa');
+    await app.avaliar("document.getElementById('gaveta-lado-fechar').click()");
+    assert.ok(await app.avaliar("document.activeElement === document.getElementById('entrada')"), 'fechada, o teclado volta para a caixa da conversa');
   });
 
   await t.test('⋯ › Desligar a rodada confirma dentro do menu antes de mandar o comando', async () => {

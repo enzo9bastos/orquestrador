@@ -395,6 +395,13 @@ ipcMain.handle('conversa:fila', (_e, id, acao, idFila) => {
 });
 // As imagens de uma mensagem da fila (miniaturas no balão dela).
 ipcMain.handle('conversa:filaImagens', (_e, id, idFila) => (typeof idFila === 'string' ? conversa.filaImagens(id, idFila) : []));
+// Pergunta rápida (/btw): a tela manda só o texto da pergunta. O histórico das perguntas
+// anteriores e a conferência da resposta são do motor (conversa.js, pergunta-de-lado.js).
+const comLado = (fn) => async (_e, id, ...a) => { try { return await fn(id, ...a); } catch (e) { return { ok: false, erro: String((e && e.message) || e) }; } };
+ipcMain.handle('conversa:ladoEstado', comLado((id) => conversa.ladoEstado(id)));
+ipcMain.handle('conversa:ladoPerguntar', comLado((id, texto) => conversa.ladoPerguntar(id, texto)));
+ipcMain.handle('conversa:ladoParar', comLado((id) => conversa.ladoParar(id)));
+ipcMain.handle('conversa:ladoLimpar', comLado((id) => conversa.ladoLimpar(id)));
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));
 // Voltar a conversa para antes de uma mensagem: devolve { ok, texto } ou
@@ -427,7 +434,7 @@ const comandosApp = require('./comandos-app');
 const seguro = (fn) => async (_e, ...a) => { try { return await fn(...a); } catch (e) { return { erro: String((e && e.message) || e) }; } };
 // Só os pedidos que os comandos usam: a tela não manda pedido qualquer ao motor.
 const CONTROLES = ['get_status', 'get_memory_dialog', 'get_skills_dialog', 'get_hooks_listing', 'export_conversation', 'get_plan',
-  'get_workspace_diff', 'side_question', 'submit_feedback', 'stop_task', 'background_tasks', 'get_task_output', 'set_permission_mode', 'mcp_status', 'get_settings'];
+  'get_workspace_diff', 'submit_feedback', 'stop_task', 'background_tasks', 'get_task_output', 'set_permission_mode', 'mcp_status', 'get_settings'];
 const METODOS_CODEX = ['thread/compact/start', 'review/start', 'thread/name/set', 'thread/list', 'thread/archive', 'thread/backgroundTerminals/list',
   'thread/backgroundTerminals/clean', 'mcpServerStatus/list', 'skills/list', 'hooks/list', 'account/rateLimits/read', 'config/read'];
 const pastaDa = (id) => { const e = conversa.estadoComando(id); return (e.init && e.init.pasta) || e.info.pasta || conversa.PASTA; };
@@ -435,7 +442,7 @@ ipcMain.handle('cmd:controle', seguro((id, subtype, extra = {}) => {
   if (!CONTROLES.includes(subtype)) throw new Error(`pedido não liberado: ${subtype}`);
   // O modo só passa por aqui se for um dos do chip; o Bypass tem caminho próprio (conversa:modo), com as regras dele.
   if (subtype === 'set_permission_mode' && !conversa.MODOS_DO_CHIP.includes(extra && extra.mode)) throw new Error('modo não liberado por este caminho');
-  return conversa.controle(id, subtype, extra && typeof extra === 'object' ? extra : {}, subtype === 'side_question' ? 120000 : 20000);
+  return conversa.controle(id, subtype, extra && typeof extra === 'object' ? extra : {});
 }));
 // "!" da caixa: o ÚNICO caminho que roda um comando digitado pela pessoa. conversa:mandar e
 // conversa:daCaixa nunca interpretam "!" (o texto vai ao motor como texto comum). A tela só

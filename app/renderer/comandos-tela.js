@@ -381,15 +381,11 @@
     return FEITO;
   };
 
-  // /btw: pergunta de lado, sem entrar na conversa.
+  // /btw: pergunta rápida, sem entrar na conversa e sem interromper o Claude. Abre a
+  // gaveta (lado-tela.js); com a pergunta junto, já pergunta. Sem pergunta, só abre, com
+  // as perguntas anteriores (como o /btw sozinho no terminal).
   H.btw = async (item, args) => {
-    if (!args) { V().avisoComando('/btw', 'escreva a pergunta depois do comando', 'ex.: /btw qual o nome daquele arquivo?'); return { feito: true, manterTexto: true }; }
-    const c = V().cartao(`<div class="cartao-titulo">De lado</div><div class="cartao-pergunta" data-sem-traducao>${esc(args)}</div><div class="cartao-resposta"><span class="nota">Pensando…</span></div>`, 'cartao-btw');
-    const r = await K.controle(V().ativa(), 'side_question', { question: args, history: [] });
-    const resp = c.querySelector('.cartao-resposta');
-    if (erroDe(r)) { resp.innerHTML = `<span class="cmd-erro" data-sem-traducao>${esc(r.erro)}</span>`; return FEITO; }
-    const texto = typeof r.response === 'string' ? r.response : r.response && r.response.response ? r.response.response : r.text || r.answer || JSON.stringify(r);
-    resp.innerHTML = `<div class="md" data-sem-traducao>${md(texto)}</div>`;
+    window.orqLado.abrir(args);
     return FEITO;
   };
 

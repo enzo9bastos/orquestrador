@@ -149,6 +149,7 @@ if (INIT_NA_SUBIDA) init();
 // até parar") fica na fila dele e roda quando o turno acaba (o interrupt
 // encerra o turno e responde { still_queued }, como no 2.1.326).
 const naFilaDoFalso = [];
+const ladoEsperando = new Set(); // perguntas de lado que só terminam se o app desistir
 const leitor = readline.createInterface({ input: process.stdin });
 const soltarFila = () => { for (const m of naFilaDoFalso.splice(0)) leitor.emit('line', JSON.stringify({ ...m, jaAnotada: true })); };
 leitor.on('line', (l) => {
@@ -162,9 +163,54 @@ leitor.on('line', (l) => {
     if (f) { esperando.delete(id); f(d.response); }
     return;
   }
+  // O app desistiu de um pedido: a pergunta de lado que estava esperando termina com erro.
+  if (d.type === 'control_cancel_request') {
+    if (ladoEsperando.delete(d.request_id)) sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'Side question cancelled' } });
+    return;
+  }
   if (d.type === 'control_request') {
     const r = d.request || {};
     if (SEM.has(r.subtype)) return naoAtende(d, r.subtype);
+    if (r.subtype === 'side_question' && !process.env.CLAUDE_FALSO_SEM_CONTROLES) {
+      // Como o Claude de verdade (2.1.326): pergunta em texto, histórico em lista de
+      // { question, response }; avisa o andamento, responde { response, synthetic } e
+      // desiste no control_cancel_request. Não mexe no turno em andamento. A pergunta
+      // escolhe o que acontece:
+      //   "sintética"     o aviso de erro que volta como "sucesso" (synthetic: true);
+      //   "nula"          sem resposta nenhuma;
+      //   "tenta de novo" a API falhou, ele avisa e tenta outra vez;
+      //   "demora"        só termina se o app desistir;
+      //   "reserva"       outro modelo respondeu no lugar (refusal_fallback);
+      //   "marcação"      resposta em Markdown, com código.
+      const histOk = r.history === undefined || (Array.isArray(r.history) && r.history.every((h) => h && typeof h.question === 'string' && typeof h.response === 'string'));
+      if (typeof r.question !== 'string' || !histOk) {
+        return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'side_question: question must be a string and history an array of {question, response} strings' } });
+      }
+      const andamento = (o) => sai({ type: 'system', subtype: 'control_request_progress', request_id: d.request_id, ...o, session_id: SESSAO });
+      andamento({ status: 'started' });
+      const q = r.question;
+      const n = (r.history || []).length;
+      const normal = `resposta de lado para: ${q}${n ? ` (com ${n} anterior${n > 1 ? 'es' : ''})` : ''}`;
+      // $CLAUDE_FALSO_LADO (JSON): a resposta para uma pergunta exata. Texto = a resposta;
+      // objeto = a resposta inteira ({ response, synthetic… }); null = fica esperando.
+      let porPergunta = {};
+      try { porPergunta = JSON.parse(process.env.CLAUDE_FALSO_LADO || '{}') || {}; } catch { /* variável torta: vale o de sempre */ }
+      if (Object.prototype.hasOwnProperty.call(porPergunta, q)) {
+        const v = porPergunta[q];
+        if (v === null) { ladoEsperando.add(d.request_id); return undefined; }
+        return responde(d, typeof v === 'string' ? { response: v, synthetic: false } : v);
+      }
+      if (/demora/.test(q)) { ladoEsperando.add(d.request_id); return undefined; }
+      if (/sintética/.test(q)) return responde(d, { response: '(API error: Not logged in · Please run /login)', synthetic: true });
+      if (/nula/.test(q)) return responde(d, { response: null, synthetic: false });
+      if (/tenta de novo/.test(q)) {
+        andamento({ status: 'api_retry', attempt: 2, max_retries: 10, retry_delay_ms: 50, error_status: 529 });
+        return setTimeout(() => responde(d, { response: normal, synthetic: false }), Number(process.env.CLAUDE_FALSO_LADO_MS) || 400);
+      }
+      if (/reserva/.test(q)) return responde(d, { response: normal, synthetic: false, refusal_fallback: { original_model: 'claude-falso-1-0', fallback_model: 'claude-falso-0-5', content: 'Answered by claude-falso-0-5.' } });
+      if (/marcação/.test(q)) return responde(d, { response: 'O arquivo é `config.json`.\n\n- fica na **raiz**\n- tem 3 chaves\n\n```sh\ncat config.json\n```', synthetic: false });
+      return responde(d, { response: normal, synthetic: false });
+    }
     if (r.subtype === 'set_model') {
       if (process.env.CLAUDE_FALSO_RECUSA_MODELO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_MODELO } });
       modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: emUso(modelo) });

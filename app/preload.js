@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld('orq', {
     shellParar: (id) => ipcRenderer.invoke('conversa:shellParar', id),
     fila: (id, acao, idFila) => ipcRenderer.invoke('conversa:fila', id, acao, idFila),
     filaImagens: (id, idFila) => ipcRenderer.invoke('conversa:filaImagens', id, idFila),
+    // Pergunta rápida (/btw).
+    ladoEstado: (id) => ipcRenderer.invoke('conversa:ladoEstado', id),
+    ladoPerguntar: (id, texto) => ipcRenderer.invoke('conversa:ladoPerguntar', id, texto),
+    ladoParar: (id) => ipcRenderer.invoke('conversa:ladoParar', id),
+    ladoLimpar: (id) => ipcRenderer.invoke('conversa:ladoLimpar', id),
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
     voltar: (id, ordemDoFim, texto) => ipcRenderer.invoke('conversa:voltar', id, ordemDoFim, texto),
@@ -56,6 +61,7 @@ contextBridge.exposeInMainWorld('orq', {
     aoLista: (fn) => ipcRenderer.on('conversa:lista', (_e, l) => fn(l)),
     aoFocar: (fn) => ipcRenderer.on('conversa:focar', (_e, id) => fn(id)),
     aoComandos: aoConversa('conversa:comandos'),
+    aoLado: aoConversa('conversa:lado'),
   },
   // Comandos do "/" que o app faz (renderer/comandos-tela.js).
   comandos: {
