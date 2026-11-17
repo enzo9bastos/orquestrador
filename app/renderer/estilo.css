@@ -1938,3 +1938,45 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .gaveta-form .botao:disabled { opacity: .45; cursor: default; }
 .gaveta-aviso { margin: 0 0 6px; font-size: 12px; color: var(--esperando); }
 .gaveta-aviso[hidden] { display: none; }
+
+/* --- pasta da conversa (plano 3.1; pasta-tela.js) ------------------------- */
+/* A 2ª linha de cada conversa na lateral: a pasta e o estado. */
+.abrir-conversa { height: auto; min-height: 30px; padding: 5px 8px; flex-wrap: wrap; row-gap: 1px; }
+.pasta-conversa { flex-basis: 100%; min-width: 0; padding-left: 24px; font-size: 11px; font-weight: 400; color: var(--fg-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A janela "Nova conversa". */
+.menu-modelo.menu-nova { width: 400px; padding: 10px 12px 12px; display: grid; gap: 12px; }
+.menu-modelo.menu-nova[hidden] { display: none; }
+.menu-nova .menu-titulo { padding: 2px 0 0; }
+.nova-grupo { display: grid; gap: 6px; }
+.nova-rotulo { font: 600 10.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-4); }
+.nova-pastas { display: grid; gap: 2px; max-height: 240px; overflow-y: auto; }
+.nova-pasta { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 3px 6px; border-radius: var(--r-sm); cursor: pointer; }
+.nova-pasta:hover { background: var(--painel-hover); }
+.nova-pasta:has(input:checked) { background: var(--selecionado); }
+.nova-pasta code { font: 12px var(--mono); color: var(--fg); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nova-quando { margin-left: auto; flex: none; font-size: 11.5px; color: var(--fg-4); white-space: nowrap; }
+.nova-motores { display: inline-flex; border: 1px solid var(--borda-forte); border-radius: var(--r-sm); overflow: hidden; width: max-content; }
+.nova-motores button { height: 26px; padding: 0 14px; font-size: 12.5px; color: var(--fg-3); }
+.nova-motores button + button { border-left: 1px solid var(--borda-forte); }
+.nova-motores button[aria-pressed="true"] { background: var(--painel-hover); color: var(--fg); font-weight: 500; }
+.nova-motores button:disabled { opacity: .45; cursor: default; }
+.menu-nova .nova-aviso { margin: 0; font-size: 12px; color: var(--fg-3); }
+.menu-nova .nova-aviso[hidden] { display: none; }
+.menu-nova .nova-aviso.erro { color: var(--perigo); }
+.nova-acoes { display: flex; justify-content: flex-end; }
+/* O cartão de confiança da pasta, dentro da conversa. */
+.cartao-pasta .pasta-motivo, .cartao-pasta .pasta-nota, .cartao-pasta .pasta-vazia, .cartao-pasta .pasta-extras { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--fg-3); }
+.cartao-pasta .pasta-motivo { color: var(--fg-2); }
+.pasta-bloco { padding: 10px 12px; border: 1px solid var(--borda); border-radius: var(--r-md); background: var(--bg); min-width: 0; }
+.pasta-bloco h4 { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; color: var(--fg); display: flex; gap: 8px; align-items: baseline; }
+.pasta-bloco h4 small { font-weight: 400; color: var(--fg-4); }
+.pasta-lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.pasta-lista li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; font: 12.5px var(--mono); color: var(--fg-2); padding: 2px 0; overflow-wrap: anywhere; min-width: 0; }
+.pasta-lista li small { font: 11.5px var(--sans); color: var(--fg-4); }
+.pasta-lista .pasta-mais { font: 11.5px var(--sans); color: var(--fg-4); }
+.pasta-novo { font: 500 10.5px var(--sans); padding: 0 6px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--esperando) 60%, transparent); color: var(--esperando); white-space: nowrap; }
+.pasta-mudou, .pasta-atencao { border-color: color-mix(in srgb, var(--esperando) 45%, transparent); }
+.cartao-pasta .acoes { flex-wrap: wrap; }
+.cartao-pasta .pasta-erro { margin: 0; font-size: 12.5px; color: var(--perigo); }
+.cartao-pasta .pasta-erro[hidden] { display: none; }
+.cartao-pasta.pasta-parada { background: transparent; border-color: var(--borda); }

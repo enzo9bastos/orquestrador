@@ -44,6 +44,20 @@ function pastaDeConversa(p) {
   return real === casaDeVerdade() ? PASTA : real;
 }
 const ehPasta = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
+// As pastas em que a pessoa abriu conversa por último (a janela "Nova conversa" oferece de
+// novo): só o caminho e quando; fica em ~/.cache/orq-app, até 8, a mais nova primeiro.
+const MAX_RECENTES = 8;
+const arqRecentes = () => path.join(CACHE, TESTE ? 'pastas-recentes-teste.json' : 'pastas-recentes.json');
+function pastasRecentes() {
+  let l = [];
+  try { l = JSON.parse(fs.readFileSync(arqRecentes(), 'utf8')); } catch { /* ainda não há */ }
+  return (Array.isArray(l) ? l : []).filter((x) => x && typeof x.pasta === 'string' && path.isAbsolute(x.pasta) && x.pasta !== PASTA && Number.isFinite(x.quando) && ehPasta(x.pasta)).slice(0, MAX_RECENTES);
+}
+function lembrarPasta(pasta) {
+  if (pasta === PASTA) return;
+  const l = [{ pasta, quando: Date.now() }, ...pastasRecentes().filter((x) => x.pasta !== pasta)].slice(0, MAX_RECENTES);
+  try { fs.mkdirSync(CACHE, { recursive: true }); fs.writeFileSync(arqRecentes(), JSON.stringify(l, null, 2) + '\n'); } catch { /* sem a lista, a janela só não oferece a pasta de novo */ }
+}
 // Como a pessoa lê: com ~ no lugar da pasta pessoal.
 const exibirPasta = (p) => (p === PASTA ? '~' : p.startsWith(PASTA + path.sep) ? `~${p.slice(PASTA.length)}` : p);
 const TESTE = process.env.ORQ_APP_TESTE === '1';
@@ -685,7 +699,9 @@ class Conversa {
       }
       this.semPastaAvisado = false;
       if (this.precisaDoPorteiro() && !this.passe) {
-        if (!this.porteiro) { this.eventos = this.historicoGuardado(); this.enviar('conversa:tudo', this.estado()); }
+        // O que já está na tela fica (a conversa parada atrás do cartão continua legível); só
+        // uma conversa ainda sem nada carregado busca o histórico guardado.
+        if (!this.porteiro) { if (!this.eventos.length) this.eventos = this.historicoGuardado(); this.enviar('conversa:tudo', this.estado()); }
         this.conferirPasta();
         return;
       }
@@ -1618,7 +1634,9 @@ class Conversa {
 
   resumo() {
     return { id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, motor: this.motor, ocupado: this.info.ocupado, pedidos: this.pendentes.size + (this.porteiro && this.porteiro.perguntando ? 1 : 0), vivo: !!this.proc,
-      pasta: exibirPasta(this.pasta), pessoal: this.pasta === PASTA, semProjeto: this.semProjeto };
+      pasta: exibirPasta(this.pasta), pessoal: this.pasta === PASTA, semProjeto: this.semProjeto,
+      // Conversa que ainda não começou (sem sessão para retomar): cancelar o cartão da pasta tira ela da lista.
+      semHistorico: !this.sessao && !this.volta && !this.forkDe };
   }
 }
 
@@ -1704,6 +1722,7 @@ function nova({ pasta = null, motor = 'claude' } = {}) {
   while (titulos.has(`Conversa ${n}`)) n++;
   const c = new Conversa({ id: `c${Date.now().toString(36)}`, titulo: `Conversa ${n}`, pasta: onde, motor });
   conversas.set(c.id, c);
+  lembrarPasta(onde);
   gravarLista();
   avisarLista();
   return c.id;
@@ -1800,7 +1819,7 @@ module.exports = {
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   // A resposta ao cartão de confiança da pasta: 'confiar', 'sem' ou 'cancelar'.
   responderPasta: (id, escolha) => pegar(id).responderPasta(escolha),
-  pastaDeConversa, exibirPasta,
+  pastaDeConversa, exibirPasta, pastasRecentes,
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),
   voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),

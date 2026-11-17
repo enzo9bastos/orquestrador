@@ -1751,6 +1751,8 @@
     r.eventos.forEach(desenharEvento);
     pedidos.clear();
     (r.pendentes || []).forEach((p) => { pedidos.set(p.id, p); cartaoPedido(p); });
+    // Cartão de confiança da pasta (a conversa só sobe depois da resposta): pasta-tela.js.
+    if (window.orqPasta) window.orqPasta.desenharNaConversa(r);
     try { desenharAprovacoes(); } catch { /* ainda carregando a tela */ }
     colado = true; rolar();
   }
@@ -1851,6 +1853,7 @@
           <span class="titulo-conversa">${esc(c.titulo)}</span>
           ${c.motor === 'codex' ? '<span class="selo-motor" title="Conduzida pelo Codex">Codex</span>' : ''}
           <span class="ponto ${estado}" title="${texto}"></span>
+          <span class="pasta-conversa"><span data-sem-traducao>${esc(c.pasta || '~')}</span>${c.orquestrador ? ' · <span>pasta fixa</span>' : ''}${c.semProjeto ? ' · <span>sem as configurações do projeto</span>' : ''} · <span>${texto}</span></span>
         </button>
         ${c.orquestrador ? '' : `<button type="button" class="fechar-conversa" data-fechar-conversa="${esc(c.id)}" title="Tirar da lista (a conversa continua no histórico do Claude)" aria-label="Fechar conversa">✕</button>`}
       </div>`;
@@ -2287,6 +2290,7 @@
     mandar: async (texto) => { const e = await expandir(texto); return C.mandar(ativa, e.enviar, [], e.exibir); },
     // Para os comandos do "/" (comandos-tela.js).
     ativa: () => ativa,
+    lista: () => listaConversas,
     titulo: () => { const c = listaConversas.find((x) => x.id === ativa); return c ? c.titulo || '' : ''; },
     motor: () => (conversaCodex() ? 'codex' : 'claude'),
     info: () => infoAtual,
@@ -2594,7 +2598,8 @@
   // A rodada não começa sozinha ao abrir o app: começa aqui.
   $('iniciar-rodada').addEventListener('click', iniciarRodada);
   $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', desligarRodada));
-  $('nova-conversa').addEventListener('click', async () => trocar(await C.nova()));
+  // "+ Nova conversa" abre a janela de escolher a pasta e o motor (pasta-tela.js).
+  if (!C.pastas) $('nova-conversa').addEventListener('click', async () => trocar(await C.nova()));
 
   // --- pilha única do Esc -----------------------------------------------------------
   // Cada Esc faz UMA coisa, a primeira que valer, nesta ordem:

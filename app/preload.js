@@ -49,7 +49,11 @@ contextBridge.exposeInMainWorld('orq', {
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
     modo: (id, modo) => ipcRenderer.invoke('conversa:modo', id, modo),
     reiniciar: (id) => ipcRenderer.invoke('conversa:reiniciar', id),
-    nova: () => ipcRenderer.invoke('conversa:nova'),
+    nova: (o) => ipcRenderer.invoke('conversa:nova', o),
+    // Pasta da conversa (janela "Nova conversa" e cartão de confiança).
+    pastas: () => ipcRenderer.invoke('conversa:pastas'),
+    escolherPasta: () => ipcRenderer.invoke('conversa:escolherPasta'),
+    responderPasta: (id, escolha) => ipcRenderer.invoke('conversa:responderPasta', id, escolha),
     fechar: (id) => ipcRenderer.invoke('conversa:fechar', id),
     aoEvento: aoConversa('conversa:evento'),
     aoParcial: aoConversa('conversa:parcial'),

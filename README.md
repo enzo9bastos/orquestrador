@@ -138,7 +138,17 @@ protocol), so there is no terminal to babysit.
   folder under `~/.local/share/orq-app/versoes/`, and only a real click on the red button restores them. What
   commands did (files created by scripts, databases, git commits) does not come back. Restore points can be turned
   off in Settings › Advanced. With the box empty, ↑ / ↓ bring back what you sent.
-- **New conversation** opens side conversations next to the orchestrator.
+- **New conversation** opens side conversations next to the orchestrator. A small window lets you choose the
+  **folder** the conversation works in (your home folder, a recently used one, or another you pick) and the
+  **engine** (Claude or Codex). The folder never changes afterwards, and the list on the left shows it under each
+  conversation; the orchestrator always runs in your home folder.
+- **Folder trust card**: the first time Claude would start in a folder that is not your home folder, the
+  conversation shows what that folder configures (commands that run by themselves, MCP servers, rules that already
+  allow without asking, instructions for Claude) and waits: *Trust and open*, *Open without the project's settings*
+  (only your own settings apply) or *Cancel*. The app keeps a fingerprint of those files and asks again, showing
+  what changed, if any of them changes. Nothing from the folder runs before you answer, a message sent meanwhile
+  waits in the queue, and only a real click accepts. A folder that no longer exists is an error: the conversation
+  never moves to another folder by itself.
 
 ### 🧭 Agents
 

@@ -206,7 +206,10 @@ test('conversa', async (t) => {
   });
 
   await t.test('nova conversa aparece na lateral e dá para voltar ao orquestrador', async () => {
+    // "+ Nova conversa" abre a janela de escolher a pasta e o motor; o padrão (pasta pessoal, Claude) é só confirmar.
     await app.avaliar("document.getElementById('nova-conversa').click()");
+    await app.esperar("!document.getElementById('menu-nova').hidden");
+    await app.avaliar("document.getElementById('nova-abrir').click()");
     await app.esperar("document.querySelectorAll('.item-conversa').length === 2");
     assert.ok(await app.avaliar("document.getElementById('desligar').hidden"), 'Desligar só no orquestrador');
     assert.ok(await app.avaliar("document.getElementById('iniciar-rodada').hidden"), 'Iniciar só no orquestrador');

@@ -20,7 +20,6 @@
     "Uso da janela de 7 dias": "7-day window usage",
     "Manda o comando que abre a rodada ao orquestrador": "Sends the round-opening command to the Orchestrator",
     "Manda o comando de desligar ao orquestrador: ele encerra a rodada com segurança": "Sends the shutdown command to the Orchestrator: it ends the round safely",
-    "Abre outra conversa com o Claude ao lado do orquestrador": "Opens another conversation with Claude alongside the Orchestrator",
     "Escreva para o orquestrador… (Enter envia · Shift+Enter quebra linha)": "Write to the Orchestrator… (Enter sends · Shift+Enter new line)",
     "Escreva para o Claude… (Enter envia · Shift+Enter quebra linha)": "Write to Claude… (Enter sends · Shift+Enter new line)",
     "Enviar": "Send",
@@ -1825,6 +1824,63 @@
     "Próxima (Enter)": "Next (Enter)",
     "Fechar a busca (Esc)": "Close search (Esc)",
     "Fechar a busca": "Close search",
+    "Abre outra conversa, na pasta e com o motor que você escolher": "Opens another conversation, in the folder and with the engine you choose",
+    "Escolher outra pasta…": "Choose another folder…",
+    "Abrir conversa": "Open conversation",
+    "Pasta da conversa": "Conversation folder",
+    "sua pasta pessoal": "your home folder",
+    "usada agora há pouco": "used just now",
+    "usada ontem": "used yesterday",
+    "O Codex não foi encontrado neste computador (Configurações › IAs conectadas)": "Codex was not found on this computer (Settings › Connected AIs)",
+    "Primeira vez nesta pasta: antes de abrir, o app mostra o que ela configura.": "First time in this folder: before opening, the app shows what it configures.",
+    "antes de cada ferramenta do Claude": "before each Claude tool",
+    "depois de cada ferramenta do Claude": "after each Claude tool",
+    "quando o Claude termina": "when Claude finishes",
+    "quando um subagente termina": "when a subagent finishes",
+    "quando a conversa abre": "when the conversation opens",
+    "quando a conversa fecha": "when the conversation closes",
+    "a cada mensagem sua": "on each message you send",
+    "quando o Claude avisa algo": "when Claude notifies you",
+    "antes de resumir a conversa": "before summarizing the conversation",
+    "novo": "new",
+    "mudou": "changed",
+    "saiu": "removed",
+    "é um atalho para fora da pasta": "is a link to outside the folder",
+    "é um atalho para outra pasta": "is a link to another folder",
+    "não é um JSON válido": "is not valid JSON",
+    "tem um formato que o app não reconhece": "has a format the app does not recognize",
+    "é grande demais para conferir": "is too large to check",
+    "não é um arquivo comum": "is not a regular file",
+    "inclui um arquivo de fora da pasta": "includes a file from outside the folder",
+    "inclui a si mesmo": "includes itself",
+    "inclui arquivos em níveis demais": "includes files too many levels deep",
+    "não deu para ler": "could not be read",
+    "passou do limite de leitura": "went over the reading limit",
+    "fica fundo demais na pasta": "is too deep in the folder",
+    "demorou demais para ler": "took too long to read",
+    "Comandos que rodam sozinhos": "Commands that run by themselves",
+    "Regras que já permitem sem perguntar": "Rules that already allow without asking",
+    "Outras configurações da pasta": "Other settings of the folder",
+    "Instruções para o Claude": "Instructions for Claude",
+    "incluído por": "included by",
+    "novo desde a última vez": "new since last time",
+    "O que mudou desde a última vez": "What changed since last time",
+    "Esta pasta mudou desde que você confiou nela": "This folder changed since you trusted it",
+    "Primeira vez nesta pasta": "First time in this folder",
+    "Uma conversa aberta aqui usa o que a pasta configura. Confira antes de abrir:": "A conversation opened here uses what the folder configures. Check before opening:",
+    "Esta pasta não configura nada que rode sozinho, nem instruções para o Claude.": "This folder configures nothing that runs by itself, and no instructions for Claude.",
+    "A pasta também traz:": "The folder also brings:",
+    "O app não conseguiu conferir tudo": "The app could not check everything",
+    "Como não deu para conferir tudo, este aceite não fica guardado: o cartão volta na próxima vez que a conversa abrir.": "Since not everything could be checked, this acceptance is not stored: the card comes back the next time the conversation opens.",
+    "O app olha a pasta de verdade (sem atalhos) e guarda uma impressão digital destes arquivos. Se algum mudar, pergunta de novo, mostrando o que mudou.": "The app looks at the real folder (no links) and keeps a fingerprint of these files. If any of them changes, it asks again, showing what changed.",
+    "Confiar e abrir": "Trust and open",
+    "Abrir sem as configurações do projeto": "Open without the project's settings",
+    "Cancelado: nenhuma conversa foi aberta.": "Cancelled: no conversation was opened.",
+    "Esta conversa está parada: a pasta dela ainda não foi confirmada.": "This conversation is stopped: its folder has not been confirmed yet.",
+    "Conferir a pasta": "Check the folder",
+    "pasta fixa": "fixed folder",
+    "sem as configurações do projeto": "without the project's settings",
+    "a conversa ainda não abriu: falta responder o cartão da pasta": "the conversation has not opened yet: the folder card is waiting for an answer",
     "Pergunta rápida": "Quick question",
     "Fechar a pergunta rápida": "Close quick question",
     "Pergunte sobre esta conversa sem interromper o Claude. Ele responde só com o que já está na conversa, sem rodar comandos nem ler arquivos. A pergunta e a resposta não entram na conversa e somem ao fechar o app. Usa um pouco do seu limite.": "Ask about this conversation without interrupting Claude. It answers only from what is already in the conversation, without running commands or reading files. The question and the answer stay out of the conversation and are gone when you close the app. Uses a little of your limit.",
@@ -1852,6 +1908,42 @@
     "Cola no terminal do app o Claude com uma cópia desta conversa e o comando; nada roda sem você apertar Enter lá": "Pastes Claude with a copy of this conversation and the command into the app's terminal; nothing runs until you press Enter there"
   },
   "padroes": [
+    [
+      "^usada há (\\d+) min$",
+      "used $1 min ago"
+    ],
+    [
+      "^usada há (\\d+) h$",
+      "used $1 h ago"
+    ],
+    [
+      "^usada há (\\d+) dias$",
+      "used $1 days ago"
+    ],
+    [
+      "^Não deu: (.+)$",
+      "Didn't work: $1"
+    ],
+    [
+      "^Não abri a conversa: (.+)$",
+      "Could not open the conversation: $1"
+    ],
+    [
+      "^Não deu para usar esta pasta: (.+)$",
+      "This folder cannot be used: $1"
+    ],
+    [
+      "^A pasta desta conversa não existe mais: (.+)\\. A conversa não abre em outro lugar por conta própria; se a pasta voltar, ela abre de novo\\.$",
+      "This conversation's folder no longer exists: $1. The conversation does not open elsewhere by itself; if the folder comes back, it opens again."
+    ],
+    [
+      "^Não deu para conferir a pasta desta conversa \\((.+?)\\): (.+)$",
+      "Could not check this conversation's folder ($1): $2"
+    ],
+    [
+      "^A pasta desta conversa \\((.+)\\) está mudando enquanto o app confere\\. Tente abrir de novo\\.$",
+      "This conversation's folder ($1) is changing while the app checks it. Try opening again."
+    ],
     [
       "^Não consegui mover para a lixeira: (.+)$",
       "Couldn't move to the trash: $1"

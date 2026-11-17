@@ -142,7 +142,17 @@ há terminal para vigiar.
   arquivos. O que os comandos fizeram (arquivo criado por script, banco de dados, commits do git) não volta. Os
   pontos de volta podem ser desligados em Configurações › Avançado. Com a caixa vazia, ↑ / ↓ trazem de volta o que
   você mandou.
-- **Nova conversa** abre conversas paralelas ao lado do orquestrador.
+- **Nova conversa** abre conversas paralelas ao lado do orquestrador. Uma janela pequena deixa escolher a **pasta**
+  em que a conversa trabalha (a sua pasta pessoal, uma usada há pouco ou outra que você escolher) e o **motor**
+  (Claude ou Codex). A pasta não muda depois, e a lista da esquerda mostra a pasta debaixo de cada conversa; o
+  orquestrador roda sempre na pasta pessoal.
+- **Cartão de confiança da pasta**: na primeira vez em que o Claude subiria numa pasta que não é a pessoal, a
+  conversa mostra o que aquela pasta configura (comandos que rodam sozinhos, servidores MCP, regras que já
+  permitem sem perguntar, instruções para o Claude) e espera: *Confiar e abrir*, *Abrir sem as configurações do
+  projeto* (valem só as suas) ou *Cancelar*. O app guarda uma impressão digital desses arquivos e pergunta de novo,
+  mostrando o que mudou, se algum deles mudar. Nada da pasta roda antes da sua resposta, a mensagem mandada nesse
+  meio-tempo espera na fila, e só um clique de verdade aceita. Pasta que não existe mais é erro: a conversa nunca
+  muda de pasta por conta própria.
 
 ### 🧭 Agentes
 

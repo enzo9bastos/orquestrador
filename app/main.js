@@ -425,7 +425,33 @@ ipcMain.handle('conversa:voltarComArquivos', async (_e, id, ordemDoFim, texto, e
 });
 ipcMain.handle('conversa:configurar', (_e, id, o) => conversa.configurar(id, o));
 ipcMain.handle('conversa:reiniciar', (_e, id) => conversa.reiniciar(id));
-ipcMain.handle('conversa:nova', () => conversa.nova());
+// Conversa nova: a tela pode escolher a pasta e o motor (janela "Nova conversa"). A pasta é
+// conferida no motor (existe, é pasta, caminho de verdade); pasta ruim devolve erro.
+ipcMain.handle('conversa:nova', (_e, o) => conversa.nova(o && typeof o === 'object' ? { pasta: typeof o.pasta === 'string' ? o.pasta : null, motor: o.motor === 'codex' ? 'codex' : 'claude' } : {}));
+// Cartão de confiança da pasta: 'confiar', 'sem' (abrir sem as configurações do projeto) ou 'cancelar'.
+ipcMain.handle('conversa:responderPasta', async (_e, id, escolha) => { try { return await conversa.responderPasta(id, escolha); } catch (e) { return { ok: false, erro: String((e && e.message) || e) }; } });
+// Uma pasta como a janela "Nova conversa" mostra: o caminho, como se lê e se o app já a conhece
+// (aceita e sem mudança). A pasta pessoal não passa pelo cartão.
+const confianca = require('./confianca');
+async function pastaParaATela(p, quando = null) {
+  const pessoal = p === conversa.PASTA;
+  let conhecida = pessoal;
+  if (!pessoal) { try { conhecida = !(await confianca.verificar(p)).perguntar; } catch { conhecida = false; } }
+  return { pasta: p, exibir: conversa.exibirPasta(p), pessoal, conhecida, quando };
+}
+ipcMain.handle('conversa:pastas', async () => Promise.all([...conversa.pastasRecentes().map((x) => pastaParaATela(x.pasta, x.quando)), pastaParaATela(conversa.PASTA)]));
+ipcMain.handle('conversa:escolherPasta', async () => {
+  let p;
+  if (process.env.ORQ_APP_E2E === '1') {
+    // Nos testes de tela não há janela do sistema: a pasta "escolhida" é a que o teste deixou escrita na casa temporária.
+    try { p = fs.readFileSync(path.join(os.homedir(), '.orq-e2e-pasta-escolhida'), 'utf8').trim(); } catch { p = ''; }
+  } else {
+    const r = await dialog.showOpenDialog(janela, { title: t('Pasta da conversa'), defaultPath: os.homedir(), properties: ['openDirectory'] });
+    p = r.canceled ? '' : r.filePaths[0] || '';
+  }
+  if (!p) return null;
+  try { return await pastaParaATela(conversa.pastaDeConversa(p), Date.now()); } catch (e) { return { erro: String((e && e.message) || e) }; }
+});
 ipcMain.handle('conversa:fechar', (_e, id) => conversa.fechar(id));
 
 // --- comandos do "/" que o app faz (comandos.js, renderer/comandos-tela.js) ----

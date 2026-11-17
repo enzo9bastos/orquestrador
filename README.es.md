@@ -148,7 +148,17 @@ que no hay ninguna terminal que vigilar.
   un clic de verdad en el botón rojo los restaura. Lo que hicieron los comandos (archivos creados por scripts, bases
   de datos, commits de git) no vuelve. Los puntos de retorno se pueden desactivar en Settings › Advanced. Con la
   caja vacía, ↑ / ↓ traen de vuelta lo que enviaste.
-- **New conversation** abre conversaciones paralelas al lado del orquestador.
+- **New conversation** abre conversaciones paralelas al lado del orquestador. Una ventana pequeña permite elegir la
+  **carpeta** en la que trabaja la conversación (tu carpeta personal, una usada hace poco u otra que elijas) y el
+  **motor** (Claude o Codex). La carpeta no cambia después, y la lista de la izquierda la muestra debajo de cada
+  conversación; el orquestador siempre corre en tu carpeta personal.
+- **Tarjeta de confianza de la carpeta**: la primera vez que Claude arrancaría en una carpeta que no es la
+  personal, la conversación muestra lo que esa carpeta configura (comandos que corren solos, servidores MCP,
+  reglas que ya permiten sin preguntar, instrucciones para Claude) y espera: *Trust and open*, *Open without the
+  project's settings* (solo valen las tuyas) o *Cancel*. La app guarda una huella de esos archivos y vuelve a
+  preguntar, mostrando qué cambió, si alguno cambia. Nada de la carpeta corre antes de tu respuesta, el mensaje
+  enviado mientras tanto espera en la cola, y solo un clic real acepta. Una carpeta que ya no existe es un error:
+  la conversación nunca cambia de carpeta por sí sola.
 
 ### 🧭 Agentes
 
