@@ -1028,6 +1028,37 @@ class Conversa {
     this.registrar({ tipo: 'encerrada' });
   }
 
+  // /exit: fecha só esta conversa. O processo sai, a sessão vai para as
+  // anteriores (dá para voltar a ela), a tela fica limpa e a próxima mensagem
+  // começa uma sessão nova. O app e as outras conversas continuam.
+  encerrarConversa() {
+    const tinhaSessao = !!this.sessao;
+    // O que esperava na fila não dispara numa sessão nova: fica à vista, parado.
+    this.filaParada = this.fila.length > 0;
+    this.eventos = [];
+    this.encerrarSemAviso();
+    this.avisarFila();
+    this.enviar('conversa:tudo', this.estado());
+    this.registrar({ tipo: 'encerrada', conversa: true, podeVoltar: tinhaSessao });
+  }
+  encerrarSemAviso() {
+    this.rodada = false; this.info.rodada = false;
+    if (this.sessao) { this.anteriores = [...(this.anteriores || []), this.sessao].slice(-20); this.sessao = null; }
+    if (this.proc) { this.proc.encerrando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
+    this.info.ocupado = false; this.info.contexto = null; this.info.fundo = 0;
+    this.pendentes.clear();
+    this.volta = null;
+    gravarLista();
+  }
+  // Desfaz o /exit: a última sessão guardada volta a ser a desta conversa (com o histórico dela).
+  reabrirAnterior() {
+    if (this.proc || this.sessao || !(this.anteriores || []).length) return false;
+    this.sessao = this.anteriores.pop();
+    gravarLista();
+    this.iniciar();
+    return true;
+  }
+
   reiniciar() {
     if (this.proc) { this.proc.reiniciando = true; this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
     this.pendentes.clear();
@@ -1234,6 +1265,8 @@ module.exports = {
   _registroCapacidades: registroCap, // só para os testes
   codexPedir: (id, metodo, params) => pegar(id).codex(metodo, params),
   daCaixa: (id, texto, imagens, exibir, opcoes) => pegar(id).daCaixa(texto, imagens, exibir, opcoes),
+  encerrarConversa: (id) => { pegar(id).encerrarConversa(); return true; },
+  reabrirAnterior: (id) => pegar(id).reabrirAnterior(),
   tirarDaFila: (id, idFila) => pegar(id).tirarDaFila(idFila),
   enviarJaDaFila: (id, idFila) => pegar(id).enviarJaDaFila(idFila),
   estadoComando: (id) => pegar(id).estadoComando(),

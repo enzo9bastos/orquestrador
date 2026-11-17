@@ -427,6 +427,9 @@ ipcMain.handle('cmd:rapido', seguro((id, ligar) => conversa.rapido(id, !!ligar))
 ipcMain.handle('cmd:pastaExtra', seguro((id, p) => ({ pasta: conversa.pastaExtra(id, p) })));
 ipcMain.handle('cmd:threadNova', seguro((id) => conversa.threadNova(id)));
 ipcMain.handle('cmd:pausar', seguro((id) => conversa.pausar(id)));
+// /exit: fecha só aquela conversa (o app continua); reabrir desfaz.
+ipcMain.handle('cmd:encerrar', seguro((id) => ({ ok: conversa.encerrarConversa(id) })));
+ipcMain.handle('cmd:reabrir', seguro((id) => ({ ok: conversa.reabrirAnterior(id) })));
 ipcMain.handle('cmd:ramificar', seguro(async (id, msg) => ({ id: await conversa.ramificar(id, typeof msg === 'string' ? msg.slice(0, 20000) : '') })));
 ipcMain.handle('cmd:retomar', seguro((sessao, motor, titulo) => ({ id: conversa.retomar(sessao, motor, titulo) })));
 ipcMain.handle('cmd:memoria', seguro(async (id) => {

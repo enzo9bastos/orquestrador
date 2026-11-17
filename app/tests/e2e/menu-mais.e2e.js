@@ -39,7 +39,7 @@ test('menu ⋯ e o botão de Iniciar/Desligar', async (t) => {
     assert.strictEqual(await app.visivel('#chip-mais'), 'ok');
     await abrirMais();
     assert.strictEqual(await app.visivel('#menu-mais'), 'ok');
-    assert.deepStrictEqual(await acoes(), ['iniciar', 'desligar', 'btw', 'export', 'config', 'permissions', 'memory', 'status']);
+    assert.deepStrictEqual(await acoes(), ['iniciar', 'desligar', 'btw', 'export', 'config', 'permissions', 'memory', 'status', 'exit']);
     await app.avaliar("document.getElementById('mensagens').click()");
     assert.ok(await escondido('#menu-mais'), 'clicar fora fecha');
   });

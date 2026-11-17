@@ -8,7 +8,6 @@
     "Minimizar": "Minimize",
     "Maximizar": "Maximize",
     "Restaurar": "Restore",
-    "Fechar o app e encerrar tudo, como o /exit: a próxima abertura começa uma rodada nova": "Close the app and shut everything down, like /exit: the next launch starts a new round",
     "Fechar": "Close",
     "Agentes": "Agents",
     "Buscar frente": "Search agents",
@@ -371,6 +370,11 @@
     "Respondido": "Answered",
     "Contexto": "Context",
     "Uso": "Usage",
+    "A sessão desta conversa foi fechada e está guardada. O app continua aberto, e a próxima mensagem começa uma sessão nova.": "This conversation's session was closed and is kept. The app stays open, and the next message starts a new session.",
+    "Voltar à sessão anterior": "Go back to the previous session",
+    "Encerrar esta conversa": "End this conversation",
+    "Encerra só esta conversa (o app continua aberto); a próxima mensagem começa uma sessão nova": "Ends only this conversation (the app stays open); the next message starts a new session",
+    "Fechar o app e encerrar tudo: a próxima abertura começa uma rodada nova": "Close the app and end everything: the next opening starts a new round",
     "Escreva para o orquestrador…": "Write to the Orchestrator…",
     "Escreva para o Claude…": "Write to Claude…",
     "Escreva para o Codex…": "Write to Codex…",
@@ -1277,7 +1281,6 @@
     "Continua esta sessão no Claude Desktop": "Continues this session in Claude Desktop",
     "Mudanças não commitadas": "Uncommitted changes",
     "[low|medium|high|xhigh|max]": "[low|medium|high|xhigh|max]",
-    "Fecha o app e encerra as conversas (pede confirmação)": "Closes the app and ends the conversations (asks first)",
     "Exporta a conversa como texto (copiar ou salvar)": "Exports the conversation as text (copy or save)",
     "[arquivo]": "[file]",
     "Agora é /usage-credits": "Now /usage-credits",
@@ -2355,6 +2358,14 @@
     [
       "^O modo rápido não mudou: (.+)$",
       "Fast mode didn't change: $1"
+    ],
+    [
+      "^Não consegui encerrar a conversa: (.+)$",
+      "Couldn't end the conversation: $1"
+    ],
+    [
+      "^Não consegui voltar à sessão anterior: (.+)$",
+      "Couldn't go back to the previous session: $1"
     ],
     [
       "^Rodando: (.+)$",

@@ -394,6 +394,45 @@ test('fila (Codex): ocupado, a mensagem da caixa espera no app; "enviar já" cor
   assert.deepStrictEqual(naFila(c), ['fica na fila']);
 });
 
+// D16.3: o /exit fecha só a conversa. O processo sai, a sessão vai para as
+// anteriores, a tela fica limpa e a próxima mensagem começa uma sessão nova.
+// Dá para voltar à sessão que foi encerrada.
+test('/exit: encerra só aquela conversa; a sessão fica guardada, a próxima mensagem começa outra, e dá para voltar', async (t) => {
+  process.env.CLAUDE_FALSO_SESSAO_REAL = '1';
+  const c = new conversa._Conversa({ id: 'ex1', titulo: 'Conversa exit' });
+  const outra = new conversa._Conversa({ id: 'ex2', titulo: 'Outra conversa' });
+  t.after(() => { delete process.env.CLAUDE_FALSO_SESSAO_REAL; c.parar(); outra.parar(); });
+  c.mandar('oi'); outra.mandar('oi');
+  await ate(() => turnos(c) === 1 && turnos(outra) === 1);
+  const sessao = c.sessao;
+  const pidDaOutra = outra.proc.pid;
+  assert.ok(sessao && c.proc);
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado);
+  c.daCaixa('estava na fila');
+  c.encerrarConversa();
+  assert.strictEqual(c.proc, null, 'o processo desta conversa sai');
+  assert.strictEqual(c.sessao, null);
+  assert.deepStrictEqual(c.anteriores.slice(-1), [sessao], 'a sessão fica guardada nas anteriores');
+  assert.deepStrictEqual(c.eventos.map((e) => e.tipo), ['encerrada'], 'a tela fica limpa, só com o aviso');
+  assert.strictEqual(c.eventos[0].podeVoltar, true);
+  assert.deepStrictEqual([c.info.ocupado, c.info.filaParada, c.info.fila.length], [false, true, 1], 'o que estava na fila não dispara numa sessão nova');
+  assert.ok(vivo(pidDaOutra) && outra.proc, 'as outras conversas continuam');
+  // Voltar: a sessão encerrada volta a ser a desta conversa.
+  assert.strictEqual(c.reabrirAnterior(), true);
+  assert.strictEqual(c.sessao, sessao);
+  await ate(() => c.proc && recebidos().filter((x) => x.args).some((a) => a.args.join(' ').includes(`--resume ${sessao}`)));
+  assert.strictEqual(c.reabrirAnterior(), false, 'com a conversa aberta não há o que voltar');
+  // De novo, e agora a próxima mensagem começa uma sessão nova.
+  c.encerrarConversa();
+  c.tirarDaFila(c.info.fila[0].id);
+  c.mandar('recomeçando');
+  await ate(() => c.sessao && c.sessao !== sessao);
+  assert.ok(c.anteriores.includes(sessao));
+  const ultimaSubida = recebidos().filter((x) => x.args).pop().args.join(' ');
+  assert.ok(!ultimaSubida.includes('--resume'), 'sessão nova: sobe sem retomar');
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });

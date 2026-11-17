@@ -88,10 +88,12 @@
   H.config = async (item, args) => { if (args) return { feito: false }; V().abrirPopupConfig(); return FEITO; };
   H.permissions = async () => { V().abrirPopupPermissoes(); return FEITO; };
 
-  // /exit: confirmação antes de encerrar (antes, fechava direto).
-  H.exit = async (item) => {
-    confirmar('exit', 'Encerrar?', `<p>Fechar o app encerra todas as conversas. O orquestrador começa uma rodada nova na próxima abertura e as conversas avulsas saem da lista; tudo continua no histórico do ${item.motor === 'codex' ? 'Codex' : 'Claude'}.</p>`,
-      'Fechar o app', () => (window.orq.janela ? window.orq.janela.fechar() : window.close()));
+  // /exit: fecha só esta conversa (D16.3). O processo dela sai, a sessão fica
+  // guardada (dá para voltar), a tela limpa e a próxima mensagem começa uma
+  // sessão nova. O app continua aberto; quem fecha o app é o ✕ da janela.
+  H.exit = async () => {
+    const r = await K.encerrar(V().ativa());
+    if (erroDe(r)) V().aviso(`Não consegui encerrar a conversa: ${r.erro}`, 'erro');
     return FEITO;
   };
 

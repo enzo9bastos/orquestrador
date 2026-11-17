@@ -355,6 +355,14 @@
       limparRascunho();
       if (ev.erro) aviso(ev.texto || 'O turno terminou com erro.', 'erro');
       grupo = null;
+    } else if (ev.tipo === 'encerrada' && ev.conversa) {
+      // /exit: só esta conversa foi encerrada; a tela fica limpa, com o caminho de volta.
+      limparRascunho(); grupo = null;
+      const el = document.createElement('div');
+      el.className = 'rodada-encerrada conversa-encerrada';
+      el.innerHTML = `<strong>Conversa encerrada</strong><span>A sessão desta conversa foi fechada e está guardada. O app continua aberto, e a próxima mensagem começa uma sessão nova.</span>
+        ${ev.podeVoltar ? '<button type="button" class="botao secundario" data-voltar-sessao>Voltar à sessão anterior</button>' : ''}`;
+      caixa.append(el);
     } else if (ev.tipo === 'encerrada') {
       limparRascunho(); grupo = null;
       const el = document.createElement('div');
@@ -541,6 +549,13 @@
       return;
     }
     if (ev.target.closest('[data-nova-rodada]')) { trocar('orquestrador'); return; }
+    const voltar = ev.target.closest('[data-voltar-sessao]');
+    if (voltar) {
+      voltar.disabled = true;
+      const r = await window.orq.comandos.reabrir(ativa);
+      if (!r || r.erro || !r.ok) { voltar.disabled = false; aviso(`Não consegui voltar à sessão anterior${r && r.erro ? `: ${r.erro}` : '.'}`, 'erro'); }
+      return;
+    }
     const ap = ev.target.closest('.cartao-aprovacao:not(.respondido)');
     if (ap) { const d = ev.target.closest('[data-decidir]'); if (d) decidirAprovacao(ap, d.dataset.decidir === '1'); return; }
     const cartao = ev.target.closest('.cartao-pedido');
@@ -914,7 +929,7 @@
   function fecharMenuMais() { $('menu-mais').hidden = true; $('chip-mais').setAttribute('aria-expanded', 'false'); }
   // Cada ação é um comando do "/" que já existe: só entra no menu se a lista de
   // comandos desta conversa tiver o comando (o Codex mostra os dele).
-  const ACOES_MAIS = [['btw', 'Pergunta rápida…'], ['export', 'Exportar…'], ['config', 'Configurações do Claude Code'], ['permissions', 'Permissões'], ['memory', 'Memória'], ['status', 'Status']];
+  const ACOES_MAIS = [['btw', 'Pergunta rápida…'], ['export', 'Exportar…'], ['config', 'Configurações do Claude Code'], ['permissions', 'Permissões'], ['memory', 'Memória'], ['status', 'Status'], ['exit', 'Encerrar esta conversa']];
   function desenharMenuMais() {
     const orq = ehOrquestrador();
     const item = (acao, rotulo, extra = '') => `<button type="button" class="item-menu${extra}" role="menuitem" data-acao="${acao}"><span>${rotulo}</span>${acharComando(acao) ? `<span class="atalho" data-sem-traducao>/${acao}</span>` : ''}</button>`;
@@ -1227,6 +1242,8 @@
     } else if (ev.tipo === 'resultado') {
       pet.definir(ev.erro ? 'erro' : 'pronto');
     } else if (ev.tipo === 'fim' || ev.tipo === 'erro') {
+      pet.definir('livre');
+    } else if (ev.tipo === 'encerrada' && ev.conversa) {
       pet.definir('livre');
     } else if (ev.tipo === 'encerrada') {
       pet.definir('livre');

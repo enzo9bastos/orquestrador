@@ -205,12 +205,21 @@ test('comandos do Claude: cada jeito funciona de verdade', async (t) => {
     assert.ok(args.includes('--settings'), 'o modo rápido escolhido não voltou no reinício');
   });
 
-  await t.test('(e) /exit pede confirmação e não fecha sozinho', async () => {
+  // D16.3 (17/11/2026): o /exit fecha só a conversa, sem perguntar; o app continua aberto.
+  await t.test('(e) /exit encerra só esta conversa: a tela limpa, o app continua e dá para voltar à sessão', async () => {
+    await app.avaliar("window.orq.conversa.mandar('orquestrador', 'antes do exit')");
+    await app.esperar("[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].some((b) => b.dataset.texto === 'antes do exit') && document.getElementById('trabalhando').hidden", 10000);
     await enviar(app, '/exit');
-    await app.esperar(`${popupDe('exit')} && /todas/.test(${textoPopup})`);
-    await app.avaliar("document.querySelector('#popup-corpo [data-nao]').click()");
-    assert.strictEqual(await app.avaliar("document.getElementById('popup').hidden"), true);
-    assert.ok(await app.avaliar('!!document.getElementById("entrada")'), 'o app fechou');
+    await app.esperar("!!document.querySelector('#mensagens .conversa-encerrada')", 8000);
+    assert.strictEqual(await app.avaliar("document.getElementById('popup').hidden"), true, 'sem confirmação de fechar o app');
+    assert.strictEqual(await app.avaliar("document.querySelectorAll('#mensagens .msg-voce[data-texto]').length"), 0, 'a tela fica limpa');
+    assert.match(await app.avaliar("document.querySelector('#mensagens .conversa-encerrada').innerText"), /Conversa encerrada[\s\S]*a próxima mensagem começa uma sessão nova/);
+    assert.ok(await app.avaliar('!!document.getElementById("entrada")'), 'o app continua aberto');
+    assert.ok(!linhas(log).some((o) => o.type === 'user' && /^\/exit/.test(typeof o.message.content === 'string' ? o.message.content : '')), 'o /exit não vai ao Claude como texto');
+    // Voltar à sessão encerrada traz o histórico de volta.
+    await app.avaliar("document.querySelector('#mensagens .conversa-encerrada [data-voltar-sessao]').click()");
+    await app.esperar("!document.querySelector('#mensagens .conversa-encerrada')", 8000);
+    assert.ok(linhas(log).filter((o) => o.args).pop().args.includes('--resume'), 'a sessão anterior foi retomada');
   });
 
   await t.test('(e) /vim diz o que fez (a caixa não tem modo vim)', async () => {
