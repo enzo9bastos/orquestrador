@@ -145,7 +145,16 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
       if (process.env.CLAUDE_FALSO_RECUSA_MODELO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_MODELO } });
       modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: modelo });
     }
-    if (r.subtype === 'set_permission_mode') { modo = r.mode; responde(d, { mode: modo }); return sai({ type: 'system', subtype: 'status', status: null, permissionMode: modo, session_id: SESSAO }); }
+    if (r.subtype === 'set_permission_mode') {
+      // Como o Claude de verdade (2.1.326): o Bypass só entra se o processo subiu com a opção que o libera.
+      if (r.mode === 'bypassPermissions' && !args.includes('--allow-dangerously-skip-permissions') && !args.includes('--dangerously-skip-permissions')) {
+        return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'Cannot set permission mode to bypassPermissions because the session was not launched with --dangerously-skip-permissions' } });
+      }
+      const novo = r.mode === 'manual' ? 'default' : r.mode;
+      const mudou = novo !== modo;
+      modo = novo; responde(d, { mode: modo });
+      return mudou ? sai({ type: 'system', subtype: 'status', status: null, permissionMode: modo, session_id: SESSAO }) : undefined;
+    }
     if (r.subtype === 'apply_flag_settings') {
       if (process.env.CLAUDE_FALSO_RECUSA_ESFORCO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_ESFORCO } });
       return responde(d);

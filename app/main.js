@@ -399,8 +399,12 @@ const METODOS_CODEX = ['thread/compact/start', 'review/start', 'thread/name/set'
 const pastaDa = (id) => { const e = conversa.estadoComando(id); return (e.init && e.init.pasta) || e.info.pasta || conversa.PASTA; };
 ipcMain.handle('cmd:controle', seguro((id, subtype, extra = {}) => {
   if (!CONTROLES.includes(subtype)) throw new Error(`pedido não liberado: ${subtype}`);
+  // O modo só passa por aqui se for um dos do chip; o Bypass tem caminho próprio (conversa:modo), com as regras dele.
+  if (subtype === 'set_permission_mode' && !conversa.MODOS_DO_CHIP.includes(extra && extra.mode)) throw new Error('modo não liberado por este caminho');
   return conversa.controle(id, subtype, extra && typeof extra === 'object' ? extra : {}, subtype === 'side_question' ? 120000 : 20000);
 }));
+// Chip de modo: troca ao vivo; erro (ex.: Bypass onde não pode) volta como { erro }.
+ipcMain.handle('conversa:modo', seguro(async (id, modo) => { await conversa.definirModo(id, modo); return { ok: true }; }));
 ipcMain.handle('cmd:codex', seguro((id, metodo, params = {}) => {
   if (!METODOS_CODEX.includes(metodo)) throw new Error(`método não liberado: ${metodo}`);
   return conversa.codexPedir(id, metodo, params && typeof params === 'object' ? params : {});

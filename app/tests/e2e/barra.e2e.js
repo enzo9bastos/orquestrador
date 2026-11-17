@@ -93,7 +93,10 @@ test('barra da conversa: uso num chip só e faixa de atividade', async (t) => {
       await app.tamanho(largura, 900);
       await info({ contexto: 92000, janela: 200000, uso5h: 85, uso7d: 41 });
       await app.espera(120);
-      for (const sel of ['#botao-modelo', '#chip-uso', '#nova-conversa']) assert.strictEqual(await app.visivel(sel), 'ok', `${sel} em ${largura} px`);
+      for (const sel of ['#botao-modelo', '#chip-modo', '#chip-uso', '#nova-conversa']) assert.strictEqual(await app.visivel(sel), 'ok', `${sel} em ${largura} px`);
+      // Apertada, a barra troca nomes por ícones; a dica continua dizendo o modo.
+      assert.match(await app.avaliar("document.getElementById('chip-modo').title"), /Modo de permissão: Auto/);
+      if (largura === 1000) assert.ok(await app.avaliar("document.querySelector('.conversa-barra').classList.contains('apertada') && document.querySelector('#chip-modo .rotulo-chip').offsetParent === null"), 'em 1000 px o chip de modo fica só com o ícone');
     });
   }
 

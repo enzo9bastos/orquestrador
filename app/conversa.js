@@ -80,6 +80,13 @@ const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const MODO_APP = 'auto';
 const MODOS_MAIS_RESTRITOS = ['plan', 'dontAsk', 'default', 'acceptEdits'];
 const modoDeSubida = (vivo) => (MODOS_MAIS_RESTRITOS.includes(vivo) ? vivo : MODO_APP);
+// Modos que o chip da barra oferece (o "manual" do Claude responde como default).
+const MODOS_DO_CHIP = ['default', 'acceptEdits', 'auto', 'plan'];
+// Bypass ("sem perguntas"): fora da lista de propósito. Só entra por
+// definirModo, em conversa avulsa e com a opção das Configurações ligada.
+const BYPASS = 'bypassPermissions';
+const PERMITE_BYPASS = '--allow-dangerously-skip-permissions';
+const bypassLigado = () => { try { return config.ler().mostrarBypass === true; } catch { return false; } };
 // Esforços que o Claude aceita ao vivo, só para a sessão (apply_flag_settings
 // { effortLevel }). Os outros ("Máximo" e o padrão) só valem ao subir (--effort).
 // Nunca "/effort": no modo -p ele grava o nível como padrão no settings.json.
@@ -304,7 +311,7 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, rotuloLongo: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rotuloLongo: null, ocupado: false };
   }
 
   // O orquestrador segue a IA escolhida na configuração. Só troca parado:
@@ -340,6 +347,8 @@ class Conversa {
     // Modo rápido: no modo -p o Claude só libera com o fastMode nas flags.
     if (this.rapido !== null) args.push('--settings', JSON.stringify({ fastMode: this.rapido }));
     for (const p of this.pastasExtras) args.push('--add-dir', p);
+    // Deixa o Bypass disponível como opção (não liga): só conversa avulsa, só com a opção das Configurações.
+    if (!this.orquestrador && bypassLigado()) args.push(PERMITE_BYPASS);
     // Voltar: abre a sessão original cortada naquele ponto, numa sessão nova
     // (--fork-session); a original fica como estava.
     if (this.volta) args.push('--resume', this.volta.de, '--resume-session-at', this.volta.ate, '--fork-session');
@@ -390,6 +399,7 @@ class Conversa {
     // executável; senão 'claude' do PATH.
     const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
+    proc.permiteBypass = args.includes(PERMITE_BYPASS);
     // Pedidos pendentes eram do processo anterior.
     this.pedidoModelo = null; this.modeloDepois = undefined; this.pedidosEsforco = new Set();
     this.recusarControles('o Claude reiniciou');
@@ -887,9 +897,28 @@ class Conversa {
   }
 
   guardarModo(m) {
-    if (typeof m !== 'string' || !/^\w+$/.test(m) || m === this.modo) return;
+    if (typeof m !== 'string' || !/^\w+$/.test(m)) return;
+    // A tela (chip de modo) mostra o que o Claude confirmou.
+    if (this.info.modo !== m) { this.info.modo = m; this.avisarInfo(); }
+    if (m === this.modo) return;
     this.modo = m;
     gravarLista();
+  }
+
+  // Troca o modo de permissão ao vivo (chip da barra). O Claude confirma pelo
+  // system/status, e é isso que a tela mostra.
+  // Bypass: nunca no orquestrador, e só com a opção das Configurações ligada.
+  // O Claude só aceita o modo se o processo subiu com a permissão (conferido
+  // no 2.1.326); a conversa aberta sem ela sobe de novo, na mesma sessão, e
+  // troca em seguida. Num reinício o modo volta ao do app (modoDeSubida).
+  async definirModo(modo) {
+    if (this.motor === 'codex') throw new Error('o modo de permissão é do Claude; no Codex ele vem da configuração do Codex');
+    if (modo === BYPASS) {
+      if (this.orquestrador) throw new Error('o modo sem perguntas nunca vale para o orquestrador');
+      if (!bypassLigado()) throw new Error('o modo sem perguntas está desligado nas Configurações');
+      if (!this.proc || !this.proc.permiteBypass) this.reiniciar();
+    } else if (!MODOS_DO_CHIP.includes(modo)) throw new Error(`modo não oferecido: ${String(modo).slice(0, 40)}`);
+    return this.controle('set_permission_mode', { mode: modo });
   }
 
   // Fim da rodada: o Claude sai, e o id da sessão deixa de ser o atual. Na
@@ -1099,6 +1128,8 @@ module.exports = {
   interromper: (id) => pegar(id).interromper(),
   voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),
   configurar: (id, o) => pegar(id).configurar(o || {}),
+  definirModo: (id, modo) => pegar(id).definirModo(modo),
+  MODOS_DO_CHIP,
   reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },
   // Comandos do "/" feitos pelo app.
   controle: (id, subtype, extra, ms) => pegar(id).controle(subtype, extra, ms),

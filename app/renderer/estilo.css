@@ -330,7 +330,39 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .chip-uso.em-alerta { border-color: color-mix(in srgb, #f59e0b 55%, var(--borda)); }
 .chip-uso.em-alerta.alto { border-color: color-mix(in srgb, var(--perigo) 55%, var(--borda)); }
 .botao-chip[aria-expanded="true"] { border-color: var(--borda-forte); color: var(--fg); background: var(--painel-hover); }
-.menu-uso { width: 300px; }
+.menu-modelo.menu-uso { width: 300px; }
+/* Modo de permissão: cor E ícone por modo (nunca só cor). */
+.ico-modo { display: grid; place-items: center; width: 13px; height: 13px; flex: none; color: var(--cor-modo, var(--fg-3)); }
+.ico-modo svg { width: 13px; height: 13px; }
+.chip-modo { border-color: color-mix(in srgb, var(--cor-modo, var(--borda)) 45%, var(--borda)); }
+.chip-modo .rotulo-chip { font-family: var(--sans); color: var(--fg); }
+.modo-default { --cor-modo: var(--fg-3); }
+.modo-acceptEdits { --cor-modo: #3b82f6; }
+.modo-auto { --cor-modo: #10b981; }
+.modo-plan { --cor-modo: #a78bfa; }
+.modo-bypassPermissions { --cor-modo: var(--perigo); }
+.chip-modo.modo-bypassPermissions { background: color-mix(in srgb, var(--perigo) 14%, var(--bg-elevado)); }
+@keyframes piscar-chip { 0% { box-shadow: 0 0 0 0 var(--cor-modo, var(--claude)); } 100% { box-shadow: 0 0 0 7px transparent; } }
+.chip.piscou { animation: piscar-chip .5s ease-out; }
+.menu-modelo.menu-modo { width: 340px; }
+.menu-modo .menu-opcoes button { height: auto; min-height: 30px; padding: 6px 8px; align-items: flex-start; width: 100%; }
+.menu-modo .menu-opcoes button[aria-checked="true"] { background: var(--claude-suave); color: var(--fg); box-shadow: inset 2px 0 0 var(--claude); }
+.menu-modo .menu-opcoes .ico-modo { margin-top: 3px; }
+.opcao-texto { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.opcao-texto small { font-size: 11px; color: var(--fg-3); line-height: 1.35; }
+.nome-tecnico { margin-left: auto; font: 10.5px var(--mono); color: var(--fg-4); align-self: center; white-space: nowrap; }
+.menu-separador { height: 1px; background: var(--borda); margin: 6px 2px; }
+.menu-confirma { margin: 6px 2px 2px; padding: 8px 9px; border-radius: var(--r-sm); border: 1px solid color-mix(in srgb, var(--esperando) 50%, var(--borda)); background: color-mix(in srgb, var(--esperando) 8%, var(--bg-elevado)); display: grid; gap: 7px; font-size: 12px; line-height: 1.45; color: var(--fg-2); }
+.menu-confirma strong { color: var(--fg); }
+.menu-confirma.perigo { border-color: color-mix(in srgb, var(--perigo) 50%, var(--borda)); background: color-mix(in srgb, var(--perigo) 8%, var(--bg-elevado)); }
+.menu-confirma .acoes { display: flex; justify-content: flex-end; gap: 6px; }
+.menu-confirma .botao { height: 26px; padding: 0 10px; font-size: 12px; }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Bypass ligado: faixa fixa e vermelha em cima da conversa. */
+.faixa-bypass { display: flex; align-items: center; gap: 10px; padding: 6px 16px; background: color-mix(in srgb, var(--perigo) 18%, var(--bg)); border-bottom: 1px solid color-mix(in srgb, var(--perigo) 55%, transparent); color: var(--fg); font-size: 12.5px; }
+.faixa-bypass[hidden] { display: none; }
+.faixa-bypass .ico { color: var(--perigo); }
+.faixa-bypass .botao-texto { margin-left: auto; }
 .linha-uso { display: grid; grid-template-columns: 74px minmax(0, 1fr) 44px; gap: 10px; align-items: center; padding: 6px 8px; font-size: 12.5px; color: var(--fg-2); }
 .linha-uso[hidden] { display: none; }
 .linha-uso .rotulo { font-family: var(--sans); }
@@ -1618,7 +1650,12 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
    primeiro os medidores ficam só com o número; se ainda não couber, os botões
    ficam só com ícone (o nome continua na dica). conversa-tela.js mede e põe a
    classe. A reorganização da barra é o passo 1.1. */
-.conversa-barra.apertada .barra-uso { display: none; }
+/* Barra que não cabe encolhe em duas etapas: primeiro saem os nomes da pasta, do
+   modo e do esforço (ficam o ícone e a dica); depois o nome do modelo e os
+   rótulos dos botões. O número do uso fica sempre. */
+.conversa-barra.apertada #info-pasta, .conversa-barra.apertada .chip-modo .rotulo-chip, .conversa-barra.apertada #info-esforco { display: none; }
+.conversa-barra.apertada #botao-modelo .divisor { display: none; }
+.conversa-barra.muito-apertada #info-modelo { display: none; }
 .conversa-barra.muito-apertada .rotulo-botao { display: none; }
 .conversa-barra.muito-apertada .so-icone { display: block; }
 

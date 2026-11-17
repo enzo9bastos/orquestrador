@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('orq', {
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
     voltar: (id, ordemDoFim, texto) => ipcRenderer.invoke('conversa:voltar', id, ordemDoFim, texto),
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
+    modo: (id, modo) => ipcRenderer.invoke('conversa:modo', id, modo),
     reiniciar: (id) => ipcRenderer.invoke('conversa:reiniciar', id),
     nova: () => ipcRenderer.invoke('conversa:nova'),
     fechar: (id) => ipcRenderer.invoke('conversa:fechar', id),

@@ -74,6 +74,11 @@
     </div>
     <div class="painel-corpo">
       <section id="aba-orquestrador" class="aba ativa conversa" aria-label="Conversa com o orquestrador">
+        <div id="faixa-bypass" class="faixa-bypass" role="status" hidden>
+          <svg class="ico" viewBox="0 0 16 16"><path d="M9 2 4 9h3.5L7 14l5-7H8.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          <span><strong>Sem perguntas:</strong> <span>o Claude roda tudo sem pedir. Vale só até esta conversa reiniciar.</span></span>
+          <button type="button" class="botao-texto" id="sair-bypass">Voltar ao Auto</button>
+        </div>
         <header class="conversa-barra">
           <span class="chip" title="Pasta"><svg class="ico"><use href="#i-pasta"/></svg><span id="info-pasta">~</span></span>
           <span class="seletor-modelo">
@@ -88,6 +93,12 @@
               <p class="menu-nota">Troca sem reiniciar: o que roda em segundo plano continua. No Claude, só o esforço Máximo reinicia a conversa e encerra o que estiver em segundo plano.</p>
             </div>
           </span>
+          <span class="seletor-modelo">
+            <button id="chip-modo" class="chip botao-chip chip-modo" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-modo">
+              <span class="ico-modo" id="ico-modo"></span><span class="rotulo-chip" id="rotulo-modo"></span><span class="seta">▾</span></button>
+            <div id="menu-modo" class="menu-modelo menu-modo" role="menu" aria-label="Modo de permissão" hidden></div>
+          </span>
+          <span id="anuncio-modo" class="so-leitor" aria-live="polite" data-sem-traducao></span>
           <span class="espaco-barra" aria-hidden="true"></span>
           <span class="seletor-modelo">
             <button id="chip-uso" class="chip botao-chip chip-uso" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu-uso" hidden>
@@ -505,6 +516,10 @@
           <div class="config-painel" role="tabpanel" id="config-sec-atalhos" data-secao="atalhos" aria-labelledby="config-aba-atalhos" tabindex="-1" hidden>
             <h3 class="config-secao">Atalhos</h3>
             <p class="nota atalhos-intro">Clique na combinação e aperte as teclas novas (Esc cancela). Precisa de Ctrl, Alt ou Cmd junto com outra tecla. Uma combinação que o app ou o sistema já usa é recusada.</p>
+            <div class="config-linha">
+              <div><strong>Shift+Tab troca o modo de permissão</strong><span>Com a caixa de texto vazia, como no terminal. Ctrl+Shift+M troca sempre.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="shiftTabTrocaModo"><span></span></label>
+            </div>
             <div class="config-linha" data-atalho-coluna="agentes">
               <div><strong>Recolher ou abrir os agentes</strong><span>A coluna da esquerda, com as conversas e os agentes.</span></div>
               <div class="atalho-controles">
@@ -525,6 +540,10 @@
           </div>
           <div class="config-painel" role="tabpanel" id="config-sec-avancado" data-secao="avancado" aria-labelledby="config-aba-avancado" tabindex="-1" hidden>
             <h3 class="config-secao">Avançado</h3>
+            <div class="config-linha">
+              <div><strong>Modo "Sem perguntas" (Bypass)</strong><span>Mostra o modo no menu de permissão das conversas avulsas. Nele o Claude edita arquivos e roda comandos sem pedir: confirma a cada vez, fica com a faixa vermelha e desliga quando a conversa reinicia. Nunca vale para o orquestrador.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="mostrarBypass"><span></span></label>
+            </div>
             <div class="config-linha">
               <div><strong>Achar o que criei nas ferramentas de IA</strong><span>Repertório: skills, comandos, subagentes, prompts e workflows do Claude, Codex, Gemini, OpenCode, Qwen, Windsurf, Cursor e do padrão dos agentes.</span></div>
               <label class="chave"><input type="checkbox" data-cfg="detectarFerramentas"><span></span></label>

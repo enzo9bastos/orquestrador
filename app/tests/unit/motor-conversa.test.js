@@ -201,6 +201,66 @@ test('faixa: o aviso de tarefas em segundo plano do Claude vira a contagem da co
   assert.deepStrictEqual(avisos, [2, 0], 'a tela só é avisada quando o número muda');
 });
 
+// Plano 2.2 (chip de modo). Conferido no Claude 2.1.326 de verdade: a troca ao
+// vivo é o set_permission_mode; o Bypass só é aceito se o processo subiu com
+// --allow-dangerously-skip-permissions (senão: "Cannot set permission mode…").
+const pedidosDeModo = () => recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'set_permission_mode').map((x) => x.request.mode);
+test('modo: a troca ao vivo vai por set_permission_mode e a conversa mostra o modo que o Claude confirma', async (t) => {
+  const c = new conversa._Conversa({ id: 'md1', titulo: 'Conversa modo' });
+  t.after(() => c.parar());
+  assert.strictEqual(c.info.modo, 'auto', 'antes de subir, o modo é o do app');
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  await c.definirModo('plan');
+  await ate(() => c.info.modo === 'plan');
+  await c.definirModo('default');
+  await ate(() => c.info.modo === 'default');
+  assert.deepStrictEqual(pedidosDeModo(), ['plan', 'default']);
+  for (const fora of ['dontAsk', 'qualquer', '', null, 'bypassPermissions; rm']) await assert.rejects(() => c.definirModo(fora), /modo não oferecido/);
+  assert.deepStrictEqual(pedidosDeModo(), ['plan', 'default'], 'modo de fora da lista não chega ao Claude');
+});
+
+test('modo: Bypass nunca no orquestrador; na avulsa só com a opção das Configurações, e não sobrevive a um reinício', async (t) => {
+  const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
+  const base = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+  const orq = new conversa._Conversa({ id: 'md-orq', titulo: 'Orquestrador', orquestrador: true });
+  const c = new conversa._Conversa({ id: 'md2', titulo: 'Conversa bypass' });
+  t.after(() => { fs.writeFileSync(cfg, JSON.stringify(base)); c.parar(); orq.parar(); });
+  const permite = (x) => x.argumentos().includes('--allow-dangerously-skip-permissions');
+  // Opção desligada (o padrão): recusa, e ninguém sobe com a permissão.
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  await assert.rejects(() => c.definirModo('bypassPermissions'), /desligado nas Configurações/);
+  assert.deepStrictEqual([permite(c), permite(orq)], [false, false]);
+  // Opção ligada: o orquestrador continua recusando e nunca sobe com a permissão.
+  fs.writeFileSync(cfg, JSON.stringify({ ...base, mostrarBypass: true }));
+  await assert.rejects(() => orq.definirModo('bypassPermissions'), /nunca vale para o orquestrador/);
+  assert.deepStrictEqual([permite(c), permite(orq)], [true, false]);
+  // A conversa aberta antes de ligar a opção não aceita o modo (o Claude recusaria):
+  // ela sobe de novo, na mesma sessão, com a permissão, e só então troca.
+  const sessao = c.sessao;
+  await c.definirModo('bypassPermissions');
+  await ate(() => c.info.modo === 'bypassPermissions');
+  const subidas = recebidos().filter((x) => x.args).map((x) => x.args);
+  assert.strictEqual(subidas.length, 2, 'subiu de novo uma vez');
+  assert.ok(!subidas[0].includes('--allow-dangerously-skip-permissions') && subidas[1].includes('--allow-dangerously-skip-permissions'));
+  assert.deepStrictEqual(subidas[1].slice(subidas[1].indexOf('--resume'), subidas[1].indexOf('--resume') + 2), ['--resume', sessao], 'a conversa é a mesma');
+  assert.strictEqual(subidas[1][subidas[1].indexOf('--permission-mode') + 1], 'auto', 'a subida nunca é em Bypass');
+  assert.deepStrictEqual(pedidosDeModo(), ['bypassPermissions']);
+  // Já com a permissão: voltar ao Auto e ligar de novo não reinicia.
+  await c.definirModo('auto');
+  await ate(() => c.info.modo === 'auto');
+  await c.definirModo('bypassPermissions');
+  await ate(() => c.info.modo === 'bypassPermissions');
+  assert.strictEqual(recebidos().filter((x) => x.args).length, 2);
+  // Reinício: volta ao modo do app (o Bypass não sobrevive).
+  assert.strictEqual(c.argumentos()[c.argumentos().indexOf('--permission-mode') + 1], 'auto');
+  // Opção desligada de novo: recusa e a próxima subida vem sem a permissão.
+  fs.writeFileSync(cfg, JSON.stringify(base));
+  assert.strictEqual(permite(c), false);
+  await assert.rejects(() => c.definirModo('bypassPermissions'), /desligado nas Configurações/);
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });

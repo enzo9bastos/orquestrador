@@ -708,6 +708,7 @@
     medidor($('info-7d'), rotuloLongo, i.uso7d);
     desenharUso(ctx, i.uso5h == null ? null : i.uso5h, i.uso7d == null ? null : i.uso7d, rotuloLongo);
     desenharFaixa(i);
+    desenharModo(i);
   }
 
   // --- modelo e esforço (botão da barra) ------------------------------------
@@ -735,7 +736,7 @@
   $('botao-modelo').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const abrir = $('menu-modelo').hidden;
-    fecharMenuUso();
+    fecharMenuUso(); fecharMenuModo();
     if (abrir) {
       desenharMenu();
       // Posição fixa na janela: a barra corta o que passa dela (overflow), e o
@@ -758,12 +759,116 @@
   });
   document.addEventListener('click', fecharMenu);
 
+  // --- modo de permissão (chip da barra) ---------------------------------------
+  // O chip mostra o modo que o Claude confirmou (info.modo, vindo do
+  // system/status) e troca ao vivo. Cor E ícone por modo, nunca só cor.
+  const ICO_MODO = {
+    default: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 6.6a1.6 1.6 0 1 1 2.3 1.5c-.5.3-.8.6-.8 1.1M8 11.2v.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    acceptEdits: '<svg viewBox="0 0 16 16"><path d="M3 13l.6-2.7 7.1-7.1 2.1 2.1-7.1 7.1z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    auto: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg>',
+    plan: '<svg viewBox="0 0 16 16"><path d="M2.5 4.2 6 2.7l4 1.5 3.5-1.5v9.1L10 13.3l-4-1.5-3.5 1.5zM6 2.7v9.1M10 4.2v9.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    bypassPermissions: '<svg viewBox="0 0 16 16"><path d="M9 2 4 9h3.5L7 14l5-7H8.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  };
+  // [modo do Claude, nome no menu, explicação, nome curto no chip]
+  const MODOS = [
+    ['default', 'Perguntar sempre', 'pede antes de editar ou rodar', 'Perguntar'],
+    ['acceptEdits', 'Aceitar edições', 'edita sozinho, pergunta antes de rodar', 'Aceitar edições'],
+    ['auto', 'Auto', 'decide sozinho o que é seguro', 'Auto'],
+    ['plan', 'Planejar', 'só lê e propõe um plano', 'Planejar'],
+  ];
+  const BYPASS = ['bypassPermissions', 'Sem perguntas (Bypass)', 'roda tudo sem pedir; desliga quando a conversa reinicia', 'Sem perguntas'];
+  const modoDaTela = () => (infoAtual.modo === 'manual' ? 'default' : infoAtual.modo || 'auto');
+  const conversaAtual = () => listaConversas.find((c) => c.id === ativa) || null;
+  const ehOrquestrador = () => { const c = conversaAtual(); return !!(c && c.orquestrador); };
+  // O Bypass só é oferecido em conversa avulsa e com a opção das Configurações ligada.
+  const ofereceBypass = () => cfg.mostrarBypass === true && !ehOrquestrador();
+  function desenharModo(i) {
+    const chip = $('chip-modo');
+    chip.hidden = i.motor === 'codex'; // no Codex o modo é o da configuração dele
+    const m = i.modo === 'manual' ? 'default' : i.modo || 'auto';
+    const linha = [...MODOS, BYPASS].find((x) => x[0] === m);
+    chip.className = `chip botao-chip chip-modo modo-${m}`;
+    $('ico-modo').innerHTML = ICO_MODO[m] || ICO_MODO.default;
+    // Modo que o chip não oferece (ex.: dontAsk, posto pelo /config): aparece com o nome do Claude.
+    $('rotulo-modo').textContent = linha ? linha[3] : m;
+    if (!linha) $('rotulo-modo').setAttribute('data-sem-traducao', ''); else $('rotulo-modo').removeAttribute('data-sem-traducao');
+    // Com a barra apertada o nome some do chip: a dica e o leitor de tela continuam dizendo o modo.
+    const dica = `${tr('Modo de permissão')}: ${linha ? tr(linha[3]) : m} (${tr('Ctrl+Shift+M troca')})`;
+    chip.title = dica; chip.setAttribute('aria-label', dica);
+    $('faixa-bypass').hidden = m !== 'bypassPermissions' || i.motor === 'codex';
+    if (chip.hidden) fecharMenuModo();
+  }
+  function fecharMenuModo() { $('menu-modo').hidden = true; $('chip-modo').setAttribute('aria-expanded', 'false'); }
+  function desenharMenuModo() {
+    const atual = modoDaTela();
+    const linha = ([k, nome, desc]) => `<button type="button" role="menuitemradio" aria-checked="${atual === k}" data-modo="${k}" class="modo-${k}"><span class="ico-modo">${ICO_MODO[k]}</span><span class="opcao-texto"><span>${nome}</span><small>${desc}</small></span><span class="nome-tecnico" data-sem-traducao>${k}</span></button>`;
+    $('menu-modo').innerHTML = `<div class="menu-titulo">Modo de permissão</div>
+      <div class="menu-opcoes">${MODOS.map(linha).join('')}</div>
+      ${ofereceBypass() ? `<div class="menu-separador"></div><div class="menu-opcoes">${linha(BYPASS)}</div>` : ''}
+      <div id="confirma-modo"></div>
+      <p class="menu-nota"><span>Ctrl+Shift+M troca</span>${cfg.shiftTabTrocaModo === false ? '' : '<span> · Shift+Tab com a caixa vazia</span>'}</p>`;
+  }
+  function abrirMenuModo() {
+    fecharMenu(); fecharMenuUso();
+    desenharMenuModo();
+    const r = $('chip-modo').getBoundingClientRect();
+    const m = $('menu-modo');
+    m.hidden = false;
+    m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8))}px`;
+    m.style.top = `${r.bottom + 6}px`;
+    $('chip-modo').setAttribute('aria-expanded', 'true');
+  }
+  $('chip-modo').addEventListener('click', (ev) => { ev.stopPropagation(); if ($('menu-modo').hidden) abrirMenuModo(); else fecharMenuModo(); });
+  document.addEventListener('click', fecharMenuModo);
+  async function trocarModo(k) {
+    fecharMenuModo();
+    const r = await C.modo(ativa, k);
+    if (r && r.erro) { aviso(`O modo não trocou: ${r.erro}`, 'erro'); return; }
+    // O chip muda quando o Claude confirma (info.modo); aqui só o aviso para quem usa leitor de tela.
+    const linha = [...MODOS, BYPASS].find((x) => x[0] === k);
+    $('anuncio-modo').textContent = `${tr('Modo')}: ${linha ? tr(linha[3]) : k}`;
+    const chip = $('chip-modo');
+    chip.classList.remove('piscou'); void chip.offsetWidth; chip.classList.add('piscou');
+  }
+  // Pedido de troca: no orquestrador, sair do Auto pede confirmação; o Bypass
+  // confirma sempre. A confirmação mora dentro do menu.
+  function pedirModo(k) {
+    if (k === modoDaTela()) { fecharMenuModo(); return; }
+    const precisa = k === 'bypassPermissions' ? 'bypass' : ehOrquestrador() && k !== 'auto' ? 'orquestrador' : '';
+    if (!precisa) { trocarModo(k); return; }
+    if ($('menu-modo').hidden) abrirMenuModo();
+    const linha = [...MODOS, BYPASS].find((x) => x[0] === k);
+    $('confirma-modo').innerHTML = precisa === 'bypass'
+      ? `<div class="menu-confirma perigo"><span><strong>Ligar "Sem perguntas"?</strong> <span>O Claude vai editar arquivos e rodar comandos nesta pasta sem pedir. Vale só nesta conversa e desliga quando ela reiniciar.</span></span><div class="acoes"><button type="button" class="botao secundario" data-cancelar>Cancelar</button><button type="button" class="botao perigo" data-confirmar="${k}">Ligar nesta conversa</button></div></div>`
+      : `<div class="menu-confirma"><span><strong>Tirar o orquestrador do Auto?</strong> <span>Fora do Auto, a rodada para a cada comando de tmux ou docker até você responder.</span></span><div class="acoes"><button type="button" class="botao secundario" data-cancelar>Cancelar</button><button type="button" class="botao primario" data-confirmar="${k}"><span>Trocar para</span> <span>${linha[3]}</span></button></div></div>`;
+    $('confirma-modo').querySelector('[data-cancelar]').focus();
+  }
+  $('menu-modo').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.dataset.confirmar) trocarModo(b.dataset.confirmar);
+    else if (b.dataset.cancelar != null) $('confirma-modo').innerHTML = '';
+    else if (b.dataset.modo) pedirModo(b.dataset.modo);
+  });
+  $('sair-bypass').addEventListener('click', () => trocarModo('auto'));
+  // Ctrl+Shift+M (sempre) e Shift+Tab (caixa vazia, se a opção estiver ligada)
+  // andam pelos quatro modos. O Bypass nunca entra no ciclo.
+  function proximoModo() {
+    if ($('chip-modo').hidden) return;
+    const ordem = MODOS.map((m) => m[0]);
+    pedirModo(ordem[(ordem.indexOf(modoDaTela()) + 1) % ordem.length]);
+  }
+  document.addEventListener('keydown', (ev) => {
+    if (ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === 'm') { ev.preventDefault(); proximoModo(); }
+  });
+
   // --- uso (chip da barra): contexto, 5 h e a janela longa num popover ---------
   function fecharMenuUso() { $('menu-uso').hidden = true; $('chip-uso').setAttribute('aria-expanded', 'false'); }
   $('chip-uso').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const abrir = $('menu-uso').hidden;
-    fecharMenu();
+    fecharMenu(); fecharMenuModo();
     if (!abrir) { fecharMenuUso(); return; }
     const r = $('chip-uso').getBoundingClientRect();
     const m = $('menu-uso');
@@ -1368,6 +1473,8 @@
   entrada.addEventListener('input', ajustarAltura);
   entrada.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('compositor').requestSubmit(); }
+    // Shift+Tab só troca o modo com a caixa vazia (com texto, ele navega como sempre) e se a opção estiver ligada.
+    if (ev.key === 'Tab' && ev.shiftKey && !ev.ctrlKey && !ev.altKey && !entrada.value && cfg.shiftTabTrocaModo !== false && !$('chip-modo').hidden) { ev.preventDefault(); proximoModo(); }
   });
   $('compositor').addEventListener('submit', async (ev) => {
     ev.preventDefault();
