@@ -77,6 +77,9 @@ test('Esc: um nível por vez', async (t) => {
   await t.test('foco num campo que não é a caixa da conversa, ou fora da aba da conversa: o Esc não interrompe', async () => {
     await app.avaliar("document.getElementById('filtro').focus()");
     await esc();
+    // Um botão de uma coluna do lado (ex.: o painel de demandas): o Esc ali não é parada do motor.
+    await app.avaliar("document.getElementById('novo-topico').focus()");
+    await esc();
     await app.avaliar("document.querySelector('[data-aba=aba-notas]').click()");
     await esc();
     await app.avaliar("document.querySelector('[data-aba=aba-terminal]').click()");

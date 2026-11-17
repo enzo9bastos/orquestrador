@@ -1836,6 +1836,9 @@
     if (!$('sugestoes').hidden || document.querySelector(POR_CIMA)) return; // o dono fecha
     if (!$('aba-orquestrador').classList.contains('ativa')) return;
     const foco = document.activeElement;
+    // Foco fora da conversa (as colunas dos lados, a barra de cima): o Esc é de quem está lá
+    // (ex.: cancelar uma confirmação no painel de demandas), nunca uma parada do motor.
+    if (foco && foco !== document.body && !foco.closest('#aba-orquestrador')) return;
     if (foco && foco !== entrada && (foco.closest('.xterm, .ProseMirror, [contenteditable="true"]') || foco.matches('input, textarea, select'))) return;
     if (voltaPedida) { fecharVolta(); parar(); return; }
     if (infoAtual.ocupado) { parar(); interromperPorMim(); return; }
