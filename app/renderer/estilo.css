@@ -358,6 +358,12 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .menu-confirma .acoes { display: flex; justify-content: flex-end; gap: 6px; }
 .menu-confirma .botao { height: 26px; padding: 0 10px; font-size: 12px; }
 .so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Popup do /config do Claude Code: busca, grupos e a marca do que só vale no terminal. */
+.popup-largo > .config { width: min(640px, 100%); }
+.busca-popup { display: block; width: calc(100% - 36px); margin: 12px 18px 0; }
+.popup-linha[hidden], .popup-corpo .config-secao[hidden] { display: none; }
+.popup-linha .so-terminal { display: block; font-size: 11px; color: var(--fg-4); line-height: 1.35; }
+.rodape-config-claude { border-top: 1px solid var(--borda); padding-top: 10px; }
 /* Dicas fixas sob a caixa e o painel de atalhos. */
 .dicas-caixa { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; min-width: 0; font-size: 11px; color: var(--fg-4); padding: 0 4px; margin-top: -2px; }
 .dicas-caixa [hidden] { display: none; }

@@ -103,7 +103,11 @@ const fim = (result = 'ok') => sai({ type: 'result', subtype: 'success', is_erro
 const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: modelo, permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS, claude_code_version: VERSAO, tools: ['Bash', 'Read'], mcp_servers: [{ name: 'falso-mcp', status: 'connected' }] });
 const HOME = require('os').homedir();
 // Respostas dos pedidos de controle dos comandos do "/".
+// get_settings (formato do 2.1.326): effective = o que está nos arquivos de
+// settings (aqui, o ~/.claude/settings.json da casa do teste); applied = o que vale agora.
+const settingsDaCasa = () => { try { return JSON.parse(fs.readFileSync(require('path').join(HOME, '.claude', 'settings.json'), 'utf8')); } catch { return {}; } };
 const CONTROLES = {
+  get_settings: () => ({ effective: settingsDaCasa(), sources: [], applied: { model: modelo, effort: 'high' } }),
   get_status: () => ({ sections: [{ title: 'Sessão', rows: [{ label: 'Versão', value: VERSAO }, { label: 'Modelo', value: modelo }, { label: 'Pasta', value: process.cwd() }] },
     { title: 'Conta', rows: [{ label: 'Login', value: 'ana@exemplo.com' }] }] }),
   get_memory_dialog: () => ({ files: [

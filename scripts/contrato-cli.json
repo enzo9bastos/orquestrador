@@ -30,6 +30,8 @@
         "pedido": { "subtype": "apply_flag_settings", "settings": { "fastMode": false } }, "campos": [] },
       { "id": "controle:interrupt", "tipo": "controle", "depende": true, "onde": "conversa.js interromper()",
         "pedido": { "subtype": "interrupt" }, "campos": [] },
+      { "id": "controle:get_settings", "tipo": "controle", "depende": false, "onde": "conversa-tela.js popup do /config (valor atual; sem ele mostra \"—\")",
+        "pedido": { "subtype": "get_settings" }, "campos": ["effective", "sources", "applied"] },
       { "id": "controle:set_permission_mode", "tipo": "controle", "depende": true, "onde": "comandos-tela.js /plan",
         "pedido": { "subtype": "set_permission_mode", "mode": "plan" }, "campos": [] },
       { "id": "controle:get_status", "tipo": "controle", "depende": false, "onde": "comandos-tela.js /status (sem ele, mostra o init)",

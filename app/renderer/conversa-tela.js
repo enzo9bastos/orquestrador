@@ -328,6 +328,10 @@
   }
   function desenharEventoAgora(ev) {
     if (ev.sub) return; // por dentro de um subagente: só o resumo dele aparece
+    // O "Usage: /config" que o Claude mostra vira a lista do popup de configurações.
+    if (ev.tipo === 'assistant' && ev.message && Array.isArray(ev.message.content)) {
+      for (const b of ev.message.content) if (b.type === 'text' && /^\s*Usage: \/config\b/.test(b.text || '')) aprenderUsoConfig(b.text);
+    }
     if (ev.tipo === 'user') {
       const c = ev.message.content;
       // Texto do usuário ao vivo já virou balão na hora de mandar (ev.local); o
@@ -1101,61 +1105,61 @@
   // --- popups: /config e /permissions ---------------------------------------
   const popup = $('popup');
   function abrirPopup(titulo, html) {
+    popup.classList.remove('popup-largo');
     $('popup-titulo').textContent = titulo;
     $('popup-corpo').innerHTML = html;
     popup.hidden = false;
   }
-  const fecharPopup = () => { popup.hidden = true; };
+  const fecharPopup = () => { popup.hidden = true; popup.classList.remove('popup-largo'); };
   $('fechar-popup').addEventListener('click', fecharPopup);
   popup.addEventListener('mousedown', (ev) => { if (ev.target === popup) fecharPopup(); });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !popup.hidden) fecharPopup(); });
 
-  // Opções do /config do Claude Code. Cada mudança vira "/config chave=valor"
-  // mandado à conversa (o Claude responde confirmando, na própria conversa).
-  const SIM_NAO = ['true', 'false'];
-  const OPCOES_CONFIG = [
-    ['model', 'Modelo padrão', ['default', 'sonnet', 'opus', 'haiku', 'fable', 'best', 'sonnet[1m]', 'opus[1m]', 'fable[1m]', 'opusplan']],
-    ['permissionMode', 'Modo de permissão', ['default', 'plan', 'acceptEdits', 'auto', 'dontAsk']],
-    ['outputStyle', 'Estilo de resposta', ['default', 'Proactive', 'Concise', 'Explanatory', 'Learning']],
-    ['thinking', 'Pensamento estendido', SIM_NAO],
-    ['autoCompact', 'Compactar sozinho', SIM_NAO],
-    ['checkpoints', 'Pontos de restauração', SIM_NAO],
-    ['recap', 'Resumo ao voltar (recap)', SIM_NAO],
-    ['promptSuggestionEnabled', 'Sugestão de prompt', SIM_NAO],
-    ['language', 'Idioma das respostas', null],
-    ['theme', 'Tema do terminal', ['auto', 'dark', 'light', 'light-daltonized', 'dark-daltonized', 'light-ansi', 'dark-ansi']],
-    ['timeFormat', 'Formato de hora', ['auto', '12-hour', '24-hour', '24-hour-utc']],
-    ['notifChannel', 'Canal de notificação', ['auto', 'iterm2', 'terminal_bell', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled']],
-    ['inputNeededNotifEnabled', 'Avisar quando precisar de você', SIM_NAO],
-    ['agentPushNotifEnabled', 'Notificação push dos agentes', SIM_NAO],
-    ['remoteControl', 'Controle remoto', ['true', 'false', 'default']],
-    ['editor', 'Modo do editor', ['normal', 'vim']],
-    ['gitignore', 'Respeitar .gitignore', SIM_NAO],
-    ['autoConnectIde', 'Conectar à IDE sozinho', SIM_NAO],
-    ['externalEditorContext', 'Contexto do editor externo', SIM_NAO],
-    ['prStatus', 'Status do PR', SIM_NAO],
-    ['progressBar', 'Barra de progresso', SIM_NAO],
-    ['autoScroll', 'Rolar sozinho', SIM_NAO],
-    ['copyFullResponse', 'Copiar resposta inteira', SIM_NAO],
-    ['copyOnSelect', 'Copiar ao selecionar', SIM_NAO],
-    ['reduceMotion', 'Reduzir animações', SIM_NAO],
-    ['tips', 'Dicas', SIM_NAO],
-    ['defaultToAgentsView', 'Abrir na visão de agentes', SIM_NAO],
-    ['leftArrowOpensAgents', 'Seta ← abre agentes', SIM_NAO],
-    ['switchModelsOnFlag', 'Trocar modelo ao ser sinalizado', ['Switch automatically', 'Ask each time']],
-  ];
+  // /config do Claude Code. As chaves vêm do texto "Usage: /config" do próprio
+  // CLI (config-claude.js): o da versão conferida por último ou, quando o CLI em
+  // uso mostra o dele na conversa, esse. O valor atual aparece onde o Claude
+  // informa (get_settings e o modo vivo); onde não informa fica "—". Cada
+  // mudança vira "/config chave=valor" mandado à conversa (ele confirma ali).
+  const CC = window.orqConfigClaude;
+  let usoConfig = CC.USO_CONFERIDO;
+  // O Claude mostrou o "Usage: /config" dele (o /config sem argumento, ou com chave errada): a lista passa a ser a dele.
+  function aprenderUsoConfig(texto) { if (CC.chavesDoUso(texto).length) usoConfig = texto; }
   function abrirPopupConfig() {
-    abrirPopup('Configurações do Claude', `<p class="popup-nota">Cada mudança é mandada ao Claude desta conversa como <code>/config chave=valor</code>; ele confirma na conversa.</p>` +
-      OPCOES_CONFIG.map(([k, nome, ops]) => `<label class="popup-linha"><span><strong>${esc(nome)}</strong><code>${esc(k)}</code></span>
-        ${ops ? `<select data-config="${esc(k)}"><option value="">—</option>${ops.map((o) => `<option>${esc(o)}</option>`).join('')}</select>`
-              : `<input data-config="${esc(k)}" type="text" placeholder="ex.: português">`}</label>`).join(''));
+    const grupos = CC.agrupar(CC.chavesDoUso(usoConfig));
+    const linha = (it) => `<label class="popup-linha" data-busca="${esc(`${it.rotulo} ${it.chave}`.toLowerCase())}"><span><strong${it.semRotulo ? ' data-sem-traducao' : ''}>${esc(it.rotulo)}</strong><code>${esc(it.chave)}</code>${it.soTerminal ? '<small class="so-terminal">só na tela do terminal do Claude Code; aqui a mudança é gravada, mas não se vê</small>' : ''}</span>
+        ${it.opcoes ? `<select data-config="${esc(it.chave)}" data-sem-traducao><option value="">—</option>${it.opcoes.map((o) => `<option>${esc(o)}</option>`).join('')}</select>`
+                    : `<input data-config="${esc(it.chave)}" type="text" placeholder="ex.: português">`}</label>`;
+    abrirPopup('Configurações do Claude Code', `<input type="search" id="busca-config-claude" class="campo-config busca-popup" placeholder="Buscar configuração" aria-label="Buscar configuração" autocomplete="off">
+      <p class="popup-nota">Cada mudança é mandada ao Claude desta conversa como <code>/config chave=valor</code>; ele confirma na conversa.</p>
+      ${grupos.map((g) => `<h3 class="config-secao">${g.grupo}</h3>${g.itens.map(linha).join('')}`).join('')}
+      <p class="popup-nota rodape-config-claude"><span>O valor aparece onde o Claude Code informa; "—" é sem informação. Estas são as configurações do Claude Code, não as do app:</span> <button type="button" class="botao-texto link-config" data-abrir-config-app>Configurações do app</button></p>`);
+    $('popup').classList.add('popup-largo');
+    const corpo = $('popup-corpo');
+    $('busca-config-claude').addEventListener('input', (ev) => {
+      const q = ev.target.value.trim().toLowerCase();
+      corpo.querySelectorAll('.popup-linha').forEach((l) => { l.hidden = !!q && !l.dataset.busca.includes(q); });
+      corpo.querySelectorAll('.config-secao').forEach((h) => { let n = h.nextElementSibling, tem = false; while (n && n.classList.contains('popup-linha')) { if (!n.hidden) tem = true; n = n.nextElementSibling; } h.hidden = !tem; });
+    });
+    corpo.querySelector('[data-abrir-config-app]').addEventListener('click', () => { fecharPopup(); $('abrir-config').click(); });
+    // Os valores atuais chegam em seguida (o popup já abre com as chaves).
+    const conversaDoPopup = ativa;
+    const preencher = (settings) => {
+      if (popup.hidden || ativa !== conversaDoPopup || !$('busca-config-claude')) return;
+      for (const el of corpo.querySelectorAll('[data-config]')) {
+        const v = CC.valorAtual(el.dataset.config, { settings, info: infoAtual });
+        if (v === undefined || el.closest('.popup-linha').classList.contains('mudou')) continue;
+        if (el.tagName === 'SELECT' && ![...el.options].some((o) => o.value === v)) el.add(new Option(v, v));
+        el.value = v;
+      }
+    };
+    preencher(null);
+    if (window.orq.comandos && window.orq.comandos.controle) window.orq.comandos.controle(conversaDoPopup, 'get_settings', {}).then((r) => { if (r && !r.erro) preencher(r); }).catch(() => {});
   }
   $('popup-corpo').addEventListener('change', async (ev) => {
     const el = ev.target.closest('[data-config]');
     if (!el || !el.value) return;
-    const v = /\s/.test(el.value) ? `"${el.value}"` : el.value;
-    await C.mandar(ativa, `/config ${el.dataset.config}=${v}`);
     el.closest('.popup-linha').classList.add('mudou');
+    await C.mandar(ativa, `/config ${el.dataset.config}=${CC.valorParaComando(el.value)}`);
   });
 
   // /permissions: regras allow/ask/deny do ~/.claude/settings.json.

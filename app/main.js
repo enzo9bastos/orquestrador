@@ -406,7 +406,7 @@ const comandosApp = require('./comandos-app');
 const seguro = (fn) => async (_e, ...a) => { try { return await fn(...a); } catch (e) { return { erro: String((e && e.message) || e) }; } };
 // Só os pedidos que os comandos usam: a tela não manda pedido qualquer ao motor.
 const CONTROLES = ['get_status', 'get_memory_dialog', 'get_skills_dialog', 'get_hooks_listing', 'export_conversation', 'get_plan',
-  'get_workspace_diff', 'side_question', 'submit_feedback', 'stop_task', 'background_tasks', 'get_task_output', 'set_permission_mode', 'mcp_status'];
+  'get_workspace_diff', 'side_question', 'submit_feedback', 'stop_task', 'background_tasks', 'get_task_output', 'set_permission_mode', 'mcp_status', 'get_settings'];
 const METODOS_CODEX = ['thread/compact/start', 'review/start', 'thread/name/set', 'thread/list', 'thread/archive', 'thread/backgroundTerminals/list',
   'thread/backgroundTerminals/clean', 'mcpServerStatus/list', 'skills/list', 'hooks/list', 'account/rateLimits/read', 'config/read'];
 const pastaDa = (id) => { const e = conversa.estadoComando(id); return (e.init && e.init.pasta) || e.info.pasta || conversa.PASTA; };
