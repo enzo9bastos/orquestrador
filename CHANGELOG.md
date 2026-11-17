@@ -4,6 +4,27 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.5.1 (2026-11-17)
+
+- A command that only exists in the terminal: when Claude answers that a
+  command "isn't available in this environment", its text stays and the app
+  adds a notice in the user's language with an "Open in the terminal"
+  button, which pastes Claude with a copy of the conversation and the command
+  into the app's terminal. Nothing runs until Enter is pressed there.
+- History on reopen: local commands (`/rename`, `/memory`…) and their output
+  come back as they looked live. They used to vanish after reopening.
+- Codex: if it refuses to open the conversation (for example, an organization
+  that restricts the allowed approval policies), the app no longer stays
+  stuck in "working". Nothing opens, the screen says why, the typed text goes
+  back to the box, and the app never retries with a looser policy.
+- Connected AIs: the Cursor CLI is found behind its `agent` shortcut too, and
+  only when the real file is the one in Cursor's own install folder; an
+  unrelated program named `agent` is never run.
+- The contract checker (`scripts/contrato-cli.js`) now also checks how the
+  installed Claude CLI answers a terminal-only command.
+- Tests: the external terminal test no longer reads a file before it has
+  content.
+
 ## 0.5.0 (2026-11-17)
 
 - Conversation bar redone: four chips and a ⋯ menu. Usage is one chip (a ring
