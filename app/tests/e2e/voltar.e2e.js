@@ -17,7 +17,16 @@ function claudeFalso() {
   const chamadas = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : [])
     .map((l) => JSON.parse(l)).filter((o) => Array.isArray(o.args)).map((o) => o.args.join(' '));
   const desligar = () => { for (const k of ['CLAUDE_FALSO_LOG', 'CLAUDE_FALSO_INIT_NA_SUBIDA', 'CLAUDE_FALSO_SESSAO_REAL']) delete process.env[k]; };
-  return { bin: CLAUDE_FALSO, chamadas, desligar };
+  // Espera uma subida com aqueles argumentos. Não conta subidas nem olha "a
+  // última": o app mostra o histórico ANTES de o processo novo escrever a
+  // linha dele, então com a máquina carregada a linha de um reinício anterior
+  // chega atrasada e passava por subida nova (falhou assim na publicação da
+  // v0.4.2, com 7 arquivos de tela rodando ao mesmo tempo).
+  const subiuCom = async (serve, ms = 8000) => {
+    for (let t = 0; t < ms; t += 100) { if (chamadas().some(serve)) return true; await new Promise((r) => setTimeout(r, 100)); }
+    return false;
+  };
+  return { bin: CLAUDE_FALSO, chamadas, subiuCom, desligar };
 }
 
 test('voltar a conversa para antes de uma mensagem', async (t) => {
@@ -56,14 +65,12 @@ test('voltar a conversa para antes de uma mensagem', async (t) => {
   });
 
   await t.test('confirmar volta: o Claude reabre cortado, numa sessão nova, e o texto vai para a caixa', async () => {
-    const antes = falso.chamadas().length;
     await clicarEditar('me diz onde t');
     await app.esperar("!document.getElementById('corrigindo').hidden");
     await app.avaliar("document.getElementById('corrigindo-voltar').click()");
     await app.esperar("document.getElementById('entrada').value === 'me diz onde t'", 8000);
-    for (let i = 0; i < 50 && falso.chamadas().length <= antes; i++) await app.espera(100);
-    const ultima = falso.chamadas().at(-1);
-    assert.match(ultima, /--resume S1 --resume-session-at a1 --fork-session/);
+    assert.ok(await falso.subiuCom((c) => /--resume S1 --resume-session-at a1 --fork-session/.test(c)),
+      `o Claude não reabriu cortado; subidas: ${JSON.stringify(falso.chamadas())}`);
     await app.esperar("document.querySelectorAll('#mensagens .msg-voce[data-texto]').length === 1", 8000);
     assert.deepStrictEqual(await baloes(), ['primeira pergunta'], 'a mensagem errada e o que veio depois saem da tela');
     const lista = JSON.parse(app.ler('.cache/orq-app/conversas-teste.json'));
@@ -73,12 +80,11 @@ test('voltar a conversa para antes de uma mensagem', async (t) => {
 
   await t.test('✎ na última mensagem volta direto; sendo a primeira da conversa, o Claude recomeça do zero', async () => {
     // A volta anterior ainda não teve resposta: a sessão de partida continua a S1.
-    const antes = falso.chamadas().length;
     await clicarEditar('primeira pergunta');
-    for (let i = 0; i < 50 && falso.chamadas().length <= antes; i++) await app.espera(100);
     assert.ok(await app.avaliar("document.getElementById('corrigindo').hidden"), 'sem confirmação na última');
     await app.esperar("document.getElementById('entrada').value === 'primeira pergunta'", 8000);
-    assert.doesNotMatch(falso.chamadas().at(-1), /--resume/);
+    // Só esta subida vem sem --resume (as anteriores retomam a S1).
+    assert.ok(await falso.subiuCom((c) => !/--resume/.test(c)), `o Claude não recomeçou do zero; subidas: ${JSON.stringify(falso.chamadas())}`);
     await app.esperar("document.querySelectorAll('#mensagens .msg-voce[data-texto]').length === 0", 8000);
     const o = JSON.parse(app.ler('.cache/orq-app/conversas-teste.json')).find((c) => c.orquestrador);
     assert.ok(o.anteriores.includes('S1'), 'a conversa original fica guardada');
