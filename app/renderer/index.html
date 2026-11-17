@@ -147,7 +147,7 @@
           <div class="dicas-caixa" id="dicas-caixa">
             <span><kbd data-sem-traducao>/</kbd> <span>comandos</span></span>
             <span><kbd data-sem-traducao>@</kbd> <span>arquivo, nota ou workflow</span></span>
-            <span><kbd data-sem-traducao>!</kbd> <span>rodar comando</span></span>
+            <span id="dica-shell" hidden><kbd data-sem-traducao>!</kbd> <span>rodar comando</span></span>
             <span id="dica-esc" hidden><kbd data-sem-traducao>Esc</kbd> <span>para o motor</span></span>
             <span class="dica-enter" id="dica-enter"></span>
             <button type="button" class="dica-atalhos" id="abrir-atalhos" title="Todos os atalhos (Ctrl+/)">? <span>Atalhos</span></button>
@@ -599,6 +599,10 @@
             <div class="config-linha config-coluna">
               <div><strong>Variáveis de ambiente extras</strong><span>Uma por linha, NOME=valor. Valem para conversas e terminais novos.</span></div>
               <textarea class="campo-config mono largo" data-cfg="ambiente" rows="3"></textarea>
+            </div>
+            <div class="config-linha">
+              <div><strong>Rodar comandos com "!" na caixa de mensagem</strong><span>Desligado: um texto começando com "!" é uma mensagem comum para o Claude. Ligado: "!comando" roda no seu computador, na pasta da conversa, como no terminal do Claude Code, e o resultado aparece como "Você rodou". Só vale o "!" que você mesmo digitar.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="comandoNaCaixa"><span></span></label>
             </div>
           </div>
             <p class="config-sem-resultado" id="config-sem-resultado" hidden>Nada encontrado.</p>

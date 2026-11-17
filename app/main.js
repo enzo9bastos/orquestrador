@@ -420,7 +420,11 @@ ipcMain.handle('cmd:controle', seguro((id, subtype, extra = {}) => {
 // conversa:daCaixa nunca interpretam "!" (o texto vai ao motor como texto comum). A tela só
 // chama isto no Enter de verdade da caixa, ou no clique de verdade em "Rodar" quando o
 // comando tem várias linhas; recado, workflow, atalho e pedido do modelo não chegam aqui.
-ipcMain.handle('conversa:shell', seguro((id, comando) => conversa.rodarShell(id, typeof comando === 'string' ? comando : '')));
+// Vem desligado: sem a opção ligada nas Configurações, este caminho recusa.
+ipcMain.handle('conversa:shell', seguro((id, comando) => {
+  if (config.ler().comandoNaCaixa !== true) throw new Error('rodar comando pela caixa está desligado nas Configurações');
+  return conversa.rodarShell(id, typeof comando === 'string' ? comando : '');
+}));
 ipcMain.handle('conversa:shellParar', seguro((id) => ({ parou: conversa.pararShell(id) })));
 // "@" da caixa: arquivos sugeridos pelo Claude (só leitura; só com a conversa aberta e parada).
 ipcMain.handle('conversa:arquivos', seguro((id, consulta) => conversa.sugerirArquivos(id, typeof consulta === 'string' ? consulta : '')));

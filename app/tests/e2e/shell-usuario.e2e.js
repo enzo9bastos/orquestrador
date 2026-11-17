@@ -3,6 +3,8 @@
 // na pasta da conversa, e aparece como "Você rodou". O mesmo texto que chega por
 // qualquer outro caminho (envio feito por código, recado, pedido do app) vai ao
 // motor como texto comum e não roda nada. Comando com várias linhas pede confirmação.
+// O recurso vem DESLIGADO: sem ligar em Configurações › Avançado, um texto começando com
+// "!" é só uma mensagem, como sempre foi.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -15,7 +17,7 @@ const linhas = (arq) => { try { return fs.readFileSync(arq, 'utf8').trim().split
 test('"!" da caixa', async (t) => {
   const log = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
   process.env.CLAUDE_FALSO_LOG = log;
-  const app = await abrirApp({ config: { mostrarBichinho: false } });
+  const app = await abrirApp({ config: { mostrarBichinho: false, comandoNaCaixa: true } });
   t.after(() => { delete process.env.CLAUDE_FALSO_LOG; return app.fechar(); });
   await app.esperar('!!window.__orqTeste');
   const aoClaude = () => linhas(log).filter((o) => o.type === 'user').map((o) => (typeof o.message.content === 'string' ? o.message.content : JSON.stringify(o.message.content)));
@@ -38,6 +40,7 @@ test('"!" da caixa', async (t) => {
   await app.esperar("[...document.querySelectorAll('#mensagens .texto-claude')].length > 0 && document.getElementById('parar').hidden", 10000);
 
   await t.test('"!" no começo põe a caixa no modo de comando e a dica diz onde ele roda', async () => {
+    assert.match(await app.avaliar("document.getElementById('dicas-caixa').innerText"), /! rodar comando/, 'ligado, a dica do "!" aparece sob a caixa');
     await digitar('!echo oi');
     assert.strictEqual(await app.avaliar("document.querySelector('.caixa-entrada').classList.contains('modo-shell')"), true);
     assert.match(await app.avaliar("document.getElementById('dica-enter').innerText"), /roda no seu computador/);
@@ -159,6 +162,59 @@ test('"!" da caixa', async (t) => {
     await app.avaliar(`${ultimo}.querySelector('[data-parar-shell]').click()`);
     await app.esperar(`${ultimo}.dataset.estado === 'fim'`, 8000);
     assert.match(await app.avaliar(`${ultimo}.innerText`), /parado/i);
+  });
+
+  await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
+});
+
+test('"!" da caixa vem desligado: sem a opção, é só uma mensagem', async (t) => {
+  const log = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
+  process.env.CLAUDE_FALSO_LOG = log;
+  const app = await abrirApp({ config: { mostrarBichinho: false } });
+  t.after(() => { delete process.env.CLAUDE_FALSO_LOG; return app.fechar(); });
+  await app.esperar('!!window.__orqTeste');
+  const aoClaude = () => linhas(log).filter((o) => o.type === 'user').map((o) => (typeof o.message.content === 'string' ? o.message.content : JSON.stringify(o.message.content)));
+  const existe = (nome) => fs.existsSync(path.join(app.casa, nome));
+  await app.avaliar("window.orq.conversa.mandar('orquestrador', 'oi')");
+  await app.esperar("[...document.querySelectorAll('#mensagens .texto-claude')].length > 0 && document.getElementById('parar').hidden", 10000);
+
+  await t.test('a caixa não muda, a dica do "!" não aparece e o Enter manda o texto ao Claude', async () => {
+    assert.ok(!/rodar comando/.test(await app.avaliar("document.getElementById('dicas-caixa').innerText")));
+    await app.avaliar("(() => { const e = document.getElementById('entrada'); e.focus(); e.value = ''; e.setSelectionRange(0, 0); })()");
+    await app.texto('!echo x > desligado.txt');
+    assert.strictEqual(await app.avaliar("document.querySelector('.caixa-entrada').classList.contains('modo-shell')"), false);
+    assert.match(await app.avaliar("document.getElementById('dica-enter').innerText"), /Enter\s*envia/);
+    await app.tecla('Enter', 'Enter', 13);
+    for (let i = 0; i < 40 && !aoClaude().includes('!echo x > desligado.txt'); i++) await app.espera(100);
+    assert.ok(aoClaude().includes('!echo x > desligado.txt'), 'foi ao Claude como mensagem');
+    await app.espera(300);
+    assert.ok(!existe('desligado.txt'), 'nada rodou');
+    assert.strictEqual(await app.avaliar("document.querySelectorAll('#mensagens .msg-shell').length"), 0);
+  });
+
+  await t.test('o caminho que roda comando recusa com a opção desligada, mesmo se for pedido direto', async () => {
+    const r = await app.avaliar("window.orq.conversa.shell('orquestrador', 'echo x > desligado-2.txt')");
+    assert.match(r.erro, /desligado nas Configurações/);
+    await app.espera(300);
+    assert.ok(!existe('desligado-2.txt'));
+  });
+
+  await t.test('ligar em Configurações › Avançado vale na hora', async () => {
+    await app.avaliar("document.getElementById('abrir-config').click()");
+    await app.esperar("!document.getElementById('config').hidden");
+    await app.avaliar("document.querySelector('[data-secao-config=\"avancado\"]').click()");
+    assert.strictEqual(await app.avaliar("document.querySelector('[data-cfg=\"comandoNaCaixa\"]').checked"), false, 'vem desligado');
+    await app.avaliar("document.querySelector('[data-cfg=\"comandoNaCaixa\"]').click()");
+    await app.esperar("/rodar comando/.test(document.getElementById('dicas-caixa').innerText)", 4000);
+    await app.avaliar("document.getElementById('fechar-config').click()");
+    await app.esperar("document.getElementById('config').hidden", 4000);
+    await app.esperar("document.getElementById('parar').hidden", 8000);
+    await app.avaliar("(() => { const e = document.getElementById('entrada'); e.focus(); e.value = ''; e.setSelectionRange(0, 0); })()");
+    await app.texto('!echo x > ligado.txt');
+    assert.strictEqual(await app.avaliar("document.querySelector('.caixa-entrada').classList.contains('modo-shell')"), true);
+    await app.tecla('Enter', 'Enter', 13);
+    await app.esperar("!!document.querySelector('#mensagens .msg-shell[data-estado=fim]')", 8000);
+    assert.ok(existe('ligado.txt'));
   });
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));

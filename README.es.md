@@ -91,7 +91,7 @@ que no hay ninguna terminal que vigilar.
 - **`/exit` termina solo esa conversación**: la sesión queda guardada, la pantalla se limpia, el siguiente mensaje
   empieza una sesión nueva y *Go back to the previous session* lo deshace. La app se cierra con el botón de cerrar
   de la ventana.
-- **`!` ejecuta un comando tuyo**: `!npm test` en la caja se ejecuta en tu computadora, en la carpeta de la
+- **`!` ejecuta un comando tuyo** (desactivado por defecto; se activa en Settings › Advanced): `!docker ps` en la caja se ejecuta en tu computadora, en la carpeta de la
   conversación, y aparece como "You ran", con la salida. La salida va a Claude junto con tu siguiente mensaje.
   Solo vale el `!` que tú mismo escribiste o pegaste y enviaste con Enter; el texto que llega por un pedido de
   agente, un workflow, un atajo o el modelo nunca se vuelve comando. Mira [SECURITY.md](SECURITY.md).

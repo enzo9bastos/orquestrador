@@ -781,7 +781,8 @@
   // é um comando que ela mesma já rodou e trouxe de volta (seta para cima, cancelar).
   let exclamacaoDaPessoa = false, valorDaPessoa = '', shellRecuperado = null;
   const rodadosNoShell = new Set();
-  const modoShell = () => /^!/.test(entrada.value) && !anexos.length && !arquivosAnexos.length
+  // O recurso vem desligado (Configurações › Avançado): sem ligar, "!" é texto comum.
+  const modoShell = () => cfg.comandoNaCaixa === true && /^!/.test(entrada.value) && !anexos.length && !arquivosAnexos.length
     && ((exclamacaoDaPessoa && entrada.value === valorDaPessoa) || entrada.value === shellRecuperado);
   const pastaCurta = () => String(infoAtual.pasta || '~').replace(/^\/home\/[^/]+/, '~');
   function desenharModoShell() {
@@ -876,7 +877,7 @@
       ${l('Buscar nesta conversa', teclas('Ctrl+F'))}
       <h4>Na caixa de texto</h4>
       ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar arquivo, nota ou workflow', teclas('@'))}
-      ${l('Rodar um comando no seu computador (no começo da caixa)', teclas('!'))}
+      ${cfg.comandoNaCaixa === true ? l('Rodar um comando no seu computador (no começo da caixa)', teclas('!')) : ''}
       ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
       <h4>No app</h4>
       ${l('Paleta de comandos', teclas('Ctrl+K'))}${l('Esta lista', teclas('Ctrl+/'))}
@@ -2057,6 +2058,8 @@
     // apagar o comando de desligar e esconder o botão.
     cfg = { ...cfg, ...ev.detail };
     $('palco-pet').classList.toggle('desligado', cfg.mostrarBichinho === false);
+    $('dica-shell').hidden = cfg.comandoNaCaixa !== true;
+    desenharModoShell();
     desenharLista(listaConversas);
   });
   Promise.all([window.orq.config.ler(), C.lista()]).then(([c, l]) => {
@@ -2064,6 +2067,7 @@
     // O aviso "orq:config" da leitura inicial da engrenagem pode chegar antes de
     // este script escutar: o bichinho desligado vale já na abertura.
     $('palco-pet').classList.toggle('desligado', cfg.mostrarBichinho === false);
+    $('dica-shell').hidden = cfg.comandoNaCaixa !== true;
     desenharLista(l);
     trocar('orquestrador');
   });

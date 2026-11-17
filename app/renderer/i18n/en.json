@@ -1644,6 +1644,8 @@
     "Abrir no terminal": "Open in the terminal",
     "Buscar nesta conversa": "Search this conversation",
     "rodar comando": "run a command",
+    "Rodar comandos com \"!\" na caixa de mensagem": "Run commands with \"!\" in the message box",
+    "Desligado: um texto começando com \"!\" é uma mensagem comum para o Claude. Ligado: \"!comando\" roda no seu computador, na pasta da conversa, como no terminal do Claude Code, e o resultado aparece como \"Você rodou\". Só vale o \"!\" que você mesmo digitar.": "Off: text starting with \"!\" is a plain message to Claude. On: \"!command\" runs on your computer, in the conversation's folder, as in Claude Code's terminal, and the result shows up as \"You ran\". Only a \"!\" you type yourself counts.",
     "Rodar um comando no seu computador (no começo da caixa)": "Run a command on your computer (at the start of the box)",
     "roda no seu computador, na pasta": "runs on your computer, in the folder",
     "Você rodou": "You ran",
