@@ -115,7 +115,8 @@ protocol), so there is no terminal to babysit.
   as `/copy`). On the last reply it is always visible.
 - **Search the conversation** (Ctrl+F): highlights matches in that conversation's messages only; Enter and
   Shift+Enter move between them and Esc closes the bar without stopping the engine.
-- **Quick question** (`/btw`, or ⋯ › *Quick question*): a drawer over the right-hand column where you ask about
+- **Quick question** (`/btw`, ⋯ › *Quick question*, or `Ctrl+Alt+P`, which you can change or turn off in
+  *Settings › Shortcuts*): a drawer over the right-hand column where you ask about
   the conversation while Claude keeps working. The question and the answer stay out of the conversation; Claude
   answers only from what is already there (no commands, no file reads). A follow-up question sees the earlier
   ones; you can stop a question, copy an answer or clear the list, which lives in memory until the app closes. A

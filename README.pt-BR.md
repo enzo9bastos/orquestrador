@@ -118,7 +118,8 @@ há terminal para vigiar.
   ferramenta (o mesmo que o `/copy`). Na última resposta ele fica sempre à vista.
 - **Buscar na conversa** (Ctrl+F): marca o que achou só nas mensagens daquela conversa; Enter e Shift+Enter andam
   entre os achados e o Esc fecha a barra sem parar o motor.
-- **Pergunta rápida** (`/btw`, ou ⋯ › *Pergunta rápida*): uma gaveta por cima da coluna da direita onde você
+- **Pergunta rápida** (`/btw`, ⋯ › *Pergunta rápida*, ou `Ctrl+Alt+P`, que dá para trocar ou desativar em
+  *Configurações › Atalhos*): uma gaveta por cima da coluna da direita onde você
   pergunta sobre a conversa enquanto o Claude continua trabalhando. A pergunta e a resposta não entram na conversa;
   o Claude responde só com o que já está nela (sem rodar comandos nem ler arquivos). A pergunta seguinte enxerga as
   anteriores; dá para parar uma pergunta, copiar uma resposta ou limpar a lista, que fica só na memória até o app

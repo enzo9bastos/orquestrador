@@ -12,6 +12,9 @@
   const SO_MODIFICADOR = /^(Control|Alt|Shift|Meta|AltGraph|OS)(Left|Right)?$/;
 
   const PADRAO = { agentes: 'Ctrl+Alt+Comma', demandas: 'Ctrl+Alt+Period' };
+  // Abrir ou fechar a gaveta da pergunta rápida (/btw). Uma letra, e não ";": o código
+  // da tecla ";" do teclado americano é o do "ç" no brasileiro, e a tela mostraria errado.
+  const PADRAO_PERGUNTA = 'Ctrl+Alt+KeyP';
 
   // O que já usa teclado no app (e no sistema), com o nome que a engrenagem mostra.
   const USADOS = {};
@@ -49,7 +52,8 @@
     return partes(c).map((p, i, a) => (i < a.length - 1 ? p : FIXOS[p] || p.replace(/^Key/, '').replace(/^Digit/, ''))).join('+');
   }
 
-  // null se serve; senão { motivo, usadoPor? }. outra = a combinação do outro atalho.
+  // null se serve; senão { motivo, usadoPor? }. outra = a combinação do outro atalho
+  // que a pessoa pode trocar (ou a lista delas).
   function conferir(c, outra) {
     const p = partes(c);
     const tecla = p[p.length - 1];
@@ -59,11 +63,11 @@
     if (!mods.some((m) => m === 'Ctrl' || m === 'Alt' || m === 'Meta')) return { motivo: 'sem-modificador' };
     const canonica = [...MODIFICADORES.filter((m) => mods.includes(m)), tecla].join('+');
     if (canonica !== c) return { motivo: 'invalida' };
-    if (outra && outra === c) return { motivo: 'repetida' };
+    if (outra && (Array.isArray(outra) ? outra.includes(c) : outra === c)) return { motivo: 'repetida' };
     if (USADOS[c]) return { motivo: 'em-uso', usadoPor: USADOS[c] };
     return null;
   }
 
-  const api = { PADRAO, USADOS, deEvento, mostrar, conferir };
+  const api = { PADRAO, PADRAO_PERGUNTA, USADOS, deEvento, mostrar, conferir };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.orqAtalhos = api;
 })(typeof window !== 'undefined' ? window : globalThis);

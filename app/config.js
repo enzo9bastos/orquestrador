@@ -35,6 +35,8 @@ const PADRAO = {
   // Atalhos que recolhem/abrem as colunas. "" desliga; a combinação segue o
   // formato de renderer/atalhos-lista.js ("Ctrl+Alt+Comma").
   atalhosColunas: { agentes: 'Ctrl+Alt+Comma', demandas: 'Ctrl+Alt+Period' },
+  // Atalho que abre ou fecha a gaveta da pergunta rápida (/btw). "" desliga.
+  atalhoPerguntaRapida: 'Ctrl+Alt+KeyP',
 
   // Onde estão os projetos. niveis 1: <raiz>/<projeto>; niveis 2:
   // <raiz>/<grupo>/<projeto>. Pastas que casam com ignorar ficam de fora.
@@ -185,6 +187,14 @@ const colunasLimpas = (v) => Object.fromEntries(Object.entries(v).map(([a, c]) =
 const atalhos = require('./renderer/atalhos-lista');
 const atalhoOk = (c, outro) => c === '' || (typeof c === 'string' && !atalhos.conferir(c, outro));
 const atalhosColunasOk = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && atalhoOk(v.agentes, v.demandas) && atalhoOk(v.demandas, v.agentes);
+// Os três atalhos que a pessoa pode trocar não se repetem entre si. Cada um é conferido
+// contra os outros como vão ficar: o que veio no mesmo pedido, senão o que está gravado.
+const atalhosComo = (m) => {
+  const atual = ler();
+  const col = atalhosColunasOk(m.atalhosColunas) ? m.atalhosColunas : atual.atalhosColunas || {};
+  const perg = typeof m.atalhoPerguntaRapida === 'string' ? m.atalhoPerguntaRapida : atual.atalhoPerguntaRapida || '';
+  return { colunas: [col.agentes, col.demandas].filter(Boolean), pergunta: perg };
+};
 const texto = (v) => (typeof v === 'string' ? v.trim() : '');
 // Valida o que a tela de configurações manda; chave desconhecida ou valor
 // inválido é ignorado (devolve a lista do que não foi aceito).
@@ -201,7 +211,8 @@ function validar(m) {
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
       case 'mostrarBypass': case 'shiftTabTrocaModo': case 'comandoNaCaixa': case 'teclasNosCartoes': case 'pontosDeVolta': aceitar(k, typeof v === 'boolean', v); break;
       case 'iniciarDesligar': aceitar(k, ['barra', 'menu'].includes(v), v); break;
-      case 'atalhosColunas': aceitar(k, atalhosColunasOk(v), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
+      case 'atalhosColunas': aceitar(k, atalhosColunasOk(v) && ![v.agentes, v.demandas].filter(Boolean).includes(atalhosComo(m).pergunta), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
+      case 'atalhoPerguntaRapida': aceitar(k, atalhoOk(v, atalhosComo(m).colunas), v); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;
       case 'notificacoes': aceitar(k, !!v && typeof v === 'object', () => ({ pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false })); break;
       case 'comandoInicial': case 'comandoDesligar':
