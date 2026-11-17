@@ -119,6 +119,25 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
     assert.deepStrictEqual([reg.operacao, reg.tipo, reg.resultado, reg.destino, reg.arquivos, reg.bytes], ['apagar', 'demanda', 'ok', 'lixeira', 1, bytes]);
   });
 
+  // O Esc da conversa (que para o motor) nunca age com o foco no painel de demandas:
+  // ali o Esc cancela a confirmação de apagar, mesmo com o motor trabalhando.
+  await t.test('apagar: com o custo aberto e o motor trabalhando, o Esc cancela a confirmação e não para o motor', async () => {
+    const idE = orq('abrir', 'Esc no custo').match(/\d+/)[0];
+    const arq = path.join(app.casa, 'orq', 'Demandas', 'Esc no custo.md');
+    const custo = `[data-topico="${idE}"] [data-apagar-custo]`;
+    await app.esperar(`!!document.querySelector('[data-topico="${idE}"] [data-apagar-topico]')`, 8000);
+    await app.avaliar("window.__orqTeste.desenharInfo({ pasta: '/casa', modelo: 'claude-opus-5-5', esforco: 'high', ocupado: true })");
+    await app.avaliar(`document.querySelector('[data-topico="${idE}"] [data-apagar-topico]').click()`);
+    await app.esperar(`!!document.querySelector('${custo}')`, 8000);
+    assert.strictEqual(await app.avaliar('document.activeElement && document.activeElement.textContent'), 'Cancelar');
+    await app.tecla('Escape', 'Escape', 27);
+    await app.esperar(`!document.querySelector('${custo}')`, 8000);
+    assert.ok(fs.existsSync(arq), 'nada foi apagado');
+    assert.ok(!(await app.avaliar("[...document.querySelectorAll('#mensagens .aviso-conversa')].some((e) => /Interrompido por você/.test(e.innerText))")), 'o Esc do painel não é parada do motor');
+    assert.ok(await app.avaliar("!document.getElementById('parar').hidden"), 'o motor continua trabalhando');
+    await app.avaliar("window.__orqTeste.desenharInfo({ pasta: '/casa', modelo: 'claude-opus-5-5', esforco: 'high', ocupado: false })");
+  });
+
   await t.test('apagar: sem o comprovante do custo, o processo principal recusa (a tela não apaga sozinha)', async () => {
     const idS = orq('abrir', 'Sem comprovante').match(/\d+/)[0];
     const arq = path.join(app.casa, 'orq', 'Demandas', 'Sem comprovante.md');

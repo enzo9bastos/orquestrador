@@ -47,12 +47,20 @@ test('Esc: um nível por vez', async (t) => {
   });
 
   await t.test('lista de comandos aberta e motor ocupado: o Esc fecha só a lista', async () => {
-    await app.avaliar("(() => { const e = document.getElementById('entrada'); e.focus(); e.value = '/'; e.dispatchEvent(new Event('input')); })()");
-    await app.esperar("!document.getElementById('sugestoes').hidden");
-    await esc();
-    await app.esperar("document.getElementById('sugestoes').hidden");
+    // Abrir a lista e apertar o Esc no mesmo passo da página: com vários apps de teste
+    // na mesma tela virtual a janela perde o foco, a lista fecha sozinha, e um Esc
+    // que chegasse depois disso interromperia o motor (certo, mas não é o que se mede aqui).
+    const r = await app.avaliar(`(() => {
+      const e = document.getElementById('entrada');
+      e.focus(); e.value = '/'; e.dispatchEvent(new Event('input'));
+      const aberta = !document.getElementById('sugestoes').hidden;
+      e.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+      return { aberta, fechou: document.getElementById('sugestoes').hidden, texto: e.value };
+    })()`);
+    assert.deepStrictEqual(r, { aberta: true, fechou: true, texto: '/' }, 'a lista fecha e o texto da caixa não é apagado');
+    await app.espera(300);
     assert.strictEqual(interrupcoes(), 0);
-    assert.strictEqual(await app.avaliar("document.getElementById('entrada').value"), '/', 'o texto da caixa não é apagado');
+    assert.ok(await app.avaliar(ocupado), 'o motor continua trabalhando');
     await app.avaliar("(() => { const e = document.getElementById('entrada'); e.value = ''; e.dispatchEvent(new Event('input')); })()");
   });
 
