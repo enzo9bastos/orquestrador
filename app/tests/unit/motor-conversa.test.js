@@ -385,7 +385,9 @@ test('fila (Codex): ocupado, a mensagem da caixa espera no app; "enviar já" cor
   const c = new conversa._Conversa({ id: 'fl3', titulo: 'Conversa fila Codex', motor: 'codex' });
   t.after(() => c.parar());
   c.daCaixa('oi codex');
-  await ate(() => c.info.ocupado && xrecebidos().some((x) => x.method === 'turn/start'));
+  // Espera o turno estar de fato aberto (a pergunta do Codex falso chegou): só aí
+  // uma mensagem no meio dele é "corrigir o rumo" e não um turno novo.
+  await ate(() => c.info.ocupado && c.pendentes.size === 1);
   const q = c.daCaixa('fica na fila');
   assert.ok(q.naFila);
   assert.ok(!xrecebidos().some((x) => x.method === 'turn/steer'), 'pela fila, nada vai ao Codex no meio do turno');

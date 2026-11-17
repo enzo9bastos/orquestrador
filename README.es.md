@@ -69,10 +69,30 @@ que no hay ninguna terminal que vigilar.
   clicables, **Allow / Deny** en los pedidos de permiso, autocompletado de `/comando`.
 - La conversación acompaña el espacio libre (hasta 1200 px de ancho): respuestas a la izquierda, tus mensajes a la
   derecha, cada lado dejando un margen para el otro; el texto corrido se detiene en un ancho cómodo de lectura.
-- Cambio de modelo y de esfuerzo, medidores de contexto y de uso (ventanas de 5 horas y de 7 días) en la barra
-  superior; cada respuesta muestra la hora junto al nombre de Claude (con la fecha cuando es de otro día).
+- **La barra de la conversación** tiene cuatro chips y un menú ⋯: la carpeta; el **modelo y el esfuerzo** (los
+  modelos principales, "Opus plans, Sonnet executes", el esfuerzo con las flechas y el interruptor del modo rápido
+  en los modelos que lo tienen); el **modo de permiso** (Ask, Accept edits, Auto, Plan — cambia en vivo, también con
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> o <kbd>Shift</kbd>+<kbd>Tab</kbd> con la caja vacía); y el **uso** en un
+  solo chip (un anillo con el contexto; las ventanas de 5 horas y de 7 días dentro, y un aviso en el chip cuando
+  una pasa del 80%). El menú ⋯ reúne pregunta rápida, exportar, ajustes de Claude Code, permisos, memoria, estado y
+  *End this conversation*. Con la ventana estrecha, los chips quedan solo con el icono. Cada respuesta muestra la
+  hora junto al nombre de Claude.
+- **Mientras Claude trabaja**, una franja de actividad sobre la caja dice qué hace ahora, cuántas tareas corren en
+  segundo plano y cuántos mensajes tuyos esperan, con **Stop** (<kbd>Esc</kbd>). <kbd>Enter</kbd> pasa a **poner en
+  cola** (burbuja punteada con *Send now* y *Remove*; la cola avanza un mensaje por turno) y
+  <kbd>Ctrl</kbd>+<kbd>Enter</kbd> **corrige el rumbo**: interrumpe y envía ese mensaje primero. Si tú mismo detienes
+  a Claude, la cola te espera en vez de dispararse.
+- **Esc hace una cosa a la vez**: cierra lo que está encima (un menú, un popup) y solo después interrumpe a
+  Claude. Nunca interrumpe mientras estás en un terminal o en otro campo. La línea bajo la caja dice siempre qué
+  hacen las teclas, y *? Shortcuts* (<kbd>Ctrl</kbd>+<kbd>/</kbd>) las lista todas.
 - **Start** envía tu comando de apertura de la ronda (por ejemplo, una skill tuya); **Shut down** cierra la ronda de
-  forma segura.
+  forma segura. Solo existen en la conversación del orquestador y aparecen uno a la vez (una opción en Settings
+  los lleva dentro del menú ⋯).
+- **`/exit` termina solo esa conversación**: la sesión queda guardada, la pantalla se limpia, el siguiente mensaje
+  empieza una sesión nueva y *Go back to the previous session* lo deshace. La app se cierra con el botón de cerrar
+  de la ventana.
+- **El modo "No questions" (Bypass)** solo existe si lo activas en Settings › Advanced, solo en conversaciones
+  aparte, confirma cada vez y mantiene una franja roja en pantalla. Mira [SECURITY.md](SECURITY.md).
 - Pega, arrastra o adjunta (📎) capturas y archivos — las imágenes van como imágenes, los demás archivos por su
   ruta; clic derecho en una palabra mal escrita para ver sugerencias (portugués e inglés); `//skill` usa cualquier
   cosa de la Library; `@note:` y `@workflow:` adjuntan una nota o un workflow; los bloques de código tienen *Copy* y
@@ -285,6 +305,9 @@ por [`examples/config.example.json`](examples/config.example.json); cada clave s
 | `raizProjetos`, `niveis` | Dónde están tus proyectos: `<raíz>/<proyecto>` o `<raíz>/<grupo>/<proyecto>` |
 | `pastasNotas` | Carpetas que abre el editor de notas |
 | `comandoInicial`, `comandoDesligar` | Comandos que envían los botones **Start** y **Shut down** |
+| `iniciarDesligar` | Dónde están Start / Shut down: `"barra"` (en la barra de la conversación, por defecto) o `"menu"` (dentro del menú ⋯) |
+| `shiftTabTrocaModo` | <kbd>Shift</kbd>+<kbd>Tab</kbd> con la caja vacía cambia el modo de permiso (por defecto `true`) |
+| `mostrarBypass` | Ofrece el modo "No questions" (Bypass) en las conversaciones aparte (por defecto `false`; mira [SECURITY.md](SECURITY.md)) |
 | `linhaTarefa`, `comandoOrdem` | Expresiones regulares que le dicen a la app en qué trabaja cada agente |
 | `ambiente` | Variables de entorno extra para las conversaciones y terminales de la app |
 | `iaOrquestrador`, `iaAgentes` | Qué CLI de IA corre el orquestador (`claude` o `codex`) y los agentes nuevos |

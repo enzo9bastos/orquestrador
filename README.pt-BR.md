@@ -66,10 +66,29 @@ há terminal para vigiar.
   clicáveis, **Permitir / Negar** nos pedidos de permissão, autocompletar de `/comando`.
 - A conversa acompanha o espaço livre (até 1200 px de largura): respostas à esquerda, suas mensagens à direita,
   cada lado deixando uma margem para o outro; o texto corrido para numa largura confortável de leitura.
-- Troca de modelo e de esforço, medidores de contexto e de uso (janelas de 5 horas e de 7 dias) na barra de cima;
-  cada resposta mostra o horário ao lado do nome do Claude (com a data quando é de outro dia).
+- **A barra da conversa** tem quatro chips e um menu ⋯: a pasta; o **modelo e o esforço** (os modelos principais,
+  "Opus planeja, Sonnet executa", o esforço pelas setas e o interruptor do modo rápido nos modelos que têm); o
+  **modo de permissão** (Perguntar, Aceitar edições, Auto, Planejar — troca ao vivo, também com
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> ou <kbd>Shift</kbd>+<kbd>Tab</kbd> com a caixa vazia); e o **uso** num chip
+  só (um anel com o contexto; as janelas de 5 horas e de 7 dias dentro, e um aviso no chip quando uma passa de
+  80%). O menu ⋯ junta pergunta rápida, exportar, configurações do Claude Code, permissões, memória, status e
+  *Encerrar esta conversa*. Com a janela estreita, os chips ficam só com o ícone. Cada resposta mostra o horário
+  ao lado do nome do Claude.
+- **Enquanto o Claude trabalha**, uma faixa de atividade acima da caixa diz o que ele faz agora, quantas tarefas
+  rodam em segundo plano e quantas mensagens suas esperam, com o **Parar** (<kbd>Esc</kbd>). O <kbd>Enter</kbd> passa
+  a **pôr na fila** (balão tracejado com *Enviar já* e *Tirar*; a fila anda uma mensagem por turno) e o
+  <kbd>Ctrl</kbd>+<kbd>Enter</kbd> **corrige o rumo**: interrompe e manda aquela mensagem na frente. Se você mesmo
+  parar o Claude, a fila espera por você em vez de disparar.
+- **O Esc faz uma coisa por vez**: fecha o que está por cima (um menu, um popup) e só depois interrompe o Claude.
+  Nunca interrompe com você num terminal ou em outro campo. A linha sob a caixa diz sempre o que as teclas
+  fazem, e *? Atalhos* (<kbd>Ctrl</kbd>+<kbd>/</kbd>) lista todos.
 - **Iniciar** manda o seu comando de abertura da rodada (por exemplo, uma skill sua); **Desligar** encerra a rodada
-  com segurança.
+  com segurança. Os dois só existem na conversa do orquestrador e aparecem um por vez (uma opção nas
+  Configurações leva os dois para dentro do menu ⋯).
+- **O `/exit` encerra só aquela conversa**: a sessão fica guardada, a tela limpa, a próxima mensagem começa uma
+  sessão nova e *Voltar à sessão anterior* desfaz. Quem fecha o app é o botão de fechar da janela.
+- **O modo "Sem perguntas" (Bypass)** só existe se você ligar em Configurações › Avançado, só em conversa avulsa,
+  confirma a cada vez e mantém uma faixa vermelha na tela. Veja o [SECURITY.md](SECURITY.md).
 - Cole, arraste ou anexe (📎) prints e arquivos — imagens vão como imagem, outros arquivos pelo caminho; clique com o
   botão direito numa palavra errada para ver sugestões (português e inglês); `//skill` usa qualquer coisa do
   Repertório; `@note:` e `@workflow:` anexam uma nota ou um workflow; blocos de código têm *Copiar* e *▶ Terminal*.
@@ -278,6 +297,9 @@ Tudo é opcional e fica em `~/.config/orq-app/config.json` (quase tudo também e
 | `raizProjetos`, `niveis` | Onde ficam os seus projetos: `<raiz>/<projeto>` ou `<raiz>/<grupo>/<projeto>` |
 | `pastasNotas` | Pastas que o editor de notas abre |
 | `comandoInicial`, `comandoDesligar` | Comandos mandados pelos botões **Iniciar** e **Desligar** |
+| `iniciarDesligar` | Onde ficam o Iniciar e o Desligar: `"barra"` (na barra da conversa, o padrão) ou `"menu"` (dentro do menu ⋯) |
+| `shiftTabTrocaModo` | <kbd>Shift</kbd>+<kbd>Tab</kbd> com a caixa vazia troca o modo de permissão (padrão `true`) |
+| `mostrarBypass` | Oferece o modo "Sem perguntas" (Bypass) nas conversas avulsas (padrão `false`; veja o [SECURITY.md](SECURITY.md)) |
 | `linhaTarefa`, `comandoOrdem` | Expressões regulares que dizem ao app no que cada agente está trabalhando |
 | `ambiente` | Variáveis de ambiente extras para as conversas e os terminais do app |
 | `iaOrquestrador`, `iaAgentes` | Qual CLI de IA roda o orquestrador (`claude` ou `codex`) e os agentes novos |
