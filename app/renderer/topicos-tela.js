@@ -32,10 +32,46 @@
 
   // Sugestão do orquestrador: título editável antes de aprovar, resumo, as
   // etapas previstas e os botões Aprovar / Recusar.
-  // Apagar em dois cliques: o primeiro vira "Apagar?" e volta sozinho em 4 s.
-  let confirmandoApagar = null, tApagar = null;
-  const botaoApagar = (t) => (confirmandoApagar === t.id
-    ? `<button type="button" class="apagar-topico confirmando" data-apagar-topico="${esc(t.id)}" title="${t.arquivo ? 'Confirmar: a demanda sai do painel e a nota vai para a lixeira' : 'Confirmar: a demanda sai do painel'}">Apagar?</button>`
+  // Apagar em dois tempos, com o custo à vista: o clique na lixeirinha pede ao
+  // processo principal a medição do que some e um comprovante; o cartão mostra
+  // os números e só o "Apagar" de lá apaga. Sem o comprovante (que vale para
+  // esta demanda, uma vez e por 2 minutos) o processo principal recusa.
+  let confirmacao = null; // { id, comprovante, custo }
+  let tConfirmacao = null;
+  const numero = (n, casas = 0) => new Intl.NumberFormat(window.orqI18n ? window.orqI18n.idioma() : 'pt-BR', { maximumFractionDigits: casas }).format(n);
+  const tamanho = (b) => (b < 1024 ? `${numero(b)} bytes` : b < 1024 * 1024 ? `${numero(b / 1024, 1)} kB` : `${numero(b / (1024 * 1024), 1)} MB`);
+  function painelApagar(t) {
+    if (!confirmacao || confirmacao.id !== t.id) return '';
+    const n = confirmacao.custo.nota;
+    const aberta = t.estado === 'aberto' || t.estado === 'esperando';
+    return `<div class="apagar-custo" role="group" aria-label="O que some se apagar" data-apagar-custo="${esc(t.id)}">
+        <strong>Apagar esta demanda?</strong>
+        <ul>
+          ${n ? `<li><span>Vai para a lixeira do sistema:</span> <span data-sem-traducao>«${esc(n.nome)}»</span> <span class="apagar-numeros">(<span>${n.arquivos === 1 ? '1 arquivo' : `${numero(n.arquivos)} arquivos`}</span>, <span data-sem-traducao>${esc(tamanho(n.bytes))}</span>)</span></li>
+          <li>Dá para restaurar pela lixeira, enquanto ela não for esvaziada.</li>` : '<li>Esta demanda não tem nota: nenhum arquivo é apagado.</li>'}
+          <li>A demanda sai do painel. A lista de antes fica guardada nas versões do app.</li>
+          ${aberta ? '<li>Sem apagar: concluir a demanda. Ela sai das abertas e a nota fica.</li>' : ''}
+        </ul>
+        <div class="acoes">
+          <button type="button" class="botao secundario" data-cancelar-apagar="${esc(t.id)}">Cancelar</button>
+          <button type="button" class="botao perigo" data-confirmar-apagar="${esc(t.id)}">Apagar</button>
+        </div>
+      </div>`;
+  }
+  // O orquestrador pediu (orq-topico apagar): nada some até o usuário decidir aqui.
+  function pedidoApagar(t) {
+    if (!t.pedidoApagar || (confirmacao && confirmacao.id === t.id)) return '';
+    return `<div class="apagar-pedido" role="note" data-pedido-apagar="${esc(t.id)}">
+        <span>O orquestrador pediu para apagar esta demanda. Nada foi apagado.</span>
+        <div class="acoes">
+          <button type="button" class="botao secundario" data-manter-topico="${esc(t.id)}" title="A demanda fica como está e o orquestrador é avisado">Manter</button>
+          <button type="button" class="botao secundario" data-apagar-topico="${esc(t.id)}" title="Mostra o que some antes de apagar">Apagar…</button>
+        </div>
+      </div>`;
+  }
+  const sobreApagar = (t) => `${pedidoApagar(t)}${painelApagar(t)}`;
+  const botaoApagar = (t) => (confirmacao && confirmacao.id === t.id
+    ? `<button type="button" class="apagar-topico confirmando" data-apagar-topico="${esc(t.id)}" aria-label="Desistir de apagar" title="Desistir de apagar" aria-pressed="true"><svg class="ico" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
     : `<button type="button" class="apagar-topico" data-apagar-topico="${esc(t.id)}" aria-label="Apagar demanda" title="Apagar demanda"><svg class="ico" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`);
 
   // Concluir pelo cartão resumido (✓), também em dois cliques; avisa quantas
@@ -53,6 +89,7 @@
         <input type="text" class="topico-titulo topico-titulo-editavel" data-titulo-sugerido="${esc(t.id)}" data-sem-traducao maxlength="200" value="${esc(titulosEditados.has(t.id) ? titulosEditados.get(t.id) : t.titulo)}" aria-label="Título da demanda sugerida" title="Dá para corrigir o título antes de aprovar">
         ${botaoApagar(t)}
       </header>
+      ${sobreApagar(t)}
       ${resumoHtml(t, true)}
       <div class="topico-meta">
         <span class="topico-id" data-sem-traducao>#${esc(t.id)}</span>
@@ -77,6 +114,7 @@
         <strong class="topico-titulo" data-sem-traducao>${esc(t.titulo)}</strong>
         ${botaoApagar(t)}
       </header>
+      ${sobreApagar(t)}
       ${resumoHtml(t, false)}
       <div class="acoes"><button type="button" class="botao secundario" data-reconsiderar-topico="${esc(t.id)}">Reconsiderar</button></div>
     </article>`;
@@ -101,6 +139,7 @@
         ${t.estado !== 'concluido' ? botaoConcluir(t, faltam.length) : ''}
         ${botaoApagar(t)}
       </header>
+      ${sobreApagar(t)}
       <div class="topico-meta">
         ${t.codigo ? `<span class="topico-codigo" data-sem-traducao title="Código">${esc(t.codigo)}</span>` : ''}
         ${t.agentes.length ? `<span class="topico-agentes" data-sem-traducao>${esc(t.agentes.join(', '))}</span>` : ''}
@@ -115,6 +154,7 @@
         <strong class="topico-titulo" data-sem-traducao>${esc(t.titulo)}</strong>
         ${botaoApagar(t)}
       </header>
+      ${sobreApagar(t)}
       ${resumoHtml(t, !concluido)}
       <div class="topico-meta">
         <span class="topico-id" data-sem-traducao>#${esc(t.id)}</span>
@@ -204,6 +244,7 @@
     if (r.erro) { mostrarErro(r.erro); return false; }
     erro = null;
     lista = r.topicos || [];
+    if (confirmacao && !lista.some((x) => x.id === confirmacao.id)) fecharConfirmacao(false);
     desenhar();
     return true;
   }
@@ -258,22 +299,53 @@
     const c = ev.target.closest('[data-titulo-sugerido]');
     if (c) titulosEditados.set(c.dataset.tituloSugerido, c.value);
   });
+  // Desistir (Cancelar, Esc, a lixeirinha de novo ou o prazo): o comprovante
+  // deixa de valer no processo principal na hora.
+  function fecharConfirmacao(redesenhar = true) {
+    clearTimeout(tConfirmacao);
+    if (confirmacao) T.cancelarApagar(confirmacao.comprovante);
+    confirmacao = null;
+    if (redesenhar) desenhar();
+  }
   coluna.addEventListener('click', async (ev) => {
     const b = ev.target.closest('[data-apagar-topico]');
     if (!b) return;
     const id = b.dataset.apagarTopico;
-    clearTimeout(tApagar);
-    if (confirmandoApagar !== id) {
-      confirmandoApagar = id;
-      tApagar = setTimeout(() => { confirmandoApagar = null; desenhar(); }, 4000);
-      desenhar();
-      return;
-    }
-    confirmandoApagar = null;
-    const r = await T.apagar(id);
+    if (confirmacao && confirmacao.id === id) { fecharConfirmacao(); return; }
+    fecharConfirmacao(false);
+    b.disabled = true;
+    const r = await T.prepararApagar(id);
+    if (!r || r.erro) { desenhar(); b.disabled = false; mostrarErro(`Não consegui medir o que seria apagado: ${(r && r.erro) || 'erro desconhecido'}`); return; }
+    confirmacao = { id, comprovante: r.comprovante, custo: r.custo };
+    tConfirmacao = setTimeout(() => fecharConfirmacao(), Math.max(1000, r.validoAte - Date.now()));
+    desenhar();
+    // O foco vai para o Cancelar: Enter sem olhar não apaga.
+    const cancelar = coluna.querySelector(`[data-apagar-custo="${CSS.escape(id)}"] [data-cancelar-apagar]`);
+    if (cancelar) cancelar.focus();
+  });
+  coluna.addEventListener('click', async (ev) => {
+    if (ev.target.closest('[data-cancelar-apagar]')) { fecharConfirmacao(); return; }
+    const b = ev.target.closest('[data-confirmar-apagar]');
+    if (!b || !confirmacao || confirmacao.id !== b.dataset.confirmarApagar) return;
+    const { id, comprovante } = confirmacao;
+    clearTimeout(tConfirmacao);
+    confirmacao = null; // o comprovante é de uso único: vai junto com o pedido
+    b.disabled = true;
+    const r = await T.apagar(id, comprovante);
     if (r && r.erro) { desenhar(); mostrarErro(`Não consegui apagar: ${r.erro}`); return; }
     receber(r);
     if (r && window.orqNotas && window.orqNotas.fecharSe) await window.orqNotas.fecharSe(r.fechar ? r.fechar.i : -1, r.fechar ? r.fechar.rel : '');
+  });
+  coluna.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && confirmacao && ev.target.closest('[data-apagar-custo]')) { ev.preventDefault(); ev.stopPropagation(); fecharConfirmacao(); }
+  });
+  coluna.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-manter-topico]');
+    if (!b) return;
+    b.disabled = true;
+    const r = await T.manter(b.dataset.manterTopico);
+    if (r && r.erro) { desenhar(); mostrarErro(`Não consegui manter: ${r.erro}`); return; }
+    receber(r);
   });
   coluna.addEventListener('click', async (ev) => {
     const b = ev.target.closest('[data-concluir-cartao]');
@@ -310,7 +382,7 @@
   }
   coluna.addEventListener('click', (ev) => {
     const c = ev.target.closest('[data-abrir-nota]');
-    if (c && !ev.target.closest('button, a, input')) abrirNota(c.dataset.abrirNota);
+    if (c && !ev.target.closest('button, a, input, .apagar-custo, .apagar-pedido')) abrirNota(c.dataset.abrirNota);
   });
   coluna.addEventListener('keydown', (ev) => {
     const c = ev.target.closest('[data-abrir-nota]');

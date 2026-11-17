@@ -120,7 +120,9 @@ están el resumen, la lista de pasos y tus propias *Anotações* (notas libres q
 cambia la línea `Estado:` de la nota y la tarjeta la sigue; los requests terminados quedan en la carpeta como
 "Título - Concluída.md".
 La flecha de una tarjeta lista los pasos que faltan sin salir del panel. Pasa el mouse sobre una tarjeta para ver la
-papelera: tras un segundo clic el request sale del panel y su nota va a la papelera del sistema.
+papelera: la tarjeta muestra primero **lo que se pierde, en números** (la nota, cuántos archivos, el tamaño, y que
+va a la papelera del sistema), y solo su botón *Delete* borra. El comando `orq-topico apagar`, que ejecuta el
+orquestador, nunca borra: deja un pedido en la tarjeta y tú decides ahí (*Keep* o *Delete…*).
 
 A medida que llega trabajo, el **orquestador sugiere un request** (título, resumen y pasos previstos) con
 `orq-topico sugerir`; tú lo **apruebas o rechazas** en la tarjeta — corrigiendo antes el título si quieres. Solo los

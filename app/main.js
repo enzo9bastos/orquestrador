@@ -541,14 +541,43 @@ ipcMain.handle('topicos:estado', pelaTela((id, e) => topicos.estado(id, e)));
 // Pela tela, o segundo clique já foi a confirmação: conclui mesmo com item aberto.
 ipcMain.handle('topicos:concluir', pelaTela((id) => topicos.concluir(id, { mesmoAssim: true })));
 ipcMain.handle('topicos:resumo', pelaTela((id, txt) => topicos.resumo(id, txt)));
-// Apagar pelo painel: devolve onde a nota estava, para a aba Notas fechá-la se
-// estiver aberta (senão salvar a recriaria).
-ipcMain.handle('topicos:apagar', (_e, id) => {
+// Apagar pelo painel, em dois tempos (apagar.js, 1ª ligação): prepararApagar
+// mede o que some e devolve um comprovante; apagar só vale com ele (para
+// aquela demanda, uma vez, por pouco tempo, e com a nota como estava na
+// medição). O orq-topico não passa por aqui: ele só deixa o pedido na demanda.
+const apagarBase = require('./apagar');
+const apagar = apagarBase.criar({
+  lixeira: (abs) => shell.trashItem(abs),
+  // Consultado a cada apagar: o que é do orquestrador e o app nunca apaga.
+  protegidos: async () => {
+    const pastaDem = topicos.pastaDemandas();
+    return apagarBase.protegidosDoApp({ pastaNotas: pastaDem ? path.dirname(pastaDem) : null, pastaDemandas: pastaDem });
+  },
+});
+const apagarDemanda = require('./apagar-demanda').criar({ apagar, topicos });
+// O pedido de apagar veio do orquestrador: ele fica sabendo do que o usuário decidiu.
+const avisarDecisao = (t, acao) => { try { topicos.avisarOrquestrador(conversa, t, acao); } catch { /* o aviso é extra; a decisão já está feita */ } };
+ipcMain.handle('topicos:prepararApagar', async (_e, id) => { try { return await apagarDemanda.preparar(id); } catch (e) { return { erro: e.message }; } });
+ipcMain.handle('topicos:cancelarApagar', (_e, comprovante) => { try { return apagarDemanda.cancelar(comprovante); } catch { return false; } });
+// Devolve onde a nota estava, para a aba Notas fechá-la se estiver aberta
+// (senão salvar a recriaria).
+ipcMain.handle('topicos:apagar', async (_e, id, comprovante) => {
   try {
     const o = topicos.ondeNota(id);
     const fechar = o ? notas.localizar(o.abs) : null;
-    topicos.apagar(id);
+    const antes = topicos.ler().find((x) => x.id === String(id));
+    const r = await apagarDemanda.executar(id, comprovante);
+    if (r.erro) return { erro: r.erro };
+    if (antes && antes.pedidoApagar) avisarDecisao(r.demanda, 'apagado');
     return { topicos: topicos.ler(), fechar };
+  } catch (e) { return { erro: e.message }; }
+});
+ipcMain.handle('topicos:manter', (_e, id) => {
+  try {
+    const antes = topicos.ler().find((x) => x.id === String(id));
+    const t = topicos.manter(id);
+    if (antes && antes.pedidoApagar) avisarDecisao(t, 'mantido');
+    return { topicos: topicos.ler() };
   } catch (e) { return { erro: e.message }; }
 });
 ipcMain.handle('topicos:reconsiderar', pelaTela((id) => topicos.reconsiderar(id)));

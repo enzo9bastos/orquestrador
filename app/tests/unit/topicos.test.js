@@ -183,6 +183,11 @@ test('topicos: aviso ao orquestrador vai por trás, marcado, e só com ele vivo'
   assert.strictEqual(mandados[0][0], 'orquestrador');
   assert.strictEqual(mandados[0][1], '<orq-topico id="7" acao="aprovado" titulo="Arrumar aspas e sinais">\nTópico #7 «Arrumar aspas e sinais» aprovado pelo usuário: crie as etapas (orq-topico item) e mande um resumo (orq-topico resumo).\n</orq-topico>');
   assert.match(mandados[1][1], /^<orq-topico id="7" acao="recusado" [^]*recusado pelo usuário/);
+  // Pedido de apagar do orquestrador decidido na tela: ele fica sabendo.
+  assert.strictEqual(topicos.avisarOrquestrador(conversa, t, 'apagado'), true);
+  assert.strictEqual(topicos.avisarOrquestrador(conversa, t, 'mantido'), true);
+  assert.match(mandados[2][1], /^<orq-topico id="7" acao="apagado" [^]*apagado pelo usuário/);
+  assert.match(mandados[3][1], /^<orq-topico id="7" acao="mantido" [^]*decidiu manter[^]*não peça de novo/);
 });
 
 test('topicos: app e orq-topico gravando juntos não perdem tópico nem repetem id (S7)', async () => {

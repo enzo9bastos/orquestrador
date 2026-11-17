@@ -39,6 +39,9 @@ function limpar(t) {
     concluido: t.estado === 'concluido' ? (Number(t.concluido) || Date.now()) : undefined,
     aprovado: Number(t.aprovado) || undefined,
     recusado: t.estado === 'recusado' ? (Number(t.recusado) || Date.now()) : undefined,
+    // O orquestrador pediu para apagar (orq-topico apagar): quando foi. A
+    // demanda continua inteira até o usuário decidir na tela.
+    pedidoApagar: Number(t.pedidoApagar) > 0 ? Number(t.pedidoApagar) : undefined,
     // Demanda com .md: o nome do arquivo na pasta Demandas e o título que deu
     // nome a ele (mudar o título dentro da nota não renomeia o arquivo).
     arquivo: typeof t.arquivo === 'string' && /^[^/\\]+\.md$/.test(t.arquivo) ? t.arquivo : undefined,
@@ -285,14 +288,17 @@ function reconsiderar(id) {
 // linha discreta e a resposta não vira notificação.
 const marcarBastidor = (t, acao) => {
   const tit = String(t.titulo).replace(/["<>]/g, '');
-  const corpo = acao === 'aprovado'
-    ? `Tópico #${t.id} «${tit}» aprovado pelo usuário: crie as etapas (orq-topico item) e mande um resumo (orq-topico resumo).`
-    : `Tópico #${t.id} «${tit}» recusado pelo usuário: não insista nele.`;
+  const corpo = {
+    aprovado: `Tópico #${t.id} «${tit}» aprovado pelo usuário: crie as etapas (orq-topico item) e mande um resumo (orq-topico resumo).`,
+    recusado: `Tópico #${t.id} «${tit}» recusado pelo usuário: não insista nele.`,
+    apagado: `Tópico #${t.id} «${tit}» apagado pelo usuário, como você pediu.`,
+    mantido: `O usuário decidiu manter o tópico #${t.id} «${tit}»: ele continua no painel, não peça de novo para apagar.`,
+  }[acao];
   return `<orq-topico id="${String(t.id).replace(/["<>]/g, '')}" acao="${acao}" titulo="${tit}">\n${corpo}\n</orq-topico>`;
 };
 // Só manda com o processo do orquestrador vivo; senão ele vê no próximo listar.
 function avisarOrquestrador(conversa, t, acao) {
-  if (!conversa || !t || !['aprovado', 'recusado'].includes(acao)) return false;
+  if (!conversa || !t || !['aprovado', 'recusado', 'apagado', 'mantido'].includes(acao)) return false;
   let o;
   try { o = conversa.lista().find((x) => x.orquestrador); } catch { return false; }
   if (!(o && o.vivo)) return false;
@@ -362,6 +368,17 @@ function nota(id, txt) {
 // Apagar: a nota vai para a lixeira do sistema (recuperável de lá) e a demanda
 // sai do índice (a versão anterior do índice fica guardada). Lixeira falhou:
 // nada muda. Só por pedido explícito do usuário.
+// O orq-topico (o comando que o orquestrador roda no terminal) não apaga: ele
+// só deixa o pedido na demanda. Quem apaga é o usuário, no painel, vendo o
+// custo (apagar-demanda.js). Pedir de novo não troca a data do primeiro pedido.
+function pedirApagar(id) {
+  return mudar(id, (t) => { if (!t.pedidoApagar) t.pedidoApagar = Date.now(); });
+}
+// O usuário decidiu manter: o pedido sai e a demanda fica como estava.
+function manter(id) {
+  return mudar(id, (t) => { delete t.pedidoApagar; });
+}
+
 const lixeiraDoSistema = (abs) => {
   try { require('child_process').execFileSync('gio', ['trash', abs], { stdio: 'pipe' }); } catch { throw new Error(`não consegui mandar ${path.basename(abs)} para a lixeira`); }
 };
@@ -427,4 +444,4 @@ function vigiar(aoMudar) {
   return () => { clearTimeout(espera); w.close(); if (wd) wd.close(); if (wr) wr.close(); };
 }
 
-module.exports = { ESTADOS, arq, versoes, pastaDemandas, migrarParaNotas, ondeNota, apagar, ler, abrir, sugerir, resumo, renomear, aprovar, recusar, reconsiderar, marcarBastidor, avisarOrquestrador, item, marcar, pendentes, concluir, estado, agente, nota, vigiar };
+module.exports = { ESTADOS, arq, versoes, pastaDemandas, migrarParaNotas, ondeNota, apagar, pedirApagar, manter, ler, abrir, sugerir, resumo, renomear, aprovar, recusar, reconsiderar, marcarBastidor, avisarOrquestrador, item, marcar, pendentes, concluir, estado, agente, nota, vigiar };

@@ -80,21 +80,87 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
     await app.esperar("document.querySelector('#lista-concluidos .topico-resumido') !== null", 8000);
   });
 
-  await t.test('apagar: lixeirinha pede confirmação no cartão, não abre a nota e tira a demanda', async () => {
+  await t.test('apagar: a lixeirinha mostra no cartão o que some, em números; Cancelar não apaga; Apagar manda a nota para a lixeira', async () => {
     const idN = orq('abrir', 'Demanda errada').match(/\d+/)[0];
     const arq = path.join(app.casa, 'orq', 'Demandas', 'Demanda errada.md');
     assert.ok(fs.existsSync(arq));
+    const bytes = fs.statSync(arq).size;
     const sel = `[data-topico="${idN}"] [data-apagar-topico]`;
+    const custo = `[data-topico="${idN}"] [data-apagar-custo]`;
     await app.esperar(`!!document.querySelector('${sel}')`, 8000);
     await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
     await app.avaliar(`document.querySelector('${sel}').click()`);
-    await app.esperar(`/Apagar\\?/.test(document.querySelector('${sel}').textContent)`);
-    assert.ok(fs.existsSync(arq), 'o primeiro clique não apaga');
+    await app.esperar(`!!document.querySelector('${custo}')`, 8000);
+    const txt = (await app.avaliar(`document.querySelector('${custo}').innerText`)).replace(/\s+/g, ' ');
+    assert.match(txt, /Apagar esta demanda\?/);
+    assert.ok(txt.includes(`Vai para a lixeira do sistema: «Demanda errada.md» (1 arquivo, ${bytes} bytes)`), txt);
+    assert.match(txt, /Dá para restaurar pela lixeira/);
+    assert.match(txt, /A lista de antes fica guardada/);
+    assert.match(txt, /Sem apagar: concluir a demanda/);
+    assert.ok(fs.existsSync(arq), 'mostrar o custo não apaga');
     assert.ok(!(await app.avaliar("document.getElementById('aba-notas').classList.contains('ativa')")), 'não abre a nota');
+    assert.strictEqual(await app.avaliar('document.activeElement && document.activeElement.textContent'), 'Cancelar', 'o foco fica no Cancelar');
+    // Clicar no texto do custo não abre a nota do cartão.
+    await app.avaliar(`document.querySelector('${custo} li').click()`);
+    assert.ok(!(await app.avaliar("document.getElementById('aba-notas').classList.contains('ativa')")), 'clicar no custo não abre a nota');
+    // Cancelar: some o custo, fica tudo.
+    await app.avaliar(`document.querySelector('${custo} [data-cancelar-apagar]').click()`);
+    await app.esperar(`!document.querySelector('${custo}')`);
+    assert.ok(fs.existsSync(arq), 'Cancelar não apaga');
+    assert.ok(orq('listar', '--todos').includes('Demanda errada'));
+    // De novo, agora até o fim.
     await app.avaliar(`document.querySelector('${sel}').click()`);
+    await app.esperar(`!!document.querySelector('${custo}')`, 8000);
+    await app.avaliar(`document.querySelector('${custo} [data-confirmar-apagar]').click()`);
     await app.esperar(`!document.querySelector('[data-topico="${idN}"]')`, 8000);
     assert.ok(!fs.existsSync(arq), 'a nota saiu da pasta (foi para a lixeira)');
     assert.ok(!orq('listar', '--todos').includes('Demanda errada'));
+    const reg = fs.readFileSync(path.join(app.casa, '.local/share/orq-app/registro-apagar.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)).at(-1);
+    assert.deepStrictEqual([reg.operacao, reg.tipo, reg.resultado, reg.destino, reg.arquivos, reg.bytes], ['apagar', 'demanda', 'ok', 'lixeira', 1, bytes]);
+  });
+
+  await t.test('apagar: sem o comprovante do custo, o processo principal recusa (a tela não apaga sozinha)', async () => {
+    const idS = orq('abrir', 'Sem comprovante').match(/\d+/)[0];
+    const arq = path.join(app.casa, 'orq', 'Demandas', 'Sem comprovante.md');
+    await app.esperar(`!!document.querySelector('[data-topico="${idS}"]')`, 8000);
+    for (const falso of ['undefined', "'x'", `'${'a'.repeat(48)}'`]) {
+      const r = await app.avaliar(`window.orq.topicos.apagar(${JSON.stringify(idS)}, ${falso})`);
+      assert.match(r.erro, /não há confirmação válida/);
+    }
+    // O comprovante de uma demanda não serve para outra.
+    const idO = orq('abrir', 'Outra demanda').match(/\d+/)[0];
+    const p = await app.avaliar(`window.orq.topicos.prepararApagar(${JSON.stringify(idO)})`);
+    assert.match((await app.avaliar(`window.orq.topicos.apagar(${JSON.stringify(idS)}, ${JSON.stringify(p.comprovante)})`)).erro, /de outra demanda/);
+    assert.ok(fs.existsSync(arq));
+    assert.ok(orq('listar').includes('Sem comprovante') && orq('listar').includes('Outra demanda'));
+  });
+
+  await t.test('apagar pedido pelo orquestrador (orq-topico apagar): nada some; o cartão avisa e o usuário decide', async () => {
+    const idP = orq('abrir', 'Pedida pelo orquestrador').match(/\d+/)[0];
+    const arq = path.join(app.casa, 'orq', 'Demandas', 'Pedida pelo orquestrador.md');
+    const saida = orq('apagar', idP);
+    assert.match(saida, /Nada foi apagado/);
+    assert.ok(fs.existsSync(arq), 'o comando não apaga');
+    assert.match(orq('listar'), /pedido de apagar: esperando o usuário decidir/);
+    const pedido = `[data-topico="${idP}"] [data-pedido-apagar]`;
+    await app.esperar(`!!document.querySelector('${pedido}')`, 8000);
+    assert.match(await app.avaliar(`document.querySelector('${pedido}').innerText`), /O orquestrador pediu para apagar esta demanda\. Nada foi apagado\./);
+    // Manter: o aviso some e a demanda fica como estava.
+    await app.avaliar(`document.querySelector('${pedido} [data-manter-topico]').click()`);
+    await app.esperar(`!document.querySelector('${pedido}')`, 8000);
+    assert.ok(fs.existsSync(arq));
+    assert.doesNotMatch(orq('listar'), /pedido de apagar/);
+    // Pedido de novo; agora o usuário apaga, vendo o custo.
+    orq('apagar', idP);
+    await app.esperar(`!!document.querySelector('${pedido}')`, 8000);
+    await app.avaliar(`document.querySelector('${pedido} [data-apagar-topico]').click()`);
+    const custo = `[data-topico="${idP}"] [data-apagar-custo]`;
+    await app.esperar(`!!document.querySelector('${custo}')`, 8000);
+    assert.ok(!(await app.avaliar(`!!document.querySelector('${pedido}')`)), 'com o custo aberto, o aviso dá lugar a ele');
+    assert.ok(fs.existsSync(arq), 'ver o custo não apaga');
+    await app.avaliar(`document.querySelector('${custo} [data-confirmar-apagar]').click()`);
+    await app.esperar(`!document.querySelector('[data-topico="${idP}"]')`, 8000);
+    assert.ok(!fs.existsSync(arq));
   });
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
