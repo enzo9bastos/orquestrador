@@ -1635,7 +1635,12 @@
     }
     await C.mandar(ativa, e.enviar, imagens, e.exibir);
   });
-  $('parar').addEventListener('click', () => C.interromper(ativa));
+  // Interromper (botão Parar ou Esc): a tela diz o que isso significa.
+  function interromperPorMim() {
+    C.interromper(ativa);
+    aviso('Interrompido por você. Arquivos já alterados continuam alterados.');
+  }
+  $('parar').addEventListener('click', interromperPorMim);
 
   // --- corrigir mensagem enviada ---------------------------------------------
   // ✎ no balão: VOLTA a conversa para antes daquela mensagem — ela e tudo o
@@ -1691,6 +1696,49 @@
   $('iniciar-rodada').addEventListener('click', iniciarRodada);
   $('desligar').addEventListener('click', (ev) => confirmar(ev.currentTarget, 'Confirmar desligar', desligarRodada));
   $('nova-conversa').addEventListener('click', async () => trocar(await C.nova()));
+
+  // --- pilha única do Esc -----------------------------------------------------------
+  // Cada Esc faz UMA coisa, a primeira que valer, nesta ordem:
+  //   1. menu da barra aberto (ou a confirmação dentro dele) → fecha só isso;
+  //   2. lista de sugestões, popup, Configurações, paleta, visor → fecha quem está
+  //      por cima (cada um tem o próprio ouvinte; aqui só se garante que o Esc para ali);
+  //   3. "corrigindo" (voltar a conversa) → cancela;
+  //   4. motor ocupado → interrompe;
+  //   5. parado e com a caixa vazia, Esc Esc (em 0,6 s) → abre o voltar na última mensagem.
+  // Nunca interrompe com o foco num terminal ou num campo que não é a caixa da
+  // conversa, nem fora da aba da conversa: um Esc dentro do terminal pararia o
+  // orquestrador no meio de um comando. O texto da caixa nunca é apagado.
+  const POR_CIMA = '#popup:not([hidden]), #config:not([hidden]), .paleta-fundo:not([hidden]), #visor-imagem:not([hidden]), #guarda-roupa:not([hidden])';
+  const MENUS_DA_BARRA = [['menu-modelo', fecharMenu, 'botao-modelo'], ['menu-modo', fecharMenuModo, 'chip-modo'], ['menu-uso', fecharMenuUso, 'chip-uso'], ['menu-mais', fecharMenuMais, 'chip-mais']];
+  let ultimoEsc = 0;
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape' || ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return;
+    const parar = () => { ev.preventDefault(); ev.stopPropagation(); };
+    for (const [id, fechar, botao] of MENUS_DA_BARRA) {
+      if ($(id).hidden) continue;
+      const confirmando = $(id).querySelector('.menu-confirma');
+      if (confirmando) confirmando.parentElement.innerHTML = ''; else { fechar(); $(botao).focus(); }
+      parar();
+      return;
+    }
+    if (!$('sugestoes').hidden || document.querySelector(POR_CIMA)) return; // o dono fecha
+    if (!$('aba-orquestrador').classList.contains('ativa')) return;
+    const foco = document.activeElement;
+    if (foco && foco !== entrada && (foco.closest('.xterm, .ProseMirror, [contenteditable="true"]') || foco.matches('input, textarea, select'))) return;
+    if (voltaPedida) { fecharVolta(); parar(); return; }
+    if (infoAtual.ocupado) { parar(); interromperPorMim(); return; }
+    if (entrada.value || infoAtual.motor === 'codex') return;
+    const agora = Date.now();
+    if (agora - ultimoEsc >= 600) { ultimoEsc = agora; return; }
+    ultimoEsc = 0;
+    // Esc Esc: pede a confirmação de voltar para antes da última mensagem (nada muda sem o "Voltar").
+    const ultima = [...caixa.querySelectorAll('.msg-voce[data-texto]')].pop();
+    if (!ultima) return;
+    parar();
+    voltaPedida = ultima;
+    $('corrigindo-texto').textContent = 'Voltar para antes da sua última mensagem? Ela e a resposta saem da conversa do Claude, e o texto volta para a caixa. A conversa antiga fica guardada.';
+    $('corrigindo').hidden = false;
+  }, true);
 
   // Configuração mudada na engrenagem: vale na hora (bichinho, comandos).
   window.addEventListener('orq:config', (ev) => {
