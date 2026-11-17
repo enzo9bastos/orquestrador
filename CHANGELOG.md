@@ -4,6 +4,18 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.6.1 (2026-11-17)
+
+- Conversation search (Ctrl+F): closing the bar right after a new message
+  arrived could leave the marks on screen. Fixed.
+- An MCP server asking you for information is now a card instead of an
+  immediate refusal: it says which server asks and for what, with its form
+  (fields that look like secrets are masked and never kept on screen) and
+  Send, Decline and Cancel. When the server asks to open a page, the card
+  shows the site first and opens the browser only on your click.
+- Tests: two screen tests no longer depend on where the pointer is or on a
+  rerun still pending when the search bar closes.
+
 ## 0.6.0 (2026-11-17)
 
 - Permission card with three answers: allow this time, always allow (you
