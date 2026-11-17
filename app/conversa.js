@@ -81,6 +81,11 @@ let avisar = () => {};
 // Modelos e esforços que o botão da barra oferece.
 // opusplan é um apelido do próprio Claude Code (Opus no modo plano, Sonnet na execução).
 const MODELOS = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-5-5', fable: 'claude-fable-5-2', opusplan: 'opusplan' };
+// Escolha que é um apelido: o Claude informa o modelo EM USO no momento (no init e na resposta
+// ao set_model), e não o apelido. Com opusplan é Opus no modo plano e Sonnet fora dele. A
+// escolha continua sendo o apelido: nem a tela nem o que fica guardado trocam para o modelo em uso.
+const EM_USO_DO_APELIDO = { opusplan: /^claude-(opus|sonnet)-/ };
+const eDoApelido = (chave, modelo) => !!(chave && EM_USO_DO_APELIDO[chave] && typeof modelo === 'string' && EM_USO_DO_APELIDO[chave].test(modelo));
 const ESFORCOS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // Modo de permissão com que o app sobe o Claude. Num reinício, vale o modo
 // vivo da conversa (init ou system/status) quando ele é mais restritivo que o
@@ -613,14 +618,14 @@ class Conversa {
           this.juntarComandos();
         }
         if (d.subtype === 'init') {
-          info.modelo = d.model; info.pasta = d.cwd;
+          info.modelo = eDoApelido(this.modeloEscolhido, d.model) ? MODELOS[this.modeloEscolhido] : d.model; info.pasta = d.cwd;
           this.initInfo = { versao: d.claude_code_version || null, modelo: d.model, pasta: d.cwd, modo: d.permissionMode || null,
             mcp: Array.isArray(d.mcp_servers) ? d.mcp_servers : [], ferramentas: Array.isArray(d.tools) ? d.tools.length : null,
             estilo: d.output_style || null, chave: d.apiKeySource || null, sessao: d.session_id || null };
           if (this.forkDe && !this.volta) { this.forkDe = null; }
           // Quem manda no modelo é o Claude: se o init diz outro dos modelos
           // do botão (ex.: /model digitado), a escolha guardada acompanha.
-          if (this.modeloEscolhido && MODELOS[this.modeloEscolhido] !== d.model) {
+          if (this.modeloEscolhido && MODELOS[this.modeloEscolhido] !== d.model && !eDoApelido(this.modeloEscolhido, d.model)) {
             const k = Object.keys(MODELOS).find((x) => MODELOS[x] === d.model);
             if (k) { this.modeloEscolhido = k; gravarLista(); }
           }
@@ -679,11 +684,13 @@ class Conversa {
       case 'stream_event': {
         const e = d.event || {};
         if (d.parent_tool_use_id) return;
+        if (e.type === 'message_start') this.turnoDoClaude();
         if (e.type === 'content_block_delta' && e.delta && e.delta.type === 'text_delta') this.enviar('conversa:parcial', e.delta.text);
         if (e.type === 'message_start') this.enviar('conversa:parcial', null);
         return;
       }
       case 'assistant': {
+        if (!d.parent_tool_use_id && d.message.model !== '<synthetic>') this.turnoDoClaude();
         const u = d.message.usage;
         if (u && !d.parent_tool_use_id) {
           info.contexto = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
@@ -760,6 +767,15 @@ class Conversa {
 
   // Fim de turno (Claude ou Codex): a IA parou e espera o usuário (a tela
   // decide se avisa).
+  // Turno que o próprio Claude começou (um lembrete agendado, uma tarefa em segundo plano que
+  // terminou): o app não mandou nada, mas ele está respondendo. Passa a valer "trabalhando":
+  // o que a pessoa mandar pela caixa entra na fila e só vai quando esse turno acabar. Antes a
+  // mensagem ia na hora e o balão dela aparecia no meio da resposta do Claude.
+  turnoDoClaude() {
+    if (this.info.ocupado) return;
+    this.info.ocupado = true;
+    this.avisarInfo();
+  }
   fimDeTurno({ erro = false, duracao = null, texto = null } = {}) {
     this.info.ocupado = false;
     this.tentarSondar();
@@ -1137,7 +1153,8 @@ class Conversa {
     this.pedidoModelo = null;
     if (r.subtype === 'success') {
       this.modeloEscolhido = chave;
-      this.info.modelo = (r.response && r.response.model) || (chave ? MODELOS[chave] : modeloPadrao()) || this.info.modelo;
+      const dito = r.response && r.response.model;
+      this.info.modelo = (eDoApelido(chave, dito) ? MODELOS[chave] : dito) || (chave ? MODELOS[chave] : modeloPadrao()) || this.info.modelo;
       gravarLista();
       this.avisarInfo();
     } else {

@@ -299,6 +299,23 @@ test('modelo: opusplan vai como apelido (ao vivo e na subida); Fable é o 5.2; o
   await ate(() => c.info.modelo === 'opusplan');
   assert.strictEqual(recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'set_model').pop().request.model, 'opusplan');
   assert.deepStrictEqual(c.argumentos().slice(c.argumentos().indexOf('--model'), c.argumentos().indexOf('--model') + 2), ['--model', 'opusplan']);
+  // O Claude informa o modelo em uso (Sonnet fora do modo plano), não o apelido. Antes o app
+  // tomava isso como a escolha: mostrava Sonnet e guardava Sonnet (visto pelo usuário em 17/11/2026).
+  assert.strictEqual(recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'set_model').length >= 1, true);
+  const guardado = () => lista().find((x) => x.id === 'mm1');
+  c.mandar('oi de novo'); // outro turno: o init vem dizendo claude-sonnet-5-5
+  await ate(() => turnos(c) === 2);
+  assert.deepStrictEqual([c.info.modelo, c.modeloEscolhido], ['opusplan', 'opusplan'], 'depois de um turno a escolha continua sendo o apelido');
+  assert.strictEqual(c.initInfo.modelo, 'claude-sonnet-5-5', 'o init informou o modelo em uso');
+  assert.deepStrictEqual(c.argumentos().slice(c.argumentos().indexOf('--model'), c.argumentos().indexOf('--model') + 2), ['--model', 'opusplan']);
+  // No modo plano o modelo em uso é o Opus: a escolha continua a mesma.
+  c.tratar({ type: 'system', subtype: 'init', session_id: c.sessao, model: 'claude-opus-5-5', cwd: casa, permissionMode: 'plan' });
+  assert.deepStrictEqual([c.info.modelo, c.modeloEscolhido], ['opusplan', 'opusplan']);
+  // Outro modelo que não é do apelido (ex.: Haiku): aí quem manda é o Claude, como antes.
+  c.tratar({ type: 'system', subtype: 'init', session_id: c.sessao, model: 'claude-haiku-5-5', cwd: casa, permissionMode: 'default' });
+  assert.deepStrictEqual([c.info.modelo, c.modeloEscolhido], ['claude-haiku-5-5', 'haiku']);
+  assert.strictEqual(c.configurar({ modelo: 'opusplan' }), true);
+  await ate(() => c.info.modelo === 'opusplan' && c.modeloEscolhido === 'opusplan');
   assert.strictEqual(c.configurar({ modelo: 'fable' }), true);
   await ate(() => c.info.modelo === 'claude-fable-5-2');
   assert.strictEqual(c.configurar({ modelo: 'nao-existe' }), false);
@@ -307,6 +324,53 @@ test('modelo: opusplan vai como apelido (ao vivo e na subida); Fable é o 5.2; o
   assert.strictEqual(c.info.rapido, true);
   await c.rapidoLigar(false);
   assert.strictEqual(c.info.rapido, false);
+});
+
+// Visto pelo usuário em 17/11/2026: ele mandou uma mensagem enquanto o Claude escrevia a
+// passada automática (turno que o próprio Claude começou) e o balão dele apareceu no meio da
+// resposta. O app não sabia que o Claude estava ocupado, porque não tinha mandado nada.
+test('turno que o Claude começa sozinho conta como "trabalhando": a mensagem da caixa espera ele acabar', async (t) => {
+  const c = new conversa._Conversa({ id: 'ts1', titulo: 'Conversa com lembrete' });
+  t.after(() => c.parar());
+  c.mandar('depois começa um turno sozinho');
+  await ate(() => turnos(c) === 1);
+  assert.strictEqual(c.info.ocupado, false);
+  // O Claude começa a passada por conta própria: o app passa a mostrar "trabalhando".
+  await ate(() => c.info.ocupado === true);
+  const r = c.daCaixa('pergunta no meio da passada');
+  assert.ok(r.naFila, `a mensagem entra na fila (veio ${JSON.stringify(r)})`);
+  assert.deepStrictEqual(c.info.fila.map((x) => x.texto), ['pergunta no meio da passada']);
+  const textoDe = (e) => (typeof e.message.content === 'string' ? e.message.content : (e.message.content.find((b) => b.type === 'text') || {}).text || '');
+  assert.ok(!c.eventos.some((e) => e.tipo === 'user' && textoDe(e) === 'pergunta no meio da passada'), 'sem balão enquanto o Claude responde');
+  // A passada termina; só então a mensagem vai, e o Claude responde a ela.
+  await ate(() => turnos(c) === 3);
+  const ordem = c.eventos.map((e) => (e.tipo === 'resultado' ? 'fim' : e.tipo === 'user' || e.tipo === 'assistant' ? `${e.tipo}:${textoDe(e)}` : null)).filter(Boolean);
+  const i = (x) => ordem.indexOf(x);
+  assert.ok(i('assistant:Nada novo desde a última passada.') > 0, ordem.join(' | '));
+  assert.ok(i('assistant:Nada novo desde a última passada.') < i('user:pergunta no meio da passada'), `a resposta do Claude vem antes da mensagem: ${ordem.join(' | ')}`);
+  assert.strictEqual(ordem[i('user:pergunta no meio da passada') - 1], 'fim', 'a mensagem entra logo depois do fim do turno do Claude');
+  assert.deepStrictEqual(ordem.slice(i('user:pergunta no meio da passada') + 1), ['assistant:ok', 'fim'], 'e aí o Claude responde a ela');
+  // O Claude só recebeu a mensagem depois de terminar a passada.
+  const linhas = recebidos();
+  const fimDaPassada = linhas.findIndex((x) => x.turnoSozinho === 'fim');
+  const chegada = linhas.findIndex((x) => x.type === 'user' && textoDe(x) === 'pergunta no meio da passada');
+  assert.ok(fimDaPassada >= 0 && chegada > fimDaPassada, `chegou na linha ${chegada}, a passada terminou na ${fimDaPassada}`);
+  assert.deepStrictEqual(c.info.fila, []);
+  assert.strictEqual(c.info.ocupado, false);
+});
+
+// Resposta montada pelo próprio Claude sem turno (comando só de terminal): não é "trabalhando".
+test('mensagem sintética do Claude (comando que só existe no terminal) não deixa a conversa presa em "trabalhando"', async (t) => {
+  const c = new conversa._Conversa({ id: 'ts2', titulo: 'Conversa sintética' });
+  t.after(() => c.parar());
+  c.mandar('oi');
+  await ate(() => turnos(c) === 1);
+  c.tratar({ type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: "/vim isn't available in this environment." }] }, parent_tool_use_id: null });
+  assert.strictEqual(c.info.ocupado, false);
+  // Texto de subagente também não começa turno.
+  c.tratar({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'parte de um subagente' }] }, parent_tool_use_id: 'tu-1' });
+  c.tratar({ type: 'stream_event', event: { type: 'message_start' }, parent_tool_use_id: 'tu-1' });
+  assert.strictEqual(c.info.ocupado, false);
 });
 
 // Plano 4.1 (fila visível): com o motor trabalhando, o que o usuário manda pela

@@ -107,7 +107,10 @@ const COMANDOS = (() => { try { return JSON.parse(process.env.CLAUDE_FALSO_COMAN
 const esperando = new Map(); // request_id → o que fazer quando a resposta chegar
 const texto = (t) => sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: t }] } });
 const fim = (result = 'ok') => sai({ type: 'result', subtype: 'success', is_error: false, duration_ms: 5, result, session_id: SESSAO });
-const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: modelo, permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS, claude_code_version: VERSAO, tools: ['Bash', 'Read'], mcp_servers: [{ name: 'falso-mcp', status: 'connected' }] });
+// Como o Claude de verdade: opusplan é um apelido. O que ele informa (no init e na resposta ao
+// set_model) é o modelo em uso no momento: Opus no modo plano, Sonnet fora dele.
+const emUso = (m) => (m === 'opusplan' ? (modo === 'plan' ? 'claude-opus-5-5' : 'claude-sonnet-5-5') : m);
+const init = () => sai({ type: 'system', subtype: 'init', session_id: SESSAO, model: emUso(modelo), permissionMode: modo, cwd: process.cwd(), slash_commands: COMANDOS, claude_code_version: VERSAO, tools: ['Bash', 'Read'], mcp_servers: [{ name: 'falso-mcp', status: 'connected' }] });
 const HOME = require('os').homedir();
 // Respostas dos pedidos de controle dos comandos do "/".
 // get_settings (formato do 2.1.326): effective = o que está nos arquivos de
@@ -164,7 +167,7 @@ leitor.on('line', (l) => {
     if (SEM.has(r.subtype)) return naoAtende(d, r.subtype);
     if (r.subtype === 'set_model') {
       if (process.env.CLAUDE_FALSO_RECUSA_MODELO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_MODELO } });
-      modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: modelo });
+      modelo = r.model || 'claude-falso-1-0'; return responde(d, { model: emUso(modelo) });
     }
     if (r.subtype === 'set_permission_mode') {
       // Como o Claude de verdade (2.1.326): o Bypass só entra se o processo subiu com a opção que o libera.
@@ -253,6 +256,29 @@ leitor.on('line', (l) => {
   if (t === 'trabalha até parar') {
     trabalhando = true;
     return sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'começando…' }] }, session_id: SESSAO });
+  }
+  // "depois começa um turno sozinho": responde e, 300 ms depois, começa um turno por conta
+  // própria, como um lembrete agendado ou uma tarefa em segundo plano que terminou (o app não
+  // mandou nada). O turno dura $CLAUDE_FALSO_TURNO_SOZINHO_MS (1200); mensagem que chega no
+  // meio fica na fila do falso e roda depois dele, como no Claude de verdade.
+  if (t === 'depois começa um turno sozinho') {
+    texto('combinado');
+    fim();
+    setTimeout(() => {
+      trabalhando = true;
+      sai({ type: 'stream_event', event: { type: 'message_start' } });
+      sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'ts1', name: 'Bash', input: { command: 'orq passada', description: 'Passada: agentes e recados' } }] }, session_id: SESSAO });
+      setTimeout(() => {
+        if (!trabalhando) return; // interrompido no meio
+        sai({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'ts1', content: 'nada novo' }] }, session_id: SESSAO });
+        texto('Nada novo desde a última passada.');
+        trabalhando = false;
+        fim();
+        log({ turnoSozinho: 'fim' });
+        soltarFila();
+      }, Number(process.env.CLAUDE_FALSO_TURNO_SOZINHO_MS || 1200));
+    }, 300);
+    return undefined;
   }
   if (t === 'começa tarefa de fundo') {
     const f = require('child_process').spawn('sleep', ['300'], { stdio: 'ignore' });
