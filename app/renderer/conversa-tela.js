@@ -634,11 +634,61 @@
     const x = m.match(/claude-([a-z]+)-(\d+)-(\d+)/);
     return x ? `${x[1][0].toUpperCase()}${x[1].slice(1)} ${x[2]}.${x[3]}` : m;
   };
+  // Uma linha do popover de uso (Contexto, 5 h, a janela longa).
   function medidor(el, rotulo, pct, extra = '') {
     if (pct == null) { el.hidden = true; return; }
     el.hidden = false;
     const nivel = pct >= 80 ? 'alto' : pct >= 50 ? 'medio' : 'baixo';
-    el.innerHTML = `<span class="rotulo">${rotulo}</span><span class="barra-uso"><i class="${nivel}" style="width:${Math.min(pct, 100)}%"></i></span><span class="valor">${pct}%${extra}</span>`;
+    el.innerHTML = `<span class="rotulo">${rotulo}</span><span class="barra-uso"><i class="${nivel}" style="width:${Math.min(pct, 100)}%"></i></span><span class="valor" data-sem-traducao>${pct}%${extra}</span>`;
+  }
+  // O chip de uso: um anel com o contexto. Se a janela de 5 h ou a longa passa
+  // de 80%, o chip mostra qual e quanto, sem precisar abrir (95% ou mais: vermelho).
+  const tr = (x) => (window.orqI18n && window.orqI18n.t ? window.orqI18n.t(x) : x);
+  function desenharUso(ctx, h5, longo, rotuloLongoPt) {
+    const rotuloLongo = tr(rotuloLongoPt);
+    const chip = $('chip-uso');
+    const tem = [ctx, h5, longo].some((v) => v != null);
+    chip.hidden = !tem;
+    if (!tem) { fecharMenuUso(); return; }
+    const anel = $('anel-uso');
+    anel.style.setProperty('--pct', String(Math.min(ctx || 0, 100)));
+    anel.dataset.nivel = ctx == null ? 'vazio' : ctx >= 90 ? 'alto' : ctx >= 75 ? 'medio' : 'baixo';
+    // Sem o contexto ainda (conversa nova), o número é o da janela que houver.
+    chip.querySelector('.valor').textContent = ctx != null ? `${ctx}%` : h5 != null ? `5 h ${h5}%` : `${rotuloLongo} ${longo}%`;
+    const pior = Math.max(h5 == null ? -1 : h5, longo == null ? -1 : longo);
+    const alerta = $('alerta-uso');
+    const nivel = pior >= 95 ? 'alto' : pior >= 80 ? 'medio' : '';
+    alerta.hidden = !nivel || ctx == null;
+    alerta.className = `alerta-uso ${nivel}`;
+    alerta.textContent = nivel ? `${(h5 == null ? -1 : h5) >= (longo == null ? -1 : longo) ? '5 h' : rotuloLongo} ${pior}%` : '';
+    chip.classList.toggle('em-alerta', !!nivel);
+    chip.classList.toggle('alto', nivel === 'alto');
+    chip.title = [ctx != null ? `${tr('Contexto')} ${ctx}%` : '', h5 != null ? `5 h ${h5}%` : '', longo != null ? `${rotuloLongo} ${longo}%` : ''].filter(Boolean).join(' · ');
+  }
+  // Faixa de atividade (no lugar do "Pensando… Parar"): o que o motor faz
+  // agora, o que roda em segundo plano e o Parar. Parada e sem nada, some.
+  let fazendoAgora = '';
+  const FAZENDO = { Bash: 'Rodando', Read: 'Lendo', Edit: 'Editando', MultiEdit: 'Editando', Write: 'Escrevendo', Grep: 'Buscando', Glob: 'Procurando arquivos', Agent: 'Com um ajudante', Task: 'Com um ajudante', WebFetch: 'Lendo uma página', WebSearch: 'Buscando na web' };
+  // Roda a cada ferramenta que o motor começa a usar na conversa da frente.
+  function faixaFerramenta(nome, entrada) {
+    if (nome === 'AskUserQuestion') return;
+    const verbo = FAZENDO[nome] || 'Usando uma ferramenta';
+    const detalhe = FAZENDO[nome] && !['Agent', 'Task', 'WebSearch', 'Glob'].includes(nome) ? resumoFerramenta(nome, entrada)[1] : '';
+    fazendoAgora = detalhe ? `${verbo}: ${detalhe}` : `${verbo}…`;
+    if (infoAtual.ocupado) $('trabalhando-texto').textContent = fazendoAgora;
+  }
+  function desenharFaixa(i) {
+    const fundo = Number(i.fundo) || 0;
+    const f = $('trabalhando');
+    f.hidden = !(i.ocupado || fundo > 0);
+    f.classList.toggle('parada', !i.ocupado);
+    if (!i.ocupado) fazendoAgora = '';
+    $('trabalhando-texto').textContent = i.ocupado ? (fazendoAgora || 'Pensando…') : 'Parado';
+    $('parar').hidden = !i.ocupado;
+    const g = $('faixa-fundo');
+    g.hidden = !fundo;
+    g.innerHTML = `<svg class="ico" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 3v2.6h-2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-sem-traducao>${fundo}</span> <span>em segundo plano</span>`;
+    g.setAttribute('aria-label', `${fundo} ${tr('em segundo plano')}`);
   }
   function desenharInfo(i) {
     // Pasta: as duas últimas partes ("…/pai/pasta"); o caminho inteiro na dica.
@@ -650,11 +700,14 @@
     desenharEsforco(i.esforco);
     infoAtual = i;
     const janela = i.janela || null;
-    medidor($('info-contexto'), 'Contexto', i.contexto != null && janela ? Math.round((i.contexto / janela) * 100) : null);
-    medidor($('info-5h'), '5 h', i.uso5h);
+    const ctx = i.contexto != null && janela ? Math.round((i.contexto / janela) * 100) : null;
     // A janela longa: 7 dias no Claude; no Codex, a do plano (ex.: 30 dias no free).
-    medidor($('info-7d'), i.rotuloLongo || '7 dias', i.uso7d);
-    $('trabalhando').hidden = !i.ocupado;
+    const rotuloLongo = i.rotuloLongo || '7 dias';
+    medidor($('info-contexto'), 'Contexto', ctx);
+    medidor($('info-5h'), '5 h', i.uso5h);
+    medidor($('info-7d'), rotuloLongo, i.uso7d);
+    desenharUso(ctx, i.uso5h == null ? null : i.uso5h, i.uso7d == null ? null : i.uso7d, rotuloLongo);
+    desenharFaixa(i);
   }
 
   // --- modelo e esforço (botão da barra) ------------------------------------
@@ -682,6 +735,7 @@
   $('botao-modelo').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const abrir = $('menu-modelo').hidden;
+    fecharMenuUso();
     if (abrir) {
       desenharMenu();
       // Posição fixa na janela: a barra corta o que passa dela (overflow), e o
@@ -703,6 +757,28 @@
     fecharMenu();
   });
   document.addEventListener('click', fecharMenu);
+
+  // --- uso (chip da barra): contexto, 5 h e a janela longa num popover ---------
+  function fecharMenuUso() { $('menu-uso').hidden = true; $('chip-uso').setAttribute('aria-expanded', 'false'); }
+  $('chip-uso').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const abrir = $('menu-uso').hidden;
+    fecharMenu();
+    if (!abrir) { fecharMenuUso(); return; }
+    const r = $('chip-uso').getBoundingClientRect();
+    const m = $('menu-uso');
+    m.hidden = false;
+    m.style.left = `${Math.max(8, Math.min(r.right - m.offsetWidth, innerWidth - m.offsetWidth - 8))}px`;
+    m.style.top = `${r.bottom + 6}px`;
+    $('chip-uso').setAttribute('aria-expanded', 'true');
+  });
+  $('menu-uso').addEventListener('click', (ev) => ev.stopPropagation());
+  document.addEventListener('click', fecharMenuUso);
+  // "N em segundo plano" abre a lista de tarefas, onde dá para ver a saída e parar.
+  $('faixa-fundo').addEventListener('click', async () => {
+    const item = acharComando('tasks');
+    if (item && window.orqComandos) await window.orqComandos.executar(item, '', '/tasks');
+  });
 
   // --- popups: /config e /permissions ---------------------------------------
   const popup = $('popup');
@@ -865,6 +941,11 @@
     // Mensagem que o motor não aceitou: o texto volta para a caixa vazia.
     if (ev.devolver && !entrada.value.trim()) porNaCaixa(ev.devolver);
     if (id === 'orquestrador' && !ev.sub) petReage(ev);
+    // Faixa de atividade: a ferramenta em uso; quando o resultado dela chega, volta a "Pensando…".
+    if (!ev.sub && !ev.antigo && ev.message && Array.isArray(ev.message.content)) {
+      if (ev.tipo === 'assistant') for (const b of ev.message.content) { if (b.type === 'tool_use') faixaFerramenta(b.name, b.input || {}); }
+      else if (ev.tipo === 'user' && ev.message.content.some((b) => b.type === 'tool_result')) { fazendoAgora = ''; if (infoAtual.ocupado) $('trabalhando-texto').textContent = 'Pensando…'; }
+    }
   });
   let agendado = false;
   C.aoParcial((id, t) => {

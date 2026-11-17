@@ -370,6 +370,15 @@
     "Este app foi aberto antes da versão que manda imagens: feche e abra o app. Nada foi enviado; as imagens continuam na caixa.": "This app was opened before the version that sends images: close and reopen the app. Nothing was sent; the images are still in the box.",
     "Respondido": "Answered",
     "Contexto": "Context",
+    "Uso": "Usage",
+    "O anel do botão mostra o contexto desta conversa. Se a janela de 5 horas ou a longa passar de 80%, o botão avisa com o número.": "The ring on the button shows this conversation's context. If the 5-hour window or the long one goes past 80%, the button shows the number.",
+    "em segundo plano": "in the background",
+    "Ver o que roda em segundo plano e parar (/tasks)": "See what runs in the background and stop it (/tasks)",
+    "Parado": "Idle",
+    "Procurando arquivos…": "Looking for files…",
+    "Com um ajudante…": "Working with a helper…",
+    "Buscando na web…": "Searching the web…",
+    "Usando uma ferramenta…": "Using a tool…",
     "7 dias": "7 days",
     "Baixo": "Low",
     "Médio": "Medium",
@@ -2242,6 +2251,30 @@
     [
       "^pergunta (\\d+) de (\\d+) · pode marcar mais de uma$",
       "question $1 of $2 · you can pick more than one"
+    ],
+    [
+      "^Rodando: (.+)$",
+      "Running: $1"
+    ],
+    [
+      "^Lendo: (.+)$",
+      "Reading: $1"
+    ],
+    [
+      "^Editando: (.+)$",
+      "Editing: $1"
+    ],
+    [
+      "^Escrevendo: (.+)$",
+      "Writing: $1"
+    ],
+    [
+      "^Buscando: (.+)$",
+      "Searching: $1"
+    ],
+    [
+      "^Lendo uma página: (.+)$",
+      "Reading a page: $1"
     ],
     [
       "^(\\d+) dias$",

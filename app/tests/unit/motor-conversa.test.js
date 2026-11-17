@@ -184,6 +184,23 @@ test('B2: o modo vivo (status) sobrevive ao /restart; reinício nunca sobe mais 
   assert.strictEqual(c.argumentos()[c.argumentos().indexOf('--permission-mode') + 1], 'plan');
 });
 
+// Plano 1.1 (faixa de atividade): o Claude avisa o que roda em segundo plano
+// (system/background_tasks_changed, com a lista em "tasks"); a conversa guarda
+// só quantas são, para a faixa mostrar.
+test('faixa: o aviso de tarefas em segundo plano do Claude vira a contagem da conversa', () => {
+  const c = new conversa._Conversa({ id: 'fx', titulo: 'Conversa faixa' });
+  const avisos = [];
+  c.avisarInfo = () => avisos.push(c.info.fundo);
+  assert.strictEqual(c.info.fundo || 0, 0);
+  c.tratar({ type: 'system', subtype: 'background_tasks_changed', tasks: [{}, {}] });
+  assert.strictEqual(c.info.fundo, 2);
+  c.tratar({ type: 'system', subtype: 'background_tasks_changed', tasks: [] });
+  assert.strictEqual(c.info.fundo, 0);
+  c.tratar({ type: 'system', subtype: 'background_tasks_changed' });
+  assert.strictEqual(c.info.fundo, 0, 'sem a lista, conta zero');
+  assert.deepStrictEqual(avisos, [2, 0], 'a tela só é avisada quando o número muda');
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });

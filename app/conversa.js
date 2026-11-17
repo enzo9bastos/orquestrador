@@ -393,6 +393,8 @@ class Conversa {
     // Pedidos pendentes eram do processo anterior.
     this.pedidoModelo = null; this.modeloDepois = undefined; this.pedidosEsforco = new Set();
     this.recusarControles('o Claude reiniciou');
+    // O que rodava em segundo plano era do processo anterior.
+    this.info.fundo = 0;
     // A versão é a do processo novo: só vale depois do init dele.
     this.versaoViva = null; this.pedidosEnviados.clear(); this.capPendentes = [];
     let iniciou = false;
@@ -440,6 +442,12 @@ class Conversa {
         if (d.subtype === 'init' && Array.isArray(d.slash_commands)) {
           this.nomesComandos = d.slash_commands.filter((n) => !n.startsWith('__'));
           this.juntarComandos();
+        }
+        // Tarefas em segundo plano (a lista vem em "tasks"): a faixa de atividade
+        // só precisa de quantas são. A tela é avisada quando o número muda.
+        if (d.subtype === 'background_tasks_changed') {
+          const n = Array.isArray(d.tasks) ? d.tasks.length : 0;
+          if ((this.info.fundo || 0) !== n) { this.info.fundo = n; this.avisarInfo(); }
         }
         if (d.subtype === 'commands_changed' && Array.isArray(d.commands)) {
           this.descComandos = new Map(d.commands.map((c) => [c.name, { descricao: c.description || '', dica: c.argumentHint || c.argument_hint || '' }]));
