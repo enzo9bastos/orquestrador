@@ -21,6 +21,9 @@ const readline = require('readline');
 const { spawn } = require('child_process');
 
 const POLITICA = { approvalPolicy: 'untrusted', approvalsReviewer: 'auto_review', sandbox: 'danger-full-access' };
+// Quando o Codex recusa essa política (uma organização pode limitar as permitidas), o app
+// não abre a conversa e diz isto. Trocar de política sozinho seria afrouxar sem ninguém pedir.
+const AVISO_POLITICA = 'O app só abre o Codex com a política dele (pergunta antes de tudo o que não for só leitura, com o revisor automático do Codex) e não tenta abrir com uma política mais frouxa. Se a sua organização limita as políticas do Codex, veja com quem administra.';
 // A pergunta com opções (request_user_input) ainda vem desligada no modo
 // normal do Codex; o app liga ao subir o servidor.
 const ARGS = ['app-server', '--enable', 'default_mode_request_user_input', '-c', 'suppress_unstable_features_warning=true'];
@@ -329,7 +332,22 @@ function iniciar(c, { comando, cwd, env, ctx }) {
       rpc.pronto = true;
       for (const f of rpc.fila.splice(0)) f();
     } catch (e) {
-      if (c.proc === proc) c.registrar({ tipo: 'erro', texto: `O Codex não iniciou a conversa: ${e.message}` });
+      if (c.proc !== proc) return;
+      // Falhar fechado: a conversa não abriu (o Codex recusou a política do app, a pasta,
+      // a retomada…). Nada fica meio aberto, nada vai ao modelo, e o app NUNCA tenta de
+      // novo com uma política mais frouxa (ex.: "never", que rodaria tudo sem perguntar).
+      const naFila = rpc.fila.splice(0);
+      const devolver = naFila.map((f) => f.texto).filter((x) => typeof x === 'string' && x.trim()).join('\n\n');
+      proc.encerrando = true; // o aviso é este; a saída do processo não põe outro por cima
+      c.info.ocupado = false;
+      c.pendentes.clear();
+      // O que esperava na fila da caixa não dispara sozinho (falharia igual): fica à vista, parado.
+      c.filaParada = (c.fila || []).length > 0;
+      if (typeof c.avisarFila === 'function') c.avisarFila(); else c.avisarInfo();
+      const motivo = String(e.message || e).replace(/\.+$/, '');
+      const daPolitica = /approval|sandbox|reviewer|allowed set|requirements/i.test(motivo);
+      c.registrar({ tipo: 'erro', texto: `O Codex não abriu a conversa: ${motivo}. ${daPolitica ? `${AVISO_POLITICA} ` : ''}${devolver ? 'Nada foi enviado; o seu texto voltou para a caixa.' : 'Nada foi enviado.'}`, ...(devolver ? { devolver } : {}) });
+      try { proc.kill(); } catch { /* já saiu */ }
     }
   })();
   return proc;
@@ -427,6 +445,7 @@ function pedidoDoServidor(c, rpc, d, ctx) {
 function mandar(c, texto, imagens) {
   const rpc = c.proc && c.proc.rpc;
   if (!rpc) return false;
+  const digitado = texto; // o que a pessoa escreveu: volta para a caixa se a conversa não abrir
   // /init (sem uma skill "init" do usuário): o pedido que a TUI do Codex manda.
   if (/^\/init\s*$/.test(texto || '') && !skillDoCodex('init')) texto = PROMPT_INIT;
   const envia = () => {
@@ -445,6 +464,7 @@ function mandar(c, texto, imagens) {
         .catch(() => comecar()).catch(falhou);
     } else comecar().catch(falhou);
   };
+  envia.texto = digitado;
   if (rpc.pronto) envia(); else rpc.fila.push(envia);
   return true;
 }

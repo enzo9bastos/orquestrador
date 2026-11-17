@@ -12,6 +12,10 @@ log({ args: process.argv.slice(2) });
 if (process.env.CODEX_FALSO_SAI) { process.stderr.write(process.env.CODEX_FALSO_SAI + '\n'); process.exit(1); }
 // $CODEX_FALSO_RECUSA: com um turno ativo, recusa o turn/steer e o turn/start.
 const RECUSA = !!process.env.CODEX_FALSO_RECUSA;
+// $CODEX_FALSO_RECUSA_POLITICA: o thread/start e o thread/resume respondem erro com este
+// texto (uma organização que limita as políticas do Codex; o binário do 0.167.1 traz
+// allowed_approval_policies e a frase "is not in the allowed set").
+const RECUSA_POLITICA = process.env.CODEX_FALSO_RECUSA_POLITICA || '';
 // O initialize trouxe capabilities.experimentalApi? Como no Codex de verdade
 // (conferido no 0.167.1), os métodos experimentais só atendem a quem declarou.
 let experimental = false;
@@ -30,7 +34,9 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
   switch (d.method) {
     case 'initialize': experimental = !!(d.params && d.params.capabilities && d.params.capabilities.experimentalApi); return ok({ userAgent: 'falso' });
     case 'initialized': return undefined;
-    case 'thread/start': ok({ thread: { id: 'th-novo', turns: [] }, model: 'gpt-falso', cwd: '/casa', reasoningEffort: 'medium' }); return pedirHora('th-novo');
+    case 'thread/start':
+      if (RECUSA_POLITICA) return sai({ id: d.id, error: { code: -32600, message: RECUSA_POLITICA } });
+      ok({ thread: { id: 'th-novo', turns: [] }, model: 'gpt-falso', cwd: '/casa', reasoningEffort: 'medium' }); return pedirHora('th-novo');
     case 'thread/resume':
       if (d.params.threadId !== 'th-velho') return sai({ id: d.id, error: { code: -32600, message: 'thread not found' } });
       ok({ thread: { id: 'th-velho', turns: [{ startedAt: 1700000000, items: [

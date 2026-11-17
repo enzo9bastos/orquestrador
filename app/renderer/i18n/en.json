@@ -2462,6 +2462,22 @@
       "Codex's reviewer denied a command$1"
     ],
     [
+      "^O Codex não abriu a conversa: (.+?)\\. O app só abre o Codex com a política dele \\(pergunta antes de tudo o que não for só leitura, com o revisor automático do Codex\\) e não tenta abrir com uma política mais frouxa\\. Se a sua organização limita as políticas do Codex, veja com quem administra\\. Nada foi enviado; o seu texto voltou para a caixa\\.$",
+      "Codex did not open the conversation: $1. The app only opens Codex with its own policy (ask before anything that is not read-only, with Codex's automatic reviewer) and does not try a looser one. If your organization limits Codex policies, check with whoever manages them. Nothing was sent; your text is back in the box."
+    ],
+    [
+      "^O Codex não abriu a conversa: (.+?)\\. O app só abre o Codex com a política dele \\(pergunta antes de tudo o que não for só leitura, com o revisor automático do Codex\\) e não tenta abrir com uma política mais frouxa\\. Se a sua organização limita as políticas do Codex, veja com quem administra\\. Nada foi enviado\\.$",
+      "Codex did not open the conversation: $1. The app only opens Codex with its own policy (ask before anything that is not read-only, with Codex's automatic reviewer) and does not try a looser one. If your organization limits Codex policies, check with whoever manages them. Nothing was sent."
+    ],
+    [
+      "^O Codex não abriu a conversa: (.+?)\\. Nada foi enviado; o seu texto voltou para a caixa\\.$",
+      "Codex did not open the conversation: $1. Nothing was sent; your text is back in the box."
+    ],
+    [
+      "^O Codex não abriu a conversa: (.+?)\\. Nada foi enviado\\.$",
+      "Codex did not open the conversation: $1. Nothing was sent."
+    ],
+    [
       "^O Codex parou \\(código (\\d+)\\)\\. (.*)$",
       "Codex stopped (code $1). $2"
     ],

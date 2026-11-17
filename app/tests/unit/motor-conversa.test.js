@@ -532,6 +532,42 @@ test('B4 (Codex): steer e turn/start recusados devolvem o texto à caixa e não 
   assert.strictEqual(c.info.ocupado, true, 'o turno ainda está ativo');
 });
 
+// Plano 8.8 (X8): o Codex recusa abrir a conversa com a política do app (uma organização
+// pode limitar as políticas permitidas). O app falha fechado: não abre, não tenta outra
+// política, diz por quê, devolve o texto à caixa e não fica preso em "trabalhando".
+test('8.8 (Codex): thread/start recusado → não abre, não tenta política mais frouxa, explica e devolve o texto', async (t) => {
+  const RECUSA = 'invalid value for `approval_policy`: `untrusted` is not in the allowed set [on-request, never]';
+  process.env.CODEX_FALSO_RECUSA_POLITICA = RECUSA;
+  t.after(() => { delete process.env.CODEX_FALSO_RECUSA_POLITICA; });
+  const antes = xrecebidos().length;
+  const c = new conversa._Conversa({ id: 'x88', titulo: 'X', motor: 'codex' });
+  t.after(() => c.parar());
+  c.mandar('roda os testes do projeto');
+  await ate(() => c.eventos.some((e) => e.tipo === 'erro'));
+  const erro = c.eventos.find((e) => e.tipo === 'erro');
+  assert.match(erro.texto, /O Codex não abriu a conversa/);
+  assert.ok(erro.texto.includes(RECUSA), 'o motivo do Codex aparece como veio');
+  assert.match(erro.texto, /não tenta abrir com uma política mais frouxa/);
+  assert.strictEqual(erro.devolver, 'roda os testes do projeto', 'o texto volta para a caixa');
+  await ate(() => !c.proc);
+  assert.strictEqual(c.info.ocupado, false, 'não fica preso em "trabalhando"');
+  assert.strictEqual(c.sessao || null, null, 'nenhuma conversa aberta');
+  await espera(300);
+  const meus = xrecebidos().slice(antes);
+  const inicios = meus.filter((x) => x.method === 'thread/start');
+  assert.strictEqual(inicios.length, 1, 'uma tentativa só');
+  assert.deepStrictEqual([inicios[0].params.approvalPolicy, inicios[0].params.approvalsReviewer], ['untrusted', 'auto_review']);
+  assert.ok(!meus.some((x) => x.method === 'turn/start'), 'nada foi mandado ao modelo');
+  assert.ok(!c.eventos.some((e) => e.tipo === 'fim'), 'um aviso só: sem "o Codex parou" por cima');
+  // Outra mensagem tenta de novo com a MESMA política (nunca muda sozinha).
+  c.mandar('de novo');
+  await ate(() => c.eventos.some((e) => e.tipo === 'erro' && e.devolver === 'de novo'));
+  await ate(() => !c.proc && !c.info.ocupado);
+  await espera(200);
+  const todos = xrecebidos().slice(antes).filter((x) => x.method === 'thread/start').map((x) => x.params.approvalPolicy);
+  assert.deepStrictEqual(todos, ['untrusted', 'untrusted']);
+});
+
 test('B5: /clear guarda a sessão velha (id do init) em anteriores, limpa os eventos e mostra a divisória', async (t) => {
   const id = conversa.nova();
   const c = conversa._pegar(id);
