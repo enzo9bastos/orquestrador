@@ -435,6 +435,45 @@ test('/exit: encerra só aquela conversa; a sessão fica guardada, a próxima me
   assert.ok(!ultimaSubida.includes('--resume'), 'sessão nova: sobe sem retomar');
 });
 
+// Plano 1.4 (K6): comando que só existe na tela do terminal. O Claude responde em
+// inglês ("/x isn't available in this environment.") e marca a mensagem com
+// local_command_outcome { kind: 'unavailable_headless' } (conferido no 2.1.326).
+// O app guarda qual comando foi, para a tela explicar em português.
+test('comando indisponível: a resposta do Claude vem marcada com o comando, pelo campo dele ou pelo texto (CLI antigo)', async (t) => {
+  const c = new conversa._Conversa({ id: 'ni1', titulo: 'Conversa indisponível' });
+  t.after(() => c.parar());
+  c.mandar('/so-no-terminal');
+  await ate(() => turnos(c) === 1);
+  const ev = c.eventos.find((e) => e.tipo === 'assistant');
+  assert.strictEqual(ev.naoDisponivel, 'so-no-terminal');
+  assert.strictEqual(ev.comando, '/so-no-terminal', 'o comando como foi escrito, para abrir no terminal');
+  // Com argumentos: o Claude responde só com o nome; o app guarda o que a pessoa escreveu.
+  c.mandar('/so-no-terminal agora  mesmo');
+  await ate(() => turnos(c) === 2);
+  assert.strictEqual(c.eventos.filter((e) => e.tipo === 'assistant').at(-1).comando, '/so-no-terminal agora  mesmo');
+  assert.strictEqual(ev.message.content[0].text, "/so-no-terminal isn't available in this environment.", 'o texto do Claude fica como veio');
+  // CLI mais antigo, sem o campo: reconhece pelo texto (só em mensagem sintética, nunca numa resposta do modelo).
+  c.tratar({ type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: "/memory isn't available in this environment." }] } });
+  assert.strictEqual(c.eventos.at(-1).naoDisponivel, 'memory');
+  assert.strictEqual(c.eventos.at(-1).comando, '/memory', 'a última coisa mandada era outro comando: fica só o nome');
+  c.tratar({ type: 'assistant', message: { role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: "/memory isn't available in this environment." }] } });
+  assert.strictEqual(c.eventos.at(-1).naoDisponivel, undefined, 'o modelo citando a frase não vira aviso');
+  c.tratar({ type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: 'Session renamed to: x' }] }, local_command_run: { command: 'rename', args: 'x' } });
+  assert.strictEqual(c.eventos.at(-1).naoDisponivel, undefined);
+  // O CLI mudou a frase mas manteve a marca: o comando vem do que foi mandado.
+  c.ultimoMandado = '/novidade com argumento';
+  c.tratar({ type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: 'This command needs the terminal UI.' }] }, local_command_outcome: { kind: 'unavailable_headless' } });
+  assert.deepStrictEqual([c.eventos.at(-1).naoDisponivel, c.eventos.at(-1).comando], ['novidade', '/novidade com argumento']);
+  // Dentro de um subagente nunca vira aviso.
+  c.tratar({ type: 'assistant', parent_tool_use_id: 'toolu_1', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: "/memory isn't available in this environment." }] } });
+  assert.strictEqual(c.eventos.at(-1).naoDisponivel, undefined);
+  // A frase que o app procura é a mesma que o conferidor de contrato confere no CLI de verdade.
+  const contrato = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'scripts', 'contrato-cli.json'), 'utf8'));
+  const item = contrato.claude.itens.find((i) => i.id === 'evento:assistant (comando só de terminal)');
+  assert.strictEqual(item.texto, conversa._NAO_DISPONIVEL.source);
+  assert.ok(contrato.claude.turnoLocal.includes('/memory'), 'o conferidor manda um comando só de terminal');
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });

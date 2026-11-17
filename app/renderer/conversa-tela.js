@@ -316,6 +316,18 @@
     caixa.append(el);
     colado = true; rolar();
   }
+  // O Claude respondeu "/x isn't available in this environment.": o texto dele fica
+  // e o app diz, em português, o que isso quer dizer e como rodar o comando.
+  function avisoIndisponivel(ev) {
+    grupo = null;
+    const el = document.createElement('div');
+    el.className = 'aviso-conversa aviso-comando aviso-indisponivel';
+    el.innerHTML = `<code>/${esc(ev.naoDisponivel)}</code> <span>só existe na tela do terminal do Claude; nesta conversa ele não roda.</span> <button type="button" class="botao-texto" data-abrir-terminal title="Cola no terminal do app o Claude com uma cópia desta conversa e o comando; nada roda sem você apertar Enter lá">Abrir no terminal</button>`;
+    el.querySelector('[data-abrir-terminal]').addEventListener('click', () => {
+      if (window.orqComandos) window.orqComandos.abrirNoTerminal(ev.naoDisponivel, ev.comando);
+    });
+    caixa.append(el);
+  }
   const conversaCodex = () => ((listaConversas.find((c) => c.id === ativa) || {}).motor || infoAtual.motor) === 'codex';
 
   function limparRascunho() {
@@ -356,6 +368,7 @@
         if (b.type === 'text') { limparRascunho(); textoClaude(b.text); }
         else if (b.type === 'tool_use') linhaFerramenta(b);
       }
+      if (ev.naoDisponivel) avisoIndisponivel(ev);
     } else if (ev.tipo === 'resultado') {
       limparRascunho();
       if (ev.erro) aviso(ev.texto || 'O turno terminou com erro.', 'erro');

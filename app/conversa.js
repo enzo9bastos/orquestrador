@@ -82,6 +82,29 @@ const MODO_APP = 'auto';
 const MODOS_MAIS_RESTRITOS = ['plan', 'dontAsk', 'default', 'acceptEdits'];
 const modoDeSubida = (vivo) => (MODOS_MAIS_RESTRITOS.includes(vivo) ? vivo : MODO_APP);
 // Modos que o chip da barra oferece (o "manual" do Claude responde como default).
+// Comando que só existe na tela do terminal. O Claude responde com uma mensagem
+// sintética, em inglês ("/memory isn't available in this environment."), e a marca
+// com local_command_outcome { kind: 'unavailable_headless' } (conferido no 2.1.326;
+// o texto traz só o nome do comando, mesmo quando ele foi escrito com argumentos).
+// CLI mais antigo, sem o campo: vale o texto, mas só em mensagem sintética, para a
+// frase citada numa resposta do modelo nunca virar aviso.
+const NAO_DISPONIVEL = /^\/(\S{1,80}) isn't available in this environment\.?$/;
+function comandoIndisponivel(d, mandado) {
+  const m = d && d.message;
+  if (!m || d.parent_tool_use_id) return null;
+  const marcado = !!(d.local_command_outcome && d.local_command_outcome.kind === 'unavailable_headless');
+  if (!marcado && m.model !== '<synthetic>') return null;
+  const texto = (Array.isArray(m.content) ? m.content : []).filter((b) => b.type === 'text').map((b) => b.text).join(' ').trim();
+  const escrito = String(mandado || '').trim();
+  const doTexto = texto.match(NAO_DISPONIVEL);
+  // Marcado, mas com outro texto (o CLI mudou a frase): o nome vem do que foi mandado.
+  const nome = doTexto ? doTexto[1] : (marcado && (escrito.match(/^\/(\S{1,80})/) || [])[1]) || null;
+  if (!nome) return null;
+  // O comando como a pessoa escreveu (com os argumentos), se foi ele o último mandado.
+  const comando = escrito.split(/\s/)[0] === `/${nome}` ? escrito.slice(0, 2000) : `/${nome}`;
+  return { nome, comando };
+}
+
 const MODOS_DO_CHIP = ['default', 'acceptEdits', 'auto', 'plan'];
 // Bypass ("sem perguntas"): fora da lista de propósito. Só entra por
 // definirModo, em conversa avulsa e com a opção das Configurações ligada.
@@ -554,7 +577,8 @@ class Conversa {
           const t = (d.message.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(' ').trim();
           if (t) this.ultimoTexto = t;
         }
-        this.registrar({ tipo: 'assistant', message: d.message, sub: d.parent_tool_use_id || null });
+        const nd = comandoIndisponivel(d, this.ultimoMandado);
+        this.registrar({ tipo: 'assistant', message: d.message, sub: d.parent_tool_use_id || null, ...(nd ? { naoDisponivel: nd.nome, comando: nd.comando } : {}) });
         return;
       }
       case 'user':
@@ -722,6 +746,7 @@ class Conversa {
     }
     this.info.ocupado = true;
     this.avisarInfo();
+    this.ultimoMandado = imagens.length ? '' : String(texto || ''); // para dizer qual comando o Claude recusou
     const content = imagens.length
       ? [...imagens.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.tipo, data: i.dados } })), ...(texto ? [{ type: 'text', text: texto }] : [])]
       : texto;
@@ -1248,6 +1273,7 @@ module.exports = {
   ligar: (fn, opc) => { enviarTela = opc && opc.lote ? require('./envios').criarLote({ enviar: fn }).enviar : fn; },
   ligarAvisos: (fn) => { avisar = fn; },
   _Conversa: Conversa, // só para os testes de unidade
+  _NAO_DISPONIVEL: NAO_DISPONIVEL, // idem: a frase que o contrato com o CLI também confere
   lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _pontoDeVoltaArquivo: pontoDeVoltaDoArquivo, _arqTranscript: arqTranscript, _historico: historicoDoTranscript,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),

@@ -9,7 +9,7 @@
   "versao": 1,
   "claude": {
     "args": ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-prompt-tool", "stdio", "--permission-mode", "auto"],
-    "turnoLocal": ["/clear", "/rename contrato-cli"],
+    "turnoLocal": ["/clear", "/rename contrato-cli", "/memory"],
     "itens": [
       { "id": "flags", "tipo": "flags", "depende": true, "onde": "conversa.js argumentos()",
         "args": ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-prompt-tool", "stdio", "--permission-mode", "auto",
@@ -87,6 +87,9 @@
       { "id": "evento:assistant", "tipo": "evento", "depende": true, "onde": "conversa.js tratar() assistant",
         "casa": { "type": "assistant" }, "campos": ["message.content[]", "message.usage.input_tokens?", "message.usage.cache_read_input_tokens?", "message.usage.cache_creation_input_tokens?", "parent_tool_use_id?"],
         "estatico": ["cache_read_input_tokens", "cache_creation_input_tokens", "parent_tool_use_id"] },
+      { "id": "evento:assistant (comando só de terminal)", "tipo": "evento", "depende": false, "onde": "conversa.js comandoIndisponivel() (aviso em português com \"Abrir no terminal\"; sem a marca vale a frase, sem a frase vale o que foi mandado, sem nada fica o texto do Claude)",
+        "casa": { "type": "assistant", "com": { "local_command_outcome.kind": "unavailable_headless" } }, "campos": ["message.content[].text", "message.model?"],
+        "texto": "^\\/(\\S{1,80}) isn't available in this environment\\.?$", "estatico": ["unavailable_headless", "isn't available in this environment"] },
       { "id": "evento:stream_event", "tipo": "evento", "depende": true, "vivo": false, "porque": "só vem num turno do modelo", "onde": "conversa.js tratar() stream_event",
         "casa": { "type": "stream_event" }, "campos": ["event.type", "event.delta.text?"], "estatico": ["stream_event", "content_block_delta", "text_delta", "message_start"] },
       { "id": "evento:rate_limit_event", "tipo": "evento", "depende": false, "vivo": false, "porque": "só vem com a conta logada", "onde": "conversa.js tratar() rate_limit_event",

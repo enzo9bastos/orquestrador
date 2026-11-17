@@ -309,14 +309,21 @@ function avaliarClaude(contrato, obs) {
       const c = conferirCampos([r.response || {}], item.campos);
       linhas.push(linha(item, 'claude', { fonte: 'vivo', existe: ATENDE, formato: statusDosCampos(c), visto: forma(r.response || {}), detalhe: textoDosCampos(c) }));
     } else if (item.tipo === 'evento') {
-      const vistos = item.vivo === false ? [] : obs.eventos.filter((e) => e && e.type === item.casa.type && (!item.casa.subtype || e.subtype === item.casa.subtype));
+      // casa.com: campos (caminho com pontos) que o evento precisa trazer com aquele valor.
+      const pegar = (o, caminho) => caminho.split('.').reduce((x, k) => (x && typeof x === 'object' ? x[k] : undefined), o);
+      const vistos = item.vivo === false ? [] : obs.eventos.filter((e) => e && e.type === item.casa.type && (!item.casa.subtype || e.subtype === item.casa.subtype)
+        && Object.entries(item.casa.com || {}).every(([caminho, valor]) => pegar(e, caminho) === valor));
       if (!vistos.length) {
         const porque = item.vivo === false ? `não dá para ver sem chamar o modelo (${item.porque})` : 'não apareceu nesta conferência';
         linhas.push(linha(item, 'claude', { fonte: est ? 'estático' : '', existe: est ? est.status : NAO_SEI, formato: NAO_SEI, detalhe: [porque, est && est.texto].filter(Boolean).join('; ') }));
         continue;
       }
       const c = conferirCampos(vistos, item.campos);
-      linhas.push(linha(item, 'claude', { fonte: 'vivo', existe: ATENDE, formato: statusDosCampos(c), visto: forma(vistos[vistos.length - 1]), detalhe: textoDosCampos(c) }));
+      // item.texto: o texto da mensagem precisa bater com a expressão que o app usa.
+      const textoDe = (e) => ((e.message && Array.isArray(e.message.content) ? e.message.content : []).filter((b) => b && b.type === 'text').map((b) => b.text).join(' ').trim());
+      const foraDoTexto = item.texto ? vistos.filter((e) => !new RegExp(item.texto).test(textoDe(e))) : [];
+      const detalhe = [textoDosCampos(c), foraDoTexto.length ? `texto fora do formato que o app espera (${item.texto}): "${limpar(textoDe(foraDoTexto[0]), obs.casa).slice(0, 120)}"` : ''].filter(Boolean).join('; ');
+      linhas.push(linha(item, 'claude', { fonte: 'vivo', existe: ATENDE, formato: foraDoTexto.length ? NAO : statusDosCampos(c), visto: forma(vistos[vistos.length - 1]), detalhe }));
     } else if (item.tipo === 'transcript') {
       const t = obs.transcript;
       if (!t || !t.arquivo) { linhas.push(linha(item, 'claude', { fonte: 'vivo', existe: NAO_SEI, formato: NAO_SEI, detalhe: 'o CLI não gravou transcript nesta conferência' })); continue; }

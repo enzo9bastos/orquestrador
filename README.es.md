@@ -91,6 +91,9 @@ que no hay ninguna terminal que vigilar.
 - **`/exit` termina solo esa conversación**: la sesión queda guardada, la pantalla se limpia, el siguiente mensaje
   empieza una sesión nueva y *Go back to the previous session* lo deshace. La app se cierra con el botón de cerrar
   de la ventana.
+- **Comando que solo existe en la terminal**: cuando Claude responde que un comando "isn't available in this
+  environment", la app explica qué significa y ofrece *Open in the terminal*, que pega en la terminal de la app
+  Claude con una copia de la conversación y el comando. Nada se ejecuta hasta que pulses Enter allí.
 - **El modo "No questions" (Bypass)** solo existe si lo activas en Settings › Advanced, solo en conversaciones
   aparte, confirma cada vez y mantiene una franja roja en pantalla. Mira [SECURITY.md](SECURITY.md).
 - Pega, arrastra o adjunta (📎) capturas y archivos — las imágenes van como imágenes, los demás archivos por su

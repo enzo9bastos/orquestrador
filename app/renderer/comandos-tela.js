@@ -640,5 +640,8 @@
       return FEITO;
     }
   }
-  window.orqComandos = { executar, _H: H };
+  // Comando que o Claude disse só existir na tela do terminal (conversa-tela.js
+  // desenha o aviso): o mesmo caminho dos comandos de terminal da lista.
+  const abrirNoTerminal = (nome, comando) => noTerminal({ nome, motor: 'claude' }, comando || `/${nome}`);
+  window.orqComandos = { executar, abrirNoTerminal, _H: H };
 })();

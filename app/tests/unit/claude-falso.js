@@ -17,6 +17,10 @@
 //   "/config permissionMode=x" troca o modo: system/status com permissionMode
 //   "/clear"                   init da sessão nova, conversation_reset, fim de turno
 //   "/rename x"                system/session_title_changed com o nome novo
+//   "/so-no-terminal", "/memory"  comando que só existe na tela do terminal: responde como o
+//                              Claude de verdade (2.1.326), com uma mensagem "assistant"
+//                              sintética "/x isn't available in this environment." e o
+//                              campo local_command_outcome { kind: 'unavailable_headless' }
 //   "trabalha até parar"       começa a responder ("começando…") e fica no turno até
 //                              receber o interrupt; aí termina o turno
 //   "manda N deltas"           N text_delta ("d0 ", "d1 "…) espalhados em ~1 s, depois a
@@ -206,6 +210,14 @@ leitor.on('line', (l) => {
   if (m) { modo = m[1]; sai({ type: 'system', subtype: 'status', status: null, permissionMode: modo, session_id: SESSAO }); return saidaLocal(`Set permissionMode to ${modo}`); }
   m = /^\/rename (.+)$/.exec(t);
   if (m) { sai({ type: 'system', subtype: 'session_title_changed', title: m[1], uuid: 'u-t', session_id: SESSAO }); return saidaLocal(`Session renamed to: ${m[1]}`); }
+  const soTerminal = /^\/(so-no-terminal|memory)(\s|$)/.exec(t);
+  if (soTerminal) {
+    // Só o nome, mesmo com argumentos. $CLAUDE_FALSO_FRASE_INDISPONIVEL simula um CLI que mudou a frase.
+    const texto = `/${soTerminal[1]} ${process.env.CLAUDE_FALSO_FRASE_INDISPONIVEL || "isn't available in this environment."}`;
+    sai({ type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: texto }] }, parent_tool_use_id: null,
+      local_command_source: `<local-command-stdout>${texto}</local-command-stdout>`, local_command_outcome: { kind: 'unavailable_headless' }, session_id: SESSAO });
+    return sai({ type: 'result', subtype: 'success', is_error: false, duration_ms: 1, num_turns: 0, result: texto, session_id: SESSAO });
+  }
   if (t === 'trabalha até parar') {
     trabalhando = true;
     return sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'começando…' }] }, session_id: SESSAO });

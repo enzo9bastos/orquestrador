@@ -162,7 +162,7 @@ test('contrato: contra os falsos, o que eles fazem atende e o retrato não muda 
   const b = conferir();
   for (const c of b.saida.clis) assert.strictEqual(c.retrato.situacao, 'igual', `${c.cli}: o retrato mudou sem o CLI mudar`);
   assert.strictEqual(fs.readFileSync(claude.retrato.arquivo, 'utf8'), antes);
-  // O que o Claude falso recebeu: só pedidos de controle e os dois comandos locais.
+  // O que o Claude falso recebeu: só pedidos de controle e os comandos locais do contrato.
   const recebidos = fs.readFileSync(path.join(casa, 'rodada-1', 'claude.log'), 'utf8').trim().split('\n').map((x) => JSON.parse(x));
   const mensagens = recebidos.filter((x) => x.type === 'user').map((x) => x.message.content);
   assert.deepStrictEqual(mensagens, CONTRATO.claude.turnoLocal);
@@ -177,6 +177,23 @@ test('contrato: um Claude que não conhece os pedidos dos comandos reprova (cód
   const t = C.tabela(r.saida.clis[0].linhas);
   assert.match(t, /✗ controle:get_workspace_diff\s+NÃO ATENDE/);
   assert.strictEqual(r.saida.clis.length, 1, '--so claude não confere o Codex');
+});
+
+// Plano 1.4: o app reconhece "comando só de terminal" pela marca do Claude e pela frase.
+// O conferidor manda um comando desses (não chama o modelo) e confere as duas coisas.
+test('contrato: o comando só de terminal é conferido ao vivo, pela marca e pela frase; frase diferente aparece na tabela sem reprovar', () => {
+  const ID = 'evento:assistant (comando só de terminal)';
+  const a = conferir(['--so', 'claude']);
+  const la = a.linha('claude', ID);
+  assert.deepStrictEqual([la.fonte, la.existe, la.formato, la.depende], ['vivo', C.ATENDE, C.ATENDE, false], JSON.stringify(la));
+  // Um CLI que mudou a frase: o app ainda acha o comando pelo que foi mandado, então a
+  // linha não muda o veredito (não é "depende"), mas diz que o formato não bate.
+  const b = conferir(['--so', 'claude'], { CLAUDE_FALSO_FRASE_INDISPONIVEL: 'cannot run here.' });
+  const lb = b.linha('claude', ID);
+  assert.deepStrictEqual([lb.existe, lb.formato], [C.ATENDE, C.NAO], JSON.stringify(lb));
+  assert.match(lb.detalhe, /texto fora do formato/);
+  assert.strictEqual(lb.depende, false, 'o app não depende disso para funcionar');
+  assert.strictEqual(b.codigo, a.codigo, 'a frase diferente não muda o veredito da conferência');
 });
 
 test('contrato: travas — casa falsa, ambiente do zero (nenhuma chave desce), sem rede, casa apagada no fim', () => {

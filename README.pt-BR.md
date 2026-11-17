@@ -87,6 +87,9 @@ há terminal para vigiar.
   Configurações leva os dois para dentro do menu ⋯).
 - **O `/exit` encerra só aquela conversa**: a sessão fica guardada, a tela limpa, a próxima mensagem começa uma
   sessão nova e *Voltar à sessão anterior* desfaz. Quem fecha o app é o botão de fechar da janela.
+- **Comando que só existe no terminal**: quando o Claude responde que um comando "isn't available in this
+  environment", o app diz em português o que isso quer dizer e oferece *Abrir no terminal*, que cola no terminal
+  do app o Claude com uma cópia da conversa e o comando. Nada roda sem você apertar Enter lá.
 - **O modo "Sem perguntas" (Bypass)** só existe se você ligar em Configurações › Avançado, só em conversa avulsa,
   confirma a cada vez e mantém uma faixa vermelha na tela. Veja o [SECURITY.md](SECURITY.md).
 - Cole, arraste ou anexe (📎) prints e arquivos — imagens vão como imagem, outros arquivos pelo caminho; clique com o

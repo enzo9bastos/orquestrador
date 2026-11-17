@@ -238,6 +238,26 @@ test('comandos do Claude: cada jeito funciona de verdade', async (t) => {
     assert.ok(!linhas(log).some((o) => o.type === 'user' && o.message.content === '/login'), 'o /login foi como texto');
   });
 
+  // Plano 1.4 (K6): comando que não está na lista do app e que o Claude diz só existir
+  // na tela do terminal. O texto do Claude fica; o app explica em português e oferece
+  // abrir no terminal (nada é colado sem a pessoa pedir).
+  await t.test('(t) comando que o Claude diz não existir aqui: o texto dele fica, o app explica em português e o botão abre no terminal', async () => {
+    await app.avaliar('window.__colado = []; window.orqTerminal = { colar: async (t) => { window.__colado.push(t); return true; } }');
+    const e = await app.avaliar("window.orq.comandos.estado('orquestrador')");
+    await enviar(app, '/so-no-terminal agora');
+    await app.esperar("!!document.querySelector('#mensagens .aviso-indisponivel')", 8000);
+    assert.ok(await app.avaliar("[...document.querySelectorAll('#mensagens .texto-claude')].some((x) => /\\/so-no-terminal isn't available in this environment\\./.test(x.textContent))"), 'o texto do Claude continua na tela');
+    const texto = await app.avaliar("document.querySelector('#mensagens .aviso-indisponivel').innerText");
+    assert.match(texto, /\/so-no-terminal/);
+    assert.match(texto, /só existe na tela do terminal do Claude/);
+    assert.strictEqual(await app.avaliar('window.__colado.length'), 0, 'nada é colado sem a pessoa pedir');
+    await app.avaliar("document.querySelector('#mensagens .aviso-indisponivel [data-abrir-terminal]').click()");
+    await app.esperar('window.__colado.length === 1');
+    const linha = await app.avaliar('window.__colado[0]');
+    assert.ok(linha.includes(`--resume '${e.sessao}' --fork-session '/so-no-terminal agora'`), linha);
+    assert.match(await app.avaliar(ultimoAviso), /colei no terminal do app/);
+  });
+
   await t.test('(b) /tasks mostra a tarefa de fundo, a saída e o Parar', async () => {
     await app.avaliar("window.orq.conversa.mandar('orquestrador', 'começa tarefa de fundo')");
     await app.esperar("[...document.querySelectorAll('#mensagens .texto-claude')].some((e) => /tarefa de fundo começou/.test(e.textContent))", 8000);

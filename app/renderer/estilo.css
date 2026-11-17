@@ -1663,6 +1663,9 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 /* --- P0 tela (0.B7, 0.B8, 0.B10, 0.B11) ------------------------------------ */
 /* Aviso sobre um comando (o que falta escrever depois dele, por exemplo). */
 .aviso-comando code { font: 11.5px var(--mono); color: var(--fg-2); }
+/* O Claude disse que o comando só existe no terminal: o aviso traz o botão que abre lá. */
+.aviso-indisponivel { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 4px 8px; border-radius: 12px; max-width: 100%; }
+.aviso-indisponivel .botao-texto { font-size: 12px; padding: 2px 9px; margin: 0; }
 
 /* --- comandos do "/" que o app faz (comandos-tela.js) ----------------------- */
 .cmd-popup { display: grid; gap: 2px; }
