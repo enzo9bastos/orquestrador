@@ -38,7 +38,8 @@
     const ms = horaEvento === undefined ? Date.now() : horaEvento;
     // Quem responde: o Claude ou o Codex (motor da conversa aberta).
     const autor = infoAtual.motor === 'codex' ? '<span class="marca-claude marca-codex">◎</span>Codex' : '<span class="marca-claude">✳</span>Claude';
-    grupo.innerHTML = `<div class="autor">${autor}${ms ? `<time class="hora-msg" data-sem-traducao title="${esc(new Date(ms).toLocaleString('pt-BR'))}">${esc(horario(ms))}</time>` : ''}</div>`;
+    grupo.innerHTML = `<div class="autor">${autor}${ms ? `<time class="hora-msg" data-sem-traducao title="${esc(new Date(ms).toLocaleString('pt-BR'))}">${esc(horario(ms))}</time>` : ''}
+      <button type="button" class="copiar-resposta" title="Copiar esta resposta" aria-label="Copiar esta resposta"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.500 3v5A1.500 1.500 0 0 0 4 9.500h.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span class="feito" aria-hidden="true">✓</span></button></div>`;
     caixa.append(grupo);
     return grupo;
   }
@@ -186,10 +187,24 @@
     el.append(pre);
   }
 
+  // O Markdown de cada bloco de texto, como o motor escreveu: é o que o botão de
+  // copiar e o /copy levam (não o texto já desenhado).
+  const fonteMd = new WeakMap();
+  const markdownDoGrupo = (g) => [...g.querySelectorAll('.texto-claude:not(.rascunho)')]
+    .map((x) => String(fonteMd.has(x) ? fonteMd.get(x) : x.innerText).trim()).filter(Boolean).join('\n\n');
+  async function copiarResposta(botao) {
+    const texto = markdownDoGrupo(botao.closest('.msg-claude'));
+    if (!texto) return;
+    try { await navigator.clipboard.writeText(texto); } catch (e) { aviso(`Não consegui copiar: ${e.message}`, 'erro'); return; }
+    botao.classList.add('copiado');
+    botao.title = 'Copiado';
+    setTimeout(() => { botao.classList.remove('copiado'); botao.title = 'Copiar esta resposta'; }, 1500);
+  }
   function textoClaude(t) {
     if (!t.trim()) return;
     const el = document.createElement('div');
     el.className = 'md texto-claude';
+    fonteMd.set(el, t);
     el.innerHTML = md(t);
     marcarCaminhos(el);
     linkificarDominios(el);
@@ -540,6 +555,8 @@
   }
 
   caixa.addEventListener('click', async (ev) => {
+    const cr = ev.target.closest('.copiar-resposta');
+    if (cr) { copiarResposta(cr); return; }
     const bc = ev.target.closest('[data-codigo]');
     if (bc) {
       const texto = bc.closest('.caixa-codigo').querySelector('pre code, pre')?.textContent ?? '';
@@ -767,8 +784,9 @@
       ${l('Com o motor trabalhando: pôr na fila', teclas('Enter'))}${l('Com o motor trabalhando: corrigir o rumo', teclas('Ctrl+Enter'))}
       ${l('Trocar o modo de permissão', teclas('Ctrl+Shift+M'))}${cfg.shiftTabTrocaModo === false ? '' : l('Trocar o modo, com a caixa vazia', teclas('Shift+Tab'))}
       ${l('Trazer de volta a mensagem anterior (caixa vazia)', teclas('↑'))}
+      ${l('Buscar nesta conversa', teclas('Ctrl+F'))}
       <h4>Na caixa de texto</h4>
-      ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar nota ou workflow', teclas('@'))}
+      ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar arquivo, nota ou workflow', teclas('@'))}
       ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
       <h4>No app</h4>
       ${l('Paleta de comandos', teclas('Ctrl+K'))}${l('Esta lista', teclas('Ctrl+/'))}
@@ -1286,14 +1304,17 @@
     }
   });
   let agendado = false;
-  C.aoParcial((id, t) => {
-    if (id !== ativa) return;
-    if (t == null) { limparRascunho(); if (id === 'orquestrador') pet.definir('pensando'); return; }
+  function desenharParcial(t) {
     rascunhoTexto += t;
     if (!rascunho) { rascunho = document.createElement('div'); rascunho.className = 'md texto-claude rascunho'; noGrupo(rascunho); }
     if (agendado) return;
     agendado = true;
     requestAnimationFrame(() => { agendado = false; if (rascunho) { rascunho.innerHTML = md(rascunhoTexto); rolar(); } });
+  }
+  C.aoParcial((id, t) => {
+    if (id !== ativa) return;
+    if (t == null) { limparRascunho(); if (id === 'orquestrador') pet.definir('pensando'); return; }
+    desenharParcial(t);
   });
   C.aoPedido((id, p) => {
     if (id === 'orquestrador') pet.definir('chamando', p.ferramenta === 'AskUserQuestion' ? 'Uma pergunta pra você!' : 'Preciso da sua permissão!');
@@ -1536,6 +1557,46 @@
       { rotulo: '@workflow:', desc: 'Mencionar um workflow', origem: 'menção', inserir: '@workflow:', chave: 'workflow', continuar: true },
     ];
   }
+  // "@" solto: os arquivos da pasta da conversa (pedidos ao Claude: os mesmos que o
+  // terminal mostra), as notas e os workflows, em grupos de até 6.
+  const POR_GRUPO = 6;
+  const arquivosPor = new Map(); // busca → caminhos, só da conversa que está na tela
+  let arquivosDe = null, seqArquivos = 0, tArquivos = null, pedindoArquivos = null, dispensada = null;
+  function pedirArquivos(b) {
+    if (!window.orq.conversa.arquivos || conversaCodex() || infoAtual.ocupado) return;
+    if (arquivosDe !== ativa) { arquivosDe = ativa; arquivosPor.clear(); }
+    if (arquivosPor.has(b) || pedindoArquivos === b) return;
+    clearTimeout(tArquivos);
+    // 150 ms depois da última tecla; cada pedido leva um número, e resposta de
+    // pedido antigo não redesenha a lista (só fica guardada para a busca dela).
+    tArquivos = setTimeout(async () => {
+      const seq = ++seqArquivos;
+      const conv = ativa;
+      pedindoArquivos = b;
+      let r = null;
+      try { r = await window.orq.conversa.arquivos(conv, b); } catch { /* sem arquivos desta vez */ }
+      if (pedindoArquivos === b) pedindoArquivos = null;
+      const lista = r && Array.isArray(r.arquivos) ? r.arquivos.map((a) => a.caminho) : [];
+      // Vazio não fica guardado: o Claude leva alguns segundos para indexar a pasta.
+      if (!lista.length || conv !== ativa) return;
+      arquivosPor.set(b, lista);
+      if (arquivosPor.size > 200) arquivosPor.delete(arquivosPor.keys().next().value);
+      if (seq !== seqArquivos || dispensada === entrada.value) return;
+      atualizarSugestoes();
+    }, 150);
+  }
+  function itensDoArroba(b) {
+    const arquivos = infoAtual.ocupado || arquivosDe !== ativa ? [] : (arquivosPor.get(b) || []);
+    const com = (grupo) => (x) => ({ ...x, grupo });
+    return [
+      // O Claude já escolheu o que casa (busca aproximada): estes não passam pelo filtro da lista.
+      ...arquivos.map((p) => ({ rotulo: `@${p}`, desc: p.endsWith('/') ? 'pasta' : '', origem: '', inserir: `@${aspas(p)}`, chave: p, grupo: 'Arquivos', semFiltro: true, continuar: p.endsWith('/') })),
+      ...(b ? itensMencao('nota') : []).map(com('Notas')),
+      com('Notas')(itensMencao('')[0]),
+      ...(b ? itensMencao('workflow') : []).map(com('Workflows')),
+      com('Workflows')(itensMencao('')[1]),
+    ];
+  }
   let faixaToken = null; // [início, fim] do que a sugestão vai substituir
   function atualizarSugestoes() {
     const ate = entrada.value.slice(0, entrada.selectionStart ?? entrada.value.length);
@@ -1547,7 +1608,7 @@
       if (tok.startsWith('//')) { busca = tok.slice(2); itens = itensRepertorio(); if (!repertorioEm) carregarRepertorio().then(atualizarSugestoes); }
       else if (tok.startsWith('@nota:')) { busca = tok.slice(6).replace(/^"/, ''); itens = itensMencao('nota'); }
       else if (tok.startsWith('@workflow:')) { busca = tok.slice(10).replace(/^"/, ''); itens = itensMencao('workflow'); if (!itens.length) itens = [{ rotulo: 'Nenhum workflow ainda', desc: 'Crie um na aba Workflows', origem: '', inserir: tok, chave: '' }]; }
-      else { busca = tok.slice(1); itens = itensMencao(''); }
+      else { busca = tok.slice(1); itens = itensDoArroba(busca); pedirArquivos(busca); }
     } else {
       const c = entrada.value.match(/^\/(\S*)$/);
       if (!c) return fecharSugestoes();
@@ -1555,11 +1616,16 @@
       busca = c[1]; itens = comandosDaConversa();
     }
     const b = busca.toLowerCase();
-    const comecaCom = (x) => x.chave.toLowerCase().startsWith(b) || (x.aliases || []).some((a) => a.toLowerCase().startsWith(b));
+    const comecaCom = (x) => x.semFiltro || x.chave.toLowerCase().startsWith(b) || (x.aliases || []).some((a) => a.toLowerCase().startsWith(b));
     const comeca = itens.filter(comecaCom);
     const contem = itens.filter((x) => !comecaCom(x) && (x.chave + ' ' + (x.desc || '')).toLowerCase().includes(b));
     // /exit sempre por último (e nunca cortado da lista).
-    const achados = [...comeca, ...contem];
+    let achados = [...comeca, ...contem];
+    // Lista em grupos (o "@"): cada grupo junto, na ordem em que aparece, com até 6 itens.
+    if (achados.some((x) => x.grupo)) {
+      const nomes = [...new Set(itens.map((x) => x.grupo))];
+      achados = nomes.flatMap((g) => achados.filter((x) => x.grupo === g).slice(0, POR_GRUPO));
+    }
     const sair = achados.filter(ehExit);
     const bons = achados.filter((x) => !ehExit(x));
     sugestoes = [...bons.slice(0, 400 - sair.length), ...sair];
@@ -1567,7 +1633,7 @@
     // Sem o usuário ter andado com as setas, a seleção é a primeira que não
     // é o /exit (só o /exit na lista: nada selecionado).
     escolhida = navegou ? Math.min(escolhida, sugestoes.length - 1) : sugestoes.findIndex((x) => !ehExit(x));
-    $('sugestoes').innerHTML = sugestoes.map((c, i) => `<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
+    $('sugestoes').innerHTML = sugestoes.map((c, i) => `${c.grupo && (i === 0 || sugestoes[i - 1].grupo !== c.grupo) ? `<li class="grupo-sugestao" role="presentation">${esc(c.grupo)}</li>` : ''}<li role="option" data-i="${i}" aria-selected="${i === escolhida}">
       <span class="nome-comando">${esc(c.rotulo)}${c.dica ? ` <i>${esc(c.dica)}</i>` : ''}</span>
       <span class="desc-comando">${c.origem ? `<span class="origem-sugestao">${esc(c.origem)}</span>` : ''}${esc(curto(c.desc || '', 110))}</span></li>`).join('');
     $('sugestoes').hidden = false;
@@ -1658,7 +1724,7 @@
     resposta: (n = 1) => {
       const grupos = [...caixa.querySelectorAll('.msg-claude')].filter((g) => g.querySelector('.texto-claude:not(.rascunho)'));
       const g = grupos[grupos.length - Math.max(1, Number(n) || 1)];
-      return g ? [...g.querySelectorAll('.texto-claude:not(.rascunho)')].map((x) => x.innerText.trim()).join('\n\n') : null;
+      return g ? markdownDoGrupo(g) : null;
     },
   };
   // Atalhos com tecla (Ctrl+Alt+1..9): enviam direto ou só escrevem na caixa.
@@ -1694,6 +1760,7 @@
       if (!c || (ev.key === 'Enter' && ehExit(c))) return;
       completar(escolhida);
     } else if (ev.key === 'Escape') {
+      dispensada = entrada.value; // a lista fechada à mão não reabre quando os arquivos chegam
       fecharSugestoes();
     }
   });
@@ -1849,6 +1916,8 @@
     }
     if (!$('sugestoes').hidden || document.querySelector(POR_CIMA)) return; // o dono fecha
     if (!$('aba-orquestrador').classList.contains('ativa')) return;
+    // A barra de busca (Ctrl+F) aberta é um nível: o Esc a fecha antes de qualquer outra coisa.
+    if (window.orqBusca && window.orqBusca.aberta()) { window.orqBusca.fechar(); parar(); return; }
     const foco = document.activeElement;
     // Foco fora da conversa (as colunas dos lados, a barra de cima): o Esc é de quem está lá
     // (ex.: cancelar uma confirmação no painel de demandas), nunca uma parada do motor.
@@ -1983,5 +2052,5 @@
     new MutationObserver(agendarAjuste).observe(barra, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
   }
 
-  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, caminhosAbertos, expandir: (t) => expandir(t) };
+  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, desenharParcial, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, caminhosAbertos, expandir: (t) => expandir(t) };
 })();

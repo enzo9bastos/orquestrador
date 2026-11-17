@@ -976,6 +976,19 @@ class Conversa {
       }
     });
   }
+  // "@" da caixa: os arquivos que o Claude sugere para o que foi digitado (o mesmo que o
+  // terminal mostra; conferido no 2.1.326: { suggestions: [{ path }], cwd }, pasta termina
+  // com a barra). Só com a conversa aberta e parada: autocompletar não sobe o Claude nem
+  // fala com ele no meio de um turno. O que vem é conferido: só caminho de verdade, até 50.
+  async sugerirArquivos(consulta) {
+    if (this.motor === 'codex' || !this.proc || this.info.ocupado) return { arquivos: [] };
+    let r;
+    try { r = await this.controle('file_suggestions', { query: String(consulta || '').slice(0, 200) }, 1000, 'arq'); } catch { return { arquivos: [] }; }
+    const lista = r && Array.isArray(r.suggestions) ? r.suggestions : [];
+    const arquivos = lista.filter((s) => s && typeof s.path === 'string' && s.path && s.path.length <= 1000 && !/[\u0000-\u001f]/.test(s.path))
+      .slice(0, 50).map((s) => ({ caminho: s.path }));
+    return { arquivos, cwd: r && typeof r.cwd === 'string' ? r.cwd : null };
+  }
   recusarControles(motivo) {
     for (const [id, c] of this.controles) { clearTimeout(c.timer); c.falha(new Error(motivo)); this.controles.delete(id); }
   }
@@ -1316,6 +1329,7 @@ module.exports = {
   _NAO_DISPONIVEL: NAO_DISPONIVEL, // idem: a frase que o contrato com o CLI também confere
   lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _pontoDeVoltaArquivo: pontoDeVoltaDoArquivo, _arqTranscript: arqTranscript, _historico: historicoDoTranscript,
   mandar: (id, t, imagens, exibir) => pegar(id).mandar(t, imagens, exibir),
+  sugerirArquivos: (id, consulta) => pegar(id).sugerirArquivos(consulta),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),

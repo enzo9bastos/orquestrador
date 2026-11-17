@@ -32,6 +32,8 @@
         "pedido": { "subtype": "interrupt" }, "campos": [] },
       { "id": "controle:get_settings", "tipo": "controle", "depende": false, "onde": "conversa-tela.js popup do /config (valor atual; sem ele mostra \"—\")",
         "pedido": { "subtype": "get_settings" }, "campos": ["effective", "sources", "applied"] },
+      { "id": "controle:file_suggestions", "tipo": "controle", "depende": false, "onde": "conversa.js sugerirArquivos() (@ da caixa; sem ele, o @ mostra só notas e workflows)",
+        "pedido": { "subtype": "file_suggestions", "query": "" }, "campos": ["suggestions[]", "suggestions[].path?", "cwd?"] },
       { "id": "controle:set_permission_mode", "tipo": "controle", "depende": true, "onde": "comandos-tela.js /plan",
         "pedido": { "subtype": "set_permission_mode", "mode": "plan" }, "campos": [] },
       { "id": "controle:get_status", "tipo": "controle", "depende": false, "onde": "comandos-tela.js /status (sem ele, mostra o init)",

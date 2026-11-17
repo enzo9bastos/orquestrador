@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('orq', {
     abrir: (id) => ipcRenderer.invoke('conversa:abrir', id),
     mandar: (id, t, imagens, exibir) => ipcRenderer.invoke('conversa:mandar', id, t, imagens, exibir),
     daCaixa: (id, t, imagens, exibir, opcoes) => ipcRenderer.invoke('conversa:daCaixa', id, t, imagens, exibir, opcoes),
+    arquivos: (id, consulta) => ipcRenderer.invoke('conversa:arquivos', id, consulta),
     fila: (id, acao, idFila) => ipcRenderer.invoke('conversa:fila', id, acao, idFila),
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),

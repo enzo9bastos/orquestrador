@@ -744,6 +744,9 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .sugestoes li[aria-selected="true"], .sugestoes li:hover { background: var(--claude-suave); }
 .nome-comando { font: 500 12.5px var(--mono); color: var(--fg); white-space: nowrap; }
 .nome-comando i { font-style: normal; color: var(--fg-4); }
+/* Cabeçalho de grupo na lista do "@" (Arquivos, Notas, Workflows): não se escolhe. */
+.sugestoes li.grupo-sugestao { display: block; padding: 6px 10px 2px; font: 600 10.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-4); cursor: default; }
+.sugestoes li.grupo-sugestao:hover { background: transparent; }
 .sugestoes li[aria-selected="true"] .nome-comando { color: var(--claude); }
 .desc-comando { font-size: 12px; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saida-comando { align-self: stretch; margin: 0; padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--borda); background: var(--bg-afundado); font: 12px/1.55 var(--mono); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1547,6 +1550,16 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 
 /* Horário da mensagem, ao lado de "Claude". */
 .msg-claude .autor .hora-msg { font-weight: 400; font-size: 11.5px; color: var(--fg-3); font-variant-numeric: tabular-nums; }
+/* Copiar a resposta: sempre à vista na última resposta; nas outras, com o mouse em cima.
+   Resposta que ainda está chegando (só rascunho) não tem o que copiar. */
+.copiar-resposta { width: 22px; height: 22px; display: inline-grid; place-items: center; border-radius: 6px; color: var(--fg-3); opacity: 0; transition: opacity .1s; }
+.copiar-resposta .ico { width: 14px; height: 14px; }
+.copiar-resposta .feito { display: none; font-size: 12px; color: var(--ok, #3fb950); }
+.copiar-resposta.copiado .ico { display: none; }
+.copiar-resposta.copiado .feito { display: inline; }
+.copiar-resposta:hover { background: var(--painel-hover); color: var(--fg); }
+.msg-claude:hover .copiar-resposta, .copiar-resposta:focus-visible, .copiar-resposta.copiado, .msg-claude:not(:has(~ .msg-claude)) .copiar-resposta { opacity: 1; }
+.msg-claude:not(:has(.texto-claude:not(.rascunho))) .copiar-resposta { display: none; }
 
 /* Apagar demanda: lixeirinha que aparece ao passar o mouse; confirma no cartão. */
 .apagar-topico { margin-left: auto; flex: none; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 2px; border: 0; border-radius: var(--r-sm); background: none; color: var(--fg-3); cursor: pointer; font-size: 11.5px; opacity: 0; }
@@ -1663,6 +1676,16 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 /* --- P0 tela (0.B7, 0.B8, 0.B10, 0.B11) ------------------------------------ */
 /* Aviso sobre um comando (o que falta escrever depois dele, por exemplo). */
 .aviso-comando code { font: 11.5px var(--mono); color: var(--fg-2); }
+/* Buscar na conversa (Ctrl+F): barra fina no canto de cima das mensagens. */
+.busca-conversa { position: absolute; top: 8px; right: 22px; z-index: 6; display: flex; align-items: center; gap: 4px; height: 34px; padding: 0 6px 0 10px; border-radius: 10px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); box-shadow: 0 6px 20px rgba(0, 0, 0, .28); }
+.busca-conversa[hidden] { display: none; }
+.busca-conversa input { width: 220px; border: 0; outline: 0; background: transparent; color: var(--fg); font: 13px var(--sans); }
+.busca-conversa .conta { min-width: 62px; text-align: right; font-size: 12px; color: var(--fg-3); white-space: nowrap; padding-right: 4px; }
+.busca-conversa.sem-resultado .conta { color: var(--perigo); }
+.busca-conversa button { width: 24px; height: 24px; border-radius: 6px; color: var(--fg-3); }
+.busca-conversa button:hover { background: var(--painel-hover); color: var(--fg); }
+::highlight(busca-conversa) { background-color: color-mix(in srgb, #d29922 38%, transparent); color: inherit; }
+::highlight(busca-conversa-atual) { background-color: #d29922; color: #111; }
 /* O Claude disse que o comando só existe no terminal: o aviso traz o botão que abre lá. */
 .aviso-indisponivel { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 4px 8px; border-radius: 12px; max-width: 100%; }
 .aviso-indisponivel .botao-texto { font-size: 12px; padding: 2px 9px; margin: 0; }
