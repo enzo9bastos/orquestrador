@@ -285,6 +285,12 @@ class Conversa {
     this.esforco = esforco;
     // Modo de permissão vivo (o que o Claude disse no init ou no system/status).
     this.modo = typeof modo === 'string' && /^\w+$/.test(modo) ? modo : null;
+    // Fila da caixa: o que o usuário manda com o motor trabalhando espera aqui e
+    // vai quando o turno acaba. Cada item: { id, texto, imagens, exibir, ja }.
+    // "ja" = enviar já (vai na frente). filaParada: o usuário parou o motor, e a
+    // fila só volta a andar quando ele mandar algo.
+    this.fila = [];
+    this.filaParada = false;
     // Rodada aberta (só o orquestrador): abre com o comando da rodada, fecha no
     // fim dela. A barra mostra Iniciar OU Desligar conforme isto.
     this.rodada = orquestrador && rodada === true;
@@ -315,7 +321,7 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, rotuloLongo: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, fila: [], filaParada: false, rotuloLongo: null, ocupado: false };
   }
 
   // O orquestrador segue a IA escolhida na configuração. Só troca parado:
@@ -616,7 +622,12 @@ class Conversa {
     if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
     this.ultimoTexto = '';
     if (this.desligando) { this.desligando = false; this.encerrar(); return; }
+    this.fimDeTurnoDepois();
+  }
+  fimDeTurnoDepois() {
     if (this.reiniciarDepois) { const porque = this.reiniciarDepois; this.reiniciarDepois = false; this.reiniciar(); if (porque) this.registrar({ tipo: 'aviso', texto: porque === 'esforco' ? AVISO_REINICIO : `A conversa reiniciou. ${AVISO_FUNDO}` }); }
+    // O turno acabou: a próxima mensagem da fila da caixa vai (uma por turno).
+    this.andarFila();
   }
 
   juntarComandos() {
@@ -718,6 +729,71 @@ class Conversa {
     this.registrar({ tipo: 'user', message: { role: 'user', content: mostrado }, local: true });
     if (this.motor === 'codex') return codex.mandar(this, texto, imagens);
     return this.escrever({ type: 'user', message: { role: 'user', content } });
+  }
+
+  // --- fila da caixa de texto ----------------------------------------------
+  // Só o que o usuário digita na caixa passa por aqui (o resto do app continua
+  // usando mandar). Parado: vai na hora. Trabalhando: espera na fila.
+  // agora (Ctrl+Enter, "enviar já"): no Claude o app interrompe o turno e a
+  // mensagem vai assim que ele para, na frente da fila; nada é escrito no meio
+  // do turno, então "ocupado" continua exato. No Codex vai por turn/steer.
+  avisarFila() {
+    this.info.fila = this.fila.map((m) => ({ id: m.id, texto: String(m.exibir || m.texto || '').slice(0, 2000), imagens: m.imagens.length, ja: m.ja === true }));
+    this.info.filaParada = this.filaParada && this.fila.length > 0;
+    this.avisarInfo();
+  }
+  porNaFila(texto, imagens, exibir, ja = false) {
+    const m = { id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, texto, imagens: imagens || [], exibir: exibir || null, ja };
+    if (ja) { const i = this.fila.findIndex((x) => !x.ja); if (i < 0) this.fila.push(m); else this.fila.splice(i, 0, m); } else this.fila.push(m);
+    this.avisarFila();
+    return m.id;
+  }
+  // A fila anda uma mensagem por turno. Parada pelo usuário, só anda o que ele marcou "enviar já".
+  andarFila() {
+    if (this.info.ocupado || !this.fila.length) return false;
+    if (this.filaParada && !this.fila[0].ja) return false;
+    const m = this.fila.shift();
+    this.avisarFila();
+    this.mandar(m.texto, m.imagens, m.exibir);
+    return true;
+  }
+  daCaixa(texto, imagens = [], exibir = null, { agora = false } = {}) {
+    if (!this.info.ocupado) {
+      if (!this.fila.length) { this.mandar(texto, imagens, exibir); return { enviada: true }; }
+      // Havia fila parada: esta entra no fim e a fila volta a andar, na ordem.
+      const id = this.porNaFila(texto, imagens, exibir);
+      this.filaParada = false;
+      this.andarFila();
+      return { naFila: id };
+    }
+    if (agora && this.motor === 'codex') { this.mandar(texto, imagens, exibir); return { enviada: true }; }
+    const id = this.porNaFila(texto, imagens, exibir, agora);
+    if (agora) this.interromperParaEnviar();
+    return { naFila: id };
+  }
+  tirarDaFila(id) {
+    const i = this.fila.findIndex((m) => m.id === id);
+    if (i < 0) return false;
+    this.fila.splice(i, 1);
+    this.avisarFila();
+    return true;
+  }
+  enviarJaDaFila(id) {
+    const i = this.fila.findIndex((m) => m.id === id);
+    if (i < 0) return false;
+    const [m] = this.fila.splice(i, 1);
+    if (this.info.ocupado && this.motor === 'codex') { this.avisarFila(); this.mandar(m.texto, m.imagens, m.exibir); return true; }
+    m.ja = true;
+    const pos = this.fila.findIndex((x) => !x.ja);
+    if (pos < 0) this.fila.push(m); else this.fila.splice(pos, 0, m);
+    this.avisarFila();
+    if (this.info.ocupado) this.interromperParaEnviar(); else this.andarFila();
+    return true;
+  }
+  // Parada pedida pelo próprio app para entregar o "enviar já": não é o usuário mandando parar tudo.
+  interromperParaEnviar() {
+    if (this.filaParada) { this.filaParada = false; this.avisarFila(); }
+    return this.interromper({ doUsuario: false });
   }
 
   // decisao: { permitir: bool, respostas?: {pergunta: resposta}, motivo?: string }
@@ -958,7 +1034,9 @@ class Conversa {
     this.iniciar();
   }
 
-  interromper() {
+  // doUsuario (Parar, Esc): o que estava na fila não dispara sozinho depois da parada.
+  interromper({ doUsuario = true } = {}) {
+    if (doUsuario && this.fila.length && !this.filaParada) { this.filaParada = true; this.avisarFila(); }
     if (this.motor === 'codex') return codex.interromper(this);
     return this.escrever({ type: 'control_request', request_id: `int-${Date.now()}`, request: { subtype: 'interrupt' } });
   }
@@ -1155,6 +1233,9 @@ module.exports = {
   capacidades: (id) => pegar(id).capacidades(),
   _registroCapacidades: registroCap, // só para os testes
   codexPedir: (id, metodo, params) => pegar(id).codex(metodo, params),
+  daCaixa: (id, texto, imagens, exibir, opcoes) => pegar(id).daCaixa(texto, imagens, exibir, opcoes),
+  tirarDaFila: (id, idFila) => pegar(id).tirarDaFila(idFila),
+  enviarJaDaFila: (id, idFila) => pegar(id).enviarJaDaFila(idFila),
   estadoComando: (id) => pegar(id).estadoComando(),
   rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),
   pastaExtra: (id, p) => pegar(id).pastaExtra(p),

@@ -294,11 +294,13 @@ test('falso: apply_flag_settings responde sucesso; $CLAUDE_FALSO_RECUSA_ESFORCO 
   assert.strictEqual((await g.resposta('e2')).response.error, 'não dá');
 });
 
-test('falso: interrupt responde sucesso', async (t) => {
+// O Claude de verdade responde ao interrupt com a lista do que ficou na fila dele
+// (2.1.325 e 2.1.326, parado: { still_queued: [] }).
+test('falso: interrupt responde sucesso, com a fila que sobrou', async (t) => {
   const f = subir();
   t.after(f.fecha);
   f.pede('i1', { subtype: 'interrupt' });
-  assert.deepStrictEqual((await f.resposta('i1')).response, { subtype: 'success', request_id: 'i1', response: {} });
+  assert.deepStrictEqual((await f.resposta('i1')).response, { subtype: 'success', request_id: 'i1', response: { still_queued: [] } });
 });
 
 test('falso: rewind_files responde no formato do 2.1.325 (canRewind, filesChanged, insertions, deletions)', async (t) => {

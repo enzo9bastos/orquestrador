@@ -678,13 +678,50 @@
     fazendoAgora = detalhe ? `${verbo}: ${detalhe}` : `${verbo}…`;
     if (infoAtual.ocupado) $('trabalhando-texto').textContent = fazendoAgora;
   }
+  // Fila da caixa: o que foi mandado com o motor trabalhando espera aqui, no fim
+  // da conversa (onde vai cair), em balão tracejado com "Enviar já" e "Tirar".
+  function desenharFila(i) {
+    caixa.querySelectorAll('.msg-fila').forEach((x) => x.remove());
+    const fila = Array.isArray(i.fila) ? i.fila : [];
+    for (const m of fila) {
+      const d = document.createElement('div');
+      d.className = `msg-fila${m.ja ? ' ja' : ''}`;
+      d.dataset.fila = m.id;
+      const estado = m.ja ? 'vai assim que o motor parar' : i.filaParada ? 'na fila, parada (o motor foi interrompido)' : 'na fila';
+      d.innerHTML = `<div class="balao" data-sem-traducao>${esc(m.texto)}${m.imagens ? ` <span class="fila-imagens">🖼 ${m.imagens}</span>` : ''}</div>
+        <div class="fila-acoes"><span>${estado}</span>${m.ja ? '' : `<button type="button" data-fila-ja="${esc(m.id)}" title="Interrompe o que o motor faz e manda esta mensagem agora (na caixa: Ctrl+Enter)">Enviar já</button>`}<button type="button" data-fila-tirar="${esc(m.id)}" title="Tira da fila sem mandar">Tirar ✕</button></div>`;
+      caixa.append(d);
+    }
+    const q = $('faixa-fila');
+    q.hidden = !fila.length;
+    q.innerHTML = `<svg class="ico" viewBox="0 0 16 16"><rect x="2" y="3.5" width="12" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m2.5 4.5 5.5 4 5.5-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span data-sem-traducao>${fila.length}</span> <span>na fila</span>`;
+    q.setAttribute('aria-label', `${fila.length} ${tr('na fila')}`);
+    // Só acompanha o fim da conversa quando a fila cresce (quem rolou para cima não é puxado a cada atualização).
+    if (fila.length > filaDesenhada) rolar();
+    filaDesenhada = fila.length;
+  }
+  let filaDesenhada = 0;
+  // Os balões da fila ficam sempre por último, depois do que o motor for escrevendo.
+  const filaNoFim = () => { for (const x of caixa.querySelectorAll('.msg-fila')) caixa.append(x); };
+  // Com o motor trabalhando a caixa avisa o que o Enter faz, e o botão de enviar vira "pôr na fila".
+  const LUGAR_OCUPADO = 'Trabalhando: Enter põe na fila · Ctrl+Enter corrige o rumo agora';
+  let lugarParado = null;
+  function desenharCaixaOcupada(ocupado) {
+    if (ocupado) { if (entrada.placeholder !== LUGAR_OCUPADO) lugarParado = entrada.placeholder; entrada.placeholder = LUGAR_OCUPADO; }
+    else if (entrada.placeholder === LUGAR_OCUPADO && lugarParado != null) entrada.placeholder = lugarParado;
+    $('compositor').classList.toggle('ocupada', !!ocupado);
+    $('enviar').title = ocupado ? 'Pôr na fila (Enter) · Ctrl+Enter corrige o rumo agora' : 'Enviar (Enter)';
+  }
   function desenharFaixa(i) {
     const fundo = Number(i.fundo) || 0;
     const f = $('trabalhando');
-    f.hidden = !(i.ocupado || fundo > 0);
+    const naFila = Array.isArray(i.fila) ? i.fila.length : 0;
+    desenharFila(i);
+    desenharCaixaOcupada(i.ocupado);
+    f.hidden = !(i.ocupado || fundo > 0 || naFila > 0);
     f.classList.toggle('parada', !i.ocupado);
     if (!i.ocupado) fazendoAgora = '';
-    $('trabalhando-texto').textContent = i.ocupado ? (fazendoAgora || 'Pensando…') : 'Parado';
+    $('trabalhando-texto').textContent = i.ocupado ? (fazendoAgora || 'Pensando…') : i.filaParada ? 'Parado, com mensagens na fila' : 'Parado';
     $('parar').hidden = !i.ocupado;
     const g = $('faixa-fundo');
     g.hidden = !fundo;
@@ -1156,11 +1193,11 @@
   }
 
   // Eventos de conversas que não estão na tela só mexem na lista da lateral.
-  C.aoTudo((id, r) => { if (id === ativa) redesenharTudo(r); });
+  C.aoTudo((id, r) => { if (id === ativa) { redesenharTudo(r); if (r.info) desenharFila(r.info); } });
   C.aoEvento((id, ev) => {
     if (id !== ativa) return;
     caixa.querySelector('.boas-vindas')?.remove();
-    desenharEvento(ev); rolar();
+    desenharEvento(ev); filaNoFim(); rolar();
     // Mensagem que o motor não aceitou: o texto volta para a caixa vazia.
     if (ev.devolver && !entrada.value.trim()) porNaCaixa(ev.devolver);
     if (id === 'orquestrador' && !ev.sub) petReage(ev);
@@ -1220,6 +1257,7 @@
     $('entrada').placeholder = atual && !atual.orquestrador
       ? (atual.motor === 'codex' ? 'Escreva para o Codex…  (Enter envia · Shift+Enter quebra linha)' : 'Escreva para o Claude…  (Enter envia · Shift+Enter quebra linha)')
       : 'Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)';
+    desenharCaixaOcupada(infoAtual.ocupado === true);
   }
   C.aoLista(desenharLista);
   // Paleta Ctrl+K: conversas (com pergunta pendente = esperando você) e comandos.
@@ -1589,12 +1627,16 @@
   function ajustarAltura() { entrada.style.height = 'auto'; entrada.style.height = Math.min(entrada.scrollHeight, 220) + 'px'; }
   entrada.addEventListener('input', ajustarAltura);
   entrada.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('compositor').requestSubmit(); }
+    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); enviarAgora = ev.ctrlKey || ev.metaKey; $('compositor').requestSubmit(); }
     // Shift+Tab só troca o modo com a caixa vazia (com texto, ele navega como sempre) e se a opção estiver ligada.
     if (ev.key === 'Tab' && ev.shiftKey && !ev.ctrlKey && !ev.altKey && !entrada.value && cfg.shiftTabTrocaModo !== false && !$('chip-modo').hidden) { ev.preventDefault(); proximoModo(); }
   });
+  // Ctrl+Enter com o motor trabalhando: "enviar já" (parado, é um envio comum).
+  let enviarAgora = false;
   $('compositor').addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    const agora = enviarAgora;
+    enviarAgora = false;
     const t = entrada.value.trim();
     if (!t && !anexos.length && !arquivosAnexos.length) return;
     // Ponte antiga (app aberto antes da versão com imagens): ela só leva o
@@ -1633,8 +1675,14 @@
       e.enviar = `${e.enviar}${e.enviar ? '\n\n' : ''}Arquivos anexados (leia do disco):\n${arquivos.map((a) => `- ${a.caminho}`).join('\n')}`;
       e.exibir = `${e.exibir || t}${t ? '\n' : ''}📎 ${arquivos.map((a) => a.nome).join(', ')}`;
     }
-    await C.mandar(ativa, e.enviar, imagens, e.exibir);
+    await C.daCaixa(ativa, e.enviar, imagens, e.exibir, { agora });
   });
+  caixa.addEventListener('click', async (ev) => {
+    const ja = ev.target.closest('[data-fila-ja]'), tirar = ev.target.closest('[data-fila-tirar]');
+    if (ja) { ja.disabled = true; await C.fila(ativa, 'ja', ja.dataset.filaJa); }
+    else if (tirar) { tirar.disabled = true; await C.fila(ativa, 'tirar', tirar.dataset.filaTirar); }
+  });
+  $('faixa-fila').addEventListener('click', () => { const q = caixa.querySelector('.msg-fila'); if (q) q.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
   // Interromper (botão Parar ou Esc): a tela diz o que isso significa.
   function interromperPorMim() {
     C.interromper(ativa);

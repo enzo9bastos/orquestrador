@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('orq', {
     lista: () => ipcRenderer.invoke('conversa:lista'),
     abrir: (id) => ipcRenderer.invoke('conversa:abrir', id),
     mandar: (id, t, imagens, exibir) => ipcRenderer.invoke('conversa:mandar', id, t, imagens, exibir),
+    daCaixa: (id, t, imagens, exibir, opcoes) => ipcRenderer.invoke('conversa:daCaixa', id, t, imagens, exibir, opcoes),
+    fila: (id, acao, idFila) => ipcRenderer.invoke('conversa:fila', id, acao, idFila),
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
     voltar: (id, ordemDoFim, texto) => ipcRenderer.invoke('conversa:voltar', id, ordemDoFim, texto),

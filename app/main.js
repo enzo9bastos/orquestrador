@@ -372,6 +372,19 @@ ipcMain.handle('conversa:mandar', (_e, id, texto, imagens = [], exibir = null) =
   if (!t && !imgs.length) return false;
   return conversa.mandar(id, t, imgs, typeof exibir === 'string' ? exibir : null);
 });
+// O que o usuário manda pela caixa de texto: parado vai na hora; com o motor
+// trabalhando espera na fila do app (agora: "enviar já", na frente da fila).
+ipcMain.handle('conversa:daCaixa', (_e, id, texto, imagens = [], exibir = null, opcoes = null) => {
+  ajudante.limparAcoes(id);
+  const imgs = (Array.isArray(imagens) ? imagens : []).filter((i) => i && TIPOS_IMAGEM.includes(i.tipo) && typeof i.dados === 'string' && i.dados.length < 7_000_000).slice(0, 6);
+  const t = typeof texto === 'string' ? texto.trim() : '';
+  if (!t && !imgs.length) return false;
+  return conversa.daCaixa(id, t, imgs, typeof exibir === 'string' ? exibir : null, { agora: !!(opcoes && opcoes.agora === true) });
+});
+ipcMain.handle('conversa:fila', (_e, id, acao, idFila) => {
+  if (typeof idFila !== 'string') return false;
+  return acao === 'tirar' ? conversa.tirarDaFila(id, idFila) : acao === 'ja' ? conversa.enviarJaDaFila(id, idFila) : false;
+});
 ipcMain.handle('conversa:responder', (_e, id, reqId, decisao) => conversa.responder(id, reqId, decisao));
 ipcMain.handle('conversa:interromper', (_e, id) => conversa.interromper(id));
 // Voltar a conversa para antes de uma mensagem: devolve { ok, texto } ou

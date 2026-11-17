@@ -358,6 +358,15 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .menu-confirma .acoes { display: flex; justify-content: flex-end; gap: 6px; }
 .menu-confirma .botao { height: 26px; padding: 0 10px; font-size: 12px; }
 .so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Fila da caixa: balão tracejado no fim da conversa, com "Enviar já" e "Tirar". */
+.msg-fila { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.msg-fila .balao { background: transparent; border: 1px dashed var(--borda-forte); opacity: .75; max-width: var(--lado-voce); white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-fila.ja .balao { border-color: var(--claude); opacity: 1; }
+.fila-acoes { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--fg-4); }
+.fila-acoes button { color: var(--fg-2); font-size: 11.5px; text-decoration: underline; text-decoration-color: var(--borda-forte); text-underline-offset: 2px; }
+.fila-acoes button:hover { color: var(--fg); }
+.fila-acoes button:disabled { opacity: .5; cursor: default; }
+.compositor.ocupada .caixa-entrada { border-style: dashed; }
 /* Menu de modelo: principais à vista, "Outros" recolhido, modo rápido e o esforço numa linha. */
 .menu-modelo.menu-do-modelo { width: 300px; }
 .menu-do-modelo .menu-opcoes button { height: auto; min-height: 30px; padding: 6px 8px; width: 100%; }

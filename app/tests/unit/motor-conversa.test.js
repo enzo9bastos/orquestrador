@@ -309,6 +309,91 @@ test('modelo: opusplan vai como apelido (ao vivo e na subida); Fable é o 5.2; o
   assert.strictEqual(c.info.rapido, false);
 });
 
+// Plano 4.1 (fila visível): com o motor trabalhando, o que o usuário manda pela
+// caixa fica numa fila do app e vai quando o turno acaba. "Enviar já": no
+// Claude o app interrompe o turno e manda a mensagem assim que ele para (nada
+// é escrito no meio do turno); no Codex vai por turn/steer.
+const mensagens = () => recebidos().filter((x) => x.type === 'user').map((x) => (typeof x.message.content === 'string' ? x.message.content : (x.message.content.find((b) => b.type === 'text') || {}).text));
+const interrupcoes = () => recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'interrupt').length;
+const naFila = (c) => c.info.fila.map((x) => x.texto);
+test('fila: ocupado, a mensagem da caixa espera no app e vai sozinha quando o turno acaba; tirar não manda nada', async (t) => {
+  const c = new conversa._Conversa({ id: 'fl1', titulo: 'Conversa fila' });
+  t.after(() => c.parar());
+  // Parado: a mensagem da caixa vai na hora, sem passar pela fila.
+  assert.deepStrictEqual(c.daCaixa('manda 30 deltas'), { enviada: true });
+  await ate(() => c.info.ocupado && mensagens().length === 1);
+  // Ocupado: fica na fila do app; nada chega ao Claude.
+  const a = c.daCaixa('primeira da fila');
+  const b = c.daCaixa('segunda, que vou tirar');
+  const d = c.daCaixa('terceira');
+  assert.ok(a.naFila && b.naFila && d.naFila);
+  assert.deepStrictEqual(naFila(c), ['primeira da fila', 'segunda, que vou tirar', 'terceira']);
+  assert.deepStrictEqual(mensagens(), ['manda 30 deltas']);
+  assert.strictEqual(c.tirarDaFila(b.naFila), true);
+  assert.strictEqual(c.tirarDaFila('nao-existe'), false);
+  assert.deepStrictEqual(naFila(c), ['primeira da fila', 'terceira']);
+  // O turno acaba: a fila anda sozinha, uma mensagem por turno, na ordem.
+  await ate(() => mensagens().length === 3 && !c.info.ocupado, 10000);
+  assert.deepStrictEqual(mensagens(), ['manda 30 deltas', 'primeira da fila', 'terceira']);
+  assert.deepStrictEqual(naFila(c), []);
+  assert.strictEqual(turnos(c), 3);
+  assert.strictEqual(interrupcoes(), 0);
+});
+
+test('fila: "enviar já" interrompe o turno e a mensagem vai na frente; a parada do usuário segura a fila', async (t) => {
+  const c = new conversa._Conversa({ id: 'fl2', titulo: 'Conversa fila 2' });
+  t.after(() => c.parar());
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado && mensagens().length === 1);
+  c.daCaixa('espera a vez');
+  // Mensagem nova com "enviar já" (Ctrl+Enter): interrompe e vai na frente da fila.
+  assert.ok(c.daCaixa('muda o rumo', [], null, { agora: true }).naFila);
+  assert.deepStrictEqual(c.info.fila.map((x) => [x.texto, !!x.ja]), [['muda o rumo', true], ['espera a vez', false]]);
+  assert.deepStrictEqual(mensagens(), ['trabalha até parar'], 'nada é escrito no meio do turno');
+  await ate(() => mensagens().length === 3 && !c.info.ocupado, 10000);
+  assert.strictEqual(interrupcoes(), 1);
+  assert.deepStrictEqual(mensagens(), ['trabalha até parar', 'muda o rumo', 'espera a vez']);
+  assert.strictEqual(c.info.filaParada, false, 'a parada foi do "enviar já", não do usuário: a fila seguiu');
+  // "Enviar já" numa mensagem que estava na fila.
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado && mensagens().length === 4);
+  c.daCaixa('esta continua esperando');
+  const x = c.daCaixa('esta sai na frente');
+  assert.strictEqual(c.enviarJaDaFila(x.naFila), true);
+  assert.deepStrictEqual(naFila(c), ['esta sai na frente', 'esta continua esperando']);
+  await ate(() => mensagens().length === 6 && !c.info.ocupado, 10000);
+  assert.deepStrictEqual(mensagens().slice(4), ['esta sai na frente', 'esta continua esperando']);
+  // O usuário para o motor (Parar ou Esc): a fila não dispara sozinha depois disso.
+  c.daCaixa('trabalha até parar');
+  await ate(() => c.info.ocupado && mensagens().length === 7);
+  const z = c.daCaixa('não quero que vá sozinha');
+  c.interromper();
+  await ate(() => !c.info.ocupado);
+  await espera(300);
+  assert.deepStrictEqual(naFila(c), ['não quero que vá sozinha'], 'continua na fila, parada');
+  assert.strictEqual(c.info.filaParada, true);
+  assert.strictEqual(mensagens().length, 7);
+  // Mensagem nova com a fila parada: entra no fim e a fila volta a andar, na ordem.
+  assert.ok(c.daCaixa('e mais esta').naFila);
+  await ate(() => mensagens().length === 9 && !c.info.ocupado, 10000);
+  assert.deepStrictEqual(mensagens().slice(7), ['não quero que vá sozinha', 'e mais esta']);
+  assert.strictEqual(c.info.filaParada, false);
+  assert.ok(z.naFila);
+});
+
+test('fila (Codex): ocupado, a mensagem da caixa espera no app; "enviar já" corrige o rumo por turn/steer', async (t) => {
+  const c = new conversa._Conversa({ id: 'fl3', titulo: 'Conversa fila Codex', motor: 'codex' });
+  t.after(() => c.parar());
+  c.daCaixa('oi codex');
+  await ate(() => c.info.ocupado && xrecebidos().some((x) => x.method === 'turn/start'));
+  const q = c.daCaixa('fica na fila');
+  assert.ok(q.naFila);
+  assert.ok(!xrecebidos().some((x) => x.method === 'turn/steer'), 'pela fila, nada vai ao Codex no meio do turno');
+  assert.deepStrictEqual(c.daCaixa('corrige agora', [], null, { agora: true }), { enviada: true });
+  await ate(() => xrecebidos().some((x) => x.method === 'turn/steer'));
+  assert.deepStrictEqual(naFila(c), ['fica na fila']);
+});
+
 test('B3: --resume que cai antes do init por outro motivo mantém a sessão e mostra o erro', async (t) => {
   process.env.CLAUDE_FALSO_FALHA_RESUME = 'Error: falha de rede qualquer';
   t.after(() => { delete process.env.CLAUDE_FALSO_FALHA_RESUME; });

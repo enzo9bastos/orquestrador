@@ -131,10 +131,17 @@ const naoAtende = (d, subtipo) => sai({ type: 'control_response', response: { su
   error: `Unsupported control request subtype: ${subtipo}`, error_code: 'unsupported_request' } });
 if (INIT_NA_SUBIDA) init();
 
-readline.createInterface({ input: process.stdin }).on('line', (l) => {
+// Como o Claude de verdade: mensagem que chega com um turno aberto ("trabalha
+// até parar") fica na fila dele e roda quando o turno acaba (o interrupt
+// encerra o turno e responde { still_queued }, como no 2.1.326).
+const naFilaDoFalso = [];
+const leitor = readline.createInterface({ input: process.stdin });
+const soltarFila = () => { for (const m of naFilaDoFalso.splice(0)) leitor.emit('line', JSON.stringify({ ...m, jaAnotada: true })); };
+leitor.on('line', (l) => {
   let d;
   try { d = JSON.parse(l); } catch { return; }
-  log(d);
+  if (d.jaAnotada) delete d.jaAnotada; else log(d);
+  if (d.type === 'user' && trabalhando) { naFilaDoFalso.push(d); return; }
   if (d.type === 'control_response') {
     const id = d.response && d.response.request_id;
     const f = esperando.get(id);
@@ -162,7 +169,11 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
       if (process.env.CLAUDE_FALSO_RECUSA_ESFORCO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: process.env.CLAUDE_FALSO_RECUSA_ESFORCO } });
       return responde(d);
     }
-    if (r.subtype === 'interrupt') { responde(d); if (trabalhando) { trabalhando = false; fim('interrompido'); } return undefined; }
+    if (r.subtype === 'interrupt') {
+      responde(d, { still_queued: [] });
+      if (trabalhando) { trabalhando = false; fim('interrompido'); soltarFila(); }
+      return undefined;
+    }
     if (r.subtype === 'rewind_files') {
       if (typeof r.user_message_id !== 'string') return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'rewind_files: user_message_id must be a string' } });
       return responde(d, { canRewind: true, filesChanged: ['app/x.js'], insertions: 3, deletions: 1 });
