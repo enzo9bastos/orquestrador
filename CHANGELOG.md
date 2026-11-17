@@ -4,6 +4,19 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.7.0 (2026-11-17)
+
+- `@` in the message box also mentions a request, an agent message or an
+  agent: `@demanda:`, `@recado:` and `@agente:` list the ones in the panels,
+  next to files, notes and workflows. Free text after `@` finds a request by
+  its title, a message by its text and an agent by its name.
+- What you mention goes along with the message, after your text: the
+  request's data, checklist and note; the message's sender, time and text
+  (marked as third-party text, to be read as information); the agent's
+  project, tmux session, state and task. The balloon shows only what you
+  wrote.
+- The hint under the box now reads "@ mention".
+
 ## 0.6.1 (2026-11-17)
 
 - Conversation search (Ctrl+F): closing the bar right after a new message
