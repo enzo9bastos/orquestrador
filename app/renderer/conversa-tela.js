@@ -711,7 +711,50 @@
     else if (entrada.placeholder === LUGAR_OCUPADO && lugarParado != null) entrada.placeholder = lugarParado;
     $('compositor').classList.toggle('ocupada', !!ocupado);
     $('enviar').title = ocupado ? 'Pôr na fila (Enter) · Ctrl+Enter corrige o rumo agora' : 'Enviar (Enter)';
+    // Dicas fixas sob a caixa: o que o Enter (e o Esc) fazem agora.
+    const k = (t) => `<kbd data-sem-traducao>${t}</kbd>`;
+    $('dica-esc').hidden = !ocupado;
+    $('dica-enter').innerHTML = ocupado
+      ? `<span>${k('Enter')} <span>põe na fila</span></span><span>${k('Ctrl')}+${k('Enter')} <span>corrige o rumo</span></span>`
+      : `<span>${k('Enter')} <span>envia</span></span><span>${k('Shift')}+${k('Enter')} <span>quebra linha</span></span>`;
   }
+  // --- painel de atalhos ("? Atalhos" e Ctrl+/) -----------------------------------
+  // Só o que funciona hoje. Os atalhos que dá para trocar (colunas, Shift+Tab)
+  // aparecem como estão nas Configurações.
+  function abrirAtalhos() {
+    const A = window.orqAtalhos;
+    const colunas = { ...(A ? A.PADRAO : {}), ...(cfg.atalhosColunas || {}) };
+    const combo = (c) => (c ? (A ? A.mostrar(c) : c).split('+').map((p) => `<kbd data-sem-traducao>${esc(p === 'Comma' ? ',' : p === 'Period' ? '.' : p)}</kbd>`).join('+') : '<span class="atalho-desligado">desativado</span>');
+    const teclas = (t) => t.split('+').map((p) => `<kbd data-sem-traducao>${esc(p)}</kbd>`).join('+');
+    const l = (rotulo, html) => `<div class="linha-atalho"><span>${rotulo}</span><span class="teclas">${html}</span></div>`;
+    abrirPopup('Atalhos', `<div class="lista-atalhos">
+      <h4>Na conversa</h4>
+      ${l('Enviar', teclas('Enter'))}${l('Quebrar linha', teclas('Shift+Enter'))}${l('Parar o motor', teclas('Esc'))}
+      ${l('Voltar a conversa (parado, com a caixa vazia)', `${teclas('Esc')} ${teclas('Esc')}`)}
+      ${l('Com o motor trabalhando: pôr na fila', teclas('Enter'))}${l('Com o motor trabalhando: corrigir o rumo', teclas('Ctrl+Enter'))}
+      ${l('Trocar o modo de permissão', teclas('Ctrl+Shift+M'))}${cfg.shiftTabTrocaModo === false ? '' : l('Trocar o modo, com a caixa vazia', teclas('Shift+Tab'))}
+      ${l('Trazer de volta a mensagem anterior (caixa vazia)', teclas('↑'))}
+      <h4>Na caixa de texto</h4>
+      ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar nota ou workflow', teclas('@'))}
+      ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
+      <h4>No app</h4>
+      ${l('Paleta de comandos', teclas('Ctrl+K'))}${l('Esta lista', teclas('Ctrl+/'))}
+      ${l('Recolher ou abrir os agentes', combo(colunas.agentes))}${l('Recolher ou abrir as demandas', combo(colunas.demandas))}
+      ${l('Chamar o bichinho', teclas('Ctrl+Alt+Espaço'))}${l('Atalhos do repertório', `${teclas('Ctrl+Alt+1')} … ${teclas('9')}`)}
+    </div>
+    <p class="popup-nota"><span>Os atalhos das colunas e o Shift+Tab mudam em</span> <button type="button" class="botao-texto link-config" data-abrir-config-atalhos>Configurações › Atalhos</button></p>`);
+    $('popup-corpo').querySelector('[data-abrir-config-atalhos]').addEventListener('click', () => {
+      fecharPopup();
+      $('abrir-config').click();
+      const aba = document.querySelector('[data-secao-config="atalhos"]');
+      if (aba) aba.click();
+    });
+    $('fechar-popup').focus();
+  }
+  $('abrir-atalhos').addEventListener('click', abrirAtalhos);
+  document.addEventListener('keydown', (ev) => {
+    if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && (ev.code === 'Slash' || ev.key === '/')) { ev.preventDefault(); if (popup.hidden) abrirAtalhos(); }
+  });
   function desenharFaixa(i) {
     const fundo = Number(i.fundo) || 0;
     const f = $('trabalhando');
@@ -1255,8 +1298,8 @@
     $('palco-pet').hidden = !!(atual && !atual.orquestrador);
     try { desenharAprovacoes(); } catch { /* ainda carregando a tela */ }
     $('entrada').placeholder = atual && !atual.orquestrador
-      ? (atual.motor === 'codex' ? 'Escreva para o Codex…  (Enter envia · Shift+Enter quebra linha)' : 'Escreva para o Claude…  (Enter envia · Shift+Enter quebra linha)')
-      : 'Escreva para o orquestrador…  (Enter envia · Shift+Enter quebra linha)';
+      ? (atual.motor === 'codex' ? 'Escreva para o Codex…' : 'Escreva para o Claude…')
+      : 'Escreva para o orquestrador…';
     desenharCaixaOcupada(infoAtual.ocupado === true);
   }
   C.aoLista(desenharLista);

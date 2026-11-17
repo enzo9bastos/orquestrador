@@ -358,6 +358,19 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .menu-confirma .acoes { display: flex; justify-content: flex-end; gap: 6px; }
 .menu-confirma .botao { height: 26px; padding: 0 10px; font-size: 12px; }
 .so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Dicas fixas sob a caixa e o painel de atalhos. */
+.dicas-caixa { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; min-width: 0; font-size: 11px; color: var(--fg-4); padding: 0 4px; margin-top: -2px; }
+.dicas-caixa [hidden] { display: none; }
+.dicas-caixa .dica-enter { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 4px 14px; }
+.dicas-caixa kbd, .lista-atalhos kbd { font: 10.5px var(--mono); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--borda-forte); color: var(--fg-2); background: var(--bg-afundado); }
+.dica-atalhos { font-size: 11px; color: var(--fg-3); padding: 1px 6px; border-radius: var(--r-sm); border: 1px solid var(--borda); }
+.dica-atalhos:hover { color: var(--fg); border-color: var(--borda-forte); }
+.lista-atalhos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; padding: 4px 18px; }
+.lista-atalhos h4 { grid-column: 1 / -1; margin: 12px 0 4px; font: 600 11px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--fg-4); }
+.linha-atalho { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--borda); font-size: 12.5px; color: var(--fg-2); }
+.linha-atalho .teclas { flex: none; white-space: nowrap; }
+.atalho-desligado { font-size: 11.5px; color: var(--fg-4); }
+.popup-nota .link-config { margin: 0; height: 22px; }
 /* Fila da caixa: balão tracejado no fim da conversa, com "Enviar já" e "Tirar". */
 .msg-fila { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .msg-fila .balao { background: transparent; border: 1px dashed var(--borda-forte); opacity: .75; max-width: var(--lado-voce); white-space: pre-wrap; overflow-wrap: anywhere; }
