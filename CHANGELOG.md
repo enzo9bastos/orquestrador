@@ -4,6 +4,12 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.8.1 (2026-11-17)
+
+- A message waiting in the queue now shows the thumbnails of the screenshots it carries
+  (as many as there are) instead of an image symbol with a count. Clicking a thumbnail
+  opens it enlarged, as in a sent message.
+
 ## 0.8.0 (2026-11-17)
 
 - **Rewind with files.** The ✎ on a message now opens a card under it with three choices:
