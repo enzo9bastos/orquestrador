@@ -194,12 +194,52 @@ function historicoDoTranscript(sessao, ate = null) {
   for (const { linha: l } of jsonl.linhasDeTras(arq, { ate: limite })) {
     let d;
     try { d = JSON.parse(l); } catch { continue; /* linha cortada */ }
+    const ts = Date.parse(d.timestamp) || undefined;
     if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) {
-      lista.push({ tipo: d.type, message: d.message, antigo: true, ts: Date.parse(d.timestamp) || undefined });
-      if (lista.length >= MAX_HISTORICO) break;
-    }
+      lista.push({ tipo: d.type, message: d.message, antigo: true, ts });
+    } else if (d.type === 'system' && d.subtype === 'local_command' && typeof d.content === 'string' && !d.isSidechain) {
+      // Comando local (/rename, /memory…): o Claude grava o comando e a saída como linhas
+      // de sistema (forma do 2.1.326). Viram o mesmo que aparece ao vivo, montado abaixo.
+      lista.push({ local: d.content, marca: d.commandOutcome, ts });
+    } else continue;
+    if (lista.length >= MAX_HISTORICO) break;
   }
-  return lista.reverse();
+  return comandosLocaisComoAoVivo(lista.reverse());
+}
+// As linhas de comando local do transcript, como os eventos que a tela recebe ao vivo:
+// o comando vira o balão de comando (na forma <command-name>, que não ganha o lápis de
+// voltar nem vale como texto digitado) e a saída vira a mensagem sintética do Claude,
+// com a marca de "só existe no terminal" quando for o caso.
+function comandosLocaisComoAoVivo(lista) {
+  const eventos = [];
+  let comando = ''; // o último comando local visto (para dizer qual a saída recusou)
+  for (const e of lista) {
+    if (e.local === undefined) {
+      const c = e.tipo === 'user' && typeof e.message.content === 'string' ? e.message.content : '';
+      const m = /<command-name>(\/[^<]*)<\/command-name>/.exec(c);
+      if (m) comando = `${m[1]} ${(/<command-args>([^<]*)<\/command-args>/.exec(c) || [])[1] || ''}`.trim();
+      eventos.push(e);
+      continue;
+    }
+    const saida = /^<local-command-(?:stdout|stderr)>([\s\S]*?)<\/local-command-(?:stdout|stderr)>\s*$/.exec(e.local.trim());
+    if (!saida) {
+      const texto = e.local.trim();
+      if (!texto.startsWith('/')) continue;
+      const [nome, ...resto] = texto.split(/\s+/);
+      // O mesmo comando já veio como mensagem <command-name> logo antes: não repete o balão.
+      const anterior = eventos[eventos.length - 1];
+      const jaVeio = anterior && anterior.tipo === 'user' && typeof anterior.message.content === 'string' && anterior.message.content.includes(`<command-name>${nome}</command-name>`);
+      comando = texto;
+      if (!jaVeio) eventos.push({ tipo: 'user', message: { role: 'user', content: `<command-name>${nome}</command-name>\n<command-args>${resto.join(' ')}</command-args>` }, antigo: true, ts: e.ts });
+      continue;
+    }
+    const texto = saida[1].replace(/\x1b\[[0-9;]*m/g, '').trim();
+    if (!texto) continue;
+    const message = { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: texto }] };
+    const nd = comandoIndisponivel({ message, local_command_outcome: e.marca }, comando);
+    eventos.push({ tipo: 'assistant', message, sub: null, antigo: true, ts: e.ts, ...(nd ? { naoDisponivel: nd.nome, comando: nd.comando } : {}) });
+  }
+  return eventos;
 }
 
 // --- voltar a conversa ------------------------------------------------------

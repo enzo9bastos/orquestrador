@@ -96,6 +96,58 @@ test('conversa: evento ao vivo ganha horário; o do histórico usa o horário do
   assert.strictEqual(conversa._historico('S-hora')[0].ts, Date.parse('2026-11-05T20:24:00.000Z'));
 });
 
+// Plano 3.4 (V10): ao reabrir, o histórico traz também o comando local e a saída dele,
+// que o Claude grava como linhas de sistema (forma do transcript do 2.1.326), do mesmo
+// jeito que aparecem ao vivo. Ficam fora do "voltar" e do "o usuário escreveu".
+test('histórico ao reabrir: comando local e a saída dele voltam como ao vivo, sem entrar no voltar nem no "usuário escreveu"', () => {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const pasta = path.join(os.homedir(), '.claude', 'projects', os.homedir().replace(/[^A-Za-z0-9]/g, '-'));
+  fs.mkdirSync(pasta, { recursive: true });
+  const hora = (s) => `2026-11-17T09:35:${s}.000Z`;
+  const sis = (uuid, s, content, mais = {}) => ({ parentUuid: null, isSidechain: false, type: 'system', subtype: 'local_command', content, level: 'info', timestamp: hora(s), uuid, isMeta: false, ...mais });
+  const linhas = [
+    { type: 'user', uuid: 'u1', timestamp: hora('01'), message: { role: 'user', content: 'como estão os projetos da Ana e do Bruno hoje' } },
+    { type: 'assistant', uuid: 'a1', timestamp: hora('02'), message: { role: 'assistant', content: [{ type: 'text', text: 'Tudo em dia.' }] } },
+    sis('s1', '03', '/memory abc def'),
+    sis('s2', '03', "<local-command-stdout>/memory isn't available in this environment.</local-command-stdout>", { commandOutcome: { kind: 'unavailable_headless' } }),
+    { type: 'user', uuid: 'm1', isMeta: true, timestamp: hora('04'), message: { role: 'user', content: '<local-command-caveat>The command below was run directly…</local-command-caveat>' } },
+    { type: 'user', uuid: 'u2', timestamp: hora('04'), message: { role: 'user', content: '<command-name>/rename</command-name>\n<command-message>rename</command-message>\n<command-args>teste</command-args>' } },
+    sis('s3', '05', '<local-command-stdout>\u001b[1mSession renamed to: teste\u001b[0m</local-command-stdout>'),
+    sis('s4', '06', '<local-command-stdout></local-command-stdout>'),
+    { type: 'system', subtype: 'turn_duration', uuid: 's5', timestamp: hora('07'), durationMs: 12, content: 'não é comando' },
+    sis('s6', '08', '<local-command-stderr>Unknown theme: roxo</local-command-stderr>'),
+  ];
+  fs.writeFileSync(path.join(pasta, 'S-local.jsonl'), linhas.map((l) => JSON.stringify(l)).join('\n') + '\n');
+  const h = conversa._historico('S-local');
+  const texto = (e) => (typeof e.message.content === 'string' ? e.message.content : e.message.content.map((b) => b.text).join(' '));
+  assert.deepStrictEqual(h.map((e) => [e.tipo, texto(e)]), [
+    ['user', 'como estão os projetos da Ana e do Bruno hoje'],
+    ['assistant', 'Tudo em dia.'],
+    ['user', '<command-name>/memory</command-name>\n<command-args>abc def</command-args>'],
+    ['assistant', "/memory isn't available in this environment."],
+    ['user', '<command-name>/rename</command-name>\n<command-message>rename</command-message>\n<command-args>teste</command-args>'],
+    ['assistant', 'Session renamed to: teste'],
+    ['assistant', 'Unknown theme: roxo'],
+  ]);
+  assert.ok(h.every((e) => e.antigo), 'tudo marcado como histórico');
+  assert.strictEqual(h[3].ts, Date.parse(hora('03')));
+  // O aviso em português do comando só de terminal volta igual ao de ao vivo, com o comando inteiro.
+  assert.deepStrictEqual([h[3].naoDisponivel, h[3].comando], ['memory', '/memory abc def']);
+  assert.strictEqual(h[5].naoDisponivel, undefined);
+  assert.strictEqual(h[3].message.model, '<synthetic>', 'a saída do comando não é fala do modelo');
+  // Fora do "o usuário escreveu": comando não autoriza nada.
+  const o = conversa._pegar('orquestrador');
+  const guardados = o.eventos;
+  o.eventos = h.map((e) => ({ ...e, ts: Date.now() }));
+  try {
+    assert.strictEqual(conversa.usuarioEscreveu('/memory abc def e mais um pouco'.slice(0, 15)), false);
+    assert.strictEqual(conversa.usuarioEscreveu('como estão os projetos da Ana'), true, 'a mensagem digitada continua valendo');
+  } finally { o.eventos = guardados; }
+  // Fora do "voltar": os pontos de volta são só as mensagens digitadas (aqui, uma).
+  assert.deepStrictEqual(conversa._pontoDeVoltaArquivo('S-local', 0, 'como estão os projetos da Ana e do Bruno hoje'), { ate: null, texto: 'como estão os projetos da Ana e do Bruno hoje' });
+  assert.throws(() => conversa._pontoDeVoltaArquivo('S-local', 0, '/memory abc def'), /não achei essa mensagem/, 'comando não é ponto de volta');
+});
+
 // Pedido de 2026-11-13: recado que o usuário mandou enviar não pede aprovação
 // de novo — mas só vale o trecho de uma mensagem que ELE digitou, há pouco.
 test('conversa: o trecho de autorização tem de estar numa mensagem digitada pelo usuário', () => {

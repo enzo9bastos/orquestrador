@@ -19,7 +19,10 @@ test('terminal externo: pula o que não existe e abre o primeiro que existe', as
   const anotado = path.join(casa, 'args.txt');
   fs.writeFileSync(path.join(bin, 'xterm'), `#!/bin/sh\nprintf '%s ' "$@" > '${anotado}'\n`, { mode: 0o755 });
   assert.strictEqual(await terminal.abrir('agente-1', { env: { ...process.env, PATH: bin } }), true);
-  for (let i = 0; i < 40 && !fs.existsSync(anotado); i++) await new Promise((r) => setTimeout(r, 50));
+  // Espera o conteúdo, não só o arquivo: o `>` do terminal falso cria o arquivo vazio
+  // antes de escrever, e com a máquina carregada o teste lia nesse intervalo.
+  const escrito = () => { try { return fs.readFileSync(anotado, 'utf8').trim().length > 0; } catch { return false; } };
+  for (let i = 0; i < 100 && !escrito(); i++) await new Promise((r) => setTimeout(r, 50));
   assert.strictEqual(fs.readFileSync(anotado, 'utf8').trim(), '-- tmux attach -f ignore-size -t agente-1');
 });
 
