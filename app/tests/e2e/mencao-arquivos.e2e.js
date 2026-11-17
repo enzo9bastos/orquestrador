@@ -39,14 +39,14 @@ test('"@" com arquivos', async (t) => {
     assert.strictEqual(await app.avaliar("document.getElementById('sugestoes').hidden"), true);
   });
 
-  await t.test('no máximo 6 arquivos, e os grupos vêm na ordem Arquivos, Notas, Workflows', async () => {
+  await t.test('no máximo 6 arquivos, e os grupos vêm na ordem Arquivos, Notas, Workflows (e depois Demandas, Recados, Agentes)', async () => {
     await digitar('@doc');
     await app.esperar("document.querySelectorAll('#sugestoes .grupo-sugestao').length >= 1 && [...document.querySelectorAll('#sugestoes .nome-comando')].some((x) => /docs\\//.test(x.textContent))", 4000);
     const arquivos = await doGrupo('Arquivos');
     assert.strictEqual(arquivos.length, 6, JSON.stringify(arquivos));
     assert.strictEqual(arquivos[0], '@docs/');
     await digitar('@');
-    await app.esperar("[...document.querySelectorAll('#sugestoes .grupo-sugestao')].map((x) => x.textContent.trim()).join() === 'Arquivos,Notas,Workflows'", 4000);
+    await app.esperar("[...document.querySelectorAll('#sugestoes .grupo-sugestao')].map((x) => x.textContent.trim()).join() === 'Arquivos,Notas,Workflows,Demandas,Recados,Agentes'", 4000);
     assert.deepStrictEqual(await doGrupo('Arquivos'), ['@src/', '@LEIAME.md', '@docs/'], 'sem texto: o que está na raiz da pasta');
     assert.deepStrictEqual(await doGrupo('Notas'), ['@nota:']);
     assert.deepStrictEqual(await doGrupo('Workflows'), ['@workflow:']);

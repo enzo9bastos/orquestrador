@@ -98,6 +98,9 @@ protocol), so there is no terminal to babysit.
   shows up as "You ran", with its output. The output goes to Claude with your next message. Only a `!` that you
   typed or pasted yourself and sent with Enter counts; text arriving from an agent's request, a workflow, a
   shortcut or the model never becomes a command. See [SECURITY.md](SECURITY.md).
+- **`@` mentions a request, an agent message or an agent**: besides files, notes and workflows, `@demanda:`,
+  `@recado:` and `@agente:` list the ones in the panels; what you mention goes along with the message (the
+  request's data and note, the message's text, the agent's project and task). The balloon shows only what you wrote.
 - **`@` with files**: typing `@` in the box suggests files from the conversation's folder (the same ones Claude
   Code shows in the terminal), besides notes and workflows. The chosen file goes attached to the message. While
   Claude is working, `@` shows notes and workflows only.

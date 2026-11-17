@@ -105,6 +105,9 @@ que no hay ninguna terminal que vigilar.
   conversación, y aparece como "You ran", con la salida. La salida va a Claude junto con tu siguiente mensaje.
   Solo vale el `!` que tú mismo escribiste o pegaste y enviaste con Enter; el texto que llega por un pedido de
   agente, un workflow, un atajo o el modelo nunca se vuelve comando. Mira [SECURITY.md](SECURITY.md).
+- **`@` menciona una demanda, un recado o un agente**: además de archivos, notas y workflows, `@demanda:`, `@recado:`
+  y `@agente:` listan los de los paneles; lo que mencionas va junto con el mensaje (los datos y la nota de la demanda,
+  el texto del recado, el proyecto y la tarea del agente). El globo muestra solo lo que escribiste.
 - **`@` con archivos**: escribir `@` en la caja sugiere los archivos de la carpeta de la conversación (los mismos
   que Claude Code muestra en la terminal), además de notas y workflows. El archivo elegido va adjunto al mensaje.
   Mientras Claude trabaja, `@` muestra solo notas y workflows.
