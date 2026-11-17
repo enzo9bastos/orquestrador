@@ -7,6 +7,8 @@ const log = (o) => fs.appendFileSync(process.env.CODEX_FALSO_LOG, JSON.stringify
 const sai = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 const nota = (method, params) => sai({ method, params });
 log({ args: process.argv.slice(2) });
+// A pasta em que o app subiu o Codex, num arquivo à parte ($CODEX_FALSO_LOG.ambiente; o registro principal não muda).
+if (process.env.CODEX_FALSO_LOG) fs.appendFileSync(`${process.env.CODEX_FALSO_LOG}.ambiente`, JSON.stringify({ cwd: process.cwd() }) + '\n');
 // $CODEX_FALSO_SAI: escreve o texto no stderr e sai com código 1 antes de
 // responder qualquer coisa (o Codex que cai ao retomar).
 if (process.env.CODEX_FALSO_SAI) { process.stderr.write(process.env.CODEX_FALSO_SAI + '\n'); process.exit(1); }

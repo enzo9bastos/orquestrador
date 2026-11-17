@@ -24,8 +24,28 @@ const permissoes = require('./permissoes');
 const elicitacao = require('./elicitacao');
 const capacidades = require('./capacidades');
 const perguntaDeLado = require('./pergunta-de-lado');
+const confianca = require('./confianca');
 
-const PASTA = os.homedir(); // as conversas trabalham a partir de ~
+const PASTA = os.homedir(); // a pasta pessoal: onde roda o orquestrador e a conversa que não escolheu outra
+// Pasta de uma conversa (plano 3.1): vazio ou "~" é a pasta pessoal; senão um caminho
+// completo de uma pasta que existe. Devolve o caminho de verdade (sem links), que é o que
+// vai para o motor e o que o cartão de confiança confere.
+const casaDeVerdade = () => { try { return fs.realpathSync(PASTA); } catch { return PASTA; } };
+function pastaDeConversa(p) {
+  if (p === undefined || p === null || p === '' || p === '~') return PASTA;
+  if (typeof p !== 'string' || p.includes('\0') || p.length > 4096) throw new Error('pasta inválida');
+  const abs = p.startsWith('~/') ? path.join(PASTA, p.slice(2)) : p;
+  if (!path.isAbsolute(abs)) throw new Error('a pasta precisa ser um caminho completo');
+  let real;
+  try { real = fs.realpathSync(abs); } catch { throw new Error(`a pasta não existe: ${p}`); }
+  let st = null;
+  try { st = fs.statSync(real); } catch { /* cai no erro abaixo */ }
+  if (!st || !st.isDirectory()) throw new Error(`não é uma pasta: ${p}`);
+  return real === casaDeVerdade() ? PASTA : real;
+}
+const ehPasta = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
+// Como a pessoa lê: com ~ no lugar da pasta pessoal.
+const exibirPasta = (p) => (p === PASTA ? '~' : p.startsWith(PASTA + path.sep) ? `~${p.slice(PASTA.length)}` : p);
 const TESTE = process.env.ORQ_APP_TESTE === '1';
 const CACHE = path.join(os.homedir(), '.cache', 'orq-app');
 // O modo de teste guarda as próprias conversas: abrir o app de verdade depois
@@ -355,7 +375,7 @@ function comandosLocais() {
 }
 
 class Conversa {
-  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null, rodada = false }) {
+  constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null, rodada = false, pasta = null, semProjeto = false }) {
     // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
     // orquestrador segue a "IA do orquestrador" da configuração; trocar de
     // motor guarda a conversa do anterior em sessoesMotor e retoma a do novo.
@@ -389,6 +409,18 @@ class Conversa {
     this.controles = new Map();
     // Pergunta rápida (/btw): as perguntas e respostas desta conversa, só na memória.
     this.lado = { trocas: [], pendente: null, n: 0 };
+    // Pasta de trabalho (plano 3.1): o caminho de verdade onde o motor desta conversa roda.
+    // Não muda depois que a conversa existe, e só entra por aqui (a tela escolhe ao criar):
+    // nunca por recado, workflow ou pelo modelo. O orquestrador roda sempre na pessoal.
+    this.pasta = !orquestrador && typeof pasta === 'string' && path.isAbsolute(pasta) && !pasta.includes('\0') ? pasta : PASTA;
+    // Aberta sem as configurações do projeto: hooks, MCP e regras da pasta ficam de fora.
+    this.semProjeto = this.pasta !== PASTA && semProjeto === true;
+    // Porteiro da pasta (confianca.js): fora da pasta pessoal, o Claude só sobe depois de a
+    // pessoa aceitar o que a pasta configura. porteiro = conferência em andamento ou cartão
+    // esperando resposta; passe = liberada para UMA subida (cada subida confere de novo).
+    this.porteiro = null;
+    this.passe = false;
+    this.tentativasPasta = 0;
     // Modo rápido (/fast): true/false escolhido aqui; null = o padrão do Claude.
     this.rapido = typeof rapido === 'boolean' ? rapido : null;
     // Pastas extras de trabalho (/add-dir), passadas em toda subida.
@@ -411,7 +443,7 @@ class Conversa {
     this.proc = null;
     this.eventos = [];
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
-    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: PASTA, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, fila: [], filaParada: false, shell: false, rotuloLongo: null, ocupado: false };
+    this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: this.pasta, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, fila: [], filaParada: false, shell: false, rotuloLongo: null, ocupado: false };
   }
 
   // O orquestrador segue a IA escolhida na configuração. Só troca parado:
@@ -447,6 +479,8 @@ class Conversa {
     // Modo rápido: no modo -p o Claude só libera com o fastMode nas flags.
     if (this.rapido !== null) args.push('--settings', JSON.stringify({ fastMode: this.rapido }));
     for (const p of this.pastasExtras) args.push('--add-dir', p);
+    // Aberta sem as configurações do projeto: só as do usuário valem; hooks, MCP e regras da pasta ficam de fora.
+    if (this.semProjeto) args.push(...confianca.argumentosSemProjeto());
     // Deixa o Bypass disponível como opção (não liga): só conversa avulsa, só com a opção das Configurações.
     if (!this.orquestrador && bypassLigado()) args.push(PERMITE_BYPASS);
     // Voltar: abre a sessão original cortada naquele ponto, numa sessão nova
@@ -498,8 +532,8 @@ class Conversa {
     if (!r.pode) return { pode: false, motivo: 'sem-ponto', ...(r.erro ? { erro: r.erro } : {}) };
     if (!r.lista.length) return { pode: false, motivo: 'nada-mudou' };
     let escritas = new Map();
-    try { escritas = voltarArquivos.ultimasEscritas(arqTranscript(sessao), uuid, PASTA); } catch { /* sem o histórico, só não marca "mexido por fora" */ }
-    return { pode: true, lista: r.lista.map((f) => ({ caminho: f, porFora: voltarArquivos.mexido(f, escritas, PASTA) })), mais: r.mais, menos: r.menos, bytes: voltarArquivos.tamanho(r.lista, PASTA) };
+    try { escritas = voltarArquivos.ultimasEscritas(arqTranscript(sessao), uuid, this.pasta); } catch { /* sem o histórico, só não marca "mexido por fora" */ }
+    return { pode: true, lista: r.lista.map((f) => ({ caminho: f, porFora: voltarArquivos.mexido(f, escritas, this.pasta) })), mais: r.mais, menos: r.menos, bytes: voltarArquivos.tamanho(r.lista, this.pasta) };
   }
   async voltarEnsaio(ordemDoFim, textoBalao) {
     const p = this.pontoParaVoltar(ordemDoFim, textoBalao);
@@ -513,7 +547,7 @@ class Conversa {
     const p = this.pontoParaVoltar(ordemDoFim, textoBalao);
     const e = await this.ensaioDeArquivos(p.de, p.uuid);
     if (!e.pode) throw new Error(`não há arquivos para voltar neste ponto (${e.erro || e.motivo}); nada mudou`);
-    const copia = voltarArquivos.copiar(e.lista.map((x) => x.caminho), PASTA, voltarArquivos.destinoNovo());
+    const copia = voltarArquivos.copiar(e.lista.map((x) => x.caminho), this.pasta, voltarArquivos.destinoNovo());
     if (!copia.ok) throw new Error(`não consegui guardar a cópia dos arquivos antes de voltar (${copia.erro}); nada mudou`);
     const onde = voltarArquivos.exibir(copia.pasta);
     let r;
@@ -532,20 +566,142 @@ class Conversa {
     return { texto, arquivos: resumo };
   }
 
+  // --- a pasta da conversa e o porteiro dela (confianca.js; plano 3.1) -----------------
+  // O histórico que a conversa mostra antes de o motor subir (o mesmo que o iniciar carrega).
+  historicoGuardado() {
+    return this.volta ? historicoDoTranscript(this.volta.de, this.volta.ate) : this.sessao ? historicoDoTranscript(this.sessao) : this.forkDe ? historicoDoTranscript(this.forkDe) : [];
+  }
+  // O Claude numa pasta que não é a pessoal só sobe depois de a pessoa aceitar o que a
+  // pasta configura (hooks, MCP, regras, instruções), e só se nada mudou desde o aceite.
+  // O Codex tem a confiança dele (não lê as configurações do Claude) e não passa por aqui.
+  precisaDoPorteiro() { return this.motor === 'claude' && this.pasta !== PASTA && !this.semProjeto; }
+  // O que a tela desenha no cartão de confiança (ou null): só dado conferido e limitado.
+  cartaoDaPasta() {
+    const p = this.porteiro;
+    if (!p || !p.perguntando || !p.resultado) return null;
+    const r = p.resultado;
+    return { pasta: r.pasta, exibir: exibirPasta(r.pasta), estado: r.estado, motivos: r.motivos, lembrar: r.lembrar, oQueRoda: r.oQueRoda, mudancas: r.mudancas, avisos: r.avisos, incerta: r.incerta };
+  }
+  avisarSemPasta() {
+    const texto = `A pasta desta conversa não existe mais: ${exibirPasta(this.pasta)}. A conversa não abre em outro lugar por conta própria; se a pasta voltar, ela abre de novo.`;
+    // Uma vez só enquanto a pasta estiver sumida (cada mensagem tentada não repete a linha).
+    if (this.semPastaAvisado) return;
+    this.semPastaAvisado = true;
+    this.registrar({ tipo: 'erro', texto });
+  }
+  // Confere a pasta (uma conferência por vez). Aceita e igual ao aceite: sobe. Senão, o
+  // cartão vai para a tela e a conversa espera a resposta (responderPasta).
+  conferirPasta() {
+    if (this.porteiro) return this.porteiro.fim;
+    const p = { resultado: null, perguntando: false, fim: null };
+    this.porteiro = p;
+    p.fim = (async () => {
+      let r;
+      try { r = await confianca.verificar(this.pasta); } catch (e) {
+        if (this.porteiro === p) { this.porteiro = null; this.registrar({ tipo: 'erro', texto: `Não deu para conferir a pasta desta conversa (${exibirPasta(this.pasta)}): ${String((e && e.message) || e).slice(0, 300)}` }); }
+        return false;
+      }
+      if (this.porteiro !== p) return false; // a conversa fechou no meio
+      p.resultado = r;
+      if (!r.perguntar) return this.liberarPasta(p);
+      p.perguntando = true;
+      this.enviar('conversa:tudo', this.estado());
+      avisarLista();
+      return false;
+    })();
+    return p.fim;
+  }
+  // Logo antes de subir: mede de novo. Mudou entre a conferência e a subida: confere outra vez.
+  async liberarPasta(p) {
+    const c = await confianca.conferirNaHora(p.resultado);
+    if (this.porteiro !== p) return false;
+    this.porteiro = null;
+    if (!c.ok) {
+      if (c.motivo === 'pasta-sumiu' || ++this.tentativasPasta > 3) {
+        if (c.motivo === 'pasta-sumiu') this.avisarSemPasta();
+        else this.registrar({ tipo: 'erro', texto: `A pasta desta conversa (${exibirPasta(this.pasta)}) está mudando enquanto o app confere. Tente abrir de novo.` });
+        this.tentativasPasta = 0;
+        this.enviar('conversa:tudo', this.estado());
+        return false;
+      }
+      return this.conferirPasta();
+    }
+    this.tentativasPasta = 0;
+    this.passe = true;
+    this.iniciar();
+    this.andarFila();
+    return !!this.proc;
+  }
+  // A resposta ao cartão: 'confiar' (grava o aceite do que a pessoa VIU e abre), 'sem'
+  // (abre sem as configurações do projeto, desta vez e nas próximas) ou 'cancelar'.
+  async responderPasta(escolha) {
+    const p = this.porteiro;
+    if (!p || !p.perguntando) return { ok: false, erro: 'não há pedido de confiança da pasta esperando resposta' };
+    if (!['confiar', 'sem', 'cancelar'].includes(escolha)) return { ok: false, erro: 'resposta desconhecida' };
+    if (escolha === 'cancelar') {
+      this.porteiro = null;
+      this.enviar('conversa:tudo', this.estado());
+      avisarLista();
+      return { ok: true, aberta: false };
+    }
+    if (escolha === 'sem') {
+      this.porteiro = null;
+      this.semProjeto = true;
+      gravarLista();
+      this.iniciar();
+      this.andarFila();
+      avisarLista();
+      return { ok: true, aberta: !!this.proc };
+    }
+    // Se a pasta mudou entre o cartão e o clique, o aceite não vale: o cartão volta com o que há agora.
+    const c = await confianca.conferirNaHora(p.resultado);
+    if (this.porteiro !== p) return { ok: false, erro: 'a conversa fechou' };
+    if (!c.ok) {
+      this.porteiro = null;
+      if (c.motivo === 'pasta-sumiu') { this.avisarSemPasta(); this.enviar('conversa:tudo', this.estado()); return { ok: true, aberta: false }; }
+      await this.conferirPasta();
+      return { ok: true, aberta: !!this.proc, mudou: true };
+    }
+    const aceite = await confianca.aceitar(p.resultado);
+    if (this.porteiro !== p) return { ok: false, erro: 'a conversa fechou' };
+    this.porteiro = null;
+    this.passe = true;
+    this.iniciar();
+    this.andarFila();
+    avisarLista();
+    return { ok: true, aberta: !!this.proc, lembrado: aceite.lembrado === true };
+  }
+
   iniciar({ primeiraMensagem } = {}) {
     if (this.proc) return;
     this.acertarMotor();
+    if (this.pasta !== PASTA) {
+      // A conversa nunca cai para a pasta pessoal por conta própria: pasta que sumiu é erro.
+      if (!ehPasta(this.pasta)) {
+        if (!this.eventos.length) this.eventos = this.motor === 'codex' ? [] : this.historicoGuardado();
+        this.avisarSemPasta();
+        this.enviar('conversa:tudo', this.estado());
+        return;
+      }
+      this.semPastaAvisado = false;
+      if (this.precisaDoPorteiro() && !this.passe) {
+        if (!this.porteiro) { this.eventos = this.historicoGuardado(); this.enviar('conversa:tudo', this.estado()); }
+        this.conferirPasta();
+        return;
+      }
+    }
+    this.passe = false;
     if (this.motor === 'codex') {
       const retomando = !!this.sessao;
       this.eventos = []; // o histórico chega quando o Codex retoma a conversa
       this.enviar('conversa:tudo', this.estado());
-      codex.iniciar(this, { comando: ias.comando('codex', config.ler().iasCaminhos), cwd: PASTA, env: ambienteLimpo(), ctx: CTX_CODEX });
+      codex.iniciar(this, { comando: ias.comando('codex', config.ler().iasCaminhos), cwd: this.pasta, env: ambienteLimpo(), ctx: CTX_CODEX });
       if (!retomando && primeiraMensagem) this.mandar(primeiraMensagem);
       return;
     }
     const args = this.argumentos();
     const retomando = !!(this.volta || this.sessao || this.forkDe);
-    this.eventos = this.volta ? historicoDoTranscript(this.volta.de, this.volta.ate) : this.sessao ? historicoDoTranscript(this.sessao) : this.forkDe ? historicoDoTranscript(this.forkDe) : [];
+    this.eventos = this.historicoGuardado();
     this.enviar('conversa:tudo', this.estado());
 
     // O caminho escolhido na engrenagem (IAs conectadas), se houver e for
@@ -554,7 +710,7 @@ class Conversa {
     // do ✎) se nasce com esta variável (conferido no 2.1.326). Desligável nas Configurações.
     const env = ambienteLimpo();
     if (config.ler().pontosDeVolta !== false) env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING = '1';
-    const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: this.pasta, env, stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
     proc.permiteBypass = args.includes(PERMITE_BYPASS);
     // Pedidos pendentes eram do processo anterior.
@@ -894,6 +1050,9 @@ class Conversa {
     // resposta não vira notificação.
     this.bastidor = /^<orq-(workflow|topico|recado) /.test(texto);
     if (!this.proc) this.iniciar();
+    // A conversa não subiu (cartão da pasta esperando resposta, pasta conferindo ou pasta que
+    // sumiu): a mensagem espera na fila, à vista, e vai quando a conversa abrir. Nada se perde.
+    if (!this.proc && this.motor === 'claude' && this.pasta !== PASTA) { this.porNaFila(texto, imagens, exibir); return false; }
     // Conversa avulsa ganha o nome da primeira coisa escrita nela.
     // Comando ("/model", "/rename x") não é assunto: o título espera a próxima.
     if (!this.orquestrador && /^Conversa \d+$/.test(this.titulo) && !texto.trim().startsWith('/')) {
@@ -941,9 +1100,9 @@ class Conversa {
       });
       return { id: marca.id };
     }
-    const exec = shell.rodar(comando, { cwd: PASTA, env: ambienteLimpo() });
+    const exec = shell.rodar(comando, { cwd: this.pasta, env: ambienteLimpo() });
     const id = `sh${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    const ev = { tipo: 'shell', id, comando, estado: 'rodando', pasta: PASTA };
+    const ev = { tipo: 'shell', id, comando, estado: 'rodando', pasta: this.pasta };
     this.shellRodando = { id, parar: exec.parar };
     this.info.shell = true;
     this.registrar(ev);
@@ -1099,7 +1258,7 @@ class Conversa {
       let sempre = !pergunta && typeof decisao.sempre === 'string' ? permSempre.atualizacao(p.sugestoes, decisao.sempre) : null;
       if (sempre && decisao.sempre !== 'session') {
         // A regra vai para um arquivo: a versão de agora dele fica guardada antes.
-        const copia = permissoes.copiaAntes(decisao.sempre, PASTA);
+        const copia = permissoes.copiaAntes(decisao.sempre, this.pasta);
         if (!copia.ok) { sempre = null; this.registrar({ tipo: 'aviso', texto: `Permiti só desta vez: não consegui guardar a cópia do arquivo de permissões antes de gravar (${copia.erro}).` }); }
       }
       // Pediram "sempre" e a regra não foi: a tela precisa dizer "desta vez", não "sempre".
@@ -1210,7 +1369,7 @@ class Conversa {
       const timer = setTimeout(() => { if (this.controles.delete(id)) falha(new Error(`o Claude não respondeu ao ${subtype}`)); }, ms);
       this.controles.set(id, { ok, falha, timer });
       if (!this.escrever({ type: 'control_request', request_id: id, request: { subtype, ...extra } })) {
-        this.controles.delete(id); clearTimeout(timer); falha(new Error('o Claude não está aberto'));
+        this.controles.delete(id); clearTimeout(timer); falha(new Error(this.porteiro ? 'a conversa ainda não abriu: falta responder o cartão da pasta' : 'o Claude não está aberto'));
       } else if (aoMandar) aoMandar(id);
     });
   }
@@ -1448,16 +1607,18 @@ class Conversa {
 
   parar() {
     this.pararShell(); // comando "!" do usuário não fica rodando depois que a conversa fecha
+    this.porteiro = null; this.passe = false; // conferência da pasta em andamento não sobe a conversa depois de fechada
     if (this.proc) { this.proc.stdin.end(); this.proc.kill(); this.proc = null; }
   }
 
   estado() {
     const comandos = this.motor === 'codex' ? listaComandos.montar({ motor: 'codex', skills: codex.comandosDoCodex() }) : this.comandos || comandosLocais();
-    return { id: this.id, comandos, eventos: this.eventos, pendentes: [...this.pendentes.values()], info: this.info, vivo: !!this.proc };
+    return { id: this.id, comandos, eventos: this.eventos, pendentes: [...this.pendentes.values()], info: this.info, vivo: !!this.proc, pasta: this.cartaoDaPasta() };
   }
 
   resumo() {
-    return { id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, motor: this.motor, ocupado: this.info.ocupado, pedidos: this.pendentes.size, vivo: !!this.proc };
+    return { id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, motor: this.motor, ocupado: this.info.ocupado, pedidos: this.pendentes.size + (this.porteiro && this.porteiro.perguntando ? 1 : 0), vivo: !!this.proc,
+      pasta: exibirPasta(this.pasta), pessoal: this.pasta === PASTA, semProjeto: this.semProjeto };
   }
 }
 
@@ -1465,7 +1626,8 @@ class Conversa {
 function gravarLista() {
   fs.mkdirSync(CACHE, { recursive: true });
   const lista = [...conversas.values()].map((c) => ({ id: c.id, titulo: c.titulo, sessao: c.sessao, orquestrador: c.orquestrador, modelo: c.modeloEscolhido, esforco: c.esforco, anteriores: c.anteriores, volta: c.volta || undefined, motor: c.motor !== 'claude' ? c.motor : undefined, sessoesMotor: Object.keys(c.sessoesMotor || {}).length ? c.sessoesMotor : undefined, modo: c.modo && c.modo !== MODO_APP ? c.modo : undefined,
-    rapido: c.rapido !== null ? c.rapido : undefined, pastasExtras: c.pastasExtras.length ? c.pastasExtras : undefined, forkDe: c.forkDe || undefined, rodada: c.rodada || undefined }));
+    rapido: c.rapido !== null ? c.rapido : undefined, pastasExtras: c.pastasExtras.length ? c.pastasExtras : undefined, forkDe: c.forkDe || undefined, rodada: c.rodada || undefined,
+    pasta: c.pasta !== PASTA ? c.pasta : undefined, semProjeto: c.semProjeto || undefined }));
   fs.writeFileSync(ARQ_LISTA, JSON.stringify(lista, null, 2) + '\n');
 }
 
@@ -1531,11 +1693,16 @@ function abrir(id) {
   return c.estado();
 }
 
-function nova() {
+// pasta: onde a conversa trabalha (vazio = a pessoal); motor: 'claude' ou 'codex'. A pasta
+// é conferida aqui (existe, é pasta, caminho de verdade); o cartão de confiança aparece
+// quando a conversa for subir (iniciar), antes de qualquer coisa da pasta rodar.
+function nova({ pasta = null, motor = 'claude' } = {}) {
+  const onde = pastaDeConversa(pasta);
+  if (!MOTORES.includes(motor)) throw new Error('motor desconhecido');
   let n = 2;
   const titulos = new Set([...conversas.values()].map((c) => c.titulo));
   while (titulos.has(`Conversa ${n}`)) n++;
-  const c = new Conversa({ id: `c${Date.now().toString(36)}`, titulo: `Conversa ${n}` });
+  const c = new Conversa({ id: `c${Date.now().toString(36)}`, titulo: `Conversa ${n}`, pasta: onde, motor });
   conversas.set(c.id, c);
   gravarLista();
   avisarLista();
@@ -1576,11 +1743,11 @@ async function ramificar(id, primeira = '') {
     const r = await c.codex('thread/fork', {});
     const tid = (r && r.thread && r.thread.id) || (r && r.threadId);
     if (!tid) throw new Error('o Codex não devolveu a conversa nova');
-    nova = new Conversa({ id: `c${Date.now().toString(36)}`, titulo, motor: 'codex', sessao: tid });
+    nova = new Conversa({ id: `c${Date.now().toString(36)}`, titulo, motor: 'codex', sessao: tid, pasta: c.pasta });
   } else {
     const de = c.sessao || (c.volta && c.volta.de);
     if (!de) throw new Error('esta conversa ainda não começou: não há o que copiar');
-    nova = new Conversa({ id: `c${Date.now().toString(36)}`, titulo, forkDe: de, modelo: c.modeloEscolhido, esforco: c.esforco });
+    nova = new Conversa({ id: `c${Date.now().toString(36)}`, titulo, forkDe: de, modelo: c.modeloEscolhido, esforco: c.esforco, pasta: c.pasta, semProjeto: c.semProjeto });
   }
   conversas.set(nova.id, nova);
   gravarLista();
@@ -1631,6 +1798,9 @@ module.exports = {
   rodarShell: (id, comando) => pegar(id).rodarShell(comando),
   pararShell: (id) => pegar(id).pararShell(),
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
+  // A resposta ao cartão de confiança da pasta: 'confiar', 'sem' ou 'cancelar'.
+  responderPasta: (id, escolha) => pegar(id).responderPasta(escolha),
+  pastaDeConversa, exibirPasta,
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),
   voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),
