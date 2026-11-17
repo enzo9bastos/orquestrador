@@ -4,6 +4,36 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.4.2 (2026-11-17)
+
+- Desktop helper: what counts is what the user can see, not where the
+  keyboard is. With the app in view the warning stays inside the app, even
+  while typing in another window or on another monitor; and if the helper is
+  already out, it leaves once the app comes into view.
+- The "Update ready. Restart the app" banner now also shows when a release
+  changes only code outside the screen.
+- The app records which control requests the installed Claude CLI serves, per
+  CLI version. It asks only the read-only ones, and only while the
+  conversation is idle. Nothing changes on screen.
+- New `scripts/contrato-cli.js`: checks the app's contract with the installed
+  Claude and Codex CLIs in a temporary home and without network, to run after
+  each CLI update.
+- Base modules for the next stages, not wired to anything yet: `apagar.js`
+  (delete and overwrite only through the trash or a copy, with the cost in
+  numbers and one confirmation per item) and `confianca.js` (trusted folder:
+  real path plus a fingerprint of what the folder would run).
+- Tests: the fake Claude CLI answers unknown requests like the real one and
+  can simulate another CLI version or a missing request.
+- The in-app helper's speech balloon no longer blocks clicks on what is
+  under it.
+- Turning the desktop pet off in Settings now holds from the moment the app
+  opens.
+- Tests: the screen tests draw on a virtual display and no longer depend on
+  the user's own session (a locked screen used to fail them); they run in
+  parallel (about 2 min 40 s instead of 7 min 40 s), delete the temporary
+  folders they create, use a private tmux and never start the real CLIs.
+  `npm test -- --rapido` skips the slow files.
+
 ## 0.4.1 (2026-11-16)
 
 - Desktop helper: when it walks out with a question and the user goes
