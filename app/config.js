@@ -20,6 +20,9 @@ const PADRAO = {
   // "!comando" na caixa roda um comando do usuário no computador dele (como no terminal
   // do Claude Code). Vem desligado: sem ligar, texto começando com "!" é só uma mensagem.
   comandoNaCaixa: false,
+  // O Claude guarda um ponto de volta dos arquivos a cada mensagem (como no terminal), para
+  // o ✎ poder voltar também os arquivos. Vale para conversas abertas depois de mudar.
+  pontosDeVolta: true,
   // Iniciar e Desligar: 'barra' (um botão na barra da conversa) ou 'menu' (dentro do ⋯).
   iniciarDesligar: 'barra',
   shiftTabTrocaModo: true,
@@ -196,7 +199,7 @@ function validar(m) {
       case 'idioma': aceitar(k, ['pt-BR', 'en'].includes(v), v); break;
       case 'destaque': aceitar(k, /^#[0-9a-f]{6}$/i.test(v || ''), String(v).toLowerCase()); break;
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
-      case 'mostrarBypass': case 'shiftTabTrocaModo': case 'comandoNaCaixa': case 'teclasNosCartoes': aceitar(k, typeof v === 'boolean', v); break;
+      case 'mostrarBypass': case 'shiftTabTrocaModo': case 'comandoNaCaixa': case 'teclasNosCartoes': case 'pontosDeVolta': aceitar(k, typeof v === 'boolean', v); break;
       case 'iniciarDesligar': aceitar(k, ['barra', 'menu'].includes(v), v); break;
       case 'atalhosColunas': aceitar(k, atalhosColunasOk(v), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;

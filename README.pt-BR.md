@@ -128,7 +128,13 @@ há terminal para vigiar.
   Repertório; `@note:` e `@workflow:` anexam uma nota ou um workflow; blocos de código têm *Copiar* e *▶ Terminal*.
 - **Mandou algo errado?** Passe o mouse na sua mensagem e clique em ✎ para **voltar**: aquela mensagem e tudo o que
   veio depois saem do contexto do Claude (a conversa antiga fica guardada) e o texto volta para a caixa para corrigir.
-  Com a caixa vazia, ↑ / ↓ trazem de volta o que você mandou.
+  O ✎ abre um cartão abaixo da mensagem com três opções: *Só a conversa* (o padrão; Enter confirma), *Conversa e
+  arquivos* e *Só os arquivos*. Para os arquivos, o app pergunta antes ao Claude o que voltaria (quantos arquivos,
+  quantas linhas; arquivo alterado depois da última edição do Claude é marcado), guarda uma cópia de como eles estão
+  agora numa pasta nova em `~/.local/share/orq-app/versoes/`, e só um clique de verdade no botão vermelho volta os
+  arquivos. O que os comandos fizeram (arquivo criado por script, banco de dados, commits do git) não volta. Os
+  pontos de volta podem ser desligados em Configurações › Avançado. Com a caixa vazia, ↑ / ↓ trazem de volta o que
+  você mandou.
 - **Nova conversa** abre conversas paralelas ao lado do orquestrador.
 
 ### 🧭 Agentes

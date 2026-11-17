@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('orq', {
     responder: (id, reqId, d) => ipcRenderer.invoke('conversa:responder', id, reqId, d),
     interromper: (id) => ipcRenderer.invoke('conversa:interromper', id),
     voltar: (id, ordemDoFim, texto) => ipcRenderer.invoke('conversa:voltar', id, ordemDoFim, texto),
+    voltarEnsaio: (id, ordemDoFim, texto) => ipcRenderer.invoke('conversa:voltarEnsaio', id, ordemDoFim, texto),
+    voltarComArquivos: (id, ordemDoFim, texto, escopo) => ipcRenderer.invoke('conversa:voltarComArquivos', id, ordemDoFim, texto, escopo),
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
     modo: (id, modo) => ipcRenderer.invoke('conversa:modo', id, modo),
     reiniciar: (id) => ipcRenderer.invoke('conversa:reiniciar', id),

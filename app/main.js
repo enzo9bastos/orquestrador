@@ -403,6 +403,17 @@ ipcMain.handle('conversa:voltar', (_e, id, ordemDoFim, texto) => {
     return { ok: true, texto: conversa.voltar(id, Number(ordemDoFim) || 0, String(texto || '').slice(0, 20000)) };
   } catch (e) { return { ok: false, erro: e.message }; }
 });
+// O ✎ com arquivos (plano 7.1). Ensaio: o que voltaria, sem mudar nada. Volta: os arquivos
+// (com a cópia de como estão agora guardada antes) e, com escopo 'tudo', a conversa.
+ipcMain.handle('conversa:voltarEnsaio', async (_e, id, ordemDoFim, texto) => {
+  try { return { ok: true, ...(await conversa.voltarEnsaio(id, Number(ordemDoFim) || 0, String(texto || '').slice(0, 20000))) }; } catch (e) { return { ok: false, erro: e.message }; }
+});
+ipcMain.handle('conversa:voltarComArquivos', async (_e, id, ordemDoFim, texto, escopo) => {
+  try {
+    if (escopo === 'tudo') ajudante.limparAcoes(id);
+    return { ok: true, ...(await conversa.voltarComArquivos(id, Number(ordemDoFim) || 0, String(texto || '').slice(0, 20000), escopo)) };
+  } catch (e) { return { ok: false, erro: e.message }; }
+});
 ipcMain.handle('conversa:configurar', (_e, id, o) => conversa.configurar(id, o));
 ipcMain.handle('conversa:reiniciar', (_e, id) => conversa.reiniciar(id));
 ipcMain.handle('conversa:nova', () => conversa.nova());

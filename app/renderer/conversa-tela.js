@@ -313,11 +313,17 @@
     caixa.append(el);
   }
 
-  function aviso(texto, tipo = '') {
+  function aviso(texto, tipo = '', pasta = '') {
     grupo = null;
     const el = document.createElement('div');
     el.className = `aviso-conversa ${tipo}`;
     el.textContent = texto;
+    // Aviso que cita uma pasta do app (a cópia feita antes de voltar arquivos): botão para abri-la.
+    if (pasta) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'botao-texto'; b.dataset.abrirPasta = pasta; b.textContent = 'Abrir a pasta';
+      el.append(' ', b);
+    }
     caixa.append(el);
   }
 
@@ -407,7 +413,7 @@
       caixa.append(el);
     } else if (ev.tipo === 'fim' || ev.tipo === 'erro' || ev.tipo === 'aviso') {
       limparRascunho();
-      aviso(ev.texto, ev.tipo === 'erro' ? 'erro' : '');
+      aviso(ev.texto, ev.tipo === 'erro' ? 'erro' : '', ev.tipo === 'aviso' && typeof ev.pasta === 'string' ? ev.pasta : '');
     } else if (ev.tipo === 'limpa') {
       // /clear: o que veio antes saiu da tela; fica a divisória.
       limparRascunho(); grupo = null;
@@ -927,6 +933,8 @@
     const cr = ev.target.closest('.copiar-resposta');
     if (cr) { copiarResposta(cr); return; }
     if (ev.target.closest('[data-parar-shell]')) { C.shellParar(ativa); return; }
+    const abrirP = ev.target.closest('[data-abrir-pasta]');
+    if (abrirP) { if (window.orq.abrirCaminho) window.orq.abrirCaminho(abrirP.dataset.abrirPasta, {}); return; }
     const bc = ev.target.closest('[data-codigo]');
     if (bc) {
       const texto = bc.closest('.caixa-codigo').querySelector('pre code, pre')?.textContent ?? '';
@@ -2265,7 +2273,7 @@
     },
     // As suas mensagens (balões), da mais antiga para a mais nova (o /rewind).
     mensagens: () => [...caixa.querySelectorAll('.msg-voce[data-texto]')].map((m) => m.dataset.texto),
-    voltarPara: (i) => { const b = [...caixa.querySelectorAll('.msg-voce[data-texto]')][i]; return b ? voltarPara(b) : null; },
+    voltarPara: (i) => { const b = [...caixa.querySelectorAll('.msg-voce[data-texto]')][i]; return b ? abrirVolta(b) : null; },
     // Texto da última resposta (n = 1) ou da n-ésima de trás para frente (o /copy).
     resposta: (n = 1) => {
       const grupos = [...caixa.querySelectorAll('.msg-claude')].filter((g) => g.querySelector('.texto-claude:not(.rascunho)'));
@@ -2441,16 +2449,117 @@
     } else if (ev.key === 'Escape' && voltaPedida) fecharVolta();
   });
   entrada.addEventListener('input', () => { if (!entrada.value) posHistorico = -1; });
-  caixa.addEventListener('click', async (ev) => {
-    const b = ev.target.closest('.editar-msg');
-    if (!b) return;
-    const msg = b.closest('.msg-voce');
+  // --- cartão de voltar (plano 7.1): o ✎ abre, logo abaixo da mensagem ------------------
+  // Três alcances: só a conversa (o padrão, como sempre foi), conversa e arquivos, só os
+  // arquivos. Os dois últimos dependem do ensaio que o motor faz com o Claude (quantos
+  // arquivos, quantas linhas); sem ponto de volta ficam desligados, com o motivo. Voltar
+  // arquivos só com um clique de verdade no botão vermelho; a cópia de como eles estão
+  // agora é guardada antes, pelo motor.
+  let cartaoVolta = null; // { el, msg, depois, texto, ensaio }
+  const voltaAberta = () => !!(cartaoVolta && cartaoVolta.el.isConnected);
+  function fecharCartaoVolta() { if (cartaoVolta) { cartaoVolta.el.remove(); cartaoVolta = null; } }
+  const quantos = (n) => (n === 1 ? '1 arquivo' : `${n} arquivos`);
+  const tamanhoLegivel = (b) => (typeof b !== 'number' ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1).replace('.', ',')} MB`);
+  const SEM_PONTO = {
+    desligado: 'Os pontos de volta dos arquivos estão desligados (Configurações › Avançado). Aqui só dá para voltar a conversa.',
+    'sem-ponto': 'O Claude não tem ponto de volta dos arquivos para esta mensagem (a conversa pode ser de antes de o app guardá-los). Aqui só dá para voltar a conversa.',
+    'nada-mudou': 'O Claude não alterou nenhum arquivo depois desta mensagem. Só há a conversa para voltar.',
+    'sem-resposta': 'Não consegui conferir os arquivos com o Claude agora. Aqui só dá para voltar a conversa.',
+  };
+  function pintarVolta() {
+    if (!voltaAberta()) return;
+    const { el, ensaio } = cartaoVolta;
+    const pode = !!(ensaio && ensaio.pode);
+    const n = pode ? ensaio.lista.length : 0;
+    for (const r of el.querySelectorAll('input[value="tudo"], input[value="arquivos"]')) r.disabled = !pode;
+    const sem = !ensaio ? 'Conferindo com o Claude…' : ensaio.motivo === 'nada-mudou' ? 'Nenhum arquivo mudou depois desta mensagem.' : 'Sem ponto de volta dos arquivos nesta conversa.';
+    el.querySelector('[data-nota="tudo"]').textContent = pode ? `Além disso, ${n === 1 ? '1 arquivo volta ao que era' : `${n} arquivos voltam ao que eram`} naquele ponto.` : sem;
+    el.querySelector('[data-nota="arquivos"]').textContent = pode ? `A conversa fica como está; ${n === 1 ? '1 arquivo volta ao que era' : `${n} arquivos voltam ao que eram`} naquele ponto.` : sem;
+    const aviso1 = el.querySelector('.volta-sem-ponto');
+    aviso1.hidden = !ensaio || pode;
+    if (ensaio && !pode) aviso1.innerHTML = `<span>${SEM_PONTO[ensaio.motivo] || SEM_PONTO['sem-resposta']}</span>${ensaio.erro && ensaio.motivo === 'sem-ponto' ? ` <span class="motivo-recusa" data-sem-traducao>(${esc(curto(ensaio.erro, 200))})</span>` : ''}`;
+    const q = el.querySelector('.escopos-volta input:checked').value;
+    const painel = el.querySelector('.volta-arquivos');
+    painel.hidden = q === 'conversa' || !pode;
+    if (pode && !painel.dataset.pintado) {
+      painel.dataset.pintado = '1';
+      const porFora = ensaio.lista.filter((x) => x.porFora);
+      const mostrados = ensaio.lista.slice(0, 12);
+      painel.innerHTML = `<h4><span>${n === 1 ? '1 arquivo volta' : `${n} arquivos voltam`}</span> · <span class="linhas-mais" data-sem-traducao>+${ensaio.mais}</span> <span class="linhas-menos" data-sem-traducao>−${ensaio.menos}</span> <span>linhas</span></h4>
+        <ul class="itens-acesso">${mostrados.map((x) => `<li><code data-sem-traducao>${esc(x.caminho)}</code>${x.porFora ? ' <span class="fora-da-pasta">mexido por fora</span>' : ''}</li>`).join('')}${n > mostrados.length ? `<li><span>e mais ${n - mostrados.length}</span></li>` : ''}</ul>
+        ${porFora.length ? `<p class="nota aviso-recusa"><strong data-sem-traducao>${esc(porFora.slice(0, 5).map((x) => x.caminho).join(', '))}${porFora.length > 5 ? '…' : ''}</strong> <span>${porFora.length === 1 ? 'foi alterado depois da última edição que o Claude fez nele (por você ou por um comando). Ele volta junto: essa alteração sai do arquivo e fica só na cópia.' : 'foram alterados depois da última edição que o Claude fez neles (por você ou por um comando). Eles voltam junto: essas alterações saem dos arquivos e ficam só na cópia.'}</span></p>` : ''}
+        <p class="nota"><span>${n === 1 ? 'Antes de voltar, o app guarda o arquivo como está agora numa pasta nova em' : `Antes de voltar, o app guarda os ${n} arquivos como estão agora numa pasta nova em`}</span> <code data-sem-traducao>~/.local/share/orq-app/versoes/</code>${tamanhoLegivel(ensaio.bytes) ? ` <span data-sem-traducao>(${tamanhoLegivel(ensaio.bytes)})</span>` : ''}<span>. Não dá para escolher arquivo por arquivo: o Claude volta todos os que mudou.</span></p>
+        <p class="nota"><span>O que os comandos fizeram</span> <strong>não volta</strong><span>: arquivo criado por script, banco de dados, commits do git.</span></p>`;
+    }
+    const b = el.querySelector('[data-volta="confirmar"]');
+    b.textContent = q === 'conversa' || !pode ? 'Voltar a conversa' : q === 'tudo' ? `Voltar a conversa e ${quantos(n)}` : `Voltar ${quantos(n)}`;
+    b.className = `botao ${q === 'conversa' || !pode ? 'primario' : 'perigo'}`;
+  }
+  async function abrirVolta(msg) {
+    fecharVolta(); fecharCartaoVolta();
     const baloes = [...caixa.querySelectorAll('.msg-voce[data-texto]')];
     const depois = baloes.length - 1 - baloes.indexOf(msg);
-    if (!depois) { await voltarPara(msg); return; }
-    voltaPedida = msg;
-    $('corrigindo-texto').textContent = `Voltar até esta mensagem? Ela e ${depois === 1 ? 'a 1 mensagem sua depois dela saem' : `as ${depois} mensagens suas depois dela saem`} da conversa do Claude, com as respostas. A conversa antiga fica guardada.`;
-    $('corrigindo').hidden = false;
+    const texto = msg.dataset.texto || '';
+    const el = document.createElement('div');
+    el.className = 'cartao-pedido cartao-volta';
+    el.tabIndex = 0;
+    const nome = `volta-${Date.now().toString(36)}`;
+    const saem = !depois ? 'Esta mensagem e a resposta saem da conversa, e o texto volta para a caixa.' : depois === 1 ? 'Ela e a 1 mensagem sua depois dela saem da conversa, com as respostas.' : `Ela e as ${depois} mensagens suas depois dela saem da conversa, com as respostas.`;
+    el.innerHTML = `<div class="titulo-pedido"><span><span>Voltar para antes de:</span> <strong data-sem-traducao>«${esc(curto(texto.replace(/\s+/g, ' '), 80))}»</strong></span></div>
+      <div class="alcances escopos-volta">
+        <label class="alcance"><input type="radio" name="${nome}" value="conversa" checked><strong>Só a conversa</strong><span><span>${saem}</span> <span>Os arquivos ficam como estão.</span></span></label>
+        <label class="alcance"><input type="radio" name="${nome}" value="tudo" disabled><strong>Conversa e arquivos</strong><span data-nota="tudo"></span></label>
+        <label class="alcance"><input type="radio" name="${nome}" value="arquivos" disabled><strong>Só os arquivos</strong><span data-nota="arquivos"></span></label>
+      </div>
+      <p class="nota aviso-recusa volta-sem-ponto" hidden></p>
+      <div class="painel-permissao volta-arquivos" hidden></div>
+      <p class="erro-mcp erro-volta" role="alert" data-sem-traducao></p>
+      <div class="acoes"><button type="button" class="botao primario" data-volta="confirmar">Voltar a conversa</button><button type="button" class="botao secundario" data-volta="cancelar">Cancelar</button></div>`;
+    msg.after(el);
+    cartaoVolta = { el, msg, depois, texto, ensaio: null };
+    pintarVolta();
+    el.addEventListener('change', pintarVolta);
+    el.focus();
+    el.scrollIntoView({ block: 'nearest' });
+    // O ensaio: o motor pergunta ao Claude o que voltaria nos arquivos (nada muda).
+    let r = null;
+    try { r = await C.voltarEnsaio(ativa, depois, texto); } catch { r = null; }
+    if (!cartaoVolta || cartaoVolta.el !== el) return; // fechado enquanto o Claude respondia
+    cartaoVolta.ensaio = r && r.ok && r.arquivos ? r.arquivos : { pode: false, motivo: 'sem-resposta' };
+    pintarVolta();
+  }
+  async function confirmarVolta(deVerdade) {
+    if (!voltaAberta()) return;
+    const { el, msg, depois, texto, ensaio } = cartaoVolta;
+    const q = el.querySelector('.escopos-volta input:checked').value;
+    if (q === 'conversa' || !(ensaio && ensaio.pode)) { fecharCartaoVolta(); await voltarPara(msg); return; }
+    if (!deVerdade) return; // voltar arquivos só com o clique da pessoa no botão
+    const b = el.querySelector('[data-volta="confirmar"]');
+    b.disabled = true;
+    const r = await C.voltarComArquivos(ativa, depois, texto, q);
+    if (!r || !r.ok) {
+      b.disabled = false;
+      if (voltaAberta() && cartaoVolta.el === el) el.querySelector('.erro-volta').textContent = `Não deu para voltar os arquivos: ${(r && r.erro) || 'erro desconhecido'}`;
+      return;
+    }
+    fecharCartaoVolta();
+    if (q === 'tudo') porNaCaixa(r.texto || texto);
+  }
+  caixa.addEventListener('click', async (ev) => {
+    const v = ev.target.closest('.cartao-volta [data-volta]');
+    if (v) { if (v.dataset.volta === 'cancelar') fecharCartaoVolta(); else await confirmarVolta(ev.isTrusted === true); return; }
+    const b = ev.target.closest('.editar-msg');
+    if (!b) return;
+    await abrirVolta(b.closest('.msg-voce'));
+  });
+  // Enter com o cartão em foco confirma só "Só a conversa" (o caminho rápido de sempre);
+  // voltar arquivos pede o clique no botão vermelho.
+  caixa.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.altKey || ev.metaKey || !voltaAberta()) return;
+    if (ev.target !== cartaoVolta.el && !(ev.target.matches && ev.target.matches('.cartao-volta input[type="radio"]'))) return;
+    if (cartaoVolta.el.querySelector('.escopos-volta input:checked').value !== 'conversa') return;
+    ev.preventDefault();
+    confirmarVolta(false);
   });
   $('corrigindo-voltar').addEventListener('click', () => voltaPedida && voltarPara(voltaPedida));
   $('corrigindo-cancelar').addEventListener('click', fecharVolta);
@@ -2492,6 +2601,7 @@
     // (ex.: cancelar uma confirmação no painel de demandas), nunca uma parada do motor.
     if (foco && foco !== document.body && !foco.closest('#aba-orquestrador')) return;
     if (foco && foco !== entrada && (foco.closest('.xterm, .ProseMirror, [contenteditable="true"]') || foco.matches('input, textarea, select'))) return;
+    if (voltaAberta()) { fecharCartaoVolta(); parar(); return; }
     if (voltaPedida) { fecharVolta(); parar(); return; }
     if (infoAtual.ocupado) { parar(); interromperPorMim(); return; }
     if (entrada.value || infoAtual.motor === 'codex') return;

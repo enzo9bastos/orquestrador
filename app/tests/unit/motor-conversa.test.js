@@ -705,6 +705,39 @@ test('6.4: "sempre" no projeto ou para o usuário guarda antes uma cópia do arq
 // Plano 2.3: cartão do plano (sair do modo Planejar). Três saídas: aprovar e seguir em Auto,
 // aprovar e perguntar a cada mudança, continuar planejando (com o que ajustar). O plano
 // editado pela pessoa volta no lugar do original. O modo depois de aprovar vai na resposta.
+// Plano 7.1: voltar os arquivos junto com a conversa. Fora do terminal o Claude só guarda os
+// pontos de volta se nasce com a variável; o app liga por padrão e a opção das Configurações
+// desliga (aí o ensaio nem pergunta ao Claude).
+test('7.1: o Claude nasce guardando pontos de volta dos arquivos; com a opção desligada, não', async (t) => {
+  const config = require('../../config');
+  const c = new conversa._Conversa({ id: 'pv1', titulo: 'Conversa de ponto de volta' });
+  t.after(() => { config.gravar({ pontosDeVolta: true }); c.parar(); });
+  // Cada subida do Claude falso anota num arquivo à parte se veio com a variável dos pontos de volta.
+  const subidasDoFalso = () => ler(`${LOG}.ambiente`).map((x) => x.pontosDeVolta);
+  const antes = subidasDoFalso().length;
+  c.iniciar();
+  await ate(() => subidasDoFalso().length === antes + 1);
+  assert.strictEqual(subidasDoFalso().pop(), '1', 'nasce com a variável ligada');
+  // O ensaio: o que o Claude diz que voltaria (o falso responde um arquivo, +3 −1).
+  const e = await c.ensaioDeArquivos('sessao-que-nao-existe', 'u-qualquer');
+  assert.deepStrictEqual(e, { pode: true, lista: [{ caminho: 'app/x.js', porFora: false }], mais: 3, menos: 1, bytes: 0 });
+  const pedidos = recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'rewind_files' && x.request.user_message_id === 'u-qualquer');
+  assert.deepStrictEqual(pedidos.map((x) => x.request.dry_run), [true], 'o ensaio vai com dry_run');
+  assert.deepStrictEqual(await c.ensaioDeArquivos('s', null), { pode: false, motivo: 'sem-ponto' }, 'sem o identificador da mensagem não há o que perguntar');
+  // Desligado nas Configurações: a conversa nova nasce sem a variável, e o ensaio não pergunta.
+  config.gravar({ pontosDeVolta: false });
+  const n = recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'rewind_files').length;
+  assert.deepStrictEqual(await c.ensaioDeArquivos('s', 'u-qualquer'), { pode: false, motivo: 'desligado' });
+  assert.strictEqual(recebidos().filter((x) => x.type === 'control_request' && x.request.subtype === 'rewind_files').length, n);
+  const c2 = new conversa._Conversa({ id: 'pv2', titulo: 'Sem ponto de volta' });
+  t.after(() => c2.parar());
+  const s0 = subidasDoFalso().length;
+  c2.iniciar();
+  await ate(() => subidasDoFalso().length === s0 + 1);
+  assert.strictEqual(subidasDoFalso().pop(), null, 'sem a variável');
+  await assert.rejects(c2.voltarComArquivos(0, 'x', 'conversa'), /escopo desconhecido/);
+});
+
 test('2.3: plano pronto: aprovar leva o modo escolhido (e o plano editado); continuar planejando nega dizendo o ajuste', async (t) => {
   const c = new conversa._Conversa({ id: 'pl1', titulo: 'Conversa do plano' });
   t.after(() => c.parar());

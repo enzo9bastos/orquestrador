@@ -124,8 +124,13 @@ protocol), so there is no terminal to babysit.
   misspelled word for suggestions (Portuguese and English); `//skill` uses anything from the Library; `@note:` and
   `@workflow:` attach a note or a workflow; code blocks have *Copy* and *▶ Terminal*.
 - **Sent something wrong?** Hover your message and click ✎ to **rewind**: that message and everything after it
-  leave Claude's context (the old conversation is kept) and the text comes back to the box to fix. With the box
-  empty, ↑ / ↓ bring back what you sent.
+  leave Claude's context (the old conversation is kept) and the text comes back to the box to fix. The ✎ opens a
+  card under the message with three choices: *Conversation only* (the default; Enter confirms), *Conversation and
+  files* and *Files only*. For the files, Claude is asked first what would go back (how many files, how many lines;
+  files changed after Claude's last edit are flagged), the app keeps a copy of the files as they are now in a new
+  folder under `~/.local/share/orq-app/versoes/`, and only a real click on the red button restores them. What
+  commands did (files created by scripts, databases, git commits) does not come back. Restore points can be turned
+  off in Settings › Advanced. With the box empty, ↑ / ↓ bring back what you sent.
 - **New conversation** opens side conversations next to the orchestrator.
 
 ### 🧭 Agents

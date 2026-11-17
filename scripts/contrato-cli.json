@@ -34,6 +34,8 @@
         "pedido": { "subtype": "get_settings" }, "campos": ["effective", "sources", "applied"] },
       { "id": "controle:file_suggestions", "tipo": "controle", "depende": false, "onde": "conversa.js sugerirArquivos() (@ da caixa; sem ele, o @ mostra só notas e workflows)",
         "pedido": { "subtype": "file_suggestions", "query": "" }, "campos": ["suggestions[]", "suggestions[].path?", "cwd?"] },
+      { "id": "controle:rewind_files (ensaio)", "tipo": "controle", "depende": false, "onde": "conversa.js ensaioDeArquivos()/voltarComArquivos() + voltar-arquivos.js (o ✎ com arquivos; sem ele, o ✎ volta só a conversa)",
+        "pedido": { "subtype": "rewind_files", "user_message_id": "00000000-0000-4000-8000-000000000000", "dry_run": true }, "campos": ["canRewind", "error?", "filesChanged[]?", "insertions?", "deletions?"] },
       { "id": "controle:set_permission_mode", "tipo": "controle", "depende": true, "onde": "comandos-tela.js /plan",
         "pedido": { "subtype": "set_permission_mode", "mode": "plan" }, "campos": [] },
       { "id": "controle:get_status", "tipo": "controle", "depende": false, "onde": "comandos-tela.js /status (sem ele, mostra o init)",

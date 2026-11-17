@@ -82,6 +82,9 @@ if (process.argv[2] === '--version') { console.log(`${VERSAO} (Claude Code)`); p
 const log = (o) => { if (process.env.CLAUDE_FALSO_LOG) fs.appendFileSync(process.env.CLAUDE_FALSO_LOG, JSON.stringify(o) + '\n'); };
 const sai = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 log({ args: process.argv.slice(2) });
+// O app liga os pontos de volta dos arquivos por uma variável (plano 7.1). Cada subida anota, num
+// arquivo à parte ($CLAUDE_FALSO_LOG.ambiente; o registro principal não muda), se ela veio.
+if (process.env.CLAUDE_FALSO_LOG) fs.appendFileSync(`${process.env.CLAUDE_FALSO_LOG}.ambiente`, JSON.stringify({ pontosDeVolta: process.env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING || null }) + '\n');
 
 const args = process.argv.slice(2);
 const arg = (nome) => { const i = args.indexOf(nome); return i >= 0 ? args[i + 1] : null; };
@@ -184,6 +187,20 @@ leitor.on('line', (l) => {
     }
     if (r.subtype === 'rewind_files') {
       if (typeof r.user_message_id !== 'string') return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'rewind_files: user_message_id must be a string' } });
+      // $CLAUDE_FALSO_VOLTA (JSON): a resposta ao ensaio e à volta de verdade. Com "escreve", na
+      // volta de verdade (sem dry_run) o falso regrava cada arquivo da lista com esse texto, como
+      // o Claude restaurando. "mudo": não responde (o Claude travado). Sem a variável, o de sempre.
+      // Começando com "/", é o caminho de um arquivo com o JSON (o teste troca a resposta com o app aberto).
+      const cru = !process.env.CLAUDE_FALSO_VOLTA ? '' : !process.env.CLAUDE_FALSO_VOLTA.startsWith('/') ? process.env.CLAUDE_FALSO_VOLTA
+        : (() => { try { return fs.readFileSync(process.env.CLAUDE_FALSO_VOLTA, 'utf8'); } catch { return ''; } })();
+      if (cru) {
+        const { escreve, mudo, ...resposta } = JSON.parse(cru);
+        if (mudo) return undefined;
+        if (!r.dry_run && resposta.canRewind && typeof escreve === 'string') {
+          for (const f of resposta.filesChanged || []) { try { fs.writeFileSync(require('path').resolve(process.cwd(), f), escreve); } catch { /* arquivo de teste que não existe */ } }
+        }
+        return responde(d, resposta);
+      }
       return responde(d, { canRewind: true, filesChanged: ['app/x.js'], insertions: 3, deletions: 1 });
     }
     if (r.subtype === 'file_suggestions' && !process.env.CLAUDE_FALSO_SEM_CONTROLES) {

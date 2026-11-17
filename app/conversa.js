@@ -19,6 +19,7 @@ const listaComandos = require('./comandos');
 const jsonl = require('./jsonl');
 const shell = require('./shell-usuario');
 const permSempre = require('./permissao-sempre');
+const voltarArquivos = require('./voltar-arquivos');
 const permissoes = require('./permissoes');
 const elicitacao = require('./elicitacao');
 const capacidades = require('./capacidades');
@@ -294,7 +295,7 @@ function promptsDoTranscript(linhas) {
 // bate recusa (cortar no lugar errado apagaria a parte certa da conversa).
 // `deTras` entrega as linhas da mais nova à mais antiga e é lido só até o
 // ponto de corte achado (um transcript de 120 MB não é lido inteiro).
-function pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao) {
+function pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao, comUuid = false) {
   const alvo = normal(String(textoBalao || '').split('\n📎')[0]).slice(0, 80);
   const bate = (p) => !alvo || normal(p.texto).includes(alvo);
   const ordem = Number(ordemDoFim || 0);
@@ -323,7 +324,8 @@ function pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao) {
   }
   if (!escolhido) escolhido = primeiroQueBate; // havia menos mensagens que a ordem pedida
   if (!escolhido) throw new Error('não achei essa mensagem no histórico do Claude');
-  return { ate: escolhido.antes === undefined ? null : escolhido.antes, texto: escolhido.texto };
+  // comUuid: também o identificador da mensagem escolhida (é o que o "voltar arquivos" pede).
+  return { ate: escolhido.antes === undefined ? null : escolhido.antes, texto: escolhido.texto, ...(comUuid ? { uuid: escolhido.uuid } : {}) };
 }
 function* deTrasDe(linhas) { for (let i = linhas.length - 1; i >= 0; i--) yield linhas[i]; }
 function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
@@ -331,12 +333,12 @@ function pontoDeVolta(linhas, ordemDoFim, textoBalao) {
 }
 // O mesmo, lendo o transcript do disco de trás para frente. `ate` (conversa já
 // voltada): o transcript vale só até a linha com esse uuid.
-function pontoDeVoltaDoArquivo(sessao, ordemDoFim, textoBalao, ate = null) {
+function pontoDeVoltaDoArquivo(sessao, ordemDoFim, textoBalao, ate = null, comUuid = false) {
   const arq = arqTranscript(sessao);
   if (!arq) throw new Error('não achei essa mensagem no histórico do Claude');
   const limite = ate ? jsonl.fimDaLinhaCom(arq, `"uuid":"${ate}"`) : null;
   const deTras = (function* () { for (const { linha } of jsonl.linhasDeTras(arq, { ate: limite })) yield linha; })();
-  return pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao);
+  return pontoDeVoltaDeTras(deTras, ordemDoFim, textoBalao, comUuid);
 }
 
 // Lista de comandos (/…) do autocompletar: fonte única em comandos.js. Antes
@@ -469,6 +471,59 @@ class Conversa {
     return p.texto;
   }
 
+  // --- voltar com os arquivos (plano 7.1) ---------------------------------------------
+  // O ponto escolhido, com o identificador da mensagem (o que o Claude pede para voltar arquivos).
+  pontoParaVoltar(ordemDoFim, textoBalao) {
+    if (this.motor === 'codex') throw new Error('voltar a conversa ainda não funciona com o Codex');
+    const de = this.volta ? this.volta.de : this.sessao;
+    if (!de) throw new Error('esta conversa ainda não tem histórico para voltar');
+    return { de, ...pontoDeVoltaDoArquivo(de, ordemDoFim, textoBalao, this.volta ? this.volta.ate : null, true) };
+  }
+  // Ensaio (nada muda): o que o Claude diz que voltaria nos arquivos.
+  //   { pode: true, lista: [{ caminho, porFora }], mais, menos, bytes }
+  //   { pode: false, motivo: 'desligado' | 'sem-ponto' | 'nada-mudou' | 'sem-resposta', erro? }
+  async ensaioDeArquivos(sessao, uuid) {
+    if (config.ler().pontosDeVolta === false) return { pode: false, motivo: 'desligado' };
+    if (!uuid) return { pode: false, motivo: 'sem-ponto' };
+    let r;
+    try { r = voltarArquivos.conferirResposta(await this.controle('rewind_files', { user_message_id: uuid, dry_run: true }, 8000, 'volta')); } catch (e) { return { pode: false, motivo: 'sem-resposta', erro: String(e.message || e).slice(0, 300) }; }
+    if (!r.pode) return { pode: false, motivo: 'sem-ponto', ...(r.erro ? { erro: r.erro } : {}) };
+    if (!r.lista.length) return { pode: false, motivo: 'nada-mudou' };
+    let escritas = new Map();
+    try { escritas = voltarArquivos.ultimasEscritas(arqTranscript(sessao), uuid, PASTA); } catch { /* sem o histórico, só não marca "mexido por fora" */ }
+    return { pode: true, lista: r.lista.map((f) => ({ caminho: f, porFora: voltarArquivos.mexido(f, escritas, PASTA) })), mais: r.mais, menos: r.menos, bytes: voltarArquivos.tamanho(r.lista, PASTA) };
+  }
+  async voltarEnsaio(ordemDoFim, textoBalao) {
+    const p = this.pontoParaVoltar(ordemDoFim, textoBalao);
+    return { texto: p.texto, arquivos: await this.ensaioDeArquivos(p.de, p.uuid) };
+  }
+  // Volta os arquivos e, com escopo 'tudo', também a conversa. Antes de pedir a volta ao
+  // Claude, guarda os arquivos como estão agora numa pasta nova; sem conseguir guardar,
+  // nada muda. A lista vem de um ensaio feito aqui, na hora (a tela não decide a lista).
+  async voltarComArquivos(ordemDoFim, textoBalao, escopo) {
+    if (!['tudo', 'arquivos'].includes(escopo)) throw new Error('escopo desconhecido');
+    const p = this.pontoParaVoltar(ordemDoFim, textoBalao);
+    const e = await this.ensaioDeArquivos(p.de, p.uuid);
+    if (!e.pode) throw new Error(`não há arquivos para voltar neste ponto (${e.erro || e.motivo}); nada mudou`);
+    const copia = voltarArquivos.copiar(e.lista.map((x) => x.caminho), PASTA, voltarArquivos.destinoNovo());
+    if (!copia.ok) throw new Error(`não consegui guardar a cópia dos arquivos antes de voltar (${copia.erro}); nada mudou`);
+    const onde = voltarArquivos.exibir(copia.pasta);
+    let r;
+    try { r = voltarArquivos.conferirResposta(await this.controle('rewind_files', { user_message_id: p.uuid }, 60000, 'volta')); } catch (err) {
+      const texto = `O Claude não respondeu ao pedido de voltar os arquivos: não sei se eles mudaram. A cópia de como estavam antes ficou em ${onde}.`;
+      this.registrar({ tipo: 'aviso', texto, pasta: copia.pasta });
+      throw new Error(texto);
+    }
+    if (!r.pode) throw new Error(`o Claude não voltou os arquivos${r.erro ? ` (${r.erro})` : ''}. A cópia feita antes ficou em ${onde}.`);
+    const n = r.lista.length || e.lista.length;
+    const resumo = { n, mais: r.lista.length ? r.mais : e.mais, menos: r.lista.length ? r.menos : e.menos, copia: copia.pasta, copiaExibir: onde, bytes: copia.bytes };
+    const texto = escopo === 'tudo' ? this.voltar(ordemDoFim, textoBalao) : p.texto;
+    // Depois de a conversa recarregar (se voltou junto), para a linha ficar à vista.
+    const trecho = String(p.texto || '').replace(/\s+/g, ' ').trim();
+    this.registrar({ tipo: 'aviso', texto: `↩ ${n === 1 ? '1 arquivo voltou' : `${n} arquivos voltaram`} ao que ${n === 1 ? 'era' : 'eram'} antes de «${trecho.length > 60 ? `${trecho.slice(0, 60)}…` : trecho}» (+${resumo.mais} −${resumo.menos} linhas). A cópia de como ${n === 1 ? 'estava' : 'estavam'} ficou em ${onde}.`, pasta: copia.pasta });
+    return { texto, arquivos: resumo };
+  }
+
   iniciar({ primeiraMensagem } = {}) {
     if (this.proc) return;
     this.acertarMotor();
@@ -487,7 +542,11 @@ class Conversa {
 
     // O caminho escolhido na engrenagem (IAs conectadas), se houver e for
     // executável; senão 'claude' do PATH.
-    const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env: ambienteLimpo(), stdio: ['pipe', 'pipe', 'pipe'] });
+    // Fora do terminal o Claude só guarda os pontos de volta dos arquivos (o "voltar arquivos"
+    // do ✎) se nasce com esta variável (conferido no 2.1.326). Desligável nas Configurações.
+    const env = ambienteLimpo();
+    if (config.ler().pontosDeVolta !== false) env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING = '1';
+    const proc = spawn(ias.comando('claude', config.ler().iasCaminhos), args, { cwd: PASTA, env, stdio: ['pipe', 'pipe', 'pipe'] });
     this.proc = proc;
     proc.permiteBypass = args.includes(PERMITE_BYPASS);
     // Pedidos pendentes eram do processo anterior.
@@ -1484,6 +1543,8 @@ module.exports = {
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),
   voltar: (id, ordemDoFim, texto) => pegar(id).voltar(ordemDoFim, texto),
+  voltarEnsaio: (id, ordemDoFim, texto) => pegar(id).voltarEnsaio(ordemDoFim, texto),
+  voltarComArquivos: (id, ordemDoFim, texto, escopo) => pegar(id).voltarComArquivos(ordemDoFim, texto, escopo),
   configurar: (id, o) => pegar(id).configurar(o || {}),
   definirModo: (id, modo) => pegar(id).definirModo(modo),
   MODOS_DO_CHIP,

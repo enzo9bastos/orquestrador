@@ -468,7 +468,7 @@
   H.rewind = async () => {
     const msgs = V().mensagens();
     const el = popup('rewind', 'Voltar a conversa', msgs.length
-      ? `<p class="popup-nota">Escolha a mensagem: ela e tudo depois dela saem da conversa do Claude (a conversa antiga fica guardada no histórico dele) e o texto volta para a caixa. Os arquivos que o Claude mexeu não voltam.</p>
+      ? `<p class="popup-nota">Escolha a mensagem. Em seguida você decide se volta só a conversa (ela e tudo depois dela saem da conversa do Claude e o texto volta para a caixa) ou também os arquivos que o Claude alterou.</p>
         <ul class="cmd-lista">${msgs.map((m, i) => `<li><button type="button" class="cmd-item" data-i="${i}"><span data-sem-traducao>${esc(m.length > 160 ? m.slice(0, 159) + '…' : m)}</span></button></li>`).reverse().join('')}</ul>`
       : '<p class="popup-nota">Nenhuma mensagem sua nesta conversa ainda.</p>');
     el.querySelectorAll('[data-i]').forEach((x) => x.addEventListener('click', async () => { V().fecharPopup(); await V().voltarPara(Number(x.dataset.i)); }));
