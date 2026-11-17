@@ -4,6 +4,37 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.6.0 (2026-11-17)
+
+- Permission card with three answers: allow this time, always allow (you
+  pick the reach: this conversation only, which is the default and writes
+  nothing, this project, or all your projects; the card shows the rule, the
+  file and how to undo it) and deny, saying what to do instead. The reason
+  Claude asks is shown. "Always" is offered only when Claude suggests a rule,
+  and never for commands that run other programs, docker, tmux, ssh, network
+  and deletion tools, `git push`, compound commands or wildcard rules.
+- Plan card: when Claude finishes planning, the plan shows up formatted, with
+  three answers (approve and continue in Auto, approve and ask before each
+  change, keep planning) and "Edit the plan". Once answered it folds into one
+  line with "See the plan".
+- A request that Claude cancels now says so, instead of "Answered".
+- Number keys answer the focused card (Settings > Shortcuts turns it off).
+- Search the conversation with Ctrl+F: only that conversation's messages,
+  Enter and Shift+Enter move between matches, Esc closes the bar without
+  stopping the engine.
+- A copy button on each reply copies it as Markdown, without the tool lines;
+  `/copy` copies the same.
+- `@` in the message box also suggests files from the conversation's folder
+  (the ones Claude Code shows in the terminal), next to notes and workflows.
+- `!command` in the message box can run a command of yours on your computer,
+  in the conversation's folder, as in Claude Code's terminal. It is OFF by
+  default (Settings > Advanced). When on, only a `!` you typed yourself and
+  sent with Enter counts. See SECURITY.md.
+- The contract checker also checks the file suggestions request (Claude) and
+  the user shell command request (Codex).
+- Tests: the known-version capability test no longer depends on the previous
+  test's timing.
+
 ## 0.5.1 (2026-11-17)
 
 - A command that only exists in the terminal: when Claude answers that a
