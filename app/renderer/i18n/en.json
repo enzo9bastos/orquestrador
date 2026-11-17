@@ -1642,6 +1642,13 @@
     "Desativar": "Turn off",
     "só existe na tela do terminal do Claude; nesta conversa ele não roda.": "only exists in Claude's terminal screen; it does not run in this conversation.",
     "Abrir no terminal": "Open in the terminal",
+    "Buscar nesta conversa": "Search this conversation",
+    "Anterior": "Previous",
+    "Próxima": "Next",
+    "Anterior (Shift+Enter)": "Previous (Shift+Enter)",
+    "Próxima (Enter)": "Next (Enter)",
+    "Fechar a busca (Esc)": "Close search (Esc)",
+    "Fechar a busca": "Close search",
     "Cola no terminal do app o Claude com uma cópia desta conversa e o comando; nada roda sem você apertar Enter lá": "Pastes Claude with a copy of this conversation and the command into the app's terminal; nothing runs until you press Enter there"
   },
   "padroes": [

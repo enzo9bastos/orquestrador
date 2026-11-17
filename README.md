@@ -84,6 +84,8 @@ protocol), so there is no terminal to babysit.
   live only in the orchestrator conversation and show one at a time (a Settings option moves them into the ⋯ menu).
 - **`/exit` ends only that conversation**: its session is kept, the screen clears, the next message starts a new
   session and *Go back to the previous session* undoes it. Closing the app is the window's close button.
+- **Search the conversation** (Ctrl+F): highlights matches in that conversation's messages only; Enter and
+  Shift+Enter move between them and Esc closes the bar without stopping the engine.
 - **A command that only exists in the terminal**: when Claude answers that a command "isn't available in this
   environment", the app says what that means and offers *Open in the terminal*, which pastes Claude with a copy of
   the conversation and the command into the app's terminal. Nothing runs until you press Enter there.

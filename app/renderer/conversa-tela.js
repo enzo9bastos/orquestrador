@@ -767,6 +767,7 @@
       ${l('Com o motor trabalhando: pôr na fila', teclas('Enter'))}${l('Com o motor trabalhando: corrigir o rumo', teclas('Ctrl+Enter'))}
       ${l('Trocar o modo de permissão', teclas('Ctrl+Shift+M'))}${cfg.shiftTabTrocaModo === false ? '' : l('Trocar o modo, com a caixa vazia', teclas('Shift+Tab'))}
       ${l('Trazer de volta a mensagem anterior (caixa vazia)', teclas('↑'))}
+      ${l('Buscar nesta conversa', teclas('Ctrl+F'))}
       <h4>Na caixa de texto</h4>
       ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar nota ou workflow', teclas('@'))}
       ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
@@ -1849,6 +1850,8 @@
     }
     if (!$('sugestoes').hidden || document.querySelector(POR_CIMA)) return; // o dono fecha
     if (!$('aba-orquestrador').classList.contains('ativa')) return;
+    // A barra de busca (Ctrl+F) aberta é um nível: o Esc a fecha antes de qualquer outra coisa.
+    if (window.orqBusca && window.orqBusca.aberta()) { window.orqBusca.fechar(); parar(); return; }
     const foco = document.activeElement;
     // Foco fora da conversa (as colunas dos lados, a barra de cima): o Esc é de quem está lá
     // (ex.: cancelar uma confirmação no painel de demandas), nunca uma parada do motor.

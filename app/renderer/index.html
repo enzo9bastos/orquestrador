@@ -122,6 +122,13 @@
           <button id="nova-conversa" class="botao-texto sem-margem" type="button" title="Abre outra conversa com o Claude ao lado do orquestrador">+<span class="rotulo-botao"> Nova conversa</span></button>
         </header>
         <div class="mensagens-area">
+          <div id="busca-conversa" class="busca-conversa" role="search" hidden>
+            <input id="busca-conversa-texto" type="text" placeholder="Buscar nesta conversa" aria-label="Buscar nesta conversa" autocomplete="off" spellcheck="false">
+            <span id="busca-conversa-conta" class="conta" aria-live="polite" data-sem-traducao></span>
+            <button type="button" id="busca-conversa-antes" title="Anterior (Shift+Enter)" aria-label="Anterior">↑</button>
+            <button type="button" id="busca-conversa-depois" title="Próxima (Enter)" aria-label="Próxima">↓</button>
+            <button type="button" id="busca-conversa-fechar" title="Fechar a busca (Esc)" aria-label="Fechar a busca">✕</button>
+          </div>
           <div id="mensagens" class="mensagens" aria-live="polite"></div>
         </div>
         <form id="compositor" class="compositor">
@@ -620,6 +627,7 @@
   <script src="notas-tela.js"></script>
   <script src="barra-nota-tela.js"></script>
   <script src="conversa-tela.js"></script>
+  <script src="busca-conversa.js"></script>
   <script src="comandos-tela.js"></script>
   <script src="repertorio-tela.js"></script>
   <script src="workflows-tela.js"></script>
