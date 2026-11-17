@@ -228,6 +228,10 @@ async function appNaTela() {
 function pendenciaDeConversa(c, p) {
   const quem = c.orquestrador ? 'O orquestrador' : c.titulo;
   const base = { id: `conversa:${c.id}:${p.id}`, conversa: c.id };
+  // Pedido de dado de um servidor MCP: pode ter campo de segredo e um formulário inteiro.
+  if (p.tipo === 'elicitacao') {
+    return { ...base, texto: c.orquestrador ? 'Um servidor que o orquestrador usa pede um dado: responda no app' : `Um servidor que "${c.titulo}" usa pede um dado: responda no app`, item: null };
+  }
   if ((p.entrada?.questions || []).some((q) => q && q.isSecret)) {
     return { ...base, texto: c.orquestrador ? 'O orquestrador tem uma pergunta com resposta secreta: responda no app' : `"${c.titulo}" tem uma pergunta com resposta secreta: responda no app`, item: null };
   }

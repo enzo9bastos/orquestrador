@@ -29,15 +29,16 @@ const turnos = (c) => c.eventos.filter((e) => e.tipo === 'resultado').length;
 test('A5: pedido que o app não atende recebe erro na hora, com aviso na conversa, e a conversa não trava', async (t) => {
   const c = new conversa._Conversa({ id: 'ce', titulo: 'Conversa 2' });
   t.after(() => c.parar());
-  c.mandar('pede elicitation');
+  // (Até 17/11/2026 o exemplo era o pedido de dado do MCP; ele ganhou cartão próprio.)
+  c.mandar('pede algo que o app não atende');
   await ate(() => turnos(c) === 1);
-  const r = recebidos().find((x) => x.type === 'control_response' && x.response.request_id === 'el-1');
+  const r = recebidos().find((x) => x.type === 'control_response' && x.response.request_id === 'nd-1');
   assert.strictEqual(r.response.subtype, 'error');
-  assert.match(r.response.error, /elicitation/);
+  assert.match(r.response.error, /request_user_dialog/);
   assert.strictEqual(c.pendentes.size, 0);
   assert.strictEqual(c.info.ocupado, false);
-  assert.ok(c.eventos.some((e) => e.tipo === 'aviso' && /^Pedido não suportado: elicitation/.test(e.texto)), 'linha na conversa');
-  assert.ok(c.eventos.some((e) => e.tipo === 'assistant' && e.message.content[0].text === 'seguiu sem a elicitação'));
+  assert.ok(c.eventos.some((e) => e.tipo === 'aviso' && /^Pedido não suportado: request_user_dialog/.test(e.texto)), 'linha na conversa');
+  assert.ok(c.eventos.some((e) => e.tipo === 'assistant' && e.message.content[0].text === 'seguiu sem o pedido'));
 });
 
 test('A5: o Claude cancela um pedido → o cartão fecha (conversa:respondido)', async (t) => {

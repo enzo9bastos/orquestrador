@@ -14,6 +14,7 @@
   let achados = [];
   let atual = -1;
   let tBusca = null;
+  let tMudou = null; // busca de novo, marcada para daqui a pouco, porque a conversa mudou
 
   function limpar() {
     CSS.highlights.delete('busca-conversa');
@@ -40,6 +41,7 @@
   function buscar({ manter = false } = {}) {
     const antes = atual;
     limpar();
+    if (barra.hidden) return; // barra fechada não marca nada (uma busca marcada antes de fechar não volta)
     const q = campo.value.toLocaleLowerCase();
     if (q) {
       const andar = document.createTreeWalker(caixa, NodeFilter.SHOW_TEXT);
@@ -73,6 +75,7 @@
   function fechar({ foco = true } = {}) {
     if (barra.hidden) return false;
     barra.hidden = true;
+    clearTimeout(tBusca); clearTimeout(tMudou);
     limpar();
     conta.textContent = '';
     if (foco) $('entrada').focus();
@@ -88,7 +91,6 @@
   $('busca-conversa-depois').addEventListener('click', () => { andar(1); campo.focus(); });
   $('busca-conversa-fechar').addEventListener('click', () => fechar());
   // Mensagem nova (ou outra conversa na tela) com a barra aberta: a busca roda de novo.
-  let tMudou = null;
   new MutationObserver(() => {
     if (barra.hidden || !campo.value) return;
     clearTimeout(tMudou);

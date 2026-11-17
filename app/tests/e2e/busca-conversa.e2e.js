@@ -80,8 +80,12 @@ test('Ctrl+F: buscar na conversa', async (t) => {
     await app.avaliar("window.orq.conversa.mandar('orquestrador', 'trabalha até parar')");
     await app.esperar("!document.getElementById('parar').hidden", 8000);
     await app.avaliar("document.getElementById('busca-conversa-texto').focus()");
+    // Uma mensagem chega logo antes de fechar: a busca que ela marcaria para daqui a
+    // pouco não pode voltar a marcar a tela com a barra já fechada (acontecia).
+    await app.avaliar(fala('Última sobre acentos antes de fechar.'));
     await esc();
     await app.esperar(`${barra}.hidden`);
+    await app.espera(450);
     assert.strictEqual(await app.avaliar(marcadas), 0);
     assert.strictEqual(await app.avaliar('document.activeElement.id'), 'entrada', 'o foco volta para a caixa');
     await app.espera(300);

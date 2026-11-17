@@ -538,6 +538,8 @@
           <div class="anexos anexos-pergunta" hidden></div>
         </fieldset>`).join('') +
         '<div class="acoes"><button type="button" class="botao primario" data-enviar-resposta>Responder</button></div>';
+    } else if (p.tipo === 'elicitacao') {
+      cartaoMcp(el, p);
     } else if (p.ferramenta === 'ExitPlanMode' && !conversaCodex() && p.entrada && typeof p.entrada.plan === 'string') {
       cartaoPlano(el, p);
     } else {
@@ -573,6 +575,72 @@
     grupo = null;
     caixa.append(el);
     colado = true; rolar();
+  }
+
+  // --- cartão do pedido de dado de um servidor MCP --------------------------------------
+  // O pedido chega do processo principal já conferido (elicitacao.js): servidor, mensagem,
+  // campos (texto, número, sim/não, lista; segredo mascarado) ou, no modo página, o site.
+  function cartaoMcp(el, p) {
+    el.classList.add('cartao-mcp');
+    el.tabIndex = 0;
+    const servidor = `<strong data-sem-traducao>${esc(p.servidor)}</strong>`;
+    const mensagem = p.mensagem ? `<p class="motivo-pedido"><strong>Mensagem do servidor:</strong> <span data-sem-traducao>${esc(p.mensagem)}</span></p>` : '';
+    const recusarCancelar = '<button type="button" class="botao secundario" data-mcp="recusar">Recusar</button>';
+    if (p.modo === 'url' && p.ok) {
+      el.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span><span><span>O servidor</span> ${servidor} <span>(MCP) pede que você abra uma página</span></span></div>${mensagem}
+        <dl class="sempre-regra"><dt>Site</dt><dd><strong class="site-mcp" data-sem-traducao>${esc(p.site)}</strong></dd><dt>Endereço</dt><dd data-sem-traducao><code>${esc(curto(p.url, 400))}</code></dd></dl>
+        <p class="nota aviso-recusa"><span>Confira o site antes de abrir. A página abre no seu navegador; nada é digitado aqui no app.</span></p>
+        <div class="acoes"><button type="button" class="botao primario" data-mcp="abrir">Abrir no navegador</button>${recusarCancelar}</div>`;
+      return;
+    }
+    const campo = (c) => {
+      const attrs = `data-campo="${esc(c.nome)}" data-tipo="${c.tipo}"`;
+      const entrada = c.tipo === 'sim-nao' ? `<input type="checkbox" ${attrs}${c.padrao ? ' checked' : ''}>`
+        : c.tipo === 'lista' ? `<select ${attrs}>${c.obrigatorio && c.padrao ? '' : '<option value=""></option>'}${c.opcoes.map((o) => `<option value="${esc(o.valor)}"${c.padrao === o.valor ? ' selected' : ''} data-sem-traducao>${esc(o.rotulo)}</option>`).join('')}</select>`
+          : `<input ${attrs} type="${c.secreto ? 'password' : c.formato === 'email' ? 'email' : 'text'}"${c.tipo !== 'texto' ? ' inputmode="decimal"' : ''} autocomplete="off" spellcheck="false" value="${c.padrao !== undefined && !c.secreto ? esc(String(c.padrao)) : ''}"${c.secreto ? ' placeholder="não aparece na tela"' : ''}>`;
+      return `<label class="campo-mcp${c.tipo === 'sim-nao' ? ' em-linha' : ''}"><span><span data-sem-traducao>${esc(c.rotulo)}</span>${c.obrigatorio ? ' <em title="obrigatório">*</em>' : ''}</span>${entrada}${c.descricao ? `<small data-sem-traducao>${esc(c.descricao)}</small>` : ''}</label>`;
+    };
+    el.innerHTML = `<div class="titulo-pedido"><span class="ponto permissao"></span><span><span>O servidor</span> ${servidor} <span>(MCP) pede um dado</span></span></div>${mensagem}
+      ${p.ok ? `${(p.campos || []).map(campo).join('')}
+        <p class="nota"><span>O que você preencher vai só para esse servidor. Campo de segredo não aparece na tela nem no histórico do app.</span></p>
+        <p class="erro-mcp" role="alert" data-sem-traducao></p>`
+    : `<p class="nota aviso-recusa"><span>Este pedido tem um formato que o app não sabe mostrar; só dá para recusar.</span> <span data-sem-traducao>(${esc(p.problema || '')})</span></p>`}
+      <div class="acoes">${p.ok ? '<button type="button" class="botao primario" data-mcp="enviar">Enviar</button>' : ''}${recusarCancelar}<button type="button" class="botao secundario" data-mcp="cancelar">Cancelar o pedido</button></div>`;
+  }
+  async function clicouNoMcp(cartao, acao, deVerdade) {
+    const p = pedidoDoCartao(cartao);
+    const servidor = `<strong data-sem-traducao>${esc(p.servidor || '')}</strong>`;
+    const fechar = (classe, html) => { cartao.classList.add('respondido'); cartao.removeAttribute('tabindex'); cartao.innerHTML = `<span class="marca-resposta ${classe}" aria-hidden="true">${classe === 'sim' ? '✓' : classe === 'nao' ? '✕' : '↗'}</span>${html}`; };
+    if (acao === 'recusar') {
+      await C.responder(ativa, cartao.dataset.pedido, { acao: 'decline' });
+      return fechar('nao', `<span>Recusado</span> · <span>o servidor</span> ${servidor} <span>não recebeu nada</span>`);
+    }
+    if (acao === 'cancelar') {
+      await C.responder(ativa, cartao.dataset.pedido, { acao: 'cancel' });
+      return fechar('nao', `<span>Pedido cancelado</span> · <span>a ferramenta do servidor</span> ${servidor} <span>parou</span>`);
+    }
+    if (acao === 'abrir') {
+      if (!deVerdade) return undefined; // abrir uma página no navegador só com o clique da pessoa
+      await C.responder(ativa, cartao.dataset.pedido, { acao: 'accept' });
+      return fechar('abriu', `<span>Página aberta no navegador</span> · <strong data-sem-traducao>${esc(p.site || '')}</strong>`);
+    }
+    if (acao !== 'enviar') return undefined;
+    const conteudo = {};
+    for (const c of cartao.querySelectorAll('[data-campo]')) conteudo[c.dataset.campo] = c.type === 'checkbox' ? c.checked : c.value;
+    const r = await C.responder(ativa, cartao.dataset.pedido, { acao: 'accept', conteudo });
+    if (r && r.erro) {
+      cartao.querySelector('.erro-mcp').textContent = r.erro;
+      const culpado = [...cartao.querySelectorAll('[data-campo]')].find((c) => c.dataset.campo === r.campo);
+      if (culpado) culpado.focus();
+      return undefined;
+    }
+    // O resumo não repete segredo: campo mascarado vira "•••".
+    const resumo = (p.campos || []).filter((c) => conteudo[c.nome] !== '' && conteudo[c.nome] !== undefined).map((c) => {
+      const v = conteudo[c.nome];
+      const texto = c.secreto ? '•••' : c.tipo === 'sim-nao' ? (v ? 'sim' : 'não') : c.tipo === 'lista' ? ((c.opcoes.find((o) => o.valor === v) || {}).rotulo || v) : curto(String(v), 60);
+      return `<span data-sem-traducao>${esc(c.rotulo)}: ${esc(texto)}</span>`;
+    });
+    return fechar('sim', `<span>Enviado ao servidor</span> ${servidor}${resumo.length ? ` · ${resumo.join(' · ')}` : ''}`);
   }
 
   // --- cartão do plano (plano 2.3): o Claude terminou de planejar e pede para começar ----
@@ -738,6 +806,8 @@
       verPlano.textContent = texto.hidden ? 'Ver o plano' : 'Recolher o plano';
       return;
     }
+    const noMcp = ev.target.closest('.cartao-mcp:not(.respondido) [data-mcp]');
+    if (noMcp) { await clicouNoMcp(noMcp.closest('.cartao-mcp'), noMcp.dataset.mcp, ev.isTrusted === true); return; }
     const noPlano = ev.target.closest('.cartao-plano:not(.respondido) [data-plano]');
     if (noPlano) { await clicouNoPlano(noPlano.closest('.cartao-plano'), noPlano.dataset.plano); return; }
     const perm = ev.target.closest('.cartao-permissao:not(.respondido) [data-perm]');

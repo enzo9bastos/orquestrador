@@ -20,6 +20,7 @@ const jsonl = require('./jsonl');
 const shell = require('./shell-usuario');
 const permSempre = require('./permissao-sempre');
 const permissoes = require('./permissoes');
+const elicitacao = require('./elicitacao');
 const capacidades = require('./capacidades');
 
 const PASTA = os.homedir(); // as conversas trabalham a partir de ~
@@ -69,6 +70,9 @@ function ambienteLimpo() {
 }
 
 let enviarTela = () => {};
+// Quem abre uma página no navegador da pessoa (pedido de dado do MCP no modo página):
+// main.js liga isto. Fora do app (testes de unidade) não abre nada.
+let abrirPagina = () => {};
 // Quem avisa o usuário (notificação do sistema) quando uma conversa precisa
 // dele: main.js liga isto. tipo: 'pedido' (pergunta/permissão) ou 'resposta'.
 let avisar = () => {};
@@ -671,10 +675,17 @@ class Conversa {
           const q = (p.entrada && p.entrada.questions && p.entrada.questions[0]) || null;
           avisar({ tipo: 'pedido', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador,
             texto: q ? `${q.header ? q.header + ': ' : ''}${q.question}` : `Quer usar ${p.ferramenta}${p.entrada && p.entrada.command ? `: ${p.entrada.command}` : ''}` });
+        } else if (d.request && d.request.subtype === 'elicitation') {
+          // Um servidor MCP pede um dado à pessoa (formulário ou página): vira cartão. O
+          // pedido vai à tela já conferido e limitado (elicitacao.js); nada dele é confiável.
+          const p = { id: d.request_id, tipo: 'elicitacao', ferramenta: 'MCP', entrada: {}, ...elicitacao.normalizar(d.request) };
+          this.pendentes.set(d.request_id, p);
+          this.enviar('conversa:pedido', p);
+          avisarLista();
+          avisar({ tipo: 'pedido', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: `O servidor ${p.servidor} (MCP) pede um dado` });
         } else {
-          // Pedido que o app não atende (ex.: elicitation de um MCP): sem
-          // resposta, o Claude esperaria para sempre. Erro na hora, e uma
-          // linha na conversa dizendo o quê.
+          // Pedido que o app não atende: sem resposta, o Claude esperaria para
+          // sempre. Erro na hora, e uma linha na conversa dizendo o quê.
           const tipo = String((d.request && d.request.subtype) || 'sem tipo').slice(0, 60);
           this.escrever({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: `o App de Orquestração não atende o pedido ${tipo}` } });
           this.registrar({ tipo: 'aviso', texto: `Pedido não suportado: ${tipo} (o app recusou; a conversa segue sem ele)` });
@@ -944,6 +955,23 @@ class Conversa {
     this.pendentes.delete(reqId);
     if (this.motor === 'codex') {
       codex.responder(this, p, decisao);
+      this.enviar('conversa:respondido', reqId);
+      avisarLista();
+      return true;
+    }
+    // Pedido de dado de um servidor MCP: aceitar (com os campos conferidos, ou abrindo a página
+    // conferida), recusar ou cancelar. Quem responde sem dizer a ação (o ajudante, com
+    // "permitir") nunca aceita. Preenchimento errado não vai: o pedido continua aberto.
+    if (p.tipo === 'elicitacao') {
+      let resposta = { action: decisao.acao === 'cancel' ? 'cancel' : 'decline' };
+      if (decisao.acao === 'accept' && p.ok) {
+        if (p.modo === 'url') { abrirPagina(p.url); resposta = { action: 'accept' }; } else {
+          const c = elicitacao.conferir(p.campos, decisao.conteudo);
+          if (!c.ok) { this.pendentes.set(reqId, p); return { erro: c.erro, campo: c.campo }; }
+          resposta = { action: 'accept', content: c.conteudo };
+        }
+      }
+      this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
       this.enviar('conversa:respondido', reqId);
       avisarLista();
       return true;
@@ -1430,6 +1458,7 @@ module.exports = {
   // { lote: true }: os envios de cada conversa se juntam num `conversa:lote` a cada 50 ms (envios.js).
   ligar: (fn, opc) => { enviarTela = opc && opc.lote ? require('./envios').criarLote({ enviar: fn }).enviar : fn; },
   ligarAvisos: (fn) => { avisar = fn; },
+  ligarAbrirPagina: (fn) => { abrirPagina = typeof fn === 'function' ? fn : () => {}; },
   _Conversa: Conversa, // só para os testes de unidade
   _NAO_DISPONIVEL: NAO_DISPONIVEL, // idem: a frase que o contrato com o CLI também confere
   lista, abrir, nova, garantir, fechar, pararTodas, encerrarTodas, ambienteLimpo, _pontoDeVolta: pontoDeVolta, _pontoDeVoltaArquivo: pontoDeVoltaDoArquivo, _arqTranscript: arqTranscript, _historico: historicoDoTranscript,

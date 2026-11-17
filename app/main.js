@@ -336,6 +336,14 @@ function notificar(opcoes) {
   n.show();
   return n;
 }
+// Pedido de dado de um servidor MCP no modo página: o endereço já vem conferido
+// (elicitacao.js); aqui a mesma regra dos links, e nos testes de tela nada abre.
+conversa.ligarAbrirPagina((url) => {
+  try {
+    const u = new URL(String(url));
+    if (['http:', 'https:'].includes(u.protocol) && !u.username && !u.password && !process.env.ORQ_APP_E2E) shell.openExternal(u.toString());
+  } catch { /* endereço inválido: não abre */ }
+});
 conversa.ligarAvisos((a) => {
   if (ajudante.aviso(a)) return; // a conversa do ajudante responde no balão do bichinho
   const n = config.ler().notificacoes || {};

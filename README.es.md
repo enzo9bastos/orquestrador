@@ -95,6 +95,9 @@ que no hay ninguna terminal que vigilar.
   conversación, que es lo predeterminado y no escribe nada, este proyecto o todos; la tarjeta muestra la regla, el
   archivo y cómo deshacerlo) y *Deny…*, diciendo qué hacer en su lugar. El motivo de la pregunta queda a la vista.
   Docker, ssh, red, borrar y `git push` nunca reciben "siempre". Con la tarjeta enfocada, las teclas 1, 2 y 3 responden.
+- **Un servidor MCP pidiendo un dato**: se vuelve una tarjeta que dice qué servidor pide y qué, con su formulario
+  (campos secretos enmascarados) y las salidas *Send*, *Decline* y *Cancel the request*; cuando el servidor pide abrir
+  una página, la tarjeta muestra el sitio antes.
 - **Tarjeta del plan**: cuando Claude termina de planificar, el plan aparece con formato, con tres salidas (*Approve
   and continue in Auto*, *Approve and ask before each change*, *Keep planning…*) y *Edit the plan* para cambiar el
   texto antes de aprobar. Respondida, se pliega en una línea con *See the plan*.
