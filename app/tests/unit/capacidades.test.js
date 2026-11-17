@@ -134,6 +134,15 @@ test('capacidades: versão B com get_plan → registro diz que tem; trocar de ve
 
 test('capacidades: versão já conhecida não é sondada de novo', async (t) => {
   ambiente(t, { CLAUDE_FALSO_VERSAO: '2.0.0', CLAUDE_FALSO_SEM: '', ORQ_SONDA_CAPACIDADES: '1' });
+  // Primeiro a versão fica conhecida POR INTEIRO aqui mesmo. O teste de antes só espera
+  // um dos pedidos da sonda; com a máquina carregada o último ainda não tinha sido
+  // registrado, e este teste via a sonda completar o que faltava (falhou assim uma vez).
+  novoLog();
+  const a = nova(t);
+  a.mandar('oi');
+  await ate(() => turnos(a) === 1);
+  await ate(() => capacidades.SONDAVEIS.every((s) => a.capacidades().subtipos[s]));
+  a.parar();
   novoLog();
   const c = nova(t);
   c.mandar('oi');
