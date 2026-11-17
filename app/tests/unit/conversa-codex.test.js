@@ -131,6 +131,34 @@ test('codex: retomar traz o histórico; conversa sumida começa outra e guarda a
   } finally { sumida.parar(); }
 });
 
+test('codex: /ps e /stop funcionam: o app declara no initialize a capacidade que o Codex exige para os terminais em segundo plano', async () => {
+  const c = new conversa._Conversa({ id: 'cp', titulo: 'P', motor: 'codex', sessao: 'th-velho' });
+  c.iniciar();
+  try {
+    await ate(() => c.eventos.length >= 4);
+    const lista = await c.codex('thread/backgroundTerminals/list', {});
+    assert.deepStrictEqual(lista.data.map((x) => [x.command, x.cwd]), [['npm run dev', '/casa']]);
+    assert.deepStrictEqual(await c.codex('thread/backgroundTerminals/clean', {}), {});
+    const r = recebidos();
+    assert.deepStrictEqual(r.filter((x) => x.method === 'initialize').at(-1).params.capabilities, { experimentalApi: true });
+    assert.strictEqual(r.filter((x) => x.method === 'thread/backgroundTerminals/list').at(-1).params.threadId, 'th-velho');
+    assert.strictEqual(r.filter((x) => x.method === 'thread/backgroundTerminals/clean').at(-1).params.threadId, 'th-velho');
+  } finally { c.parar(); }
+});
+
+test('codex: o pedido de hora que o Codex faz a quem declara a capacidade é atendido (segundos inteiros)', async () => {
+  process.env.CODEX_FALSO_PEDE_HORA = '1';
+  const c = new conversa._Conversa({ id: 'ch', titulo: 'H', motor: 'codex', sessao: 'th-velho' });
+  c.iniciar();
+  try {
+    await ate(() => recebidos().some((x) => x.id === 77 && !x.method));
+    const r = recebidos().find((x) => x.id === 77 && !x.method);
+    assert.ok(!r.error, `o app recusou o pedido de hora: ${JSON.stringify(r.error)}`);
+    assert.ok(Number.isInteger(r.result.currentTimeAt), 'segundos inteiros');
+    assert.ok(Math.abs(r.result.currentTimeAt - Date.now() / 1000) < 5, 'a hora de agora');
+  } finally { delete process.env.CODEX_FALSO_PEDE_HORA; c.parar(); }
+});
+
 test('codex: trocar a IA do orquestrador guarda a conversa de cada motor', () => {
   const cfg = path.join(casa, '.config', 'orq-app', 'config.json');
   const c = new conversa._Conversa({ id: 'ct', titulo: 'Orquestrador', orquestrador: true, sessao: 'sessao-claude' });

@@ -104,7 +104,7 @@
     "itens": [
       { "id": "args do app-server", "tipo": "args", "depende": true, "onde": "conversa-codex.js ARGS", "estatico": ["default_mode_request_user_input", "suppress_unstable_features_warning"] },
       { "id": "metodo:initialize", "tipo": "metodo", "depende": true, "onde": "conversa-codex.js iniciar()",
-        "metodo": "initialize", "params": { "clientInfo": { "name": "orq-app", "title": "App de Orquestração", "version": "1" } }, "campos": [] },
+        "metodo": "initialize", "params": { "clientInfo": { "name": "orq-app", "title": "App de Orquestração", "version": "1" }, "capabilities": { "experimentalApi": true } }, "campos": [] },
       { "id": "notificacao:initialized", "tipo": "notificacao-cliente", "depende": true, "onde": "conversa-codex.js iniciar()", "metodo": "initialized" },
       { "id": "metodo:thread/start", "tipo": "metodo", "depende": true, "onde": "conversa-codex.js iniciar()",
         "metodo": "thread/start", "params": { "cwd": "$cwd", "approvalPolicy": "untrusted", "approvalsReviewer": "auto_review", "sandbox": "danger-full-access" },

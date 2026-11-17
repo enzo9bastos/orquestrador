@@ -308,6 +308,22 @@ test('comandos do Codex: os do app-server funcionam pelo método dele', async (t
     await fecharPopup(app);
   });
 
+  await t.test('(b) /ps lista os terminais em segundo plano (thread/backgroundTerminals/list)', async () => {
+    await enviar(app, '/ps');
+    await app.esperar(`${popupDe('ps')} && /npm run dev/.test(${textoPopup})`, 8000);
+    assert.strictEqual(metodo('thread/backgroundTerminals/list')[0].params.threadId, 'th-novo');
+    await fecharPopup(app);
+  });
+
+  await t.test('(b) /stop pede confirmação e só então para os terminais (thread/backgroundTerminals/clean)', async () => {
+    await enviar(app, '/stop');
+    await app.esperar(`${popupDe('stop')} && /Parar os terminais em segundo plano\?/.test(document.getElementById('popup').innerText)`, 8000);
+    assert.strictEqual(metodo('thread/backgroundTerminals/clean').length, 0, 'parou antes de confirmar');
+    await app.avaliar(`${popupDe('stop')}.querySelector('[data-sim]').click()`);
+    await app.esperar(`/Terminais em segundo plano parados/.test(${ultimoAviso})`, 8000);
+    assert.strictEqual(metodo('thread/backgroundTerminals/clean')[0].params.threadId, 'th-novo');
+  });
+
   await t.test('(a) /init manda o pedido do AGENTS.md (o app-server não entende "/init")', async () => {
     await enviar(app, '/init');
     await app.espera(300);

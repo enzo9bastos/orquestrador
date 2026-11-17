@@ -297,7 +297,12 @@ function iniciar(c, { comando, cwd, env, ctx }) {
 
   (async () => {
     try {
-      await pedir('initialize', { clientInfo: { name: 'orq-app', title: 'App de Orquestração', version: '1' } });
+      // experimentalApi: sem declarar, o Codex recusa os terminais em segundo
+      // plano (/ps e /stop). Declarar só acrescenta: métodos novos e campos
+      // opcionais a mais nas respostas (conferido no esquema do 0.167.1), e um
+      // pedido que ele passa a poder fazer ao app (currentTime/read, atendido
+      // em pedidoDoServidor).
+      await pedir('initialize', { clientInfo: { name: 'orq-app', title: 'App de Orquestração', version: '1' }, capabilities: { experimentalApi: true } });
       escrever({ method: 'initialized' });
       const base = { cwd, ...POLITICA };
       let r;
@@ -395,6 +400,9 @@ function notificacao(c, rpc, method, p, ctx) {
 }
 
 function pedidoDoServidor(c, rpc, d, ctx) {
+  // A hora de agora, em segundos inteiros: o Codex pode perguntar a quem
+  // declarou experimentalApi no initialize. Não passa pela tela.
+  if (d.method === 'currentTime/read') { rpc.escrever({ id: d.id, result: { currentTimeAt: Math.floor(Date.now() / 1000) } }); return; }
   const tela = pedidoDaTela(d.method, d.params || {});
   if (!tela) {
     // Pedido que o app não sabe mostrar: recusa, e o Codex segue sem ele.

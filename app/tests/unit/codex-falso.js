@@ -12,6 +12,13 @@ log({ args: process.argv.slice(2) });
 if (process.env.CODEX_FALSO_SAI) { process.stderr.write(process.env.CODEX_FALSO_SAI + '\n'); process.exit(1); }
 // $CODEX_FALSO_RECUSA: com um turno ativo, recusa o turn/steer e o turn/start.
 const RECUSA = !!process.env.CODEX_FALSO_RECUSA;
+// O initialize trouxe capabilities.experimentalApi? Como no Codex de verdade
+// (conferido no 0.167.1), os métodos experimentais só atendem a quem declarou.
+let experimental = false;
+const semCapacidade = (d) => sai({ id: d.id, error: { code: -32600, message: `${d.method} requires experimentalApi capability` } });
+// $CODEX_FALSO_PEDE_HORA: depois de abrir a conversa, pede a hora ao app
+// (currentTime/read, pedido que o Codex só faz a quem declarou a capacidade).
+const pedirHora = (threadId) => { if (experimental && process.env.CODEX_FALSO_PEDE_HORA) sai({ id: 77, method: 'currentTime/read', params: { threadId } }); };
 
 let esperandoResposta = null;
 let turnoAtivo = null; // turno começado e ainda não terminado (segurado pela pergunta)
@@ -21,16 +28,17 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
   if (d.id != null && !d.method) { if (esperandoResposta && d.id === 99) { const f = esperandoResposta; esperandoResposta = null; f(); } return; }
   const ok = (result) => sai({ id: d.id, result });
   switch (d.method) {
-    case 'initialize': return ok({ userAgent: 'falso' });
+    case 'initialize': experimental = !!(d.params && d.params.capabilities && d.params.capabilities.experimentalApi); return ok({ userAgent: 'falso' });
     case 'initialized': return undefined;
-    case 'thread/start': return ok({ thread: { id: 'th-novo', turns: [] }, model: 'gpt-falso', cwd: '/casa', reasoningEffort: 'medium' });
+    case 'thread/start': ok({ thread: { id: 'th-novo', turns: [] }, model: 'gpt-falso', cwd: '/casa', reasoningEffort: 'medium' }); return pedirHora('th-novo');
     case 'thread/resume':
       if (d.params.threadId !== 'th-velho') return sai({ id: d.id, error: { code: -32600, message: 'thread not found' } });
-      return ok({ thread: { id: 'th-velho', turns: [{ startedAt: 1700000000, items: [
+      ok({ thread: { id: 'th-velho', turns: [{ startedAt: 1700000000, items: [
         { type: 'userMessage', id: 'u0', content: [{ type: 'text', text: 'oi antigo' }] },
         { type: 'commandExecution', id: 'c0', command: "/bin/bash -lc 'ls'", commandActions: [{ type: 'listFiles', command: 'ls' }], status: 'completed', aggregatedOutput: 'a b', exitCode: 0 },
         { type: 'agentMessage', id: 'a0', text: 'resposta antiga' },
       ] }] }, model: 'gpt-falso', cwd: '/casa' });
+      return pedirHora('th-velho');
     case 'turn/interrupt': return ok({});
     // Métodos dos comandos do "/" que o app faz numa conversa Codex.
     case 'thread/compact/start': return ok({});
@@ -44,8 +52,10 @@ readline.createInterface({ input: process.stdin }).on('line', (l) => {
     case 'skills/list': return ok({ data: [{ cwd: '/casa', skills: [{ name: 'rodada-x' }] }] });
     case 'hooks/list': return ok({ data: [] });
     case 'config/read': return ok({ config: { model: 'gpt-falso' } });
-    case 'thread/backgroundTerminals/list': return ok({ data: [] });
-    case 'thread/backgroundTerminals/clean': return ok({});
+    case 'thread/backgroundTerminals/list':
+      if (!experimental) return semCapacidade(d);
+      return ok({ data: [{ itemId: 'it1', processId: 'p1', command: 'npm run dev', cwd: '/casa', osPid: 4242, cpuPercent: 0.5, rssKb: 1024 }], nextCursor: null });
+    case 'thread/backgroundTerminals/clean': return experimental ? ok({}) : semCapacidade(d);
     case 'turn/steer':
       if (RECUSA || !turnoAtivo || d.params.expectedTurnId !== turnoAtivo) return sai({ id: d.id, error: { code: -32600, message: 'no active turn to steer' } });
       return ok({ turnId: turnoAtivo });
