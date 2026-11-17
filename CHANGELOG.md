@@ -4,6 +4,38 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.5.0 (2026-11-17)
+
+- Conversation bar redone: four chips and a ⋯ menu. Usage is one chip (a ring
+  with the context; the 5-hour and 7-day windows inside, and a badge when one
+  goes past 80%). A new permission mode chip switches the mode live (Ask,
+  Accept edits, Auto, Plan; Ctrl+Shift+M, or Shift+Tab on an empty box), and
+  asks first when the orchestrator leaves Auto. With a narrow window the
+  chips keep only their icons.
+- Model menu: "Opus plans, Sonnet executes", other models folded, effort on
+  one line with the arrows, and a fast-mode switch on models that have it.
+- Activity strip above the box: what the engine is doing now, how many tasks
+  run in the background, how many messages wait, and Stop (Esc).
+- Message queue: while the engine works, Enter queues your message (visible,
+  with "Send now" and "Remove") and Ctrl+Enter steers. If you stop the engine
+  yourself, the queue waits for you.
+- Esc does one thing at a time: it closes what is on top, and only then
+  interrupts the engine; never from a terminal or another field.
+- Hints under the box and a shortcuts panel (Ctrl+/).
+- Start and Shut down show one at a time, only in the orchestrator
+  conversation; a Settings option moves them into the ⋯ menu.
+- `/exit` ends only that conversation (the app stays open) and can be undone
+  with "Go back to the previous session".
+- `/config` popup: the keys come from the CLI's own usage text, grouped and
+  searchable, with the current value where Claude reports it.
+- "No questions" (Bypass) mode exists only behind a Settings option that is
+  off by default, only in side conversations, with a confirmation every time
+  and a red strip on screen. See SECURITY.md.
+- Requests: deleting shows what is lost first (the note, files, size, where
+  it goes), and only the card's Delete button deletes. The `orq-topico
+  apagar` command, which the orchestrator runs, no longer deletes: it leaves
+  a request on the card for you to decide.
+
 ## 0.4.3 (2026-11-17)
 
 - Codex: `/ps` and `/stop` work. The app now declares the capability Codex
