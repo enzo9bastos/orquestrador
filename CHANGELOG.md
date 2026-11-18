@@ -4,6 +4,17 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.12.0 (2026-11-18)
+
+- Closing the app now keeps the side conversations in the list, paused: click one and it resumes where it
+  stopped, in its folder. A conversation that never started leaves the list; the orchestrator still begins
+  a new round. Settings › Orchestration has the switch to make them leave the list instead, as before.
+- A reopened conversation shows its latest 600 messages; a strip at the top now says there are older ones
+  and loads the previous page above, keeping the screen where you were reading, until the start of the
+  conversation.
+- When Claude has already deleted an old conversation, the notice explains why (its cleanupPeriodDays
+  setting) and that the next message starts a new conversation in the same folder.
+
 ## 0.11.0 (2026-11-18)
 
 - Earlier conversations: a new "Earlier…" button above the conversation list opens the conversations
