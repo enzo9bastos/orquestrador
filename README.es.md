@@ -155,6 +155,16 @@ que no hay ninguna terminal que vigilar.
   conversación; el orquestador siempre corre en tu carpeta personal. El chip de la carpeta, en la barra de la
   conversación, abre un menú con la carpeta, las carpetas extra que la conversación puede usar (añadir o quitar,
   como con `/add-dir`) y un atajo para abrir otra conversación en una carpeta usada hace poco.
+- **El ⋯ de cada conversación** (en la lista de la izquierda, donde estaba la ✕): *Rename* (el nombre cambia en la
+  app y en el historial del propio Claude, sin mensaje en la conversación), *Archive* (sale de la lista y queda en
+  *Earlier › Archived*; no se borra nada, y hay un *Undo*), *Branch* (otra conversación con una copia hasta ahí) y
+  *Terminal in this folder*. El orquestador no tiene menú: su carpeta y su lugar son fijos.
+- **Earlier** (botón sobre la lista de conversaciones): las conversaciones que Claude guarda en este equipo, de la
+  más nueva a la más antigua, con carpeta, tamaño y motor. Se puede buscar por nombre o carpeta, reabrir con Enter
+  en la carpeta donde corría (la misma conversación nunca se abre dos veces), archivar o desarchivar, y borrar.
+  Borrar muestra antes el costo (cuántos archivos y cuánto, con las conversaciones de los subagentes; adónde va: la
+  papelera del sistema; qué queda), exige un clic real y rechaza la conversación abierta y la del orquestador. La
+  lista nunca lee un archivo entero: solo el principio y el final de cada uno, con un índice para el resto.
 - **Tarjeta de confianza de la carpeta**: la primera vez que Claude arrancaría en una carpeta que no es la
   personal, la conversación muestra lo que esa carpeta configura (comandos que corren solos, servidores MCP,
   reglas que ya permiten sin preguntar, instrucciones para Claude) y espera: *Trust and open*, *Open without the

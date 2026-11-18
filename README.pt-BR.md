@@ -149,6 +149,16 @@ há terminal para vigiar.
   orquestrador roda sempre na pasta pessoal. O chip da pasta, na barra da conversa, abre um menu com a pasta, as
   pastas extras que a conversa pode usar (adicionar ou tirar, como no `/add-dir`) e um atalho para abrir outra
   conversa numa pasta usada há pouco.
+- **O ⋯ de cada conversa** (na lista da esquerda, onde ficava o ✕): *Renomear* (o nome muda no app e no histórico do
+  próprio Claude, sem mensagem na conversa), *Arquivar* (sai da lista e fica em *Anteriores › Arquivadas*; nada é
+  apagado, e há um *Desfazer*), *Ramificar* (outra conversa com uma cópia até ali) e *Terminal nesta pasta*. O
+  orquestrador não tem menu: a pasta e o lugar dele são fixos.
+- **Anteriores** (botão acima da lista de conversas): as conversas que o Claude guarda neste computador, da mais
+  nova para a mais antiga, com pasta, tamanho e motor. Dá para buscar pelo nome ou pela pasta, reabrir com Enter na
+  pasta em que a conversa rodava (a mesma conversa nunca abre duas vezes), arquivar ou desarquivar, e apagar. Apagar
+  mostra antes o custo (quantos arquivos e quanto, com as conversas dos subagentes; para onde vai: a lixeira do
+  sistema; o que fica), exige um clique de verdade e recusa a conversa aberta e a do orquestrador. A lista nunca lê
+  um arquivo inteiro: só o começo e o fim de cada um, com um índice para o resto.
 - **Cartão de confiança da pasta**: na primeira vez em que o Claude subiria numa pasta que não é a pessoal, a
   conversa mostra o que aquela pasta configura (comandos que rodam sozinhos, servidores MCP, regras que já
   permitem sem perguntar, instruções para o Claude) e espera: *Confiar e abrir*, *Abrir sem as configurações do

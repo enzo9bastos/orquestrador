@@ -1926,14 +1926,16 @@ async function reabrirDeAnteriores(sessao) {
   if (ja) return { id: ja.id, jaAberta: true };
   const x = (await anteriores.listar()).find((y) => y.sessao === sessao);
   const a = anteriores.lerArquivadas()[sessao];
-  if (!x && !(a && a.motor === 'codex')) throw new Error('não achei esta conversa entre as guardadas');
+  // Arquivada pelo app: reabre pelo que o app guardou (nome, motor, pasta), mesmo sem achar o
+  // arquivo dela na lista (é o "Desfazer" do arquivar, e o caminho das conversas do Codex).
+  if (!x && !a) throw new Error('não achei esta conversa entre as guardadas');
   const cru = x ? x.pasta : a.pasta;
   let pasta = PASTA;
   if (cru) {
     if (!ehPasta(cru)) throw new Error(`a pasta desta conversa não existe mais: ${exibirPasta(cru)}`);
     pasta = pastaDeConversa(cru);
   }
-  const id = retomar(sessao, x ? 'claude' : 'codex', x ? x.titulo : a.titulo, pasta);
+  const id = retomar(sessao, x ? 'claude' : a.motor, x ? x.titulo : a.titulo, pasta);
   anteriores.desarquivar(sessao);
   lembrarPasta(pasta);
   return { id, jaAberta: false };
@@ -2006,6 +2008,7 @@ module.exports = {
   // Conversas anteriores e o ⋯ de cada conversa (planos 3.2 e 3.3).
   anterioresDaTela, arquivarConversa, marcarArquivada, reabrirDeAnteriores, sessoesEmUso, sessoesDoOrquestrador,
   renomear: (id, titulo) => pegar(id).renomear(titulo),
+  pastaDaConversa: (id) => pegar(id).pasta,
   tirarPastaExtra: (id, p) => pegar(id).tirarPastaExtra(p),
   threadNova: (id) => { pegar(id).threadNova(); return true; },
   // /stop: o processo sai (a linha "A conversa foi pausada." vem da saída dele);

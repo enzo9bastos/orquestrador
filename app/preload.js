@@ -227,7 +227,7 @@ contextBridge.exposeInMainWorld('orq', {
   },
   pty: {
     lista: () => ipcRenderer.invoke('pty:lista'),
-    abrir: (id, c, r, sessao) => ipcRenderer.invoke('pty:abrir', id, c, r, sessao),
+    abrir: (id, c, r, sessao, doConversa) => ipcRenderer.invoke('pty:abrir', id, c, r, sessao, doConversa),
     escrever: (id, d) => ipcRenderer.send('pty:escrever', id, d),
     tamanho: (id, c, r) => ipcRenderer.send('pty:tamanho', id, c, r),
     fechar: (id) => ipcRenderer.invoke('pty:fechar', id),

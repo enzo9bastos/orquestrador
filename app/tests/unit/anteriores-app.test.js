@@ -260,3 +260,20 @@ test('apagar conversa: recusa a que está aberta (também se abriu depois do cus
   assert.match((await apagarConversa.preparar('sessao-que-nao-existe-0003')).erro, /não achei esta conversa/);
   assert.match((await apagarConversa.preparar('x')).erro, /inválida/);
 });
+
+test('desfazer o arquivar: a conversa arquivada pelo app reabre pelo que o app guardou, mesmo sem o arquivo dela na lista', async (t) => {
+  const dir = projeto('desfazer');
+  await espera(3);
+  const id = conversa.nova({ pasta: dir });
+  const c = conversa._pegar(id);
+  c.sessao = 'sessao-sem-arquivo-0001'; // o Claude ainda não gravou (ou o arquivo está noutro lugar)
+  c.titulo = 'Conversa arquivada agora';
+  const r = conversa.arquivarConversa(id);
+  assert.deepStrictEqual(r, { arquivada: true, sessao: 'sessao-sem-arquivo-0001', titulo: 'Conversa arquivada agora' });
+  assert.strictEqual(await daTela('sessao-sem-arquivo-0001'), undefined, 'conversa do Claude sem arquivo não aparece em Anteriores');
+  const de = await conversa.reabrirDeAnteriores('sessao-sem-arquivo-0001');
+  t.after(() => { try { conversa.fechar(de.id); } catch { /* já fechada */ } });
+  const volta = conversa._pegar(de.id);
+  assert.deepStrictEqual({ sessao: volta.sessao, pasta: volta.pasta, titulo: volta.titulo, motor: volta.motor }, { sessao: 'sessao-sem-arquivo-0001', pasta: dir, titulo: 'Conversa arquivada agora', motor: 'claude' });
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(anteriores.lerArquivadas(), 'sessao-sem-arquivo-0001'), false);
+});

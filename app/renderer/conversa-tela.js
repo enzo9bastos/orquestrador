@@ -1860,7 +1860,8 @@
           <span class="ponto ${estado}" title="${texto}"></span>
           <span class="pasta-conversa"><span data-sem-traducao>${esc(c.pasta || '~')}</span>${c.orquestrador ? ' · <span>pasta fixa</span>' : ''}${c.semProjeto ? ' · <span>sem as configurações do projeto</span>' : ''} · <span>${texto}</span></span>
         </button>
-        ${c.orquestrador ? '' : `<button type="button" class="fechar-conversa" data-fechar-conversa="${esc(c.id)}" title="Tirar da lista (a conversa continua no histórico do Claude)" aria-label="Fechar conversa">✕</button>`}
+        ${c.orquestrador ? '<span class="cadeado-conversa" title="O orquestrador roda sempre na pasta pessoal"><svg class="ico"><use href="#i-cadeado"/></svg></span>'
+    : `<button type="button" class="mais-conversa" data-mais-conversa="${esc(c.id)}" aria-haspopup="menu" aria-expanded="false" title="Mais ações desta conversa" aria-label="Mais ações desta conversa">⋯</button>`}
       </div>`;
     }).join('');
     const atual = l.find((c) => c.id === ativa);
@@ -1914,14 +1915,6 @@
   $('conversas').addEventListener('click', async (ev) => {
     const abrir = ev.target.closest('[data-conversa]');
     if (abrir) return trocar(abrir.dataset.conversa);
-    const fechar = ev.target.closest('[data-fechar-conversa]');
-    if (fechar) {
-      confirmar(fechar, 'Fechar?', async () => {
-        const id = fechar.dataset.fecharConversa;
-        await C.fechar(id);
-        if (id === ativa) trocar('orquestrador');
-      });
-    }
   });
 
   const entrada = $('entrada');

@@ -182,10 +182,12 @@ const enviar = (canal, ...a) => janela && janela.webContents.send(canal, ...a);
 // Saída dos terminais: junta a cada 16 ms (um quadro) em vez de um envio por pedaço.
 const loteTerminal = envios.criarLoteTerminal({ enviar });
 
-ipcMain.handle('pty:lista', () => [...terminais].map(([id, t]) => ({ id, sessao: t.sessao })));
+ipcMain.handle('pty:lista', () => [...terminais].map(([id, t]) => ({ id, sessao: t.sessao, pasta: t.pasta || null })));
 // sessao: nome de uma sessão tmux de agente para anexar (o "Abrir terminal" da
 // frente), em vez de um shell novo. ignore-size: não encolhe as outras telas.
-ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
+// doConversa: "Terminal nesta pasta" (o ⋯ da lista). A pasta vem da conversa (quem sabe é o
+// motor), nunca de um caminho mandado pela tela; se a pasta sumiu, o terminal não abre.
+ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao, doConversa) => {
   const t = terminais.get(id);
   if (t) {
     loteTerminal.descartar(id); // o histórico já tem o que ainda não saiu
@@ -196,11 +198,16 @@ ipcMain.handle('pty:abrir', (_e, id, cols, rows, sessao) => {
   if (terminais.size >= MAX_TERMINAIS || !/^t\d+$/.test(id)) return false;
   if (sessao && !/^[\w.-]+$/.test(sessao)) return false;
   const comando = sessao ? `exec tmux attach -f ignore-size -t '${sessao}'` : ORQUESTRADOR;
+  let pasta = os.homedir();
+  if (doConversa && !sessao) {
+    try { pasta = conversa.pastaDaConversa(doConversa); } catch { return false; }
+    try { if (!fs.statSync(pasta).isDirectory()) return false; } catch { return false; }
+  }
   // Shell de login: o PATH do app aberto pelo menu não tem ~/.local/bin.
   const p = pty.spawn('bash', ['-lc', comando], {
-    name: 'xterm-256color', cols, rows, cwd: os.homedir(), env: conversa.ambienteLimpo(),
+    name: 'xterm-256color', cols, rows, cwd: pasta, env: conversa.ambienteLimpo(),
   });
-  const novo = { pty: p, historico: envios.criarHistorico(200000), sessao: sessao || null };
+  const novo = { pty: p, historico: envios.criarHistorico(200000), sessao: sessao || null, pasta: pasta !== os.homedir() ? pasta : null };
   terminais.set(id, novo);
   p.onData((d) => {
     novo.historico.add(d);

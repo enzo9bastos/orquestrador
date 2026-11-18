@@ -84,7 +84,7 @@ function arrumarGrade() {
       const fs = (ultimo && ultimo.frentes) || [];
       const i = fs.findIndex((f) => f.sessaoTmux === t.sessao);
       t.painel.querySelector('.nome-terminal').textContent = i >= 0 ? `${nomeDaFrente(fs[i], i)} · ${t.sessao}` : t.sessao;
-    } else t.painel.querySelector('.nome-terminal').textContent = `Terminal ${++n}`;
+    } else t.painel.querySelector('.nome-terminal').textContent = t.rotulo ? `Terminal ${++n} · ${t.rotulo}` : `Terminal ${++n}`;
   }
   requestAnimationFrame(() => { for (const [id, t] of terminais) { t.ajuste.fit(); window.orq.pty.tamanho(id, t.term.cols, t.term.rows); } });
 }
@@ -138,7 +138,8 @@ function ligarCopiarColar(term, id, painel) {
   });
 }
 
-async function criarTerminal(id, sessao) {
+// doConversa: o terminal abre na pasta dessa conversa ("Terminal nesta pasta", no ⋯ da lista).
+async function criarTerminal(id, sessao, doConversa = null, rotulo = null) {
   if (terminais.size >= MAX_TERMINAIS) return false;
   if ($('aviso-terminal')) $('aviso-terminal').hidden = true;
   id = id || `t${proximoTerminal}`;
@@ -153,7 +154,9 @@ async function criarTerminal(id, sessao) {
   const ajuste = new FitAddon.FitAddon();
   term.loadAddon(ajuste);
   term.open(painel.querySelector('.corpo-terminal'));
-  terminais.set(id, { term, ajuste, painel, sessao: sessao || null });
+  // Terminal aberto na pasta de uma conversa: o nome dele diz a pasta.
+  const daConversa = doConversa && window.orqConversa ? window.orqConversa.lista().find((c) => c.id === doConversa) : null;
+  terminais.set(id, { term, ajuste, painel, sessao: sessao || null, rotulo: rotulo || (daConversa ? daConversa.pasta : null) });
   if (sessao) painel.classList.add('de-agente');
   term.onData((d) => window.orq.pty.escrever(id, d));
   ligarCopiarColar(term, id, painel);
@@ -165,7 +168,8 @@ async function criarTerminal(id, sessao) {
   }).observe(painel.querySelector('.corpo-terminal'));
   arrumarGrade();
   ajuste.fit();
-  await window.orq.pty.abrir(id, term.cols, term.rows, sessao);
+  const abriu = await window.orq.pty.abrir(id, term.cols, term.rows, sessao, doConversa);
+  if (abriu === false) { tirarTerminal(id); arrumarGrade(); return false; }
   term.focus();
   return true;
 }
@@ -225,6 +229,13 @@ document.addEventListener('focusin', (ev) => {
   for (const [id, t] of terminais) if (t.painel.contains(ev.target)) ultimoTerminal = id;
 });
 window.orqTerminal = {
+  // "Terminal nesta pasta": um terminal novo, na aba Terminal, já dentro da pasta da conversa.
+  async abrirNaPasta(idConversa) {
+    if (typeof idConversa !== 'string' || !idConversa) return false;
+    document.querySelector('[data-aba="aba-terminal"]').click();
+    if (!terminaisIniciados) { terminaisIniciados = true; for (const v of await window.orq.pty.lista()) await criarTerminal(v.id, v.sessao, null, v.pasta); }
+    return criarTerminal(null, null, idConversa);
+  },
   async colar(texto) {
     document.querySelector('[data-aba="aba-terminal"]').click();
     for (let i = 0; i < 30 && !terminais.size; i++) await new Promise((r) => setTimeout(r, 100));

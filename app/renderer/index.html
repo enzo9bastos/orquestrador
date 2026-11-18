@@ -26,6 +26,7 @@
     <symbol id="i-tema" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></symbol>
     <symbol id="i-recado" viewBox="0 0 16 16"><path d="M2.5 4h11v8h-11z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="m2.8 4.4 5.2 4.2 5.2-4.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
     <symbol id="i-balao" viewBox="0 0 16 16"><path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cadeado" viewBox="0 0 16 16"><path d="M5 7V5.3a3 3 0 0 1 6 0V7M3.8 7h8.4v6.2H3.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
     <symbol id="i-pasta" viewBox="0 0 16 16"><path d="M2.5 4.5h4l1.2 1.5h5.8v6.5h-11z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
     <symbol id="i-estrela" viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
     <symbol id="i-enviar" viewBox="0 0 16 16"><path d="M8 13V3.5M3.8 7.5 8 3.3l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -55,8 +56,9 @@
       <svg class="ico"><use href="#i-busca"/></svg>
       <input id="filtro" type="search" placeholder="Buscar frente" aria-label="Buscar frente">
     </label>
-    <div class="secao-titulo">Conversas</div>
+    <div class="secao-titulo secao-conversas"><span>Conversas</span><button type="button" class="botao-texto" id="abrir-anteriores" title="Conversas antigas: buscar, reabrir, arquivar e apagar">Anteriores…</button></div>
     <div id="conversas" class="conversas"></div>
+    <div id="aviso-lateral" class="aviso-lateral" role="status" aria-live="polite" hidden></div>
     <div class="secao-titulo">Agentes</div>
     <div id="projetos" class="projetos"></div>
     <p id="sem-terminal" class="rodape-lateral"></p>
@@ -400,6 +402,9 @@
     </form>
   </aside>
 
+  <!-- O ⋯ de cada conversa da lista (anteriores-tela.js): abre ao lado da lista. -->
+  <div id="menu-conversa" class="menu-modelo menu-conversa" role="menu" aria-label="Mais ações desta conversa" hidden></div>
+
   <div id="palco-pet" class="pet-palco"></div>
 
   <div id="popup" class="config-fundo" hidden>
@@ -688,6 +693,7 @@
   <script src="busca-conversa.js"></script>
   <script src="lado-tela.js"></script>
   <script src="pasta-tela.js"></script>
+  <script src="anteriores-tela.js"></script>
   <script src="comandos-tela.js"></script>
   <script src="repertorio-tela.js"></script>
   <script src="workflows-tela.js"></script>

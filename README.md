@@ -145,6 +145,16 @@ protocol), so there is no terminal to babysit.
   conversation; the orchestrator always runs in your home folder. The folder chip in the conversation bar opens a
   menu with the folder, the extra folders the conversation may use (add or remove, as with `/add-dir`) and a
   shortcut to open a new conversation in a folder used lately.
+- **The ⋯ on each conversation** (in the list on the left, where the ✕ used to be): *Rename* (the name changes in
+  the app and in Claude's own history, with no message in the conversation), *Archive* (it leaves the list and stays
+  in *Earlier › Archived*; nothing is deleted, and there is an *Undo*), *Branch* (another conversation with a copy
+  up to here) and *Terminal in this folder*. The orchestrator has no menu: its folder and its place are fixed.
+- **Earlier** (button above the conversation list): the conversations Claude keeps on this computer, newest first,
+  with folder, size and engine. Search by name or folder, press Enter to reopen one in the folder it ran in (the
+  same conversation never opens twice), archive or unarchive, and delete. Deleting shows the cost first (how many
+  files and how much, including the subagent conversations; where it goes: the system trash; what stays), needs a
+  real click, and refuses a conversation that is open and the orchestrator's. The list never reads a whole file:
+  only the beginning and the end of each one, with an index for the rest.
 - **Folder trust card**: the first time Claude would start in a folder that is not your home folder, the
   conversation shows what that folder configures (commands that run by themselves, MCP servers, rules that already
   allow without asking, instructions for Claude) and waits: *Trust and open*, *Open without the project's settings*

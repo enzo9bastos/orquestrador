@@ -56,6 +56,8 @@
       { "id": "controle:side_question", "tipo": "controle", "depende": true, "vivo": false, "porque": "chama o modelo", "onde": "conversa.js ladoPerguntar (/btw, a gaveta da pergunta rápida)",
         "pedido": { "subtype": "side_question", "question": "x", "history": [] }, "campos": ["response"],
         "estatico": ["side_question", "Side question cancelled", "control_request_progress", "control_cancel_request"] },
+      { "id": "controle:rename_session", "tipo": "controle", "depende": false, "onde": "conversa.js renomear (o ⋯ de cada conversa na lista)",
+        "pedido": { "subtype": "rename_session", "title": "orq-contrato", "source": "host" }, "campos": [], "estatico": ["rename_session"] },
       { "id": "controle:submit_feedback", "tipo": "controle", "depende": true, "vivo": false, "porque": "manda o texto para a Anthropic", "onde": "comandos-tela.js /feedback",
         "pedido": { "subtype": "submit_feedback", "description": "x", "surface": "sdk" }, "campos": [], "estatico": ["submit_feedback"] },
       { "id": "controle:background_tasks", "tipo": "controle", "depende": true, "onde": "comandos-tela.js /background",

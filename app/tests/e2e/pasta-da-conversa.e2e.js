@@ -78,6 +78,7 @@ test('pasta por conversa: janela "Nova conversa", cartão de confiança e a late
     assert.strictEqual(await app.avaliar(`${CARTAO} === null`), true);
     await app.avaliar("window.orq.conversa.mandar(window.orqConversa.ativa(), 'oi da pasta pessoal')");
     await app.esperar("[...document.querySelectorAll('#mensagens .msg-voce')].some((m) => /oi da pasta pessoal/.test(m.innerText))", 8000);
+    for (let i = 0; i < 80 && !mensagens().length; i++) await new Promise((r) => setTimeout(r, 100)); // o Claude falso anota a mensagem quando a lê
     assert.deepStrictEqual(mensagens(), ['oi da pasta pessoal']);
   });
 
@@ -129,6 +130,8 @@ test('pasta por conversa: janela "Nova conversa", cartão de confiança e a late
     await clicarDeVerdade('#mensagens .cartao-pasta [data-pasta=confiar]');
     await app.esperar(`${CARTAO} === null`, 8000);
     await app.esperar("[...document.querySelectorAll('#mensagens .msg-voce')].some((m) => /primeira no projeto/.test(m.innerText))", 8000);
+    // O Claude falso anota a subida e a mensagem quando as lê: com a máquina cheia isso chega um instante depois do balão.
+    for (let i = 0; i < 80 && !(subidas().length === antes + 1 && mensagens().includes('primeira no projeto')); i++) await new Promise((r) => setTimeout(r, 100));
     assert.strictEqual(subidas().length, antes + 1);
     assert.ok(mensagens().includes('primeira no projeto'));
     assert.strictEqual(await app.avaliar("document.querySelectorAll('#mensagens .msg-fila').length"), 0);

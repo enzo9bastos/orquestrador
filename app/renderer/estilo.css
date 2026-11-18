@@ -1993,3 +1993,54 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .menu-pasta .pasta-lista .botao-texto { margin-left: auto; height: 22px; padding: 0 8px; font: 11.5px var(--sans); }
 .pasta-recentes { display: flex; flex-wrap: wrap; gap: 6px; }
 .pasta-recentes .chip code { font: 12px var(--mono); }
+
+/* --- conversas anteriores e o ⋯ de cada conversa (planos 3.2 e 3.3; anteriores-tela.js) --- */
+.secao-conversas { display: flex; align-items: center; gap: 8px; }
+.secao-conversas .botao-texto { height: 20px; padding: 0 8px; font: 500 11px var(--sans); letter-spacing: 0; text-transform: none; }
+.mais-conversa { width: 24px; height: 24px; margin-right: 3px; border-radius: var(--r-sm); color: var(--fg-3); opacity: 0; flex: none; }
+.item-conversa:hover .mais-conversa, .mais-conversa:focus-visible, .mais-conversa[aria-expanded="true"] { opacity: 1; }
+.mais-conversa:hover, .mais-conversa[aria-expanded="true"] { background: var(--painel); color: var(--fg); }
+.cadeado-conversa { width: 24px; height: 24px; margin-right: 3px; display: inline-grid; place-items: center; color: var(--fg-4); flex: none; }
+.cadeado-conversa .ico { width: 12px; height: 12px; }
+.aviso-lateral { margin: 4px 2px 0; padding: 6px 8px; border-radius: var(--r-sm); border: 1px solid var(--borda); background: var(--bg-elevado); font-size: 12px; line-height: 1.45; color: var(--fg-2); overflow-wrap: anywhere; }
+.aviso-lateral[hidden] { display: none; }
+.aviso-lateral .botao-texto { margin: 4px 0 0; display: inline-block; height: 22px; padding: 0 8px; font-size: 11.5px; }
+.menu-modelo.menu-conversa { width: 280px; padding: 6px; }
+.menu-conversa > button { display: grid; gap: 1px; width: 100%; padding: 6px 8px; border-radius: var(--r-sm); text-align: left; color: var(--fg-2); }
+.menu-conversa > button:hover, .menu-conversa > button:focus-visible { background: var(--painel-hover); color: var(--fg); }
+.menu-conversa > button span { font-size: 12.5px; color: var(--fg); }
+.menu-conversa > button small { font-size: 11px; color: var(--fg-4); overflow-wrap: anywhere; }
+.menu-conversa hr { border: 0; border-top: 1px solid var(--borda); margin: 4px 2px; }
+.menu-renomear { display: grid; gap: 8px; padding: 6px; }
+.menu-renomear label { font: 600 10.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-4); }
+.menu-renomear input { height: 28px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--borda-forte); background: var(--bg); color: var(--fg); font: 13px var(--sans); min-width: 0; }
+.menu-renomear input:focus { outline: 0; border-color: var(--claude); }
+.menu-renomear .acoes { display: flex; gap: 8px; }
+.menu-renomear .menu-erro { margin: 0; color: var(--perigo); }
+.menu-renomear .menu-erro[hidden] { display: none; }
+/* A janela "Anteriores" usa o corpo da paleta; aqui só o que é dela. */
+.paleta.anteriores { width: min(760px, calc(100% - 32px)); max-height: 76vh; }
+.anteriores-lista { min-height: 80px; }
+.paleta-item.anteriores-item { display: block; }
+.ant-cima { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.ant-cima .titulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.ant-quando { flex: none; font-size: 12px; color: var(--fg-4); }
+.ant-baixo { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px; font-size: 12px; color: var(--fg-4); min-width: 0; }
+.ant-baixo code { font: 11.5px var(--mono); color: var(--fg-3); overflow-wrap: anywhere; }
+.ant-marca { padding: 0 6px; border-radius: 999px; border: 1px solid var(--borda-forte); font-size: 11px; color: var(--fg-3); white-space: nowrap; }
+.ant-marca.aberta { border-color: color-mix(in srgb, var(--ativo) 55%, transparent); color: var(--ativo); }
+.ant-marca.sumiu { border-color: color-mix(in srgb, var(--esperando) 55%, transparent); color: var(--esperando); }
+.ant-acoes { margin-left: auto; display: inline-flex; gap: 6px; }
+.ant-acoes .botao-texto { margin-left: 0; height: 22px; padding: 0 8px; font-size: 11.5px; }
+.anteriores-saida { padding: 0 10px; }
+.anteriores-saida:empty { display: none; }
+.anteriores-linha { margin: 8px 4px; font-size: 12.5px; color: var(--fg-2); overflow-wrap: anywhere; }
+.anteriores-linha.erro { color: var(--perigo); }
+.anteriores-custo { margin: 8px 0 10px; }
+.anteriores-trava { margin: 0; font-size: 12.5px; color: var(--esperando); }
+.custo-lista { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; font-size: 12.5px; }
+.custo-lista dt { color: var(--fg-4); }
+.custo-lista dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
+.custo-orfaos { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.custo-orfaos code { font: 11.5px var(--mono); }
+.custo-orfaos small { color: var(--fg-4); }
