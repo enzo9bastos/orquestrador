@@ -2049,6 +2049,9 @@ module.exports = {
   renomear: (id, titulo) => pegar(id).renomear(titulo),
   pastaDaConversa: (id) => pegar(id).pasta,
   carregarAnteriores: (id) => pegar(id).carregarAnteriores(),
+  // O que a pessoa já escreveu nas conversas guardadas da pasta desta conversa (o ↑ e o Ctrl+R da
+  // caixa). Só as do Claude: o Codex guarda as conversas dele em outro lugar.
+  promptsAnteriores: async (id) => { const c = pegar(id); return c.motor === 'codex' ? [] : anteriores.promptsDaPasta(c.pasta); },
   _paginaDoHistorico: paginaDoHistorico, // só para os testes
   tirarPastaExtra: (id, p) => pegar(id).tirarPastaExtra(p),
   threadNova: (id) => { pegar(id).threadNova(); return true; },

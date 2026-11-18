@@ -118,3 +118,32 @@ test('arquivadas: arquivar grava a marca com título, motor e pasta; desarquivar
   fs.writeFileSync(anteriores._arquivos.arquivadas(), 'lixo');
   assert.deepStrictEqual(anteriores.lerArquivadas(), {});
 });
+
+test('o que a pessoa já escreveu numa pasta: só daquela pasta, da mais nova para a mais antiga, sem repetir e sem o que não foi digitado', async () => {
+  const base = Date.now() - 10 * 60000;
+  const P = '/srv/projetos/prompts'; // uma pasta só deste teste (os outros usam /srv/projetos/api)
+  const meu = (texto, extra = {}) => deVoce(texto, { cwd: P, ...extra });
+  conversa([meu('primeira da pasta'), doClaude('ok'), meu('segunda da pasta'), meu('<local-command-stdout>saída de comando</local-command-stdout>'), meu('instrução interna', { isMeta: true }), meu('de um subagente', { isSidechain: true })],
+    { pasta: '-srv-projetos-prompts', quando: base });
+  conversa([meu('mais nova da pasta'), meu('segunda da pasta'),
+    meu('com menção @nota:x\n\n---\nNota mencionada «x» (arquivo /n/x.md):\n\nconteúdo comprido da nota'),
+    linha({ type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'em blocos' }, { type: 'image', source: { type: 'base64', data: 'AAAA' } }] }, cwd: P })],
+  { pasta: '-srv-projetos-prompts', quando: base + 60000 });
+  conversa([linha({ type: 'user', message: { role: 'user', content: 'de outra pasta' }, cwd: '/srv/projetos/site' })], { pasta: '-srv-projetos-site-prompts', quando: base + 120000 });
+  const l = await anteriores.promptsDaPasta(P);
+  assert.deepStrictEqual(l, ['em blocos', 'com menção @nota:x', 'segunda da pasta', 'mais nova da pasta', 'primeira da pasta']);
+  assert.deepStrictEqual(await anteriores.promptsDaPasta('/pasta/sem/conversa'), []);
+  assert.deepStrictEqual(await anteriores.promptsDaPasta(''), []);
+});
+
+test('o que a pessoa já escreveu: de um arquivo grande vem só o fim; texto enorme (uma colagem) fica de fora; no máximo o pedido', async () => {
+  const enchimento = Array.from({ length: 2000 }, (_, i) => doClaude(`enchimento ${i} ${'x'.repeat(300)}`));
+  conversa([linha({ type: 'user', message: { role: 'user', content: 'do começo de um arquivo grande' }, cwd: '/srv/projetos/grande' }), ...enchimento,
+    linha({ type: 'user', message: { role: 'user', content: `colagem ${'y'.repeat(25000)}` }, cwd: '/srv/projetos/grande' }),
+    linha({ type: 'user', message: { role: 'user', content: 'do fim de um arquivo grande' }, cwd: '/srv/projetos/grande' })], { pasta: '-srv-projetos-grande' });
+  const l = await anteriores.promptsDaPasta('/srv/projetos/grande');
+  assert.deepStrictEqual(l, ['do fim de um arquivo grande']);
+  conversa(Array.from({ length: 50 }, (_, i) => linha({ type: 'user', message: { role: 'user', content: `pedido ${i}` }, cwd: '/srv/projetos/muitos' })), { pasta: '-srv-projetos-muitos' });
+  assert.strictEqual((await anteriores.promptsDaPasta('/srv/projetos/muitos', { max: 20 })).length, 20);
+  assert.strictEqual((await anteriores.promptsDaPasta('/srv/projetos/muitos', { max: 20 }))[0], 'pedido 49');
+});

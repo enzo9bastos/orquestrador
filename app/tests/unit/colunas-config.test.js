@@ -85,3 +85,25 @@ test('atalhoPerguntaRapida: padrão, troca, desligar com "" e recusa do que coli
   config.gravar(config.validar({ atalhoPerguntaRapida: 'Ctrl+Alt+KeyJ' }).ok);
   assert.strictEqual(config.ler().atalhoPerguntaRapida, 'Ctrl+Alt+KeyJ');
 });
+
+test('atalhoBuscaEscritos: padrão Ctrl+R, troca, desligar com "" e recusa do que colide com o app, com as colunas ou com a pergunta rápida', () => {
+  config.gravar({ atalhosColunas: { agentes: 'Ctrl+Alt+Comma', demandas: 'Ctrl+Alt+Period' }, atalhoPerguntaRapida: 'Ctrl+Alt+KeyP', atalhoBuscaEscritos: 'Ctrl+KeyR' });
+  assert.strictEqual(config.ler().atalhoBuscaEscritos, 'Ctrl+KeyR');
+  // O próprio padrão é aceito (o Ctrl+R deixou a lista dos reservados para ser deste atalho).
+  assert.deepStrictEqual(config.validar({ atalhoBuscaEscritos: 'Ctrl+KeyR' }), { ok: { atalhoBuscaEscritos: 'Ctrl+KeyR' }, recusado: [] });
+  assert.deepStrictEqual(config.validar({ atalhoBuscaEscritos: 'Ctrl+Alt+KeyR' }), { ok: { atalhoBuscaEscritos: 'Ctrl+Alt+KeyR' }, recusado: [] });
+  assert.deepStrictEqual(config.validar({ atalhoBuscaEscritos: '' }), { ok: { atalhoBuscaEscritos: '' }, recusado: [] });
+  const ruins = ['Ctrl+KeyK', 'Ctrl+KeyF', 'Ctrl+Alt+Comma', 'Ctrl+Alt+Period', 'Ctrl+Alt+KeyP', 'KeyR', 'Shift+KeyR', 'qualquer coisa', null, 7, {}];
+  for (const v of ruins) assert.deepStrictEqual(config.validar({ atalhoBuscaEscritos: v }), { ok: {}, recusado: ['atalhoBuscaEscritos'] }, JSON.stringify(v));
+  // Os outros atalhos não pegam a combinação da busca…
+  assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: 'Ctrl+KeyR' }), { ok: {}, recusado: ['atalhoPerguntaRapida'] });
+  assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: 'Ctrl+KeyR', demandas: '' } }), { ok: {}, recusado: ['atalhosColunas'] });
+  // …a não ser que a busca saia dela no mesmo pedido.
+  assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: 'Ctrl+KeyR', atalhoBuscaEscritos: '' }).recusado, []);
+  assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: 'Ctrl+KeyR', demandas: '' }, atalhoBuscaEscritos: 'Ctrl+Alt+KeyR' }).recusado, []);
+  // Dois iguais no mesmo pedido: os dois recusados.
+  assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: 'Ctrl+Alt+KeyJ', atalhoBuscaEscritos: 'Ctrl+Alt+KeyJ' }), { ok: {}, recusado: ['atalhoPerguntaRapida', 'atalhoBuscaEscritos'] });
+  config.gravar(config.validar({ atalhoBuscaEscritos: '' }).ok);
+  assert.strictEqual(config.ler().atalhoBuscaEscritos, '');
+  config.gravar(config.validar({ atalhoBuscaEscritos: 'Ctrl+KeyR' }).ok);
+});

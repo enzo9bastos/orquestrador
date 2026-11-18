@@ -18,8 +18,9 @@
     demandas: { botao: 'alternar-demandas', coluna: 'coluna-demandas', classe: 'sem-demandas', nome: 'demandas' },
   };
   const A = window.orqAtalhos;
-  // Os atalhos que a pessoa pode trocar: os dois das colunas e o da pergunta rápida (/btw).
-  const PADROES = { ...A.PADRAO, pergunta: A.PADRAO_PERGUNTA };
+  // Os atalhos que a pessoa pode trocar: os dois das colunas, o da pergunta rápida (/btw) e o
+  // da busca no que ela já escreveu (quem age neste último é o historico-caixa-tela.js).
+  const PADROES = { ...A.PADRAO, pergunta: A.PADRAO_PERGUNTA, escritos: A.PADRAO_ESCRITOS };
   const TROCAVEIS = Object.keys(PADROES);
   let atalhos = { ...PADROES }; // nome → combinação ("" = desligado)
 
@@ -156,8 +157,8 @@
     atalhos = novos;
     desenharAtalhos();
     try {
-      const r = await window.orq.config.gravar({ atalhosColunas: { agentes: novos.agentes, demandas: novos.demandas }, atalhoPerguntaRapida: novos.pergunta });
-      if (r && r.recusado && (r.recusado.includes('atalhosColunas') || r.recusado.includes('atalhoPerguntaRapida'))) { atalhos = antes; desenharAtalhos(); aviso('Não gravei: combinação inválida.'); }
+      const r = await window.orq.config.gravar({ atalhosColunas: { agentes: novos.agentes, demandas: novos.demandas }, atalhoPerguntaRapida: novos.pergunta, atalhoBuscaEscritos: novos.escritos });
+      if (r && r.recusado && ['atalhosColunas', 'atalhoPerguntaRapida', 'atalhoBuscaEscritos'].some((k) => r.recusado.includes(k))) { atalhos = antes; desenharAtalhos(); aviso('Não gravei: combinação inválida.'); }
     } catch { /* sem o processo principal: vale só nesta abertura */ }
   }
   function motivo(c, lado) {
@@ -167,7 +168,7 @@
     if (r.motivo === 'em-uso') return ['Esta combinação já é usada por', r.usadoPor];
     if (r.motivo === 'repetida') {
       const igual = outros.find((l) => atalhos[l] === c);
-      return [lado !== 'pergunta' && igual !== 'pergunta' ? 'As duas colunas não podem ter o mesmo atalho.' : 'Esta combinação já é de outro atalho desta lista.'];
+      return [lado in LADOS && igual in LADOS ? 'As duas colunas não podem ter o mesmo atalho.' : 'Esta combinação já é de outro atalho desta lista.'];
     }
     if (r.motivo === 'sem-modificador') return ['Use Ctrl, Alt ou Cmd junto com outra tecla.'];
     return ['Combinação inválida.'];
@@ -220,6 +221,9 @@
     if (c && typeof c.atalhoPerguntaRapida === 'string') atalhos.pergunta = c.atalhoPerguntaRapida;
     // Configuração antiga em que uma coluna já usava a combinação da pergunta rápida: a coluna fica com ela.
     if (atalhos.pergunta && (atalhos.pergunta === atalhos.agentes || atalhos.pergunta === atalhos.demandas)) atalhos.pergunta = '';
+    if (c && typeof c.atalhoBuscaEscritos === 'string') atalhos.escritos = c.atalhoBuscaEscritos;
+    // O mesmo para a busca no que a pessoa já escreveu: quem já tinha a combinação fica com ela.
+    if (atalhos.escritos && [atalhos.agentes, atalhos.demandas, atalhos.pergunta].includes(atalhos.escritos)) atalhos.escritos = '';
     const novo = salvo[aba] || padrao(aba);
     estado = { ...novo };
     desenharAtalhos();
@@ -227,6 +231,6 @@
   }).catch(liberarAnimacao);
 
   // Os testes e quem precisar ler o estado.
-  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), atalhos: () => ({ agentes: atalhos.agentes, demandas: atalhos.demandas }), atalhoPergunta: () => atalhos.pergunta, definir };
+  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), atalhos: () => ({ agentes: atalhos.agentes, demandas: atalhos.demandas }), atalhoPergunta: () => atalhos.pergunta, atalhoEscritos: () => atalhos.escritos, definir };
   desenharAtalhos();
 })();

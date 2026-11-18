@@ -142,6 +142,46 @@ async function varrer() {
   return [...porSessao.values()].sort((a, b) => b.quando - a.quando);
 }
 
+// --- o que a pessoa já escreveu (o ↑ e o Ctrl+R da caixa de mensagem; plano 4.4) -------------
+// As mensagens que a pessoa escreveu nas conversas guardadas de uma pasta, da mais nova para a
+// mais antiga, sem repetir. Vem só do fim (256 KB) dos arquivos mais novos daquela pasta. É
+// leitura: nada disso é gravado em lugar nenhum (o texto pode ter colagens da pessoa).
+// Fica de fora o que não foi digitado como mensagem (comando, saída de comando, texto de
+// bastidor, que começam com "<") e o que o app anexou depois do texto (menções: tudo a partir
+// do primeiro bloco "---").
+const FATIA_PROMPTS = 256 * 1024;
+async function promptsDaPasta(pasta, { arquivos = 8, max = 200 } = {}) {
+  if (typeof pasta !== 'string' || !pasta) return [];
+  const lista = (await listar()).filter((x) => x.pasta === pasta).slice(0, arquivos);
+  const vistos = new Set();
+  const saida = [];
+  for (const x of lista) {
+    if (saida.length >= max) break;
+    let linhas = [];
+    try {
+      const fh = await fsp.open(x.arquivo, 'r');
+      try {
+        const tam = (await fh.stat()).size;
+        const n = Math.min(FATIA_PROMPTS, tam);
+        const b = Buffer.alloc(n);
+        await fh.read(b, 0, n, tam - n);
+        linhas = b.toString('utf8').split('\n');
+        if (tam > n) linhas.shift(); // a primeira linha do pedaço pode estar cortada
+      } finally { await fh.close(); }
+    } catch { continue; }
+    for (let i = linhas.length - 1; i >= 0 && saida.length < max; i--) {
+      if (!linhas[i]) continue;
+      let d;
+      try { d = JSON.parse(linhas[i]); } catch { continue; }
+      const t = textoDaPessoa(d).split('\n\n---\n')[0].replace(/\u0000/g, '').trim();
+      if (!t || t.length > 20000 || vistos.has(t)) continue;
+      vistos.add(t);
+      saida.push(t);
+    }
+  }
+  return saida;
+}
+
 // --- arquivadas ---------------------------------------------------------------------
 // { sessão: { quando, titulo, motor, pasta } }: o que a tela precisa para mostrar a conversa
 // arquivada mesmo quando o arquivo dela não é do Claude (conversa do Codex).
@@ -178,4 +218,4 @@ function desarquivar(sessao) {
   return true;
 }
 
-module.exports = { listar, resumir, lerArquivadas, arquivar, desarquivar, pastaProjetos, FATIA, SESSAO, _arquivos: { indice: arqIndice, arquivadas: arqArquivadas } };
+module.exports = { listar, resumir, promptsDaPasta, lerArquivadas, arquivar, desarquivar, pastaProjetos, FATIA, SESSAO, _arquivos: { indice: arqIndice, arquivadas: arqArquivadas } };

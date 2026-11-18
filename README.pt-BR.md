@@ -163,6 +163,12 @@ há terminal para vigiar.
   pasta dela. A que nem começou sai da lista, e o orquestrador sempre começa uma rodada nova. Em *Configurações ›
   Orquestração* fica a opção de elas saírem da lista, como era antes (continuam em *Anteriores*). Quando o Claude já
   apagou uma conversa antiga, o app diz que ela expirou e a próxima mensagem começa uma nova na mesma pasta.
+- **O que você já escreveu**, na caixa de mensagem: com a caixa vazia, a seta ↑ volta pelo que você mandou desde que
+  o app abriu e, antes disso, pelo que você escreveu nas conversas que o Claude guarda da mesma pasta; o Ctrl+R abre
+  uma busca nesse mesmo texto, e o Enter põe o escolhido na caixa (não envia). O app não grava nada disso: o texto é
+  lido do fim dos arquivos de conversa do próprio Claude e aparece só na caixa e nessa busca. O atalho da busca pode
+  ser trocado ou desativado em *Configurações › Atalhos*; sem um atalho do app nele, o Ctrl+R é o "recarregar a
+  tela" de fábrica.
 - **Carregar as anteriores**: a conversa reaberta mostra as últimas 600 mensagens; uma faixa no topo avisa que há
   mais antigas e traz a página de antes para cima, mantendo a tela onde você estava lendo, até chegar ao início da
   conversa. Nada do que já está na tela é lido de novo.

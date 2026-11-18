@@ -1280,7 +1280,8 @@
       ${l('Voltar a conversa (parado, com a caixa vazia)', `${teclas('Esc')} ${teclas('Esc')}`)}
       ${l('Com o motor trabalhando: pôr na fila', teclas('Enter'))}${l('Com o motor trabalhando: corrigir o rumo', teclas('Ctrl+Enter'))}
       ${l('Trocar o modo de permissão', teclas('Ctrl+Shift+M'))}${cfg.shiftTabTrocaModo === false ? '' : l('Trocar o modo, com a caixa vazia', teclas('Shift+Tab'))}
-      ${l('Trazer de volta a mensagem anterior (caixa vazia)', teclas('↑'))}
+      ${l('Trazer de volta o que você já escreveu (caixa vazia)', teclas('↑'))}
+      ${l('Buscar no que você já escreveu', combo(window.orqColunas && window.orqColunas.atalhoEscritos ? window.orqColunas.atalhoEscritos() : (A ? A.PADRAO_ESCRITOS : '')))}
       ${l('Buscar nesta conversa', teclas('Ctrl+F'))}
       ${l('Abrir ou fechar a pergunta rápida', combo(window.orqColunas && window.orqColunas.atalhoPergunta ? window.orqColunas.atalhoPergunta() : (A ? A.PADRAO_PERGUNTA : '')))}
       <h4>Na caixa de texto</h4>
@@ -1911,6 +1912,8 @@
   async function trocar(id) {
     ativa = id;
     if (window.orqLado) window.orqLado.trocou(id); // a gaveta da pergunta rápida acompanha a conversa da tela
+    posHistorico = -1;
+    if (window.orqHistorico) window.orqHistorico.buscar(id); // o ↑ da caixa lembra o que foi escrito nesta pasta
     desenharLista(listaConversas);
     const aba = document.querySelector('[data-aba="aba-orquestrador"]');
     if (!aba.classList.contains('ativa')) aba.click();
@@ -2312,6 +2315,9 @@
     // Para os comandos do "/" (comandos-tela.js).
     ativa: () => ativa,
     lista: () => listaConversas,
+    // Para a busca do Ctrl+R (historico-caixa-tela.js): o que foi mandado nesta abertura do app e pôr um texto na caixa.
+    enviados: () => enviados.slice(),
+    porNaCaixa: (texto) => { posHistorico = -1; porNaCaixa(String(texto == null ? '' : texto)); },
     titulo: () => { const c = listaConversas.find((x) => x.id === ativa); return c ? c.titulo || '' : ''; },
     perguntaRapida: () => perguntaRapida(),
     motor: () => (conversaCodex() ? 'codex' : 'claude'),
@@ -2376,7 +2382,12 @@
     const li = ev.target.closest('li');
     if (li) { ev.preventDefault(); completar(Number(li.dataset.i)); }
   });
-  entrada.addEventListener('blur', () => setTimeout(fecharSugestoes, 100));
+  // A lista fecha um instante depois de a caixa perder o foco (o instante deixa o clique num item
+  // valer). Se a pessoa voltou para a caixa e digitou dentro desse instante, o fechamento pendente
+  // deixa de valer: ele fecharia a lista que a digitação acabou de abrir.
+  let fechaPorSairDaCaixa = null;
+  entrada.addEventListener('blur', () => { clearTimeout(fechaPorSairDaCaixa); fechaPorSairDaCaixa = setTimeout(fecharSugestoes, 100); });
+  entrada.addEventListener('input', () => clearTimeout(fechaPorSairDaCaixa));
   function ajustarAltura() { entrada.style.height = 'auto'; entrada.style.height = Math.min(entrada.scrollHeight, 220) + 'px'; }
   entrada.addEventListener('input', ajustarAltura);
   entrada.addEventListener('keydown', (ev) => {
@@ -2471,6 +2482,7 @@
   // Seta para cima com a caixa vazia só traz de volta um texto já enviado.
   const enviados = [];
   let posHistorico = -1, voltaPedida = null;
+  let listaDaSeta = []; // por onde a seta ↑ anda (do mais antigo para o mais novo)
   function porNaCaixa(texto) {
     entrada.value = texto;
     ajustarAltura();
@@ -2490,16 +2502,20 @@
   }
   entrada.addEventListener('keydown', (ev) => {
     if (!$('sugestoes').hidden || ev.shiftKey || ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    if (ev.key === 'ArrowUp' && (!entrada.value || posHistorico >= 0) && enviados.length) {
+    // A lista da seta: o que foi mandado desde que o app abriu e, antes disso, o que a pessoa
+    // escreveu nas conversas guardadas da mesma pasta (historico-caixa-tela.js). Ela é fixada
+    // quando a pessoa começa a andar, para o que chegar no meio não trocar as posições.
+    if (posHistorico < 0) listaDaSeta = window.orqHistorico ? window.orqHistorico.paraASeta(enviados) : enviados.slice();
+    if (ev.key === 'ArrowUp' && (!entrada.value || posHistorico >= 0) && listaDaSeta.length) {
       ev.preventDefault();
-      posHistorico = posHistorico < 0 ? enviados.length - 1 : Math.max(0, posHistorico - 1);
+      posHistorico = posHistorico < 0 ? listaDaSeta.length - 1 : Math.max(0, posHistorico - 1);
       // Um "!comando" que a pessoa já rodou volta como comando; qualquer outro texto, como texto.
-      shellRecuperado = rodadosNoShell.has(enviados[posHistorico]) ? enviados[posHistorico] : null;
-      porNaCaixa(enviados[posHistorico]);
+      shellRecuperado = rodadosNoShell.has(listaDaSeta[posHistorico]) ? listaDaSeta[posHistorico] : null;
+      porNaCaixa(listaDaSeta[posHistorico]);
     } else if (ev.key === 'ArrowDown' && posHistorico >= 0) {
       ev.preventDefault();
       posHistorico++;
-      if (posHistorico >= enviados.length) { posHistorico = -1; porNaCaixa(''); } else porNaCaixa(enviados[posHistorico]);
+      if (posHistorico >= listaDaSeta.length) { posHistorico = -1; porNaCaixa(''); } else porNaCaixa(listaDaSeta[posHistorico]);
     } else if (ev.key === 'Escape' && voltaPedida) fecharVolta();
   });
   entrada.addEventListener('input', () => { if (!entrada.value) posHistorico = -1; });

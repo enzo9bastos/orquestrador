@@ -2,8 +2,12 @@
 // [sozinho] desde 16/11: com outros apps de teste rodando ao mesmo tempo, a lista do
 // "/" às vezes não abre em 5 s depois do pedido de controle desconhecido (0.A5):
 // 7 de 10 rodadas paralelas com o claude de verdade subindo nos testes, 1 de 5
-// depois de trocá-lo pelo falso. Não é o limite de inotify (medido). Causa ainda
-// não achada; não é repetição.
+// depois de trocá-lo pelo falso. Não é o limite de inotify (medido).
+// Causa achada em 18/11: o teste anterior tira o foco da caixa (vai para o campo do
+// cartão) e este volta e digita "/" menos de 100 ms depois; o fechamento da lista que
+// o app agenda quando a caixa perde o foco caía em cima da lista recém-aberta. O app
+// foi corrigido (e2e/sugestoes-foco.e2e.js). Continua [sozinho] até a correção ser
+// confirmada em mais rodadas.
 // Etapa 0.A (segurança), testador independente: a vizinhança na tela, com um
 // Claude falso (anota tudo o que recebe e manda o que cada teste precisa).
 // Nada de Claude real: o app roda numa casa temporária.

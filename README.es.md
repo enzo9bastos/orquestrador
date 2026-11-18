@@ -170,6 +170,12 @@ que no hay ninguna terminal que vigilar.
   nueva. En *Settings › Orchestration* está la opción de que salgan de la lista, como antes (siguen en *Earlier*).
   Cuando Claude ya borró una conversación antigua, la app dice que expiró y el siguiente mensaje empieza una nueva
   en la misma carpeta.
+- **Lo que ya escribiste**, en la caja de mensaje: con la caja vacía, la flecha ↑ recorre lo que enviaste desde que
+  se abrió la app y, antes de eso, lo que escribiste en las conversaciones que Claude guarda de la misma carpeta;
+  Ctrl+R abre una búsqueda sobre ese mismo texto y Enter pone el elegido en la caja (no lo envía). La app no guarda
+  nada de eso: el texto se lee del final de los archivos de conversación del propio Claude y aparece solo en la caja
+  y en esa búsqueda. El atajo de la búsqueda se puede cambiar o desactivar en *Settings › Shortcuts*; sin un atajo
+  de la app en él, Ctrl+R es el "recargar la ventana" de fábrica.
 - **Load the earlier ones**: la conversación reabierta muestra sus últimos 600 mensajes; una franja arriba avisa
   que hay más antiguos y trae la página anterior por encima, manteniendo la pantalla donde estabas leyendo, hasta
   llegar al inicio de la conversación. Nada de lo que ya está en pantalla se vuelve a leer.

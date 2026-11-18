@@ -663,6 +663,8 @@ ipcMain.handle('anteriores:apagar', comErro((sessao, comprovante) => apagarConve
 ipcMain.handle('conversa:arquivar', comErro((id) => conversa.arquivarConversa(id)));
 // "Carregar as anteriores": a página de mensagens que vem antes das que a conversa reaberta mostra.
 ipcMain.handle('conversa:carregarAnteriores', comErro((id) => conversa.carregarAnteriores(id)));
+// O ↑ e o Ctrl+R da caixa: o que a pessoa já escreveu nas conversas guardadas daquela pasta. Só vai para a caixa de mensagem.
+ipcMain.handle('conversa:promptsAnteriores', async (_e, id) => { try { return await conversa.promptsAnteriores(id); } catch { return []; } });
 ipcMain.handle('conversa:renomear', comErro((id, titulo) => ({ titulo: conversa.renomear(id, titulo) })));
 // O pedido de apagar veio do orquestrador: ele fica sabendo do que o usuário decidiu.
 const avisarDecisao = (t, acao) => { try { topicos.avisarOrquestrador(conversa, t, acao); } catch { /* o aviso é extra; a decisão já está feita */ } };

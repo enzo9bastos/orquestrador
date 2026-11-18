@@ -15,6 +15,9 @@
   // Abrir ou fechar a gaveta da pergunta rápida (/btw). Uma letra, e não ";": o código
   // da tecla ";" do teclado americano é o do "ç" no brasileiro, e a tela mostraria errado.
   const PADRAO_PERGUNTA = 'Ctrl+Alt+KeyP';
+  // Abrir a busca no que a pessoa já escreveu, na caixa de mensagem (o Ctrl+R do terminal).
+  // Sem um atalho do app nessa combinação, o Ctrl+R é o "recarregar a tela" de fábrica.
+  const PADRAO_ESCRITOS = 'Ctrl+KeyR';
 
   // O que já usa teclado no app (e no sistema), com o nome que a engrenagem mostra.
   const USADOS = {};
@@ -28,7 +31,7 @@
     'Ctrl+Shift+H', 'Ctrl+Shift+E', 'Ctrl+Shift+7', 'Ctrl+Shift+8', 'Ctrl+Shift+9', 'Ctrl+Alt+C', 'Ctrl+Alt+0');
   usa('selecionar tudo e duplicar', 'Ctrl+A', 'Ctrl+D');
   usa('copiar e colar', 'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+Shift+C', 'Ctrl+Shift+V');
-  usa('recurso reservado do app', 'Ctrl+F', 'Ctrl+G', 'Ctrl+O', 'Ctrl+R', 'Ctrl+S', 'Ctrl+Shift+M', 'Ctrl+Slash', 'Ctrl+Alt+N', 'Alt+T');
+  usa('recurso reservado do app', 'Ctrl+F', 'Ctrl+G', 'Ctrl+O', 'Ctrl+S', 'Ctrl+Shift+M', 'Ctrl+Slash', 'Ctrl+Alt+N', 'Alt+T');
   usa('o sistema', 'Ctrl+N', 'Ctrl+Q', 'Ctrl+T', 'Ctrl+W', 'Ctrl+Shift+I', 'Alt+F4', 'Ctrl+Alt+T', 'Ctrl+Alt+L', 'Ctrl+Alt+ArrowUp', 'Ctrl+Alt+ArrowDown',
     'Ctrl+Alt+ArrowLeft', 'Ctrl+Alt+ArrowRight', 'Meta+L', 'Meta+D');
 
@@ -68,6 +71,6 @@
     return null;
   }
 
-  const api = { PADRAO, PADRAO_PERGUNTA, USADOS, deEvento, mostrar, conferir };
+  const api = { PADRAO, PADRAO_PERGUNTA, PADRAO_ESCRITOS, USADOS, deEvento, mostrar, conferir };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.orqAtalhos = api;
 })(typeof window !== 'undefined' ? window : globalThis);

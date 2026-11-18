@@ -160,6 +160,12 @@ protocol), so there is no terminal to babysit.
   new round. *Settings › Orchestration* has the switch to make them leave the list instead, as before (they stay in
   *Earlier*). When Claude has already deleted an old conversation, the app says it expired and the next message
   starts a new one in the same folder.
+- **What you wrote before** in the message box: with the box empty, ↑ walks back through what you sent since the
+  app opened and, before that, what you wrote in the conversations Claude keeps for the same folder; Ctrl+R opens
+  a search over the same text and Enter puts the chosen one in the box (it does not send). The app stores none of
+  it: the text is read from the end of Claude's own conversation files, and shows only in the box and in this
+  search. The search shortcut can be changed or turned off in *Settings › Shortcuts*; without an app shortcut on
+  it, Ctrl+R is the stock "reload the window".
 - **Load the earlier ones**: a reopened conversation shows its latest 600 messages; a strip at the top says there
   are older ones and brings the previous page in above, keeping the screen where you were reading, until it reaches
   the start of the conversation. Nothing already on screen is read again.

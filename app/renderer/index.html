@@ -620,6 +620,14 @@
                 <button type="button" class="botao-texto" data-atalho-padrao="pergunta">Voltar ao padrão</button>
               </div>
             </div>
+            <div class="config-linha" data-atalho-linha="escritos">
+              <div><strong>Buscar no que você já escreveu</strong><span>Na caixa de mensagem, como o Ctrl+R do terminal: procura nas mensagens que você já mandou nesta pasta. Sem este atalho, o Ctrl+R recarrega a tela do app.</span></div>
+              <div class="atalho-controles">
+                <button type="button" class="botao-texto atalho-tecla" data-atalho-mudar="escritos" aria-describedby="atalhos-aviso"></button>
+                <button type="button" class="botao-texto" data-atalho-desligar="escritos">Desativar</button>
+                <button type="button" class="botao-texto" data-atalho-padrao="escritos">Voltar ao padrão</button>
+              </div>
+            </div>
             <div class="config-linha">
               <div><strong>Números respondem o cartão de permissão</strong><span>Com o cartão em foco, as teclas 1, 2 e 3 escolhem a saída (permitir desta vez, permitir sempre, negar).</span></div>
               <label class="chave"><input type="checkbox" data-cfg="teclasNosCartoes"><span></span></label>
@@ -700,6 +708,7 @@
   <script src="lado-tela.js"></script>
   <script src="pasta-tela.js"></script>
   <script src="anteriores-tela.js"></script>
+  <script src="historico-caixa-tela.js"></script>
   <script src="comandos-tela.js"></script>
   <script src="repertorio-tela.js"></script>
   <script src="workflows-tela.js"></script>
