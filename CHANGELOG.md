@@ -4,6 +4,19 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.13.0 (2026-11-18)
+
+- The message box now remembers what you wrote before. With the box empty, ↑ walks back through what you
+  sent since the app opened and, before that, what you wrote in the conversations Claude keeps for the
+  same folder.
+- Ctrl+R in the message box opens a search over that same text; Enter puts the chosen message in the box
+  (it does not send). The shortcut can be changed or turned off in Settings › Shortcuts: without an app
+  shortcut on it, Ctrl+R is the stock "reload the window".
+- The app stores none of this text: it is read from the end of Claude's own conversation files and shows
+  only in the box and in the search.
+- Fixed: the "/" suggestion list could open and close by itself when you left the message box, came
+  back and typed within a tenth of a second.
+
 ## 0.12.0 (2026-11-18)
 
 - Closing the app now keeps the side conversations in the list, paused: click one and it resumes where it
