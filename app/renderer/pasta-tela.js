@@ -242,5 +242,103 @@
     el.querySelector('[data-pasta-conferir]').addEventListener('click', () => { canceladas.delete(id); C.abrir(id); });
   }
 
-  window.orqPasta = { abrirNova: abrir, fecharNova: fechar, novaAberta: aberta, desenharNaConversa };
+  // --- o menu do chip da pasta ------------------------------------------------------------
+  // Mostra a pasta da conversa (que não muda), as pastas extras que ela pode usar (o mesmo
+  // do /add-dir, com Tirar) e abre outra conversa numa pasta usada há pouco.
+  const chip = $('chip-pasta');
+  const menuPasta = $('menu-pasta');
+  const K = window.orq.comandos;
+  const daTela = () => V().lista().find((c) => c.id === V().ativa()) || {};
+  function pintarChip() {
+    if (!chip) return;
+    const n = daTela().pastasExtras || 0;
+    const e = $('info-pasta-extras');
+    e.textContent = n ? `+${n}` : '';
+    e.hidden = !n;
+  }
+  const pastaAberta = () => !!menuPasta && !menuPasta.hidden;
+  function fecharMenuPasta({ foco = false } = {}) {
+    if (!pastaAberta()) return false;
+    menuPasta.hidden = true;
+    chip.setAttribute('aria-expanded', 'false');
+    if (foco) chip.focus();
+    return true;
+  }
+  function avisarNoMenu(texto) {
+    const a = $('pasta-aviso');
+    if (!a) return;
+    a.textContent = texto || '';
+    a.hidden = !texto;
+  }
+  async function desenharMenuPasta() {
+    const id = V().ativa();
+    const atual = daTela();
+    if (atual.orquestrador) {
+      menuPasta.innerHTML = `<div class="menu-titulo">Pasta desta conversa</div>
+        <p class="pasta-caminho"><code data-sem-traducao>~</code> <span>(sua pasta pessoal)</span></p>
+        <p class="menu-nota pasta-fixa">O orquestrador roda sempre na pasta pessoal. Ele coordena; quem trabalha dentro dos projetos são os agentes e as conversas avulsas.</p>`;
+      return;
+    }
+    const [e, recentes] = await Promise.all([K.estado(id).catch(() => null), C.pastas().catch(() => [])]);
+    if (id !== V().ativa()) return;
+    const extras = e && Array.isArray(e.pastasExtras) ? e.pastasExtras : [];
+    const comoSeLe = e && Array.isArray(e.pastasExtrasExibir) ? e.pastasExtrasExibir : []; // com ~ no lugar da pasta pessoal (quem sabe é o motor)
+    menuPasta.innerHTML = `<div class="menu-titulo">Pasta desta conversa</div>
+      <p class="pasta-caminho"><code data-sem-traducao>${esc(atual.pasta || '~')}</code>${atual.semProjeto ? ' · <span>sem as configurações do projeto</span>' : ''}</p>
+      <p class="menu-nota">A pasta de uma conversa não muda depois de aberta. Para trabalhar em outra, abra outra conversa.</p>
+      <div class="nova-grupo"><span class="nova-rotulo">Pastas extras que esta conversa pode usar</span>
+        <ul class="pasta-lista" id="pasta-extras">${extras.map((p, i) => `<li><span data-sem-traducao>${esc(comoSeLe[i] || p)}</span><button type="button" class="botao-texto" data-tirar="${esc(p)}">Tirar</button></li>`).join('') || '<li class="pasta-mais"><span>nenhuma</span></li>'}</ul>
+        <div><button type="button" class="botao secundario" id="pasta-adicionar">+ Adicionar pasta…</button></div></div>
+      <div class="nova-grupo"><span class="nova-rotulo">Abrir conversa nova em</span>
+        <div class="pasta-recentes">${(Array.isArray(recentes) ? recentes : []).map((p) => `<button type="button" class="chip botao-chip" data-nova-em="${esc(p.pessoal ? '' : p.pasta)}"><code data-sem-traducao>${esc(p.exibir)}</code></button>`).join('')}</div></div>
+      <p class="menu-nota nova-aviso erro" id="pasta-aviso" role="status" hidden></p>`;
+  }
+  function posicionarMenuPasta() {
+    const r = chip.getBoundingClientRect();
+    menuPasta.style.left = `${Math.max(8, Math.min(r.left, innerWidth - menuPasta.offsetWidth - 8))}px`;
+    menuPasta.style.top = `${r.bottom + 6}px`;
+  }
+  async function abrirMenuPasta() {
+    if (pastaAberta()) { fecharMenuPasta(); return; }
+    menuPasta.innerHTML = '<div class="menu-titulo">Pasta desta conversa</div>';
+    menuPasta.hidden = false;
+    chip.setAttribute('aria-expanded', 'true');
+    posicionarMenuPasta();
+    await desenharMenuPasta();
+    posicionarMenuPasta();
+  }
+  if (chip && menuPasta) {
+    chip.addEventListener('click', abrirMenuPasta);
+    menuPasta.addEventListener('click', async (ev) => {
+      const id = V().ativa();
+      const tirar = ev.target.closest('[data-tirar]');
+      if (tirar) {
+        tirar.disabled = true;
+        const r = await K.tirarPastaExtra(id, tirar.dataset.tirar);
+        if (r && r.erro) { avisarNoMenu(`Não tirei a pasta: ${r.erro}`); tirar.disabled = false; return; }
+        await desenharMenuPasta();
+        return;
+      }
+      if (ev.target.closest('#pasta-adicionar')) {
+        const p = await C.escolherPasta();
+        if (!p) return;
+        if (p.erro) { avisarNoMenu(`Não deu para usar esta pasta: ${p.erro}`); return; }
+        const r = await K.pastaExtra(id, p.pasta);
+        if (r && r.erro) { avisarNoMenu(`Não adicionei a pasta: ${r.erro}`); return; }
+        await desenharMenuPasta();
+        return;
+      }
+      const nova = ev.target.closest('[data-nova-em]');
+      if (nova) {
+        try {
+          const novoId = await C.nova({ pasta: nova.dataset.novaEm || null, motor: 'claude' });
+          fecharMenuPasta();
+          await V().trocar(novoId);
+        } catch (e) { avisarNoMenu(`Não abri a conversa: ${String((e && e.message) || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')}`); }
+      }
+    });
+    document.addEventListener('mousedown', (ev) => { if (pastaAberta() && !ev.target.closest('#menu-pasta, #chip-pasta')) fecharMenuPasta(); });
+  }
+
+  window.orqPasta = { abrirNova: abrir, fecharNova: fechar, novaAberta: aberta, desenharNaConversa, pintarChip, fecharMenuPasta, menuPastaAberto: pastaAberta };
 })();

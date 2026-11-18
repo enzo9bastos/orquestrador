@@ -1873,6 +1873,7 @@
       ? (atual.motor === 'codex' ? 'Escreva para o Codex…' : 'Escreva para o Claude…')
       : 'Escreva para o orquestrador…';
     desenharCaixaOcupada(infoAtual.ocupado === true);
+    if (window.orqPasta) window.orqPasta.pintarChip();
   }
   C.aoLista(desenharLista);
   // Paleta Ctrl+K: conversas (com pergunta pendente = esperando você) e comandos.
@@ -2619,7 +2620,9 @@
   // conversa, nem fora da aba da conversa: um Esc dentro do terminal pararia o
   // orquestrador no meio de um comando. O texto da caixa nunca é apagado.
   const POR_CIMA = '#popup:not([hidden]), #config:not([hidden]), .paleta-fundo:not([hidden]), #visor-imagem:not([hidden]), #guarda-roupa:not([hidden])';
-  const MENUS_DA_BARRA = [['menu-modelo', fecharMenu, 'botao-modelo'], ['menu-modo', fecharMenuModo, 'chip-modo'], ['menu-uso', fecharMenuUso, 'chip-uso'], ['menu-mais', fecharMenuMais, 'chip-mais']];
+  const MENUS_DA_BARRA = [['menu-modelo', fecharMenu, 'botao-modelo'], ['menu-modo', fecharMenuModo, 'chip-modo'], ['menu-uso', fecharMenuUso, 'chip-uso'], ['menu-mais', fecharMenuMais, 'chip-mais'],
+    // A janela "Nova conversa" e o menu do chip da pasta (pasta-tela.js): o Esc fecha um deles, nunca para o motor por trás.
+    ['menu-nova', () => window.orqPasta && window.orqPasta.fecharNova({ foco: false }), 'nova-conversa'], ['menu-pasta', () => window.orqPasta && window.orqPasta.fecharMenuPasta(), 'chip-pasta']];
   let ultimoEsc = 0;
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape' || ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return;

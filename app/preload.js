@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('orq', {
     estado: (id) => ipcRenderer.invoke('cmd:estado', id),
     rapido: (id, ligar) => ipcRenderer.invoke('cmd:rapido', id, ligar),
     pastaExtra: (id, p) => ipcRenderer.invoke('cmd:pastaExtra', id, p),
+    tirarPastaExtra: (id, p) => ipcRenderer.invoke('cmd:tirarPastaExtra', id, p),
     threadNova: (id) => ipcRenderer.invoke('cmd:threadNova', id),
     pausar: (id) => ipcRenderer.invoke('cmd:pausar', id),
     encerrar: (id) => ipcRenderer.invoke('cmd:encerrar', id),

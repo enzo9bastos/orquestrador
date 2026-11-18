@@ -1827,6 +1827,14 @@
     "Próxima (Enter)": "Next (Enter)",
     "Fechar a busca (Esc)": "Close search (Esc)",
     "Fechar a busca": "Close search",
+    "Pasta desta conversa": "This conversation's folder",
+    "(sua pasta pessoal)": "(your home folder)",
+    "O orquestrador roda sempre na pasta pessoal. Ele coordena; quem trabalha dentro dos projetos são os agentes e as conversas avulsas.": "The Orchestrator always runs in your home folder. It coordinates; the agents and the side conversations are the ones that work inside the projects.",
+    "A pasta de uma conversa não muda depois de aberta. Para trabalhar em outra, abra outra conversa.": "A conversation's folder does not change after it is opened. To work in another one, open another conversation.",
+    "Pastas extras que esta conversa pode usar": "Extra folders this conversation may use",
+    "nenhuma": "none",
+    "+ Adicionar pasta…": "+ Add folder…",
+    "Abrir conversa nova em": "Open a new conversation in",
     "Abre outra conversa, na pasta e com o motor que você escolher": "Opens another conversation, in the folder and with the engine you choose",
     "Escolher outra pasta…": "Choose another folder…",
     "Abrir conversa": "Open conversation",
@@ -1911,6 +1919,18 @@
     "Cola no terminal do app o Claude com uma cópia desta conversa e o comando; nada roda sem você apertar Enter lá": "Pastes Claude with a copy of this conversation and the command into the app's terminal; nothing runs until you press Enter there"
   },
   "padroes": [
+    [
+      "^Não tirei a pasta: (.+)$",
+      "Could not remove the folder: $1"
+    ],
+    [
+      "^Pasta extra tirada: (.+?)\\. A conversa reinicia para o Claude deixar de trabalhar nela\\. (.*)$",
+      "Extra folder removed: $1. The conversation restarts so that Claude stops working in it. $2"
+    ],
+    [
+      "^Pasta extra tirada: (.+?)\\. Vale a partir da próxima mensagem\\.$",
+      "Extra folder removed: $1. It takes effect from the next message."
+    ],
     [
       "^usada há (\\d+) min$",
       "used $1 min ago"

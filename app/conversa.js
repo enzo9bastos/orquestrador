@@ -646,6 +646,32 @@ class Conversa {
     this.andarFila();
     return !!this.proc;
   }
+  // "Permitir sempre neste projeto": o Claude grava a regra em .claude/settings.local.json da
+  // pasta, e isso muda a impressão digital dela. A pessoa acabou de aprovar exatamente essa
+  // regra no cartão de permissão, então o cartão da pasta não precisa voltar por causa dela:
+  // o app confere a pasta de novo e renova o aceite SÓ se a única diferença for essa regra
+  // (e o arquivo onde ela mora). Qualquer outra mudança fica para o cartão mostrar.
+  reaceitarDepoisDoSempre(atualizacoes, ms = 1200) {
+    if (!this.precisaDoPorteiro()) return null;
+    const regras = new Set((atualizacoes || []).flatMap((a) => (a && Array.isArray(a.rules) ? a.rules : [])).map((r) => `${r.toolName}${typeof r.ruleContent === 'string' && r.ruleContent ? `(${r.ruleContent})` : ''}`));
+    if (!regras.size) return null;
+    const pasta = this.pasta;
+    const fim = new Promise((ok) => {
+      const t = setTimeout(async () => {
+        try {
+          const r = await confianca.verificar(pasta);
+          const itens = r.estado === 'mudou' && r.mudancas && !r.mudancas.mais ? r.mudancas.itens : null;
+          const soARegra = !!itens && itens.length > 0 && itens.some((m) => m.tipo === 'allow') && itens.every((m) => (m.tipo === 'allow' && m.acao === 'novo' && m.item && regras.has(m.item.regra))
+            || (m.tipo === 'arquivo' && (m.acao === 'novo' || m.acao === 'mudou') && /(^|\/)\.claude\/settings\.local\.json$/.test(m.rotulo || '')));
+          if (soARegra && r.lembrar) { await confianca.aceitar(r); ok(true); return; }
+        } catch { /* sem renovar: o cartão pergunta na próxima subida */ }
+        ok(false);
+      }, ms);
+      if (t.unref) t.unref();
+    });
+    this.ultimoReaceite = fim; // os testes esperam por ele
+    return fim;
+  }
   // A resposta ao cartão: 'confiar' (grava o aceite do que a pessoa VIU e abre), 'sem'
   // (abre sem as configurações do projeto, desta vez e nas próximas) ou 'cancelar'.
   async responderPasta(escolha) {
@@ -1289,6 +1315,7 @@ class Conversa {
     this.escrever({ type: 'control_response', response: { subtype: 'success', request_id: reqId, response: resposta } });
     this.enviar('conversa:respondido', reqId);
     avisarLista();
+    if (resposta.updatedPermissions && decisao.sempre === 'localSettings') this.reaceitarDepoisDoSempre(resposta.updatedPermissions);
     return soDestaVez ? { ok: true, soDestaVez: true } : true;
   }
 
@@ -1496,6 +1523,19 @@ class Conversa {
     }
   }
 
+  // Tira uma pasta extra (o menu do chip da pasta). Como no /add-dir, vale na próxima subida:
+  // com o Claude aberto, a conversa reinicia (ou espera o turno acabar).
+  tirarPastaExtra(p) {
+    const i = this.pastasExtras.indexOf(String(p || ''));
+    if (i < 0) return false;
+    const [fora] = this.pastasExtras.splice(i, 1);
+    gravarLista();
+    avisarLista();
+    const vivo = !!this.proc;
+    if (vivo) { if (this.info.ocupado) this.reiniciarDepois = 'pasta'; else this.reiniciar(); }
+    this.registrar({ tipo: 'aviso', texto: `Pasta extra tirada: ${exibirPasta(fora)}. ${vivo ? `A conversa reinicia para o Claude deixar de trabalhar nela. ${AVISO_FUNDO}` : 'Vale a partir da próxima mensagem.'}` });
+    return true;
+  }
   // /add-dir: a pasta passa a valer em toda subida (--add-dir). Reinicia,
   // avisando antes (o que roda em segundo plano é encerrado).
   pastaExtra(p) {
@@ -1505,6 +1545,7 @@ class Conversa {
     if (!st || !st.isDirectory()) throw new Error(`a pasta não existe: ${abs}`);
     if (!this.pastasExtras.includes(abs)) this.pastasExtras.push(abs);
     gravarLista();
+    avisarLista(); // o chip da pasta mostra quantas extras a conversa tem
     const vivo = !!this.proc;
     // O reinício redesenha a conversa: o aviso vem depois dele para ficar à vista.
     if (vivo) { if (this.info.ocupado) this.reiniciarDepois = 'pasta'; else this.reiniciar(); }
@@ -1515,7 +1556,7 @@ class Conversa {
   // O que a tela precisa saber para os comandos do app.
   estadoComando() {
     return { motor: this.motor, sessao: this.sessao, titulo: this.titulo, orquestrador: this.orquestrador, init: this.initInfo,
-      info: this.info, rapido: this.rapido, pastasExtras: this.pastasExtras, vivo: !!this.proc, tarefas: [...this.tarefas.values()] };
+      info: this.info, rapido: this.rapido, pastasExtras: this.pastasExtras, pastasExtrasExibir: this.pastasExtras.map(exibirPasta), vivo: !!this.proc, tarefas: [...this.tarefas.values()] };
   }
 
   // /new, /clear e /archive no Codex: thread nova na mesma conversa do app; a
@@ -1636,7 +1677,7 @@ class Conversa {
     return { id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, motor: this.motor, ocupado: this.info.ocupado, pedidos: this.pendentes.size + (this.porteiro && this.porteiro.perguntando ? 1 : 0), vivo: !!this.proc,
       pasta: exibirPasta(this.pasta), pessoal: this.pasta === PASTA, semProjeto: this.semProjeto,
       // Conversa que ainda não começou (sem sessão para retomar): cancelar o cartão da pasta tira ela da lista.
-      semHistorico: !this.sessao && !this.volta && !this.forkDe };
+      semHistorico: !this.sessao && !this.volta && !this.forkDe, pastasExtras: this.pastasExtras.length };
   }
 }
 
@@ -1849,6 +1890,7 @@ module.exports = {
   estadoComando: (id) => pegar(id).estadoComando(),
   rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),
   pastaExtra: (id, p) => pegar(id).pastaExtra(p),
+  tirarPastaExtra: (id, p) => pegar(id).tirarPastaExtra(p),
   threadNova: (id) => { pegar(id).threadNova(); return true; },
   // /stop: o processo sai (a linha "A conversa foi pausada." vem da saída dele);
   // sem processo, só o aviso. A próxima mensagem retoma do mesmo ponto.

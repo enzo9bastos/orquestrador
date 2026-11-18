@@ -282,3 +282,46 @@ test('fechar a conversa com a conferência da pasta em andamento não sobe nada 
   assert.strictEqual(c.proc, null);
   assert.strictEqual(subidas().length, 0);
 });
+
+test('pasta extra: tirar pelo menu tira da conversa e da lista guardada; tirar o que não está não muda nada', async (t) => {
+  const dir = projeto();
+  const extra = projeto();
+  const { id, c } = await nova(t, { pasta: dir });
+  c.pastaExtra(extra);
+  assert.deepStrictEqual(guardada(id).pastasExtras, [extra]);
+  assert.strictEqual(c.resumo().pastasExtras, 1);
+  assert.strictEqual(c.tirarPastaExtra(path.join(casa, 'outra-qualquer')), false);
+  assert.deepStrictEqual(c.pastasExtras, [extra]);
+  assert.strictEqual(c.tirarPastaExtra(extra), true);
+  assert.deepStrictEqual(c.pastasExtras, []);
+  assert.strictEqual(guardada(id).pastasExtras, undefined);
+  assert.strictEqual(c.resumo().pastasExtras, 0);
+  assert.match(c.eventos.filter((e) => e.tipo === 'aviso').pop().texto, /^Pasta extra tirada: ~\/proj\/p\d+\. Vale a partir da próxima mensagem\.$/);
+});
+
+test('"permitir sempre neste projeto": a regra que a pessoa aprovou não faz o cartão da pasta voltar; qualquer outra mudança faz', async (t) => {
+  const dir = projeto({ '.claude/settings.json': HOOK });
+  const rel = path.relative(casa, dir);
+  const { c } = await nova(t, { pasta: dir });
+  c.iniciar();
+  await ate(() => c.estado().pasta);
+  await c.responderPasta('confiar');
+  await ate(() => c.proc);
+  const regra = [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'npm test:*' }], behavior: 'allow', destination: 'localSettings' }];
+  // O Claude grava a regra no arquivo local da pasta (aqui o teste faz o papel dele).
+  escrever(casa, `${rel}/.claude/settings.local.json`, JSON.stringify({ permissions: { allow: ['Bash(npm test:*)'] } }));
+  assert.strictEqual((await confianca.verificar(dir)).estado, 'mudou');
+  assert.strictEqual(await c.reaceitarDepoisDoSempre(regra, 10), true);
+  assert.strictEqual((await confianca.verificar(dir)).estado, 'aceita', 'a regra aprovada pela pessoa fez o cartão voltar');
+  // Junto com a regra entrou outra coisa (um hook novo): o aceite não é renovado.
+  escrever(casa, `${rel}/.claude/settings.local.json`, JSON.stringify({ permissions: { allow: ['Bash(npm test:*)', 'Bash(npm run lint:*)'] }, hooks: { Stop: [{ hooks: [{ type: 'command', command: 'curl exemplo.invalid' }] }] } }));
+  const outra = [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'npm run lint:*' }], behavior: 'allow', destination: 'localSettings' }];
+  assert.strictEqual(await c.reaceitarDepoisDoSempre(outra, 10), false);
+  assert.strictEqual((await confianca.verificar(dir)).estado, 'mudou');
+  // Regra diferente da aprovada: também não renova.
+  escrever(casa, `${rel}/.claude/settings.local.json`, JSON.stringify({ permissions: { allow: ['Bash(npm test:*)', 'Bash(rm:*)'] } }));
+  assert.strictEqual(await c.reaceitarDepoisDoSempre(outra, 10), false);
+  // Conversa na pasta pessoal: não há pasta para renovar.
+  const pessoal = await nova(t);
+  assert.strictEqual(pessoal.c.reaceitarDepoisDoSempre(regra, 10), null);
+});

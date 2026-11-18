@@ -228,3 +228,95 @@ test('pasta por conversa em inglês', async (t) => {
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
+
+test('pasta por conversa: o menu do chip da pasta e o Esc com o Claude trabalhando', async (t) => {
+  const log = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
+  process.env.CLAUDE_FALSO_LOG = log;
+  const app = await abrirApp({ config: { mostrarBichinho: false }, arquivos: PROJETO });
+  t.after(() => { delete process.env.CLAUDE_FALSO_LOG; return app.fechar(); });
+  await app.esperar('!!window.__orqTeste && !!window.orqPasta');
+  const projeto = path.join(app.casa, P);
+  const MENU = "document.getElementById('menu-pasta')";
+  const MENU_ABERTO = `!${MENU}.hidden && getComputedStyle(${MENU}).display !== 'none'`;
+  const guardadas = () => JSON.parse(app.ler('.cache/orq-app/conversas-teste.json'));
+  const clicarDeVerdade = async (seletor) => {
+    const r = await app.avaliar(`(() => { const e = document.querySelector(${JSON.stringify(seletor)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`);
+    await app.mouse('mousePressed', r.x, r.y); await app.mouse('mouseReleased', r.x, r.y);
+  };
+  const abrirMenu = async () => {
+    await app.avaliar("document.getElementById('chip-pasta').click()");
+    await app.esperar(MENU_ABERTO);
+  };
+
+  await t.test('no orquestrador o menu diz que a pasta é fixa e não oferece trocar nem adicionar', async () => {
+    assert.strictEqual(await app.avaliar(`getComputedStyle(${MENU}).display`), 'none');
+    await abrirMenu();
+    await app.esperar(`!!${MENU}.querySelector('.pasta-fixa')`);
+    assert.match(await app.avaliar(`${MENU}.querySelector('.pasta-caminho').innerText`), /^~ \(sua pasta pessoal\)$/);
+    assert.match(await app.avaliar(`${MENU}.querySelector('.pasta-fixa').innerText`), /^O orquestrador roda sempre na pasta pessoal\./);
+    assert.strictEqual(await app.avaliar(`${MENU}.querySelector('#pasta-adicionar')`), null);
+    assert.ok(await app.avaliar(`(() => { const m = ${MENU}.getBoundingClientRect(); return m.right <= innerWidth && m.left >= 0 && m.bottom <= innerHeight; })()`), 'o menu saiu da tela');
+    await app.avaliar("document.getElementById('chip-pasta').focus()");
+    await app.tecla('Escape', 'Escape', 27);
+    await app.esperar(`!(${MENU_ABERTO})`);
+  });
+
+  await t.test('numa conversa de projeto: mostra a pasta, adiciona uma pasta extra (o chip ganha +1) e tira de novo', async () => {
+    const id = await app.avaliar(`window.orq.conversa.nova({ pasta: ${JSON.stringify(projeto)}, motor: 'claude' }).then((i) => window.__orqTeste.trocar(i).then(() => i))`);
+    await app.esperar("!!document.querySelector('#mensagens .cartao-pasta [data-pasta=confiar]')", 8000);
+    await clicarDeVerdade('#mensagens .cartao-pasta [data-pasta=confiar]');
+    await app.esperar("document.querySelector('#mensagens .cartao-pasta') === null", 8000);
+    await abrirMenu();
+    await app.esperar(`!!${MENU}.querySelector('#pasta-adicionar')`, 8000);
+    assert.strictEqual(await app.avaliar(`${MENU}.querySelector('.pasta-caminho').innerText`), '~/projetos/api-pedidos');
+    assert.deepStrictEqual(await app.avaliar(`[...${MENU}.querySelectorAll('#pasta-extras li')].map((l) => l.innerText.trim())`), ['nenhuma']);
+    assert.strictEqual(await app.avaliar("document.getElementById('info-pasta-extras').hidden"), true);
+    app.escrever('.orq-e2e-pasta-escolhida', path.join(app.casa, 'projetos/vazio'));
+    await app.avaliar(`${MENU}.querySelector('#pasta-adicionar').click()`);
+    await app.esperar(`!!${MENU}.querySelector('[data-tirar]')`, 8000);
+    assert.deepStrictEqual(await app.avaliar(`[...${MENU}.querySelectorAll('#pasta-extras li')].map((l) => l.innerText.replace(/\\s+/g, ' ').trim())`), ['~/projetos/vazio Tirar']);
+    await app.esperar("document.getElementById('info-pasta-extras').textContent === '+1'", 4000);
+    assert.strictEqual(await app.visivel('#info-pasta-extras'), 'ok');
+    assert.deepStrictEqual(guardadas().find((c) => c.id === id).pastasExtras, [path.join(app.casa, 'projetos/vazio')]);
+    await app.avaliar(`${MENU}.querySelector('[data-tirar]').click()`);
+    await app.esperar(`${MENU}.querySelector('[data-tirar]') === null && !!${MENU}.querySelector('#pasta-extras .pasta-mais')`, 8000);
+    await app.esperar("document.getElementById('info-pasta-extras').hidden", 4000);
+    assert.strictEqual(guardadas().find((c) => c.id === id).pastasExtras, undefined);
+    assert.strictEqual(guardadas().find((c) => c.id === id).pasta, projeto, 'a pasta da conversa mudou ao mexer nas extras');
+  });
+
+  await t.test('"Abrir conversa nova em": abre outra conversa na pasta escolhida e a atual continua onde está', async () => {
+    if (!(await app.avaliar(MENU_ABERTO))) await abrirMenu();
+    await app.esperar(`${MENU}.querySelectorAll('[data-nova-em]').length >= 2`, 8000);
+    assert.deepStrictEqual(await app.avaliar(`[...${MENU}.querySelectorAll('[data-nova-em]')].map((b) => b.innerText.trim())`), ['~/projetos/api-pedidos', '~']);
+    const antes = await app.avaliar("document.querySelectorAll('.item-conversa').length");
+    await app.avaliar(`[...${MENU}.querySelectorAll('[data-nova-em]')].pop().click()`);
+    await app.esperar(`document.querySelectorAll('.item-conversa').length === ${antes + 1}`, 8000);
+    await app.esperar(`!(${MENU_ABERTO})`);
+    const l = await app.avaliar(LATERAL);
+    assert.deepStrictEqual([l[l.length - 1].ativa, l[l.length - 1].linha.replace(/ · (pronta|pausada)$/, '')], [true, '~']);
+    assert.match(l[1].linha, /^~\/projetos\/api-pedidos · /);
+  });
+
+  await t.test('com o Claude trabalhando, o Esc fecha a janela "Nova conversa" e o menu da pasta sem parar o Claude', async () => {
+    await app.avaliar("window.orq.conversa.mandar(window.orqConversa.ativa(), 'trabalha até parar')");
+    await app.esperar("!document.getElementById('parar').hidden", 8000);
+    await app.avaliar("document.getElementById('nova-conversa').click()");
+    await app.esperar(NOVA_ABERTA);
+    await app.tecla('Escape', 'Escape', 27);
+    await app.esperar(`!(${NOVA_ABERTA})`);
+    await abrirMenu();
+    await app.avaliar("document.getElementById('chip-pasta').focus()");
+    await app.tecla('Escape', 'Escape', 27);
+    await app.esperar(`!(${MENU_ABERTO})`);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.strictEqual(await app.avaliar("document.getElementById('parar').hidden"), false, 'o Esc dado para fechar o menu parou o Claude');
+    assert.ok(!lerLog(log).some((o) => o.type === 'control_request' && o.request.subtype === 'interrupt'));
+    // Sem menu aberto, o Esc volta a parar o Claude.
+    await app.avaliar("document.getElementById('entrada').focus()");
+    await app.tecla('Escape', 'Escape', 27);
+    await app.esperar("document.getElementById('parar').hidden", 8000);
+  });
+
+  await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
+});

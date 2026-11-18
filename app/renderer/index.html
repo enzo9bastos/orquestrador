@@ -80,7 +80,10 @@
           <button type="button" class="botao-texto" id="sair-bypass">Voltar ao Auto</button>
         </div>
         <header class="conversa-barra">
-          <span class="chip" title="Pasta"><svg class="ico"><use href="#i-pasta"/></svg><span id="info-pasta">~</span></span>
+          <span class="seletor-modelo">
+            <button id="chip-pasta" class="chip botao-chip chip-pasta" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="menu-pasta" title="Pasta"><svg class="ico"><use href="#i-pasta"/></svg><span id="info-pasta">~</span><span id="info-pasta-extras" class="rotulo" data-sem-traducao hidden></span></button>
+            <div id="menu-pasta" class="menu-modelo menu-pasta" role="dialog" aria-label="Pasta desta conversa" hidden></div>
+          </span>
           <span class="seletor-modelo">
             <button id="botao-modelo" class="chip botao-chip" type="button" title="Trocar modelo e esforço" aria-haspopup="true" aria-expanded="false">
               <svg class="ico"><use href="#i-estrela"/></svg><span id="info-modelo">—</span><span class="selo-chip selo-rapido" id="selo-rapido" title="Modo rápido ligado: cobrado à parte, em créditos de uso" hidden>rápido</span>

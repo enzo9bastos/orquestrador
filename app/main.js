@@ -491,6 +491,7 @@ ipcMain.handle('cmd:codex', seguro((id, metodo, params = {}) => {
 ipcMain.handle('cmd:estado', seguro((id) => conversa.estadoComando(id)));
 ipcMain.handle('cmd:rapido', seguro((id, ligar) => conversa.rapido(id, !!ligar)));
 ipcMain.handle('cmd:pastaExtra', seguro((id, p) => ({ pasta: conversa.pastaExtra(id, p) })));
+ipcMain.handle('cmd:tirarPastaExtra', seguro((id, p) => ({ tirada: conversa.tirarPastaExtra(id, typeof p === 'string' ? p : '') })));
 ipcMain.handle('cmd:threadNova', seguro((id) => conversa.threadNova(id)));
 ipcMain.handle('cmd:pausar', seguro((id) => conversa.pausar(id)));
 // /exit: fecha só aquela conversa (o app continua); reabrir desfaz.
