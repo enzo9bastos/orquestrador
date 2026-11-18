@@ -1,6 +1,6 @@
 {
   "name": "orquestrador",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "A desktop shell for agents and orchestrators on AI CLIs (Claude Code today): conversations, terminals, notes, workflows and a desktop helper",
   "license": "MIT",
   "repository": "github:enzo9bastos/orquestrador",
