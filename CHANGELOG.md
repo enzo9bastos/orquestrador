@@ -4,6 +4,15 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.9.1 (2026-11-18)
+
+- Quick question has a keyboard shortcut: `Ctrl+Alt+P` opens the drawer with the keyboard in its field,
+  and closes it again. It works with the conversation in front and no dialog open.
+- The shortcut has its own line in Settings › Shortcuts, next to the column shortcuts: you can change it,
+  turn it off, or go back to the default. It cannot repeat a shortcut the app already uses or one of the
+  column shortcuts.
+- The shortcut list (`? Shortcuts`) shows the combination in use.
+
 ## 0.9.0 (2026-11-17)
 
 - Quick question (`/btw`, or ⋯ › Quick question) now opens a drawer over the right-hand column instead of

@@ -59,3 +59,29 @@ test('atalhos: o que a tela captura (KeyboardEvent) vira a combinação certa e 
   assert.strictEqual(A.mostrar('Ctrl+Shift+KeyJ'), 'Ctrl+Shift+J');
   assert.strictEqual(A.mostrar('Alt+Digit5'), 'Alt+5');
 });
+
+test('atalhoPerguntaRapida: padrão, troca, desligar com "" e recusa do que colide com o app ou com os atalhos das colunas', () => {
+  // Parte do que está gravado: os padrões das colunas e o da pergunta rápida.
+  config.gravar({ atalhosColunas: { agentes: 'Ctrl+Alt+Comma', demandas: 'Ctrl+Alt+Period' } });
+  assert.strictEqual(config.ler().atalhoPerguntaRapida, 'Ctrl+Alt+KeyP');
+  assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: 'Ctrl+Alt+KeyJ' }), { ok: { atalhoPerguntaRapida: 'Ctrl+Alt+KeyJ' }, recusado: [] });
+  assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: '' }), { ok: { atalhoPerguntaRapida: '' }, recusado: [] });
+  const ruins = [
+    'Ctrl+KeyK', // paleta de comandos
+    'Ctrl+Alt+Space', // bichinho
+    'Ctrl+Alt+Comma', // o atalho da coluna dos agentes
+    'Ctrl+Alt+Period', // o atalho da coluna das demandas
+    'KeyP', 'Shift+KeyP', 'Alt+Ctrl+KeyP', 'Ctrl+Alt+Foo', 5, null, {}, [],
+  ];
+  for (const v of ruins) assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: v }), { ok: {}, recusado: ['atalhoPerguntaRapida'] }, JSON.stringify(v));
+  // Uma coluna não pode pegar a combinação da pergunta rápida que está gravada…
+  assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: 'Ctrl+Alt+KeyP', demandas: '' } }), { ok: {}, recusado: ['atalhosColunas'] });
+  // …a não ser que o mesmo pedido mude a da pergunta rápida (vale como os três vão ficar).
+  assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: 'Ctrl+Alt+KeyP', demandas: '' }, atalhoPerguntaRapida: '' }).recusado, []);
+  assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: 'Ctrl+Alt+KeyJ', demandas: '' }, atalhoPerguntaRapida: 'Ctrl+Alt+Comma' }).recusado, []);
+  // Os dois iguais no mesmo pedido: nenhum dos dois entra.
+  assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: 'Ctrl+Alt+KeyJ', demandas: '' }, atalhoPerguntaRapida: 'Ctrl+Alt+KeyJ' }), { ok: {}, recusado: ['atalhosColunas', 'atalhoPerguntaRapida'] });
+  // Gravado, volta igual.
+  config.gravar(config.validar({ atalhoPerguntaRapida: 'Ctrl+Alt+KeyJ' }).ok);
+  assert.strictEqual(config.ler().atalhoPerguntaRapida, 'Ctrl+Alt+KeyJ');
+});

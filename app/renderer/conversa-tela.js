@@ -1282,6 +1282,7 @@
       ${l('Trocar o modo de permissão', teclas('Ctrl+Shift+M'))}${cfg.shiftTabTrocaModo === false ? '' : l('Trocar o modo, com a caixa vazia', teclas('Shift+Tab'))}
       ${l('Trazer de volta a mensagem anterior (caixa vazia)', teclas('↑'))}
       ${l('Buscar nesta conversa', teclas('Ctrl+F'))}
+      ${l('Abrir ou fechar a pergunta rápida', combo(window.orqColunas && window.orqColunas.atalhoPergunta ? window.orqColunas.atalhoPergunta() : (A ? A.PADRAO_PERGUNTA : '')))}
       <h4>Na caixa de texto</h4>
       ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar arquivo, nota, workflow, demanda, recado ou agente', teclas('@'))}
       ${cfg.comandoNaCaixa === true ? l('Rodar um comando no seu computador (no começo da caixa)', teclas('!')) : ''}
@@ -1291,7 +1292,7 @@
       ${l('Recolher ou abrir os agentes', combo(colunas.agentes))}${l('Recolher ou abrir as demandas', combo(colunas.demandas))}
       ${l('Chamar o bichinho', teclas('Ctrl+Alt+Espaço'))}${l('Atalhos do repertório', `${teclas('Ctrl+Alt+1')} … ${teclas('9')}`)}
     </div>
-    <p class="popup-nota"><span>Os atalhos das colunas e o Shift+Tab mudam em</span> <button type="button" class="botao-texto link-config" data-abrir-config-atalhos>Configurações › Atalhos</button></p>`);
+    <p class="popup-nota"><span>Os atalhos das colunas, o da pergunta rápida e o Shift+Tab mudam em</span> <button type="button" class="botao-texto link-config" data-abrir-config-atalhos>Configurações › Atalhos</button></p>`);
     $('popup-corpo').querySelector('[data-abrir-config-atalhos]').addEventListener('click', () => {
       fecharPopup();
       $('abrir-config').click();
@@ -1463,6 +1464,13 @@
   function fecharMenuMais() { $('menu-mais').hidden = true; $('chip-mais').setAttribute('aria-expanded', 'false'); }
   // Cada ação é um comando do "/" que já existe: só entra no menu se a lista de
   // comandos desta conversa tiver o comando (o Codex mostra os dele).
+  // Pergunta rápida (o ⋯ e o atalho de teclado): abre a gaveta com o teclado no campo dela;
+  // pelo atalho, aberta, fecha. Na conversa do Codex o comando é outro (abre no terminal):
+  // fica pronto na caixa para completar.
+  function perguntaRapida({ soAbrir = false } = {}) {
+    if (conversaCodex() || !window.orqLado) { entrada.value = '/btw '; entrada.focus(); entrada.setSelectionRange(5, 5); ajustarAltura(); return; }
+    if (!soAbrir && window.orqLado.aberta()) window.orqLado.fechar(); else window.orqLado.abrir();
+  }
   const ACOES_MAIS = [['btw', 'Pergunta rápida…'], ['export', 'Exportar…'], ['config', 'Configurações do Claude Code'], ['permissions', 'Permissões'], ['memory', 'Memória'], ['status', 'Status'], ['exit', 'Encerrar esta conversa']];
   function desenharMenuMais() {
     const orq = ehOrquestrador();
@@ -1502,10 +1510,7 @@
     if (acao === 'iniciar') { iniciarRodada(); return; }
     // Pergunta rápida: abre a gaveta, com o teclado no campo dela. Na conversa do Codex o
     // comando é outro (abre no terminal): fica pronto na caixa para completar, como antes.
-    if (acao === 'btw') {
-      if (!conversaCodex() && window.orqLado) { window.orqLado.abrir(); return; }
-      entrada.value = '/btw '; entrada.focus(); entrada.setSelectionRange(5, 5); ajustarAltura(); return;
-    }
+    if (acao === 'btw') { perguntaRapida({ soAbrir: true }); return; }
     const comando = acharComando(acao);
     if (comando && window.orqComandos) await window.orqComandos.executar(comando, '', `/${acao}`);
   });
@@ -2292,6 +2297,7 @@
     ativa: () => ativa,
     lista: () => listaConversas,
     titulo: () => { const c = listaConversas.find((x) => x.id === ativa); return c ? c.titulo || '' : ''; },
+    perguntaRapida: () => perguntaRapida(),
     motor: () => (conversaCodex() ? 'codex' : 'claude'),
     info: () => infoAtual,
     comandos: () => comandosPor.get(ativa) || [],

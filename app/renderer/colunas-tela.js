@@ -18,7 +18,10 @@
     demandas: { botao: 'alternar-demandas', coluna: 'coluna-demandas', classe: 'sem-demandas', nome: 'demandas' },
   };
   const A = window.orqAtalhos;
-  let atalhos = { ...A.PADRAO }; // lado → combinação ("" = desligado)
+  // Os atalhos que a pessoa pode trocar: os dois das colunas e o da pergunta rápida (/btw).
+  const PADROES = { ...A.PADRAO, pergunta: A.PADRAO_PERGUNTA };
+  const TROCAVEIS = Object.keys(PADROES);
+  let atalhos = { ...PADROES }; // nome → combinação ("" = desligado)
 
   let salvo = {}; // aba → { agentes, demandas }: só o que o usuário mexeu
   let aba = (document.querySelector('.sub-aba.ativa') || {}).dataset?.aba || ABA_CONVERSA;
@@ -123,9 +126,13 @@
     const c = A.deEvento(ev);
     if (!c) return;
     const lado = Object.keys(LADOS).find((l) => atalhos[l] && atalhos[l] === c);
-    if (!lado) return;
+    if (lado) { ev.preventDefault(); definir(lado, !estado[lado]); return; }
+    // Pergunta rápida: só com a conversa na frente e sem janela por cima.
+    if (!atalhos.pergunta || atalhos.pergunta !== c || !window.orqConversa || !window.orqConversa.perguntaRapida) return;
+    if (!$('aba-orquestrador').classList.contains('ativa')) return;
+    if (document.querySelector('#popup:not([hidden]), #config:not([hidden]), .paleta-fundo:not([hidden]), #visor-imagem:not([hidden])')) return;
     ev.preventDefault();
-    definir(lado, !estado[lado]);
+    window.orqConversa.perguntaRapida();
   }, true);
 
   // --- Configurações › Atalhos -------------------------------------------------
@@ -135,12 +142,12 @@
     el.replaceChildren(...frases.flatMap((f, i) => [...(i ? [' '] : []), Object.assign(document.createElement('span'), { textContent: f })]));
   };
   function desenharAtalhos() {
-    for (const lado of Object.keys(LADOS)) {
+    for (const lado of TROCAVEIS) {
       const b = document.querySelector(`[data-atalho-mudar="${lado}"]`);
       b.textContent = atalhos[lado] ? A.mostrar(atalhos[lado]) : 'Desligado';
       b.classList.toggle('desligado', !atalhos[lado]);
       document.querySelector(`[data-atalho-desligar="${lado}"]`).disabled = !atalhos[lado];
-      document.querySelector(`[data-atalho-padrao="${lado}"]`).disabled = atalhos[lado] === A.PADRAO[lado];
+      document.querySelector(`[data-atalho-padrao="${lado}"]`).disabled = atalhos[lado] === PADROES[lado];
     }
     desenhar();
   }
@@ -149,15 +156,19 @@
     atalhos = novos;
     desenharAtalhos();
     try {
-      const r = await window.orq.config.gravar({ atalhosColunas: novos });
-      if (r && r.recusado && r.recusado.includes('atalhosColunas')) { atalhos = antes; desenharAtalhos(); aviso('Não gravei: combinação inválida.'); }
+      const r = await window.orq.config.gravar({ atalhosColunas: { agentes: novos.agentes, demandas: novos.demandas }, atalhoPerguntaRapida: novos.pergunta });
+      if (r && r.recusado && (r.recusado.includes('atalhosColunas') || r.recusado.includes('atalhoPerguntaRapida'))) { atalhos = antes; desenharAtalhos(); aviso('Não gravei: combinação inválida.'); }
     } catch { /* sem o processo principal: vale só nesta abertura */ }
   }
   function motivo(c, lado) {
-    const r = A.conferir(c, atalhos[lado === 'agentes' ? 'demandas' : 'agentes']);
+    const outros = TROCAVEIS.filter((l) => l !== lado && atalhos[l]);
+    const r = A.conferir(c, outros.map((l) => atalhos[l]));
     if (!r) return [];
     if (r.motivo === 'em-uso') return ['Esta combinação já é usada por', r.usadoPor];
-    if (r.motivo === 'repetida') return ['As duas colunas não podem ter o mesmo atalho.'];
+    if (r.motivo === 'repetida') {
+      const igual = outros.find((l) => atalhos[l] === c);
+      return [lado !== 'pergunta' && igual !== 'pergunta' ? 'As duas colunas não podem ter o mesmo atalho.' : 'Esta combinação já é de outro atalho desta lista.'];
+    }
     if (r.motivo === 'sem-modificador') return ['Use Ctrl, Alt ou Cmd junto com outra tecla.'];
     return ['Combinação inválida.'];
   }
@@ -188,10 +199,10 @@
     const padrao = ev.target.closest('[data-atalho-padrao]');
     if (padrao) {
       const lado = padrao.dataset.atalhoPadrao;
-      const m = motivo(A.PADRAO[lado], lado);
+      const m = motivo(PADROES[lado], lado);
       if (m.length) { aviso(...m); return; }
       aviso();
-      gravarAtalhos({ ...atalhos, [lado]: A.PADRAO[lado] });
+      gravarAtalhos({ ...atalhos, [lado]: PADROES[lado] });
     }
   });
 
@@ -206,6 +217,9 @@
   window.orq.config.ler().then((c) => {
     if (c && c.colunas && typeof c.colunas === 'object') salvo = c.colunas;
     if (c && c.atalhosColunas && typeof c.atalhosColunas === 'object') atalhos = { ...atalhos, ...c.atalhosColunas };
+    if (c && typeof c.atalhoPerguntaRapida === 'string') atalhos.pergunta = c.atalhoPerguntaRapida;
+    // Configuração antiga em que uma coluna já usava a combinação da pergunta rápida: a coluna fica com ela.
+    if (atalhos.pergunta && (atalhos.pergunta === atalhos.agentes || atalhos.pergunta === atalhos.demandas)) atalhos.pergunta = '';
     const novo = salvo[aba] || padrao(aba);
     estado = { ...novo };
     desenharAtalhos();
@@ -213,6 +227,6 @@
   }).catch(liberarAnimacao);
 
   // Os testes e quem precisar ler o estado.
-  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), atalhos: () => ({ ...atalhos }), definir };
+  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), atalhos: () => ({ agentes: atalhos.agentes, demandas: atalhos.demandas }), atalhoPergunta: () => atalhos.pergunta, definir };
   desenharAtalhos();
 })();
