@@ -4,6 +4,24 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.10.0 (2026-11-18)
+
+- A conversation can now work in a folder of your choice. "+ New conversation" opens a small window to pick
+  the folder (your home folder, one used lately, or another from the system's folder picker) and the engine
+  (Claude or Codex). The folder does not change afterwards; the orchestrator always runs in your home folder.
+- Folder trust card: the first time Claude would start in a folder that is not your home folder, the
+  conversation shows what the folder configures (commands that run by themselves, MCP servers, rules that
+  already allow without asking, instructions) and waits for your answer: Trust and open, Open without the
+  project's settings, or Cancel. Nothing from the folder runs before that, and only a real click accepts.
+  If those files change later, the card comes back showing what changed.
+- The list on the left shows each conversation's folder and state on a second line.
+- The folder chip in the conversation bar opens a menu: the folder, the extra folders the conversation may
+  use (add or remove), and a shortcut to open a new conversation in a folder used lately.
+- A folder that no longer exists is a clear error; a conversation never moves to another folder by itself.
+- For a project folder with an agent in a container, the acceptance is kept in memory only: the card comes
+  back each time the app opens.
+- `/resume` lists the earlier conversations of the conversation's own folder.
+
 ## 0.9.1 (2026-11-18)
 
 - Quick question has a keyboard shortcut: `Ctrl+Alt+P` opens the drawer with the keyboard in its field,
