@@ -169,6 +169,16 @@ há terminal para vigiar.
   lido do fim dos arquivos de conversa do próprio Claude e aparece só na caixa e nessa busca. O atalho da busca pode
   ser trocado ou desativado em *Configurações › Atalhos*; sem um atalho do app nele, o Ctrl+R é o "recarregar a
   tela" de fábrica.
+- **Guardar o rascunho** (Ctrl+S, como no terminal): tira da caixa de mensagem o que você está escrevendo e guarda;
+  com a caixa vazia, o mesmo atalho traz de volta, e depois que você envia outra mensagem ele volta sozinho. Se a
+  caixa tem outro texto, os dois trocam de lugar: nada se perde. Um marcador acima da caixa mostra que há um
+  rascunho guardado (o clique traz de volta). Fica só na memória, enquanto o app está aberto.
+- **Escrever a mensagem no editor de texto** (Ctrl+G, como no terminal): abre o texto da caixa no editor de texto do
+  computador, mais cômodo para mensagem longa. Cada vez que você salva lá, o texto aparece na caixa (que fica só
+  para leitura enquanto isso); o mesmo atalho ou o *Terminar* encerra. O texto passa por um arquivo temporário do
+  app (em `~/.cache/orq-app/editor`, que só você lê), removido quando você termina. O que vem do editor é sempre
+  texto comum, nunca um comando do `!`. Os dois atalhos podem ser trocados ou desativados em *Configurações ›
+  Atalhos*.
 - **Carregar as anteriores**: a conversa reaberta mostra as últimas 600 mensagens; uma faixa no topo avisa que há
   mais antigas e traz a página de antes para cima, mantendo a tela onde você estava lendo, até chegar ao início da
   conversa. Nada do que já está na tela é lido de novo.

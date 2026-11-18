@@ -171,6 +171,13 @@ contextBridge.exposeInMainWorld('orq', {
     versao: () => ipcRenderer.invoke('app:versao'),
     aoPrecisarReiniciar: (fn) => ipcRenderer.on('app:precisa-reiniciar', () => fn()),
   },
+  // Escrever a mensagem no editor de texto do computador (editor-de-texto.js).
+  editor: {
+    comecar: (texto) => ipcRenderer.invoke('editor:comecar', texto),
+    terminar: () => ipcRenderer.invoke('editor:terminar'),
+    estado: () => ipcRenderer.invoke('editor:estado'),
+    aoMudar: (fn) => ipcRenderer.on('editor:mudou', (_e, texto) => fn(texto)),
+  },
   janela: {
     minimizar: () => ipcRenderer.send('janela:minimizar'),
     maximizar: () => ipcRenderer.send('janela:maximizar'),

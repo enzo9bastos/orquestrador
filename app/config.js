@@ -42,6 +42,10 @@ const PADRAO = {
   atalhoPerguntaRapida: 'Ctrl+Alt+KeyP',
   // Atalho que abre, na caixa de mensagem, a busca no que a pessoa já escreveu. "" desliga.
   atalhoBuscaEscritos: 'Ctrl+KeyR',
+  // Atalho que guarda o que está na caixa de mensagem e traz de volta (o rascunho). "" desliga.
+  atalhoGuardarRascunho: 'Ctrl+KeyS',
+  // Atalho que abre o que está na caixa de mensagem no editor de texto do sistema. "" desliga.
+  atalhoEditorDeTexto: 'Ctrl+KeyG',
 
   // Onde estão os projetos. niveis 1: <raiz>/<projeto>; niveis 2:
   // <raiz>/<grupo>/<projeto>. Pastas que casam com ignorar ficam de fora.
@@ -194,12 +198,15 @@ const atalhoOk = (c, outro) => c === '' || (typeof c === 'string' && !atalhos.co
 const atalhosColunasOk = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && atalhoOk(v.agentes, v.demandas) && atalhoOk(v.demandas, v.agentes);
 // Os atalhos que a pessoa pode trocar não se repetem entre si. Cada um é conferido
 // contra os outros como vão ficar: o que veio no mesmo pedido, senão o que está gravado.
+const ATALHOS_SOLTOS = Object.values(atalhos.SOLTOS).map((s) => s.chave);
 const atalhosComo = (m) => {
   const atual = ler();
   const col = atalhosColunasOk(m.atalhosColunas) ? m.atalhosColunas : atual.atalhosColunas || {};
   const um = (k) => (typeof m[k] === 'string' ? m[k] : atual[k] || '');
-  return { colunas: [col.agentes, col.demandas].filter(Boolean), pergunta: um('atalhoPerguntaRapida'), escritos: um('atalhoBuscaEscritos') };
+  return { colunas: [col.agentes, col.demandas].filter(Boolean), soltos: Object.fromEntries(ATALHOS_SOLTOS.map((k) => [k, um(k)])) };
 };
+// As combinações dos outros atalhos trocáveis (as duas colunas e os soltos, menos o próprio).
+const outrosAtalhos = (m, k) => { const a = atalhosComo(m); return [...a.colunas, ...ATALHOS_SOLTOS.filter((x) => x !== k).map((x) => a.soltos[x])].filter(Boolean); };
 const texto = (v) => (typeof v === 'string' ? v.trim() : '');
 // Valida o que a tela de configurações manda; chave desconhecida ou valor
 // inválido é ignorado (devolve a lista do que não foi aceito).
@@ -217,9 +224,8 @@ function validar(m) {
       case 'mostrarBypass': case 'shiftTabTrocaModo': case 'comandoNaCaixa': case 'teclasNosCartoes': case 'pontosDeVolta': aceitar(k, typeof v === 'boolean', v); break;
       case 'iniciarDesligar': aceitar(k, ['barra', 'menu'].includes(v), v); break;
       case 'conversasAoFechar': aceitar(k, ['pausadas', 'saem'].includes(v), v); break;
-      case 'atalhosColunas': aceitar(k, atalhosColunasOk(v) && ![atalhosComo(m).pergunta, atalhosComo(m).escritos].filter(Boolean).some((a) => [v.agentes, v.demandas].includes(a)), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
-      case 'atalhoPerguntaRapida': aceitar(k, atalhoOk(v, [...atalhosComo(m).colunas, atalhosComo(m).escritos].filter(Boolean)), v); break;
-      case 'atalhoBuscaEscritos': aceitar(k, atalhoOk(v, [...atalhosComo(m).colunas, atalhosComo(m).pergunta].filter(Boolean)), v); break;
+      case 'atalhosColunas': aceitar(k, atalhosColunasOk(v) && !Object.values(atalhosComo(m).soltos).filter(Boolean).some((a) => [v.agentes, v.demandas].includes(a)), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
+      case 'atalhoPerguntaRapida': case 'atalhoBuscaEscritos': case 'atalhoGuardarRascunho': case 'atalhoEditorDeTexto': aceitar(k, atalhoOk(v, outrosAtalhos(m, k)), v); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;
       case 'notificacoes': aceitar(k, !!v && typeof v === 'object', () => ({ pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false })); break;
       case 'comandoInicial': case 'comandoDesligar':

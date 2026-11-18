@@ -176,6 +176,16 @@ que no hay ninguna terminal que vigilar.
   nada de eso: el texto se lee del final de los archivos de conversación del propio Claude y aparece solo en la caja
   y en esa búsqueda. El atajo de la búsqueda se puede cambiar o desactivar en *Settings › Shortcuts*; sin un atajo
   de la app en él, Ctrl+R es el "recargar la ventana" de fábrica.
+- **Guardar el borrador** (Ctrl+S, como en la terminal): saca de la caja de mensaje lo que estás escribiendo y lo
+  guarda; con la caja vacía, el mismo atajo lo trae de vuelta, y después de enviar otro mensaje vuelve solo. Si la
+  caja tiene otro texto, los dos cambian de lugar: no se pierde nada. Un marcador sobre la caja muestra que hay un
+  borrador guardado (un clic lo trae de vuelta). Vive solo en memoria, mientras la app está abierta.
+- **Escribir el mensaje en el editor de texto** (Ctrl+G, como en la terminal): abre el texto de la caja en el editor
+  de texto del equipo, más cómodo para un mensaje largo. Cada vez que guardas allí, el texto aparece en la caja (de
+  solo lectura mientras tanto); el mismo atajo o *Done* lo termina. El texto pasa por un archivo temporal de la app
+  (en `~/.cache/orq-app/editor`, que solo tú puedes leer), eliminado cuando terminas. Lo que viene del editor es
+  siempre texto común, nunca un comando de `!`. Los dos atajos se pueden cambiar o desactivar en *Settings ›
+  Shortcuts*.
 - **Load the earlier ones**: la conversación reabierta muestra sus últimos 600 mensajes; una franja arriba avisa
   que hay más antiguos y trae la página anterior por encima, manteniendo la pantalla donde estabas leyendo, hasta
   llegar al inicio de la conversación. Nada de lo que ya está en pantalla se vuelve a leer.

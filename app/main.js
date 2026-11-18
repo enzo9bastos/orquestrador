@@ -665,6 +665,17 @@ ipcMain.handle('conversa:arquivar', comErro((id) => conversa.arquivarConversa(id
 ipcMain.handle('conversa:carregarAnteriores', comErro((id) => conversa.carregarAnteriores(id)));
 // O ↑ e o Ctrl+R da caixa: o que a pessoa já escreveu nas conversas guardadas daquela pasta. Só vai para a caixa de mensagem.
 ipcMain.handle('conversa:promptsAnteriores', async (_e, id) => { try { return await conversa.promptsAnteriores(id); } catch { return []; } });
+// Escrever a mensagem no editor de texto do computador (o Ctrl+G do terminal). O arquivo é do
+// app (editor-de-texto.js); a tela só manda o texto da caixa e recebe o que a pessoa salvou.
+// Nos testes de tela nenhum programa de fora abre: o teste escreve no arquivo, como o editor faria.
+const editorDeTexto = require('./editor-de-texto').criar({
+  pasta: path.join(os.homedir(), '.cache', 'orq-app', 'editor'),
+  abrir: (arquivo) => (process.env.ORQ_APP_E2E ? Promise.resolve('') : shell.openPath(arquivo)),
+  aoMudar: (texto) => enviar('editor:mudou', texto),
+});
+ipcMain.handle('editor:comecar', (_e, texto) => editorDeTexto.comecar(texto));
+ipcMain.handle('editor:terminar', () => editorDeTexto.terminar());
+ipcMain.handle('editor:estado', () => editorDeTexto.estado());
 ipcMain.handle('conversa:renomear', comErro((id, titulo) => ({ titulo: conversa.renomear(id, titulo) })));
 // O pedido de apagar veio do orquestrador: ele fica sabendo do que o usuário decidiu.
 const avisarDecisao = (t, acao) => { try { topicos.avisarOrquestrador(conversa, t, acao); } catch { /* o aviso é extra; a decisão já está feita */ } };
@@ -1066,8 +1077,10 @@ app.whenReady().then(() => {
   // arquivo foi tocado há menos de 15 s.
   setInterval(() => coletor.sinalDeVida(), 3000);
   coletor.sinalDeVida();
+  try { editorDeTexto.limparSobras(); } catch { /* sem a pasta: nada a limpar */ }
 });
 function encerrarTudo() {
+  try { editorDeTexto.terminar(); } catch { /* o arquivo da mensagem fica; sai na limpeza de sobras */ }
   for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
   terminais.clear();
   workflows.desligar();

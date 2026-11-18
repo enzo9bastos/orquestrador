@@ -18,9 +18,10 @@
     demandas: { botao: 'alternar-demandas', coluna: 'coluna-demandas', classe: 'sem-demandas', nome: 'demandas' },
   };
   const A = window.orqAtalhos;
-  // Os atalhos que a pessoa pode trocar: os dois das colunas, o da pergunta rápida (/btw) e o
-  // da busca no que ela já escreveu (quem age neste último é o historico-caixa-tela.js).
-  const PADROES = { ...A.PADRAO, pergunta: A.PADRAO_PERGUNTA, escritos: A.PADRAO_ESCRITOS };
+  // Os atalhos que a pessoa pode trocar: os dois das colunas e os soltos da lista (pergunta
+  // rápida, busca no que já escreveu, guardar o rascunho, editor de texto).
+  const SOLTOS = Object.entries(A.SOLTOS); // [nome, { chave, padrao }], na ordem da tela
+  const PADROES = { ...A.PADRAO, ...Object.fromEntries(SOLTOS.map(([n, s]) => [n, s.padrao])) };
   const TROCAVEIS = Object.keys(PADROES);
   let atalhos = { ...PADROES }; // nome → combinação ("" = desligado)
 
@@ -157,8 +158,8 @@
     atalhos = novos;
     desenharAtalhos();
     try {
-      const r = await window.orq.config.gravar({ atalhosColunas: { agentes: novos.agentes, demandas: novos.demandas }, atalhoPerguntaRapida: novos.pergunta, atalhoBuscaEscritos: novos.escritos });
-      if (r && r.recusado && ['atalhosColunas', 'atalhoPerguntaRapida', 'atalhoBuscaEscritos'].some((k) => r.recusado.includes(k))) { atalhos = antes; desenharAtalhos(); aviso('Não gravei: combinação inválida.'); }
+      const r = await window.orq.config.gravar({ atalhosColunas: { agentes: novos.agentes, demandas: novos.demandas }, ...Object.fromEntries(SOLTOS.map(([n, s]) => [s.chave, novos[n]])) });
+      if (r && r.recusado && ['atalhosColunas', ...SOLTOS.map(([, s]) => s.chave)].some((k) => r.recusado.includes(k))) { atalhos = antes; desenharAtalhos(); aviso('Não gravei: combinação inválida.'); }
     } catch { /* sem o processo principal: vale só nesta abertura */ }
   }
   function motivo(c, lado) {
@@ -218,12 +219,14 @@
   window.orq.config.ler().then((c) => {
     if (c && c.colunas && typeof c.colunas === 'object') salvo = c.colunas;
     if (c && c.atalhosColunas && typeof c.atalhosColunas === 'object') atalhos = { ...atalhos, ...c.atalhosColunas };
-    if (c && typeof c.atalhoPerguntaRapida === 'string') atalhos.pergunta = c.atalhoPerguntaRapida;
-    // Configuração antiga em que uma coluna já usava a combinação da pergunta rápida: a coluna fica com ela.
-    if (atalhos.pergunta && (atalhos.pergunta === atalhos.agentes || atalhos.pergunta === atalhos.demandas)) atalhos.pergunta = '';
-    if (c && typeof c.atalhoBuscaEscritos === 'string') atalhos.escritos = c.atalhoBuscaEscritos;
-    // O mesmo para a busca no que a pessoa já escreveu: quem já tinha a combinação fica com ela.
-    if (atalhos.escritos && [atalhos.agentes, atalhos.demandas, atalhos.pergunta].includes(atalhos.escritos)) atalhos.escritos = '';
+    // Configuração antiga em que outro atalho já usava a combinação de um mais novo: quem já
+    // tinha a combinação fica com ela (as colunas primeiro, depois os soltos na ordem da lista).
+    const tomadas = [atalhos.agentes, atalhos.demandas];
+    for (const [nome, s] of SOLTOS) {
+      if (c && typeof c[s.chave] === 'string') atalhos[nome] = c[s.chave];
+      if (atalhos[nome] && tomadas.includes(atalhos[nome])) atalhos[nome] = '';
+      tomadas.push(atalhos[nome]);
+    }
     const novo = salvo[aba] || padrao(aba);
     estado = { ...novo };
     desenharAtalhos();
@@ -231,6 +234,6 @@
   }).catch(liberarAnimacao);
 
   // Os testes e quem precisar ler o estado.
-  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), atalhos: () => ({ agentes: atalhos.agentes, demandas: atalhos.demandas }), atalhoPergunta: () => atalhos.pergunta, atalhoEscritos: () => atalhos.escritos, definir };
+  window.orqColunas = { estado: () => ({ aba, ...estado }), sinais: () => ({ ...sinais }), atalhos: () => ({ agentes: atalhos.agentes, demandas: atalhos.demandas }), atalhoPergunta: () => atalhos.pergunta, atalhoEscritos: () => atalhos.escritos, atalho: (nome) => (nome in PADROES ? atalhos[nome] : ''), definir };
   desenharAtalhos();
 })();

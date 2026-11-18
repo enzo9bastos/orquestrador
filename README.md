@@ -166,6 +166,15 @@ protocol), so there is no terminal to babysit.
   it: the text is read from the end of Claude's own conversation files, and shows only in the box and in this
   search. The search shortcut can be changed or turned off in *Settings › Shortcuts*; without an app shortcut on
   it, Ctrl+R is the stock "reload the window".
+- **Stash the draft** (Ctrl+S, as in the terminal): takes what you are writing out of the message box and keeps it;
+  with the box empty, the same shortcut brings it back, and after you send another message it comes back by itself.
+  If the box has other text, the two swap places, so nothing is lost. A marker above the box shows that a draft is
+  kept (a click brings it back). It lives in memory only, while the app is open.
+- **Write the message in the text editor** (Ctrl+G, as in the terminal): opens the text of the box in the computer's
+  text editor, which is easier for a long message. Every time you save there, the text shows up in the box (read-only
+  meanwhile); the same shortcut or *Done* ends it. The text travels through a temporary file of the app (in
+  `~/.cache/orq-app/editor`, readable only by you), removed when you finish. Text coming from the editor is always
+  plain text, never a `!` command. Both shortcuts can be changed or turned off in *Settings › Shortcuts*.
 - **Load the earlier ones**: a reopened conversation shows its latest 600 messages; a strip at the top says there
   are older ones and brings the previous page in above, keeping the screen where you were reading, until it reaches
   the start of the conversation. Nothing already on screen is read again.

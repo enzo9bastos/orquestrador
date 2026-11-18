@@ -18,6 +18,19 @@
   // Abrir a busca no que a pessoa já escreveu, na caixa de mensagem (o Ctrl+R do terminal).
   // Sem um atalho do app nessa combinação, o Ctrl+R é o "recarregar a tela" de fábrica.
   const PADRAO_ESCRITOS = 'Ctrl+KeyR';
+  // Guardar o que está na caixa de mensagem e trazer de volta (o Ctrl+S do terminal).
+  const PADRAO_RASCUNHO = 'Ctrl+KeyS';
+  // Abrir o que está na caixa de mensagem no editor de texto do sistema (o Ctrl+G do terminal).
+  const PADRAO_EDITOR = 'Ctrl+KeyG';
+  // Os atalhos soltos que a pessoa pode trocar ou desligar em Configurações › Atalhos, na ordem
+  // da tela: nome na tela → chave na configuração e padrão. A tela (colunas-tela.js) e a
+  // conferência do arquivo (config.js) leem esta mesma lista.
+  const SOLTOS = {
+    pergunta: { chave: 'atalhoPerguntaRapida', padrao: PADRAO_PERGUNTA },
+    escritos: { chave: 'atalhoBuscaEscritos', padrao: PADRAO_ESCRITOS },
+    rascunho: { chave: 'atalhoGuardarRascunho', padrao: PADRAO_RASCUNHO },
+    editor: { chave: 'atalhoEditorDeTexto', padrao: PADRAO_EDITOR },
+  };
 
   // O que já usa teclado no app (e no sistema), com o nome que a engrenagem mostra.
   const USADOS = {};
@@ -31,7 +44,7 @@
     'Ctrl+Shift+H', 'Ctrl+Shift+E', 'Ctrl+Shift+7', 'Ctrl+Shift+8', 'Ctrl+Shift+9', 'Ctrl+Alt+C', 'Ctrl+Alt+0');
   usa('selecionar tudo e duplicar', 'Ctrl+A', 'Ctrl+D');
   usa('copiar e colar', 'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+Shift+C', 'Ctrl+Shift+V');
-  usa('recurso reservado do app', 'Ctrl+F', 'Ctrl+G', 'Ctrl+O', 'Ctrl+S', 'Ctrl+Shift+M', 'Ctrl+Slash', 'Ctrl+Alt+N', 'Alt+T');
+  usa('recurso reservado do app', 'Ctrl+F', 'Ctrl+O', 'Ctrl+Shift+M', 'Ctrl+Slash', 'Ctrl+Alt+N', 'Alt+T');
   usa('o sistema', 'Ctrl+N', 'Ctrl+Q', 'Ctrl+T', 'Ctrl+W', 'Ctrl+Shift+I', 'Alt+F4', 'Ctrl+Alt+T', 'Ctrl+Alt+L', 'Ctrl+Alt+ArrowUp', 'Ctrl+Alt+ArrowDown',
     'Ctrl+Alt+ArrowLeft', 'Ctrl+Alt+ArrowRight', 'Meta+L', 'Meta+D');
 
@@ -71,6 +84,6 @@
     return null;
   }
 
-  const api = { PADRAO, PADRAO_PERGUNTA, PADRAO_ESCRITOS, USADOS, deEvento, mostrar, conferir };
+  const api = { PADRAO, PADRAO_PERGUNTA, PADRAO_ESCRITOS, PADRAO_RASCUNHO, PADRAO_EDITOR, SOLTOS, USADOS, deEvento, mostrar, conferir };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.orqAtalhos = api;
 })(typeof window !== 'undefined' ? window : globalThis);

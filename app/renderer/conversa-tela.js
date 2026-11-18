@@ -1287,6 +1287,8 @@
       <h4>Na caixa de texto</h4>
       ${l('Comandos', teclas('/'))}${l('Skill de outra ferramenta', `${teclas('/')}${teclas('/')}`)}${l('Mencionar arquivo, nota, workflow, demanda, recado ou agente', teclas('@'))}
       ${cfg.comandoNaCaixa === true ? l('Rodar um comando no seu computador (no começo da caixa)', teclas('!')) : ''}
+      ${l('Guardar o rascunho e trazer de volta', combo(window.orqColunas && window.orqColunas.atalho ? window.orqColunas.atalho('rascunho') : (A ? A.PADRAO_RASCUNHO : '')))}
+      ${l('Escrever a mensagem no editor de texto', combo(window.orqColunas && window.orqColunas.atalho ? window.orqColunas.atalho('editor') : (A ? A.PADRAO_EDITOR : '')))}
       ${l('No menu de modelo: mudar o esforço', `${teclas('←')} ${teclas('→')}`)}
       <h4>No app</h4>
       ${l('Paleta de comandos', teclas('Ctrl+K'))}${l('Esta lista', teclas('Ctrl+/'))}
@@ -1826,8 +1828,7 @@
     if (id !== ativa) return;
     caixa.querySelector('.boas-vindas')?.remove();
     desenharEvento(ev); filaNoFim(); rolar();
-    // Mensagem que o motor não aceitou: o texto volta para a caixa vazia.
-    if (ev.devolver && !entrada.value.trim()) porNaCaixa(ev.devolver);
+    if (ev.devolver) devolverParaACaixa(ev.devolver);
     if (id === 'orquestrador' && !ev.sub) petReage(ev);
     // Faixa de atividade: a ferramenta em uso; quando o resultado dela chega, volta a "Pensando…".
     if (!ev.sub && !ev.antigo && ev.message && Array.isArray(ev.message.content)) {
@@ -1905,6 +1906,7 @@
     ...listaConversas.map((c) => ({ grupo: 'Conversas', titulo: c.titulo, sub: c.pedidos ? 'pergunta esperando você' : c.ocupado ? 'trabalhando' : '', atencao: c.pedidos > 0, faz: () => trocar(c.id) })),
     ...(comandosPor.get(ativa) || [])
       .map((c) => ({ grupo: 'Comandos', titulo: `/${c.nome}`, sub: c.descricao, faz: () => { trocar(ativa); entrada.value = `/${c.nome} `; entrada.focus(); } })),
+    { grupo: 'Ações', titulo: 'Guardar o rascunho da caixa ou trazer de volta', faz: () => { alternarRascunho(); entrada.focus(); } },
   ]);
   // Clique numa notificação do sistema: abre a conversa que precisa de você.
   if (C.aoFocar) C.aoFocar((id) => trocar(id));
@@ -2317,7 +2319,16 @@
     lista: () => listaConversas,
     // Para a busca do Ctrl+R (historico-caixa-tela.js): o que foi mandado nesta abertura do app e pôr um texto na caixa.
     enviados: () => enviados.slice(),
-    porNaCaixa: (texto) => { posHistorico = -1; porNaCaixa(String(texto == null ? '' : texto)); },
+    // foco: false põe o texto sem levar o teclado para a caixa (o editor de texto salvou com a pessoa em outro lugar).
+    porNaCaixa: (texto, o) => {
+      posHistorico = -1;
+      const t = String(texto == null ? '' : texto);
+      if (o && o.foco === false) { entrada.value = t; ajustarAltura(); desenharModoShell(); } else porNaCaixa(t);
+    },
+    // Para o editor de texto (editor-caixa-tela.js) e os testes: quando os atalhos da caixa valem, e o rascunho guardado.
+    caixaAtende: () => caixaAtende(),
+    atalhoDaCaixa: (nome) => atalhoDaCaixa(nome),
+    rascunho: { alternar: () => alternarRascunho(), tem: () => !!guardado },
     titulo: () => { const c = listaConversas.find((x) => x.id === ativa); return c ? c.titulo || '' : ''; },
     perguntaRapida: () => perguntaRapida(),
     motor: () => (conversaCodex() ? 'codex' : 'claude'),
@@ -2448,6 +2459,7 @@
     if (t) { enviados.push(t); if (enviados.length > 50) enviados.shift(); }
     posHistorico = -1;
     fecharVolta();
+    caixaEsvaziouPorEnvio();
     colado = true;
     if (ativa === 'orquestrador') pet.definir('pensando');
     const imagens = anexos.splice(0);
@@ -2519,6 +2531,64 @@
     } else if (ev.key === 'Escape' && voltaPedida) fecharVolta();
   });
   entrada.addEventListener('input', () => { if (!entrada.value) posHistorico = -1; });
+  // --- rascunho guardado (plano 4.4, H2: o Ctrl+S do terminal) --------------------------
+  // Um lugar só, e só na memória (nada em disco): o que está na caixa sai dela e fica guardado;
+  // com a caixa vazia, volta. Se a caixa tem outro texto, os dois trocam de lugar: nada se
+  // perde. Depois que a pessoa manda outra mensagem, o rascunho volta sozinho para a caixa.
+  // O texto guardado só sai da própria caixa; um "!comando" que ela digitou volta como comando
+  // (enquanto não for mexido), igual ao que a seta ↑ faz com um comando já rodado.
+  let guardado = null; // { texto, comando }
+  let voltouSozinho = null; // o texto que voltou sozinho depois do último envio
+  // Os atalhos da caixa de mensagem valem com a conversa na frente, sem janela por cima e com o
+  // teclado na caixa (ou em lugar nenhum). Fora disso a tecla segue o caminho dela.
+  const caixaAtende = () => $('aba-orquestrador').classList.contains('ativa') && !document.querySelector(POR_CIMA)
+    && (!document.activeElement || document.activeElement === document.body || document.activeElement === entrada);
+  const atalhoDaCaixa = (nome) => (window.orqColunas && window.orqColunas.atalho ? window.orqColunas.atalho(nome) : ((window.orqAtalhos && window.orqAtalhos.SOLTOS[nome]) || {}).padrao || '');
+  function desenharGuardado() {
+    $('rascunho-guardado').hidden = !guardado;
+    const c = atalhoDaCaixa('rascunho');
+    $('rascunho-guardado-tecla').textContent = c ? window.orqAtalhos.mostrar(c) : '';
+    $('rascunho-com-tecla').hidden = !c;
+    $('rascunho-com-clique').hidden = !!c;
+  }
+  function alternarRascunho() {
+    // Com a mensagem aberta no editor de texto a caixa espelha o arquivo: o rascunho espera.
+    if (window.orqEditorDeTexto && window.orqEditorDeTexto.editando()) return false;
+    const naCaixa = entrada.value.trim() ? { texto: entrada.value, comando: modoShell() } : null;
+    if (!naCaixa && !guardado) return false;
+    const volta = guardado;
+    guardado = naCaixa;
+    voltouSozinho = null;
+    posHistorico = -1;
+    fecharSugestoes();
+    shellRecuperado = volta && volta.comando ? volta.texto : null;
+    porNaCaixa(volta ? volta.texto : '');
+    desenharGuardado();
+    return true;
+  }
+  // Depois de um envio que esvaziou a caixa: termina a edição no editor de texto (o que foi
+  // enviado era o que estava lá) e o rascunho guardado volta sozinho.
+  function caixaEsvaziouPorEnvio() {
+    if (window.orqEditorDeTexto) window.orqEditorDeTexto.depoisDeEnviar();
+    if (!guardado || entrada.value.trim()) return;
+    const t = guardado.texto;
+    if (alternarRascunho()) voltouSozinho = t;
+  }
+  // Mensagem que o motor não aceitou: o texto volta para a caixa vazia. Se o rascunho guardado
+  // tinha voltado sozinho depois desse envio (e a pessoa não mexeu nele), ele é guardado de novo,
+  // e tudo fica como estava antes do envio.
+  function devolverParaACaixa(texto) {
+    if (voltouSozinho !== null && entrada.value === voltouSozinho && !guardado) alternarRascunho();
+    if (!entrada.value.trim()) porNaCaixa(texto);
+  }
+  $('rascunho-guardado').addEventListener('click', () => alternarRascunho());
+  entrada.addEventListener('focus', desenharGuardado); // a combinação pode ter mudado nas Configurações
+  document.addEventListener('keydown', (ev) => {
+    const c = atalhoDaCaixa('rascunho');
+    if (!c || !window.orqAtalhos || window.orqAtalhos.deEvento(ev) !== c || !caixaAtende()) return;
+    ev.preventDefault();
+    alternarRascunho();
+  });
   // --- cartão de voltar (plano 7.1): o ✎ abre, logo abaixo da mensagem ------------------
   // Três alcances: só a conversa (o padrão, como sempre foi), conversa e arquivos, só os
   // arquivos. Os dois últimos dependem do ensaio que o motor faz com o Claude (quantos
@@ -2807,5 +2877,5 @@
     new MutationObserver(agendarAjuste).observe(barra, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
   }
 
-  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), anexarCaminho, desenharEvento, desenharParcial, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, caminhosAbertos, expandir: (t) => expandir(t) };
+  if (window.orq.teste) window.__orqTeste = { lembrarEnviado: (t) => enviados.push(t), devolverParaACaixa, anexarCaminho, desenharEvento, desenharParcial, cartaoPedido, pedidos, trocar, abrirPopupConfig, abrirPopupPermissoes, desenharInfo, pet, linksAbertos, caminhosAbertos, expandir: (t) => expandir(t) };
 })();

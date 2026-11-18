@@ -1984,9 +1984,25 @@
     "a pergunta precisa ser um texto": "the question must be text",
     "a pergunta passa de 10000 caracteres": "the question is over 10000 characters",
     "a pergunta rápida é do Claude; numa conversa do Codex, use o /side": "the quick question is Claude's; in a Codex conversation, use /side",
-    "Cola no terminal do app o Claude com uma cópia desta conversa e o comando; nada roda sem você apertar Enter lá": "Pastes Claude with a copy of this conversation and the command into the app's terminal; nothing runs until you press Enter there"
+    "Cola no terminal do app o Claude com uma cópia desta conversa e o comando; nada roda sem você apertar Enter lá": "Pastes Claude with a copy of this conversation and the command into the app's terminal; nothing runs until you press Enter there",
+    "Guardar o rascunho": "Stash the draft",
+    "Tira da caixa o que você está escrevendo e guarda; com a caixa vazia, traz de volta. Depois que você envia outra mensagem, ele volta sozinho. Fica guardado só enquanto o app está aberto.": "Takes what you are writing out of the box and keeps it; with the box empty, brings it back. After you send another message, it comes back by itself. It is kept only while the app is open.",
+    "Escrever a mensagem no editor de texto": "Write the message in the text editor",
+    "Abre o texto da caixa no editor de texto do computador, bom para mensagem longa. O que você salvar lá aparece na caixa. O mesmo atalho termina.": "Opens the text in the box in the computer's text editor, good for a long message. What you save there shows up in the box. The same shortcut ends it.",
+    "Escrevendo no editor de texto. O que você salvar lá aparece aqui.": "Writing in the text editor. What you save there shows up here.",
+    "Terminar": "Done",
+    "Rascunho guardado": "Draft stashed",
+    "traz de volta": "brings it back",
+    "clique para trazer de volta": "click to bring it back",
+    "Trazer o rascunho de volta para a caixa": "Bring the draft back to the box",
+    "Guardar o rascunho e trazer de volta": "Stash the draft and bring it back",
+    "Guardar o rascunho da caixa ou trazer de volta": "Stash the draft in the box or bring it back"
   },
   "padroes": [
+    [
+      "^Não consegui abrir o editor de texto: (.+)\\. O texto continua na caixa\\.$",
+      "Couldn't open the text editor: $1. The text is still in the box."
+    ],
     [
       "^Não carreguei as mensagens anteriores: (.+)$",
       "Could not load the earlier messages: $1"

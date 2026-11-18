@@ -107,3 +107,33 @@ test('atalhoBuscaEscritos: padrão Ctrl+R, troca, desligar com "" e recusa do qu
   assert.strictEqual(config.ler().atalhoBuscaEscritos, '');
   config.gravar(config.validar({ atalhoBuscaEscritos: 'Ctrl+KeyR' }).ok);
 });
+
+test('atalhoGuardarRascunho e atalhoEditorDeTexto: padrão Ctrl+S e Ctrl+G, troca, desligar com "" e nenhum dos atalhos trocáveis repete o outro', () => {
+  const PADRAO = { atalhosColunas: { agentes: 'Ctrl+Alt+Comma', demandas: 'Ctrl+Alt+Period' }, atalhoPerguntaRapida: 'Ctrl+Alt+KeyP', atalhoBuscaEscritos: 'Ctrl+KeyR', atalhoGuardarRascunho: 'Ctrl+KeyS', atalhoEditorDeTexto: 'Ctrl+KeyG' };
+  config.gravar(PADRAO);
+  assert.strictEqual(config.ler().atalhoGuardarRascunho, 'Ctrl+KeyS');
+  assert.strictEqual(config.ler().atalhoEditorDeTexto, 'Ctrl+KeyG');
+  for (const k of ['atalhoGuardarRascunho', 'atalhoEditorDeTexto']) {
+    // O próprio padrão é aceito (Ctrl+S e Ctrl+G deixaram a lista dos reservados para serem destes atalhos).
+    assert.deepStrictEqual(config.validar({ [k]: PADRAO[k] }), { ok: { [k]: PADRAO[k] }, recusado: [] });
+    assert.deepStrictEqual(config.validar({ [k]: 'Ctrl+Alt+KeyJ' }), { ok: { [k]: 'Ctrl+Alt+KeyJ' }, recusado: [] });
+    assert.deepStrictEqual(config.validar({ [k]: '' }), { ok: { [k]: '' }, recusado: [] });
+    const outro = k === 'atalhoGuardarRascunho' ? 'Ctrl+KeyG' : 'Ctrl+KeyS';
+    const ruins = ['Ctrl+KeyK', 'Ctrl+KeyF', 'Ctrl+Alt+Comma', 'Ctrl+Alt+Period', 'Ctrl+Alt+KeyP', 'Ctrl+KeyR', outro, 'KeyS', 'Shift+KeyG', 'qualquer coisa', null, 7, {}];
+    for (const v of ruins) assert.deepStrictEqual(config.validar({ [k]: v }), { ok: {}, recusado: [k] }, `${k} = ${JSON.stringify(v)}`);
+    // Os outros atalhos não pegam a combinação deste…
+    assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: PADRAO[k] }), { ok: {}, recusado: ['atalhoPerguntaRapida'] });
+    assert.deepStrictEqual(config.validar({ atalhoBuscaEscritos: PADRAO[k] }), { ok: {}, recusado: ['atalhoBuscaEscritos'] });
+    assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: PADRAO[k], demandas: '' } }), { ok: {}, recusado: ['atalhosColunas'] });
+    // …a não ser que ele saia dela no mesmo pedido.
+    assert.deepStrictEqual(config.validar({ atalhoPerguntaRapida: PADRAO[k], [k]: '' }).recusado, []);
+    assert.deepStrictEqual(config.validar({ atalhosColunas: { agentes: PADRAO[k], demandas: '' }, [k]: 'Ctrl+Alt+KeyJ' }).recusado, []);
+  }
+  // Os dois trocam de combinação entre si no mesmo pedido; dois iguais no mesmo pedido são recusados.
+  assert.deepStrictEqual(config.validar({ atalhoGuardarRascunho: 'Ctrl+KeyG', atalhoEditorDeTexto: 'Ctrl+KeyS' }).recusado, []);
+  assert.deepStrictEqual(config.validar({ atalhoGuardarRascunho: 'Ctrl+Alt+KeyJ', atalhoEditorDeTexto: 'Ctrl+Alt+KeyJ' }), { ok: {}, recusado: ['atalhoGuardarRascunho', 'atalhoEditorDeTexto'] });
+  config.gravar(config.validar({ atalhoGuardarRascunho: '', atalhoEditorDeTexto: '' }).ok);
+  assert.strictEqual(config.ler().atalhoGuardarRascunho, '');
+  assert.strictEqual(config.ler().atalhoEditorDeTexto, '');
+  config.gravar(PADRAO);
+});

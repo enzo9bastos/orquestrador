@@ -2053,4 +2053,17 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .paleta.historico { width: min(720px, calc(100% - 32px)); }
 .paleta-item.historico-item { display: block; }
 .historico-texto { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.45; color: var(--fg-2); }
+/* Rascunho guardado (Ctrl+S) e mensagem aberta no editor de texto (Ctrl+G): ficam logo acima da caixa. */
+.rascunho-guardado { justify-self: start; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--borda); background: transparent; color: var(--fg-3); font: inherit; font-size: 12px; cursor: pointer; }
+.rascunho-guardado[hidden], .rascunho-guardado [hidden] { display: none; }
+.rascunho-guardado:hover, .rascunho-guardado:focus-visible { color: var(--fg-1); border-color: var(--borda-forte); }
+.rascunho-guardado .ico { width: 13px; height: 13px; flex: none; }
+.rascunho-guardado .rascunho-como { color: var(--fg-4); display: inline-flex; align-items: center; gap: 4px; }
+.rascunho-guardado .rascunho-como[hidden] { display: none; }
+.rascunho-guardado kbd, .editando-fora kbd { font: 10.5px var(--mono); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--borda-forte); color: var(--fg-2); background: var(--bg-afundado); }
+.editando-fora { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 12px; color: var(--fg-3); padding: 4px 4px 0; }
+.editando-fora[hidden], .editando-fora [hidden] { display: none; }
+.editando-fora .botao-texto { flex: none; margin-left: 4px; }
+.compositor.editando-fora-ligado .caixa-entrada { border-style: dashed; }
+.compositor.editando-fora-ligado .caixa-entrada textarea { color: var(--fg-3); }
 .historico-item[aria-selected="true"] .historico-texto { color: var(--fg); }
