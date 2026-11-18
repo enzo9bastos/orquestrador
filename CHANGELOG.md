@@ -4,6 +4,20 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.11.0 (2026-11-18)
+
+- Earlier conversations: a new "Earlier…" button above the conversation list opens the conversations
+  Claude keeps on this computer, newest first, with folder, size and engine. Search by name or folder and
+  press Enter to reopen one in the folder it ran in; the same conversation never opens twice.
+- Archive and unarchive from that window. Delete shows the cost first (how many files and how much,
+  including the subagent conversations; it goes to the system trash; what stays), needs a real click, and
+  refuses a conversation that is open and the orchestrator's.
+- Each conversation in the list now has a ⋯ menu where the ✕ used to be: Rename (also in Claude's own
+  history, with no message in the conversation), Archive (with Undo), Branch, and Terminal in this folder.
+  The orchestrator shows a lock instead: its folder and place are fixed.
+- The list of earlier conversations never reads a whole file (there are 100+ MB conversations): only the
+  beginning and the end of each, with an index so that only a changed file is read again.
+
 ## 0.10.0 (2026-11-18)
 
 - A conversation can now work in a folder of your choice. "+ New conversation" opens a small window to pick
