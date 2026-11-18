@@ -66,6 +66,9 @@ contextBridge.exposeInMainWorld('orq', {
     aoFocar: (fn) => ipcRenderer.on('conversa:focar', (_e, id) => fn(id)),
     aoComandos: aoConversa('conversa:comandos'),
     aoLado: aoConversa('conversa:lado'),
+    // O ⋯ de cada conversa na lista.
+    arquivar: (id) => ipcRenderer.invoke('conversa:arquivar', id),
+    renomear: (id, titulo) => ipcRenderer.invoke('conversa:renomear', id, titulo),
   },
   // Comandos do "/" que o app faz (renderer/comandos-tela.js).
   comandos: {
@@ -171,6 +174,15 @@ contextBridge.exposeInMainWorld('orq', {
     maximizar: () => ipcRenderer.send('janela:maximizar'),
     fechar: () => ipcRenderer.send('janela:fechar'),
     aoMaximizar: (fn) => ipcRenderer.on('janela:maximizada', (_e, sim) => fn(sim)),
+  },
+  // Conversas anteriores (a tela "Anteriores").
+  anteriores: {
+    listar: () => ipcRenderer.invoke('anteriores:listar'),
+    reabrir: (sessao) => ipcRenderer.invoke('anteriores:reabrir', sessao),
+    arquivar: (sessao, sim) => ipcRenderer.invoke('anteriores:arquivar', sessao, sim === true),
+    prepararApagar: (sessao) => ipcRenderer.invoke('anteriores:prepararApagar', sessao),
+    cancelarApagar: (comprovante) => ipcRenderer.invoke('anteriores:cancelarApagar', comprovante),
+    apagar: (sessao, comprovante) => ipcRenderer.invoke('anteriores:apagar', sessao, comprovante),
   },
   ias: {
     listar: (forcar) => ipcRenderer.invoke('ias:listar', forcar === true),

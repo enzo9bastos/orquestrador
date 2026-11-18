@@ -636,6 +636,25 @@ const apagar = apagarBase.criar({
   },
 });
 const apagarDemanda = require('./apagar-demanda').criar({ apagar, topicos });
+// --- conversas anteriores (anteriores.js, apagar-conversa.js; planos 3.2 e 3.3) -----------
+// A tela lista, reabre, arquiva e apaga. Apagar é em dois tempos (o custo antes), vai para a
+// lixeira do sistema e recusa a conversa aberta e a do orquestrador.
+const anteriores = require('./anteriores');
+const apagarConversa = require('./apagar-conversa').criar({
+  apagar,
+  conversas: { listar: () => anteriores.listar(), raiz: () => anteriores.pastaProjetos(), emUso: () => conversa.sessoesEmUso(), doOrquestrador: () => conversa.sessoesDoOrquestrador(),
+    apagada: (sessao) => anteriores.desarquivar(sessao) },
+});
+const comErro = (fn) => async (_e, ...a) => { try { return await fn(...a); } catch (e) { return { erro: String((e && e.message) || e) }; } };
+ipcMain.handle('anteriores:listar', comErro(async () => ({ conversas: await conversa.anterioresDaTela() })));
+ipcMain.handle('anteriores:reabrir', comErro((sessao) => conversa.reabrirDeAnteriores(sessao)));
+ipcMain.handle('anteriores:arquivar', comErro(async (sessao, sim) => ({ ok: await conversa.marcarArquivada(sessao, sim === true) })));
+ipcMain.handle('anteriores:prepararApagar', comErro((sessao) => apagarConversa.preparar(sessao)));
+ipcMain.handle('anteriores:cancelarApagar', (_e, comprovante) => { try { return apagarConversa.cancelar(comprovante); } catch { return false; } });
+ipcMain.handle('anteriores:apagar', comErro((sessao, comprovante) => apagarConversa.executar(sessao, comprovante)));
+// O ⋯ de cada conversa na lista: arquivar (sai da lista, fica em Anteriores) e renomear.
+ipcMain.handle('conversa:arquivar', comErro((id) => conversa.arquivarConversa(id)));
+ipcMain.handle('conversa:renomear', comErro((id, titulo) => ({ titulo: conversa.renomear(id, titulo) })));
 // O pedido de apagar veio do orquestrador: ele fica sabendo do que o usuário decidiu.
 const avisarDecisao = (t, acao) => { try { topicos.avisarOrquestrador(conversa, t, acao); } catch { /* o aviso é extra; a decisão já está feita */ } };
 ipcMain.handle('topicos:prepararApagar', async (_e, id) => { try { return await apagarDemanda.preparar(id); } catch (e) { return { erro: e.message }; } });

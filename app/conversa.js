@@ -25,6 +25,7 @@ const elicitacao = require('./elicitacao');
 const capacidades = require('./capacidades');
 const perguntaDeLado = require('./pergunta-de-lado');
 const confianca = require('./confianca');
+const anteriores = require('./anteriores');
 
 const PASTA = os.homedir(); // a pasta pessoal: onde roda o orquestrador e a conversa que não escolheu outra
 // Pasta de uma conversa (plano 3.1): vazio ou "~" é a pasta pessoal; senão um caminho
@@ -854,6 +855,8 @@ class Conversa {
             this.sessao = d.session_id; gravarLista();
           }
           this.avisarInfo();
+          // O nome dado com o Claude fechado (renomear) vai agora, que a sessão existe.
+          if (this.nomeAoSubir && this.sessao && !this.volta) this.mandarNome(this.nomeAoSubir);
         }
         if (d.subtype === 'status' && d.permissionMode) this.guardarModo(d.permissionMode);
         // Andamento de um pedido do app que demora: hoje, só a pergunta rápida (/btw).
@@ -1536,6 +1539,23 @@ class Conversa {
     }
   }
 
+  // Renomear (o ⋯ da lista): o nome muda no app e, na conversa do Claude, também no histórico
+  // dele, pelo pedido rename_session (conferido no 2.1.326: { title, source: 'host', session_id? }),
+  // sem mandar mensagem nenhuma na conversa. Com o Claude fechado, o pedido vai quando ele subir.
+  renomear(titulo) {
+    if (this.orquestrador) throw new Error('a conversa do orquestrador não muda de nome');
+    const t = String(titulo == null ? '' : titulo).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!t) throw new Error('escreva o nome da conversa');
+    this.titulo = t;
+    gravarLista();
+    avisarLista();
+    if (this.motor === 'claude') { if (this.proc && this.sessao) this.mandarNome(t); else this.nomeAoSubir = t; }
+    return t;
+  }
+  mandarNome(t) {
+    this.nomeAoSubir = null;
+    this.controle('rename_session', { title: t, source: 'host', ...(this.sessao ? { session_id: this.sessao } : {}) }, 8000, 'nome').catch(() => { /* Claude antigo: o nome vale só no app */ });
+  }
   // Tira uma pasta extra (o menu do chip da pasta). Como no /add-dir, vale na próxima subida:
   // com o Claude aberto, a conversa reinicia (ou espera o turno acabar).
   tirarPastaExtra(p) {
@@ -1831,15 +1851,92 @@ async function ramificar(id, primeira = '') {
 
 // /resume: abre uma conversa antiga numa conversa nova do app. Se ela já está
 // aberta numa conversa, volta essa.
-function retomar(sessao, motor = 'claude', titulo = '') {
+function retomar(sessao, motor = 'claude', titulo = '', pasta = null) {
   if (!/^[\w-]{6,80}$/.test(String(sessao || ''))) throw new Error('sessão inválida');
   const ja = [...conversas.values()].find((c) => c.sessao === sessao);
   if (ja) return ja.id;
-  const c = new Conversa({ id: `c${Date.now().toString(36)}`, titulo: String(titulo || 'Conversa retomada').replace(/\s+/g, ' ').trim().slice(0, 40), sessao, motor: MOTORES.includes(motor) ? motor : 'claude' });
+  const c = new Conversa({ id: `c${Date.now().toString(36)}`, titulo: String(titulo || 'Conversa retomada').replace(/\s+/g, ' ').trim().slice(0, 40), sessao, motor: MOTORES.includes(motor) ? motor : 'claude', pasta });
   conversas.set(c.id, c);
   gravarLista();
   avisarLista();
   return c.id;
+}
+
+// --- conversas anteriores (anteriores.js; plano 3.2 e 3.3) --------------------------------
+// As sessões que uma conversa da lista está usando: sessão → nome da conversa (a atual e a de
+// onde uma volta ou um ramo ainda está partindo).
+function sessoesEmUso() {
+  const m = new Map();
+  for (const c of conversas.values()) for (const s of [c.sessao, c.volta && c.volta.de, c.forkDe]) if (s) m.set(s, c.orquestrador ? 'Orquestrador' : c.titulo);
+  return m;
+}
+// As sessões do orquestrador: a rodada atual, as anteriores e a que ficou guardada do outro motor.
+function sessoesDoOrquestrador() {
+  const s = new Set();
+  for (const c of conversas.values()) if (c.orquestrador) for (const x of [c.sessao, ...(c.anteriores || []), ...Object.values(c.sessoesMotor || {})]) if (x) s.add(x);
+  return s;
+}
+// O que a tela "Anteriores" mostra, da mais nova para a mais antiga: as conversas que o Claude
+// guardou e as do Codex que a pessoa arquivou pelo app. Cada linha diz se está aberta agora (e
+// em qual conversa), se é do orquestrador e se está arquivada.
+async function anterioresDaTela() {
+  const arquivadas = anteriores.lerArquivadas();
+  const emUso = sessoesEmUso();
+  const doOrq = sessoesDoOrquestrador();
+  const tem = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const como = (p) => (p ? exibirPasta(p === casaDeVerdade() ? PASTA : p) : '');
+  const linhas = (await anteriores.listar()).map((x) => ({ sessao: x.sessao, titulo: x.titulo, motor: 'claude', pasta: como(x.pasta), pastaExiste: !x.pasta || ehPasta(x.pasta), bytes: x.bytes, quando: x.quando,
+    aberta: emUso.has(x.sessao) ? emUso.get(x.sessao) : null, orquestrador: doOrq.has(x.sessao), arquivada: tem(arquivadas, x.sessao) }));
+  const vistas = new Set(linhas.map((l) => l.sessao));
+  for (const [sessao, a] of Object.entries(arquivadas)) {
+    if (vistas.has(sessao) || a.motor !== 'codex') continue; // do Claude sem arquivo: a conversa não existe mais
+    linhas.push({ sessao, titulo: a.titulo || '(sem título)', motor: 'codex', pasta: como(a.pasta), pastaExiste: !a.pasta || ehPasta(a.pasta), bytes: null, quando: a.quando,
+      aberta: emUso.has(sessao) ? emUso.get(sessao) : null, orquestrador: false, arquivada: true });
+  }
+  return linhas.sort((a, b) => b.quando - a.quando);
+}
+// Arquivar (o ⋯ da lista): a conversa sai da lista e fica em Anteriores › Arquivadas. Nada é
+// apagado. Conversa que nem começou (sem sessão) só sai da lista: não há o que guardar.
+function arquivarConversa(id) {
+  const c = pegar(id);
+  if (c.orquestrador) throw new Error('a conversa do orquestrador não pode ser arquivada');
+  const sessao = c.sessao || (c.volta && c.volta.de) || null;
+  const titulo = c.titulo;
+  if (sessao) anteriores.arquivar(sessao, { titulo, motor: c.motor, pasta: c.pasta });
+  fechar(id);
+  return { arquivada: !!sessao, sessao, titulo };
+}
+// Marca ou desmarca como arquivada uma conversa guardada (a tela "Anteriores").
+async function marcarArquivada(sessao, sim) {
+  if (!anteriores.SESSAO.test(String(sessao || ''))) throw new Error('conversa inválida');
+  if (!sim) return anteriores.desarquivar(sessao);
+  if (sessoesEmUso().has(sessao)) throw new Error('esta conversa está aberta: arquive pelo ⋯ dela, na lista da esquerda');
+  if (sessoesDoOrquestrador().has(sessao)) throw new Error('a conversa do orquestrador não pode ser arquivada');
+  const x = (await anteriores.listar()).find((y) => y.sessao === sessao);
+  if (!x) throw new Error('não achei esta conversa entre as guardadas');
+  return anteriores.arquivar(sessao, { titulo: x.titulo, motor: 'claude', pasta: x.pasta });
+}
+// Reabre uma conversa guardada numa conversa do app, na pasta em que ela rodava (o Claude só
+// acha a sessão a partir da pasta dela). Já aberta: devolve a conversa que está com ela, porque a
+// mesma sessão nunca fica em duas conversas. Fora da pasta pessoal, o cartão de confiança da
+// pasta aparece na hora de subir, como em qualquer conversa.
+async function reabrirDeAnteriores(sessao) {
+  if (!anteriores.SESSAO.test(String(sessao || ''))) throw new Error('conversa inválida');
+  const ja = [...conversas.values()].find((c) => c.sessao === sessao || (c.volta && c.volta.de === sessao));
+  if (ja) return { id: ja.id, jaAberta: true };
+  const x = (await anteriores.listar()).find((y) => y.sessao === sessao);
+  const a = anteriores.lerArquivadas()[sessao];
+  if (!x && !(a && a.motor === 'codex')) throw new Error('não achei esta conversa entre as guardadas');
+  const cru = x ? x.pasta : a.pasta;
+  let pasta = PASTA;
+  if (cru) {
+    if (!ehPasta(cru)) throw new Error(`a pasta desta conversa não existe mais: ${exibirPasta(cru)}`);
+    pasta = pastaDeConversa(cru);
+  }
+  const id = retomar(sessao, x ? 'claude' : 'codex', x ? x.titulo : a.titulo, pasta);
+  anteriores.desarquivar(sessao);
+  lembrarPasta(pasta);
+  return { id, jaAberta: false };
 }
 
 function pararTodas() { for (const c of conversas.values()) c.parar(); }
@@ -1906,6 +2003,9 @@ module.exports = {
   estadoComando: (id) => pegar(id).estadoComando(),
   rapido: (id, ligar) => pegar(id).rapidoLigar(ligar),
   pastaExtra: (id, p) => pegar(id).pastaExtra(p),
+  // Conversas anteriores e o ⋯ de cada conversa (planos 3.2 e 3.3).
+  anterioresDaTela, arquivarConversa, marcarArquivada, reabrirDeAnteriores, sessoesEmUso, sessoesDoOrquestrador,
+  renomear: (id, titulo) => pegar(id).renomear(titulo),
   tirarPastaExtra: (id, p) => pegar(id).tirarPastaExtra(p),
   threadNova: (id) => { pegar(id).threadNova(); return true; },
   // /stop: o processo sai (a linha "A conversa foi pausada." vem da saída dele);

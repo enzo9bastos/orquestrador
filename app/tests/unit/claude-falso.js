@@ -171,6 +171,13 @@ leitor.on('line', (l) => {
   if (d.type === 'control_request') {
     const r = d.request || {};
     if (SEM.has(r.subtype)) return naoAtende(d, r.subtype);
+    if (r.subtype === 'rename_session' && !process.env.CLAUDE_FALSO_SEM_CONTROLES) {
+      // Como o Claude de verdade (2.1.326): { title, source?, session_id? }; o nome novo sai como session_title_changed.
+      if (typeof r.title !== 'string' || !r.title.trim()) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'rename_session: title must be a non-empty string' } });
+      if (r.session_id && r.session_id !== SESSAO) return sai({ type: 'control_response', response: { subtype: 'error', request_id: d.request_id, error: 'rename_session: this process has moved to another session' } });
+      responde(d, {});
+      return sai({ type: 'system', subtype: 'session_title_changed', title: r.title, uuid: 'u-t', session_id: SESSAO });
+    }
     if (r.subtype === 'side_question' && !process.env.CLAUDE_FALSO_SEM_CONTROLES) {
       // Como o Claude de verdade (2.1.326): pergunta em texto, histórico em lista de
       // { question, response }; avisa o andamento, responde { response, synthetic } e
