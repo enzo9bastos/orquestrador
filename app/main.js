@@ -313,6 +313,20 @@ ipcMain.handle('notas:vigiar', (_e, i, rel) => notas.vigiar(i, rel, (m) => janel
 
 // --- conversas (orquestrador e avulsas) -----------------------------------
 conversa.ligar((canal, dado) => enviar(canal, dado), { lote: true });
+// Pasta de projeto com agente em container (devcontainer): o agente escreve na pasta a qualquer
+// momento, então o cartão de confiança da pasta não guarda o aceite em disco (confianca.js).
+// A lista vem do Docker: o rótulo de cada container diz a pasta do projeto no computador.
+// Sem Docker instalado não há container. Docker que não respondeu: na dúvida, vale como se fosse.
+conversa.ligarContainer(async (pasta) => {
+  // Nos testes de tela o Docker de verdade nunca roda: a pasta "com container" é a que tem este arquivo.
+  if (process.env.ORQ_APP_E2E === '1') return fs.existsSync(path.join(pasta, '.orq-e2e-container'));
+  const rotulo = String(config.ler().rotuloContainer || '');
+  if (!/^[\w.\-/]+$/.test(rotulo)) return true;
+  const r = await new Promise((ok) => require('child_process').execFile('docker', ['ps', '-a', '--format', `{{.Label "${rotulo}"}}`],
+    { encoding: 'utf8', timeout: 4000, maxBuffer: 1024 * 1024, env: conversa.ambienteLimpo() }, (e, out) => ok({ e, out: out || '' })));
+  if (r.e) return r.e.code !== 'ENOENT';
+  return r.out.split('\n').map((l) => l.trim()).filter(Boolean).some((dir) => pasta === dir || pasta.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep));
+});
 
 // Notificação do app quando uma conversa precisa do usuário (no lugar de hook
 // do Claude). Clicar traz a janela e abre a conversa certa.
@@ -527,7 +541,7 @@ ipcMain.handle('cmd:sessoes', seguro(async (id) => {
   const abertas = conversa.lista().map((c) => conversa.estadoComando(c.id).sessao).filter(Boolean);
   // A pasta é a do transcript da sessão atual (o CLI corta nomes longos); sem sessão, a esperada.
   const atual = conversa.arqTranscript(conversa.estadoComando(id).sessao);
-  return comandosApp.sessoes(atual ? path.dirname(atual) : conversa.pastaDosTranscripts(), abertas);
+  return comandosApp.sessoes(atual ? path.dirname(atual) : conversa.transcriptsDaConversa(id), abertas);
 }));
 ipcMain.handle('cmd:diffGit', seguro((id) => comandosApp.diffGit(pastaDa(id))));
 ipcMain.handle('cmd:salvarTexto', seguro(async (nome, texto) => {

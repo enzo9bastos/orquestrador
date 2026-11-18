@@ -142,14 +142,18 @@ protocol), so there is no terminal to babysit.
 - **New conversation** opens side conversations next to the orchestrator. A small window lets you choose the
   **folder** the conversation works in (your home folder, a recently used one, or another you pick) and the
   **engine** (Claude or Codex). The folder never changes afterwards, and the list on the left shows it under each
-  conversation; the orchestrator always runs in your home folder.
+  conversation; the orchestrator always runs in your home folder. The folder chip in the conversation bar opens a
+  menu with the folder, the extra folders the conversation may use (add or remove, as with `/add-dir`) and a
+  shortcut to open a new conversation in a folder used lately.
 - **Folder trust card**: the first time Claude would start in a folder that is not your home folder, the
   conversation shows what that folder configures (commands that run by themselves, MCP servers, rules that already
   allow without asking, instructions for Claude) and waits: *Trust and open*, *Open without the project's settings*
   (only your own settings apply) or *Cancel*. The app keeps a fingerprint of those files and asks again, showing
   what changed, if any of them changes. Nothing from the folder runs before you answer, a message sent meanwhile
   waits in the queue, and only a real click accepts. A folder that no longer exists is an error: the conversation
-  never moves to another folder by itself.
+  never moves to another folder by itself. For a project folder with an agent in a container (which can change the
+  folder at any time) the acceptance is kept in memory only: the card comes back each time the app opens. After
+  "always allow in this project", the rule you have just approved does not bring the card back.
 
 ### 🧭 Agents
 

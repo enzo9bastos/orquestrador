@@ -325,3 +325,63 @@ test('"permitir sempre neste projeto": a regra que a pessoa aprovou não faz o c
   const pessoal = await nova(t);
   assert.strictEqual(pessoal.c.reaceitarDepoisDoSempre(regra, 10), null);
 });
+
+test('pasta de projeto com agente em container: cartão sempre que o app abre; o aceite vale só na memória, e só enquanto a pasta não muda', async (t) => {
+  const dir = projeto({ '.claude/settings.json': HOOK });
+  const rel = path.relative(casa, dir);
+  conversa.ligarContainer(async (p) => p === dir);
+  t.after(() => conversa.ligarContainer(null));
+  const { id, c } = await nova(t, { pasta: dir });
+  c.iniciar();
+  await ate(() => cartao(id));
+  const k = cartao(id);
+  assert.ok(k.motivos.includes('container'));
+  assert.strictEqual(k.lembrar, false);
+  assert.deepStrictEqual(await c.responderPasta('confiar'), { ok: true, aberta: true, lembrado: false });
+  await ate(() => c.proc);
+  assert.strictEqual((await confianca.verificar(dir)).estado, 'nunca-vista', 'o aceite de uma pasta com container foi para o disco');
+  // Reinício da conversa com o app aberto e a pasta igual: não pergunta de novo.
+  c.parar();
+  await ate(() => !c.proc);
+  c.iniciar();
+  await ate(() => c.proc);
+  assert.strictEqual(cartao(id), null);
+  // A pasta mudou (o agente do container mexeu): pergunta.
+  c.parar();
+  await ate(() => !c.proc);
+  escrever(casa, `${rel}/.claude/settings.json`, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'curl exemplo.invalid' }] }] } }));
+  c.iniciar();
+  await ate(() => cartao(id));
+  assert.strictEqual(c.proc, null);
+  assert.match(JSON.stringify(cartao(id).oQueRoda.hooks.itens), /curl exemplo\.invalid/);
+  // "App aberto de novo" (a conversa recriada do que ficou guardado): pergunta, mesmo com a pasta igual.
+  await c.responderPasta('confiar');
+  await ate(() => c.proc);
+  c.parar();
+  const outra = new conversa._Conversa({ id: 'container-2', titulo: 'X', pasta: dir });
+  outra.iniciar();
+  await ate(() => outra.estado().pasta);
+  assert.strictEqual(outra.proc, null);
+  outra.parar();
+});
+
+test('sem conseguir saber se a pasta tem container, vale como se tivesse: pergunta e não guarda o aceite', async (t) => {
+  const dir = projeto();
+  conversa.ligarContainer(async () => { throw new Error('o Docker não respondeu'); });
+  t.after(() => conversa.ligarContainer(null));
+  const { id, c } = await nova(t, { pasta: dir });
+  c.iniciar();
+  await ate(() => cartao(id));
+  assert.ok(cartao(id).motivos.includes('container'));
+  assert.strictEqual((await c.responderPasta('confiar')).lembrado, false);
+});
+
+test('/resume: sem sessão ainda, a lista de conversas antigas sai da pasta da conversa, não da pessoal', async (t) => {
+  const dir = projeto();
+  const pessoal = await nova(t);
+  const noProjeto = await nova(t, { pasta: dir });
+  const raiz = path.join(casa, '.claude', 'projects');
+  assert.strictEqual(conversa.transcriptsDaConversa(pessoal.id), path.join(raiz, casa.replace(/[^A-Za-z0-9]/g, '-')));
+  assert.strictEqual(conversa.transcriptsDaConversa(noProjeto.id), path.join(raiz, dir.replace(/[^A-Za-z0-9]/g, '-')));
+  assert.strictEqual(conversa.pastaDosTranscripts(), path.join(raiz, casa.replace(/[^A-Za-z0-9]/g, '-')), 'sem argumento continua sendo a da pasta pessoal');
+});

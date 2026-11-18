@@ -320,3 +320,30 @@ test('pasta por conversa: o menu do chip da pasta e o Esc com o Claude trabalhan
 
   await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
 });
+
+test('pasta de projeto com agente em container: o cartão diz por que volta sempre e o aceite não vai para o disco', async (t) => {
+  process.env.CLAUDE_FALSO_LOG = path.join(pastaTemporaria('orq-claude-falso-'), 'log.jsonl');
+  // Nos testes de tela o Docker de verdade não roda: a pasta "com container" é a que tem este arquivo.
+  const app = await abrirApp({ config: { mostrarBichinho: false }, arquivos: { ...PROJETO, [`${P}/.orq-e2e-container`]: '' } });
+  t.after(() => { delete process.env.CLAUDE_FALSO_LOG; return app.fechar(); });
+  await app.esperar('!!window.__orqTeste && !!window.orqPasta');
+  const projeto = path.join(app.casa, P);
+
+  await t.test('o cartão explica que o aceite vale só com o app aberto; confiar abre e nada fica guardado como aceito', async () => {
+    await app.avaliar(`window.orq.conversa.nova({ pasta: ${JSON.stringify(projeto)}, motor: 'claude' }).then((i) => window.__orqTeste.trocar(i))`);
+    await app.esperar(`${CARTAO} !== null`, 8000);
+    assert.match(await app.avaliar(`${CARTAO}.querySelector('.pasta-nota').innerText`), /^Esta pasta é de um projeto com agente em container/);
+    const r = await app.avaliar(`(() => { const b = ${CARTAO}.querySelector('[data-pasta=confiar]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`);
+    await app.mouse('mousePressed', r.x, r.y); await app.mouse('mouseReleased', r.x, r.y);
+    await app.esperar(`${CARTAO} === null`, 8000);
+    let guardado = {};
+    try { guardado = JSON.parse(app.ler('.config/orq-app/confianca.json')).pastas || {}; } catch { /* o arquivo nem foi criado */ }
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(guardado, projeto), false, 'o aceite de uma pasta com container foi gravado');
+    // Reinício com o app aberto e a pasta igual: não pergunta de novo.
+    await app.avaliar('window.orq.conversa.reiniciar(window.orqConversa.ativa())');
+    await new Promise((x) => setTimeout(x, 800));
+    assert.strictEqual(await app.avaliar(`${CARTAO} === null`), true, 'perguntou de novo com o app aberto e a pasta igual');
+  });
+
+  await t.test('sem erros na tela', () => assert.deepStrictEqual(app.erros, []));
+});

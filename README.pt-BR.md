@@ -146,14 +146,18 @@ há terminal para vigiar.
 - **Nova conversa** abre conversas paralelas ao lado do orquestrador. Uma janela pequena deixa escolher a **pasta**
   em que a conversa trabalha (a sua pasta pessoal, uma usada há pouco ou outra que você escolher) e o **motor**
   (Claude ou Codex). A pasta não muda depois, e a lista da esquerda mostra a pasta debaixo de cada conversa; o
-  orquestrador roda sempre na pasta pessoal.
+  orquestrador roda sempre na pasta pessoal. O chip da pasta, na barra da conversa, abre um menu com a pasta, as
+  pastas extras que a conversa pode usar (adicionar ou tirar, como no `/add-dir`) e um atalho para abrir outra
+  conversa numa pasta usada há pouco.
 - **Cartão de confiança da pasta**: na primeira vez em que o Claude subiria numa pasta que não é a pessoal, a
   conversa mostra o que aquela pasta configura (comandos que rodam sozinhos, servidores MCP, regras que já
   permitem sem perguntar, instruções para o Claude) e espera: *Confiar e abrir*, *Abrir sem as configurações do
   projeto* (valem só as suas) ou *Cancelar*. O app guarda uma impressão digital desses arquivos e pergunta de novo,
   mostrando o que mudou, se algum deles mudar. Nada da pasta roda antes da sua resposta, a mensagem mandada nesse
   meio-tempo espera na fila, e só um clique de verdade aceita. Pasta que não existe mais é erro: a conversa nunca
-  muda de pasta por conta própria.
+  muda de pasta por conta própria. Em pasta de projeto com agente em container (que pode mudar a pasta a qualquer
+  momento) o aceite fica só na memória: o cartão volta cada vez que o app abre. Depois de um "permitir sempre neste
+  projeto", a regra que você acabou de aprovar não faz o cartão voltar.
 
 ### 🧭 Agentes
 

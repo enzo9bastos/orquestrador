@@ -152,14 +152,19 @@ que no hay ninguna terminal que vigilar.
 - **New conversation** abre conversaciones paralelas al lado del orquestador. Una ventana pequeña permite elegir la
   **carpeta** en la que trabaja la conversación (tu carpeta personal, una usada hace poco u otra que elijas) y el
   **motor** (Claude o Codex). La carpeta no cambia después, y la lista de la izquierda la muestra debajo de cada
-  conversación; el orquestador siempre corre en tu carpeta personal.
+  conversación; el orquestador siempre corre en tu carpeta personal. El chip de la carpeta, en la barra de la
+  conversación, abre un menú con la carpeta, las carpetas extra que la conversación puede usar (añadir o quitar,
+  como con `/add-dir`) y un atajo para abrir otra conversación en una carpeta usada hace poco.
 - **Tarjeta de confianza de la carpeta**: la primera vez que Claude arrancaría en una carpeta que no es la
   personal, la conversación muestra lo que esa carpeta configura (comandos que corren solos, servidores MCP,
   reglas que ya permiten sin preguntar, instrucciones para Claude) y espera: *Trust and open*, *Open without the
   project's settings* (solo valen las tuyas) o *Cancel*. La app guarda una huella de esos archivos y vuelve a
   preguntar, mostrando qué cambió, si alguno cambia. Nada de la carpeta corre antes de tu respuesta, el mensaje
   enviado mientras tanto espera en la cola, y solo un clic real acepta. Una carpeta que ya no existe es un error:
-  la conversación nunca cambia de carpeta por sí sola.
+  la conversación nunca cambia de carpeta por sí sola. En una carpeta de proyecto con un agente en contenedor (que
+  puede cambiar la carpeta en cualquier momento) la aceptación queda solo en memoria: la tarjeta vuelve cada vez
+  que se abre la app. Después de un "permitir siempre en este proyecto", la regla que acabas de aprobar no hace
+  volver la tarjeta.
 
 ### 🧭 Agentes
 

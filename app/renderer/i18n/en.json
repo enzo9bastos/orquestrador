@@ -1827,6 +1827,8 @@
     "Próxima (Enter)": "Next (Enter)",
     "Fechar a busca (Esc)": "Close search (Esc)",
     "Fechar a busca": "Close search",
+    "Confirme esta pasta antes de abrir": "Confirm this folder before opening",
+    "Esta pasta é de um projeto com agente em container, que pode mudar os arquivos dela a qualquer momento. Por isso o aceite vale só enquanto o app estiver aberto: ao abrir o app de novo, o cartão volta.": "This folder belongs to a project with an agent in a container, which can change its files at any time. So the acceptance holds only while the app is open: when you open the app again, the card comes back.",
     "Pasta desta conversa": "This conversation's folder",
     "(sua pasta pessoal)": "(your home folder)",
     "O orquestrador roda sempre na pasta pessoal. Ele coordena; quem trabalha dentro dos projetos são os agentes e as conversas avulsas.": "The Orchestrator always runs in your home folder. It coordinates; the agents and the side conversations are the ones that work inside the projects.",

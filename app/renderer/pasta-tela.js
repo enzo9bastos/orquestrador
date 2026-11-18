@@ -178,12 +178,12 @@
     const problemas = [...(k.avisos || []).map((a) => [a.rotulo, a.tipo]), ...(k.incerta || []).map((a) => [a.rotulo, a.motivo])];
     const vistos = new Set();
     const atencao = problemas.filter(([rot, tipo]) => { const c = `${rot}|${tipo}`; if (vistos.has(c)) return false; vistos.add(c); return true; }).slice(0, 12);
-    return `<div class="titulo-pedido"><span class="ponto permissao"></span><span><span>${mudou ? 'Esta pasta mudou desde que você confiou nela' : 'Primeira vez nesta pasta'}</span>: <strong data-sem-traducao>${esc(k.exibir)}</strong></span></div>
+    return `<div class="titulo-pedido"><span class="ponto permissao"></span><span><span>${mudou ? 'Esta pasta mudou desde que você confiou nela' : k.estado === 'aceita' ? 'Confirme esta pasta antes de abrir' : 'Primeira vez nesta pasta'}</span>: <strong data-sem-traducao>${esc(k.exibir)}</strong></span></div>
       <p class="pasta-motivo">Uma conversa aberta aqui usa o que a pasta configura. Confira antes de abrir:</p>
       ${mudancas}${blocos || '<p class="pasta-vazia">Esta pasta não configura nada que rode sozinho, nem instruções para o Claude.</p>'}
       ${extras ? `<p class="pasta-extras"><span>A pasta também traz:</span> <span data-sem-traducao>${esc(extras)}</span></p>` : ''}
       ${atencao.length ? `<div class="pasta-bloco pasta-atencao"><h4><span>O app não conseguiu conferir tudo</span></h4><ul class="pasta-lista">${atencao.map(([rot, tipo]) => `<li><span data-sem-traducao>${esc(rot || '')}</span> <small>${esc(PROBLEMAS[tipo] || tipo)}</small></li>`).join('')}</ul></div>` : ''}
-      <p class="pasta-nota">${k.lembrar === false ? 'Como não deu para conferir tudo, este aceite não fica guardado: o cartão volta na próxima vez que a conversa abrir.' : 'O app olha a pasta de verdade (sem atalhos) e guarda uma impressão digital destes arquivos. Se algum mudar, pergunta de novo, mostrando o que mudou.'}</p>
+      <p class="pasta-nota">${(k.motivos || []).includes('container') ? 'Esta pasta é de um projeto com agente em container, que pode mudar os arquivos dela a qualquer momento. Por isso o aceite vale só enquanto o app estiver aberto: ao abrir o app de novo, o cartão volta.' : k.lembrar === false ? 'Como não deu para conferir tudo, este aceite não fica guardado: o cartão volta na próxima vez que a conversa abrir.' : 'O app olha a pasta de verdade (sem atalhos) e guarda uma impressão digital destes arquivos. Se algum mudar, pergunta de novo, mostrando o que mudou.'}</p>
       <div class="acoes"><button type="button" class="botao primario" data-pasta="confiar">Confiar e abrir</button><button type="button" class="botao secundario" data-pasta="sem">Abrir sem as configurações do projeto</button><button type="button" class="botao secundario" data-pasta="cancelar">Cancelar</button></div>
       <p class="pasta-erro" role="status" hidden></p>`;
   }

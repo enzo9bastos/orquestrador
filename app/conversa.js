@@ -44,6 +44,9 @@ function pastaDeConversa(p) {
   return real === casaDeVerdade() ? PASTA : real;
 }
 const ehPasta = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
+// A pasta é de um projeto com agente em container? Quem sabe é o processo principal (ele
+// pergunta ao Docker); aqui entra por ligarContainer. Sem ligação, nenhuma pasta é.
+let pastaComContainer = async () => false;
 // As pastas em que a pessoa abriu conversa por último (a janela "Nova conversa" oferece de
 // novo): só o caminho e quando; fica em ~/.cache/orq-app, até 8, a mais nova primeiro.
 const MAX_RECENTES = 8;
@@ -202,7 +205,7 @@ const nomeDaPasta = (p) => p.replace(/[^A-Za-z0-9]/g, '-');
 // esperado para a pasta das conversas; senão procura em todas; havendo mais de
 // uma cópia, vale a mais recente. Só ids de sessão (letras, números, - e _).
 // A pasta de transcripts esperada para a pasta das conversas (o /resume lista dela).
-const pastaDosTranscripts = () => path.join(pastaProjetos(), nomeDaPasta(PASTA));
+const pastaDosTranscripts = (pasta = PASTA) => path.join(pastaProjetos(), nomeDaPasta(pasta));
 const arquivosAchados = new Map(); // id → caminho (confere que ainda existe)
 function arqTranscript(sessao) {
   if (!/^[\w-]+$/.test(String(sessao || ''))) return null;
@@ -611,13 +614,22 @@ class Conversa {
     this.porteiro = p;
     p.fim = (async () => {
       let r;
-      try { r = await confianca.verificar(this.pasta); } catch (e) {
+      try {
+        // Pasta de projeto com agente em container: o agente escreve nela a qualquer momento, então
+        // o aceite não fica guardado em disco. Sem conseguir saber, vale como se fosse (pergunta).
+        let container = true;
+        try { container = (await pastaComContainer(this.pasta)) === true; } catch { container = true; }
+        r = await confianca.verificar(this.pasta, { container });
+      } catch (e) {
         if (this.porteiro === p) { this.porteiro = null; this.registrar({ tipo: 'erro', texto: `Não deu para conferir a pasta desta conversa (${exibirPasta(this.pasta)}): ${String((e && e.message) || e).slice(0, 300)}` }); }
         return false;
       }
       if (this.porteiro !== p) return false; // a conversa fechou no meio
       p.resultado = r;
       if (!r.perguntar) return this.liberarPasta(p);
+      // Já aceita nesta abertura do app, igualzinha (mesma impressão digital) e conferida por inteiro:
+      // não pergunta de novo a cada reinício da conversa. Vale só na memória; fechou o app, pergunta.
+      if (this.impressaoAceita && this.impressaoAceita === r.impressao && !r.incerta.length) return this.liberarPasta(p);
       p.perguntando = true;
       this.enviar('conversa:tudo', this.estado());
       avisarLista();
@@ -704,6 +716,7 @@ class Conversa {
     }
     const aceite = await confianca.aceitar(p.resultado);
     if (this.porteiro !== p) return { ok: false, erro: 'a conversa fechou' };
+    this.impressaoAceita = p.resultado.impressao;
     this.porteiro = null;
     this.passe = true;
     this.iniciar();
@@ -1849,6 +1862,7 @@ module.exports = {
   // { lote: true }: os envios de cada conversa se juntam num `conversa:lote` a cada 50 ms (envios.js).
   ligar: (fn, opc) => { enviarTela = opc && opc.lote ? require('./envios').criarLote({ enviar: fn }).enviar : fn; },
   ligarAvisos: (fn) => { avisar = fn; },
+  ligarContainer: (fn) => { pastaComContainer = typeof fn === 'function' ? fn : async () => false; },
   ligarAbrirPagina: (fn) => { abrirPagina = typeof fn === 'function' ? fn : () => {}; },
   _Conversa: Conversa, // só para os testes de unidade
   _NAO_DISPONIVEL: NAO_DISPONIVEL, // idem: a frase que o contrato com o CLI também confere
@@ -1860,6 +1874,8 @@ module.exports = {
   responder: (id, reqId, d) => pegar(id).responder(reqId, d),
   // A resposta ao cartão de confiança da pasta: 'confiar', 'sem' ou 'cancelar'.
   responderPasta: (id, escolha) => pegar(id).responderPasta(escolha),
+  // Onde o Claude guarda os transcripts da pasta desta conversa (o /resume lista dali).
+  transcriptsDaConversa: (id) => pastaDosTranscripts(pegar(id).pasta),
   pastaDeConversa, exibirPasta, pastasRecentes,
   pedidos: (id) => [...pegar(id).pendentes.values()],
   interromper: (id) => pegar(id).interromper(),
