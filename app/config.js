@@ -25,6 +25,9 @@ const PADRAO = {
   pontosDeVolta: true,
   // Iniciar e Desligar: 'barra' (um botão na barra da conversa) ou 'menu' (dentro do ⋯).
   iniciarDesligar: 'barra',
+  // Ao fechar o app, as conversas avulsas ficam na lista, pausadas ('pausadas'), ou saem da
+  // lista como era antes ('saem'; continuam no histórico e em Anteriores).
+  conversasAoFechar: 'pausadas',
   shiftTabTrocaModo: true,
   // Cartão de permissão em foco: as teclas 1, 2, 3 escolhem a saída.
   teclasNosCartoes: true,
@@ -211,6 +214,7 @@ function validar(m) {
       case 'mostrarBichinho': aceitar(k, typeof v === 'boolean', v); break;
       case 'mostrarBypass': case 'shiftTabTrocaModo': case 'comandoNaCaixa': case 'teclasNosCartoes': case 'pontosDeVolta': aceitar(k, typeof v === 'boolean', v); break;
       case 'iniciarDesligar': aceitar(k, ['barra', 'menu'].includes(v), v); break;
+      case 'conversasAoFechar': aceitar(k, ['pausadas', 'saem'].includes(v), v); break;
       case 'atalhosColunas': aceitar(k, atalhosColunasOk(v) && ![v.agentes, v.demandas].filter(Boolean).includes(atalhosComo(m).pergunta), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
       case 'atalhoPerguntaRapida': aceitar(k, atalhoOk(v, atalhosComo(m).colunas), v); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;

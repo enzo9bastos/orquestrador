@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('orq', {
     aoLado: aoConversa('conversa:lado'),
     // O ⋯ de cada conversa na lista.
     arquivar: (id) => ipcRenderer.invoke('conversa:arquivar', id),
+    carregarAnteriores: (id) => ipcRenderer.invoke('conversa:carregarAnteriores', id),
     renomear: (id, titulo) => ipcRenderer.invoke('conversa:renomear', id, titulo),
   },
   // Comandos do "/" que o app faz (renderer/comandos-tela.js).

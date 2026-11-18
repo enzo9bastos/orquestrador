@@ -155,6 +155,14 @@ protocol), so there is no terminal to babysit.
   files and how much, including the subagent conversations; where it goes: the system trash; what stays), needs a
   real click, and refuses a conversation that is open and the orchestrator's. The list never reads a whole file:
   only the beginning and the end of each one, with an index for the rest.
+- **Closing the app** keeps the side conversations in the list, **paused**: click one and it resumes where it
+  stopped, in its folder. A conversation that never started leaves the list, and the orchestrator always begins a
+  new round. *Settings › Orchestration* has the switch to make them leave the list instead, as before (they stay in
+  *Earlier*). When Claude has already deleted an old conversation, the app says it expired and the next message
+  starts a new one in the same folder.
+- **Load the earlier ones**: a reopened conversation shows its latest 600 messages; a strip at the top says there
+  are older ones and brings the previous page in above, keeping the screen where you were reading, until it reaches
+  the start of the conversation. Nothing already on screen is read again.
 - **Folder trust card**: the first time Claude would start in a folder that is not your home folder, the
   conversation shows what that folder configures (commands that run by themselves, MCP servers, rules that already
   allow without asking, instructions for Claude) and waits: *Trust and open*, *Open without the project's settings*

@@ -1241,7 +1241,7 @@
     "Conversa limpa": "Conversation cleared",
     "Troca sem reiniciar: o que roda em segundo plano continua. No Claude, só o esforço Máximo reinicia a conversa e encerra o que estiver em segundo plano.": "Switches without restarting: what runs in the background keeps going. In Claude, only the Max effort restarts the conversation and ends whatever is running in the background.",
     "Para trocar o esforço a conversa reinicia: o que estiver rodando em segundo plano (tarefas, Monitor, subagentes) é encerrado.": "To switch the effort the conversation restarts: whatever is running in the background (tasks, Monitor, subagents) is ended.",
-    "Esta conversa expirou no Claude; a próxima mensagem começa uma conversa nova.": "This conversation expired in Claude; the next message starts a new conversation.",
+    "Esta conversa expirou: o Claude apaga do disco as conversas antigas depois de um prazo (a configuração cleanupPeriodDays dele). A próxima mensagem começa uma conversa nova, na mesma pasta. Para tirá-la da lista, use o Arquivar do ⋯.": "This conversation expired: Claude deletes old conversations from the disk after a while (its cleanupPeriodDays setting). The next message starts a new conversation, in the same folder. To take it off the list, use Archive in its ⋯.",
     "Reinicia o Codex desta conversa e continua do mesmo ponto": "Restarts this conversation's Codex and continues from the same point",
     "Custo, tokens e tempo desta sessão": "Cost, tokens and time of this session",
     "[modelo]": "[model]",
@@ -1827,6 +1827,13 @@
     "Próxima (Enter)": "Next (Enter)",
     "Fechar a busca (Esc)": "Close search (Esc)",
     "Fechar a busca": "Close search",
+    "Esta conversa tem mensagens mais antigas, que não estão na tela.": "This conversation has older messages that are not on screen.",
+    "Carregar as anteriores": "Load the earlier ones",
+    "Início da conversa": "Start of the conversation",
+    "Ao fechar o app, as conversas avulsas…": "When the app closes, the side conversations…",
+    "Ficam na lista, pausadas: é só clicar numa delas e ela volta de onde parou (para tirar da lista, use o Arquivar do ⋯). Ou saem da lista, como era antes: continuam guardadas e dá para reabrir em Anteriores. Vale a partir do próximo fechamento. O orquestrador não muda: ele sempre começa uma rodada nova.": "They stay in the list, paused: just click one and it resumes where it stopped (to take one off the list, use Archive in its ⋯). Or they leave the list, as before: they are still stored and can be reopened in Earlier. It takes effect from the next time the app closes. The Orchestrator does not change: it always starts a new round.",
+    "Ficam pausadas": "Stay paused",
+    "Saem da lista": "Leave the list",
     "Anteriores…": "Earlier…",
     "Conversas antigas: buscar, reabrir, arquivar e apagar": "Earlier conversations: search, reopen, archive and delete",
     "Conversas anteriores": "Earlier conversations",
@@ -1975,6 +1982,10 @@
     "Cola no terminal do app o Claude com uma cópia desta conversa e o comando; nada roda sem você apertar Enter lá": "Pastes Claude with a copy of this conversation and the command into the app's terminal; nothing runs until you press Enter there"
   },
   "padroes": [
+    [
+      "^Não carreguei as mensagens anteriores: (.+)$",
+      "Could not load the earlier messages: $1"
+    ],
     [
       "^há (\\d+) min$",
       "$1 min ago"

@@ -1742,6 +1742,15 @@
 
   // --- ligações ----------------------------------------------------------
   const pedidos = new Map();
+  let manterLeitura = null; // distância até o fim da conversa, guardada ao pedir as mensagens anteriores
+  caixa.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-carregar-anteriores]');
+    if (!b) return;
+    b.disabled = true;
+    manterLeitura = caixa.scrollHeight - caixa.scrollTop;
+    const r = await C.carregarAnteriores(ativa);
+    if (!r || r.erro || r.ok === false) { manterLeitura = null; b.disabled = false; if (r && r.erro) aviso(`Não carreguei as mensagens anteriores: ${r.erro}`, 'erro'); }
+  });
   function redesenharTudo(r) {
     if (r.comandos && r.comandos.length) comandosPor.set(r.id || ativa, r.comandos);
     caixa.innerHTML = '';
@@ -1753,12 +1762,25 @@
         <strong>${esc(atual && !atual.orquestrador ? atual.titulo : 'Orquestrador')}</strong><span>${atual && !atual.orquestrador ? 'Escreva abaixo para conversar com o Claude.' : 'Escreva abaixo. O orquestrador está ali no cantinho.'}</span></div>`;
 
     }
+    // Conversa reaberta: a tela mostra só as mensagens mais recentes. A faixa no topo traz as de
+    // antes (plano 3.4); depois que a pessoa carregou tudo, vira a marca de início da conversa.
+    if (r.eventos.length && r.historico && (r.historico.haMais || r.historico.carregouAnteriores)) {
+      const faixa = document.createElement('div');
+      faixa.className = 'carregar-anteriores';
+      faixa.innerHTML = r.historico.haMais
+        ? '<span>Esta conversa tem mensagens mais antigas, que não estão na tela.</span> <button type="button" class="botao-texto" data-carregar-anteriores>Carregar as anteriores</button>'
+        : '<span>Início da conversa</span>';
+      caixa.append(faixa);
+    }
     r.eventos.forEach(desenharEvento);
     pedidos.clear();
     (r.pendentes || []).forEach((p) => { pedidos.set(p.id, p); cartaoPedido(p); });
     // Cartão de confiança da pasta (a conversa só sobe depois da resposta): pasta-tela.js.
     if (window.orqPasta) window.orqPasta.desenharNaConversa(r);
     try { desenharAprovacoes(); } catch { /* ainda carregando a tela */ }
+    // Depois de "carregar as anteriores", a tela fica onde a pessoa estava lendo: as mensagens
+    // de antes entram acima, sem pular para o fim.
+    if (manterLeitura != null) { colado = false; caixa.scrollTop = Math.max(0, caixa.scrollHeight - manterLeitura); manterLeitura = null; return; }
     colado = true; rolar();
   }
 

@@ -661,6 +661,8 @@ ipcMain.handle('anteriores:cancelarApagar', (_e, comprovante) => { try { return 
 ipcMain.handle('anteriores:apagar', comErro((sessao, comprovante) => apagarConversa.executar(sessao, comprovante)));
 // O ⋯ de cada conversa na lista: arquivar (sai da lista, fica em Anteriores) e renomear.
 ipcMain.handle('conversa:arquivar', comErro((id) => conversa.arquivarConversa(id)));
+// "Carregar as anteriores": a página de mensagens que vem antes das que a conversa reaberta mostra.
+ipcMain.handle('conversa:carregarAnteriores', comErro((id) => conversa.carregarAnteriores(id)));
 ipcMain.handle('conversa:renomear', comErro((id, titulo) => ({ titulo: conversa.renomear(id, titulo) })));
 // O pedido de apagar veio do orquestrador: ele fica sabendo do que o usuário decidiu.
 const avisarDecisao = (t, acao) => { try { topicos.avisarOrquestrador(conversa, t, acao); } catch { /* o aviso é extra; a decisão já está feita */ } };

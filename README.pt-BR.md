@@ -159,6 +159,13 @@ há terminal para vigiar.
   mostra antes o custo (quantos arquivos e quanto, com as conversas dos subagentes; para onde vai: a lixeira do
   sistema; o que fica), exige um clique de verdade e recusa a conversa aberta e a do orquestrador. A lista nunca lê
   um arquivo inteiro: só o começo e o fim de cada um, com um índice para o resto.
+- **Fechar o app** deixa as conversas avulsas na lista, **pausadas**: um clique e a conversa volta de onde parou, na
+  pasta dela. A que nem começou sai da lista, e o orquestrador sempre começa uma rodada nova. Em *Configurações ›
+  Orquestração* fica a opção de elas saírem da lista, como era antes (continuam em *Anteriores*). Quando o Claude já
+  apagou uma conversa antiga, o app diz que ela expirou e a próxima mensagem começa uma nova na mesma pasta.
+- **Carregar as anteriores**: a conversa reaberta mostra as últimas 600 mensagens; uma faixa no topo avisa que há
+  mais antigas e traz a página de antes para cima, mantendo a tela onde você estava lendo, até chegar ao início da
+  conversa. Nada do que já está na tela é lido de novo.
 - **Cartão de confiança da pasta**: na primeira vez em que o Claude subiria numa pasta que não é a pessoal, a
   conversa mostra o que aquela pasta configura (comandos que rodam sozinhos, servidores MCP, regras que já
   permitem sem perguntar, instruções para o Claude) e espera: *Confiar e abrir*, *Abrir sem as configurações do

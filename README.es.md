@@ -165,6 +165,14 @@ que no hay ninguna terminal que vigilar.
   Borrar muestra antes el costo (cuántos archivos y cuánto, con las conversaciones de los subagentes; adónde va: la
   papelera del sistema; qué queda), exige un clic real y rechaza la conversación abierta y la del orquestador. La
   lista nunca lee un archivo entero: solo el principio y el final de cada uno, con un índice para el resto.
+- **Cerrar la app** deja las conversaciones paralelas en la lista, **en pausa**: un clic y la conversación vuelve
+  donde se quedó, en su carpeta. La que nunca empezó sale de la lista, y el orquestador siempre comienza una ronda
+  nueva. En *Settings › Orchestration* está la opción de que salgan de la lista, como antes (siguen en *Earlier*).
+  Cuando Claude ya borró una conversación antigua, la app dice que expiró y el siguiente mensaje empieza una nueva
+  en la misma carpeta.
+- **Load the earlier ones**: la conversación reabierta muestra sus últimos 600 mensajes; una franja arriba avisa
+  que hay más antiguos y trae la página anterior por encima, manteniendo la pantalla donde estabas leyendo, hasta
+  llegar al inicio de la conversación. Nada de lo que ya está en pantalla se vuelve a leer.
 - **Tarjeta de confianza de la carpeta**: la primera vez que Claude arrancaría en una carpeta que no es la
   personal, la conversación muestra lo que esa carpeta configura (comandos que corren solos, servidores MCP,
   reglas que ya permiten sin preguntar, instrucciones para Claude) y espera: *Trust and open*, *Open without the

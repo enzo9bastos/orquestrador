@@ -234,16 +234,25 @@ function arqTranscript(sessao) {
 // Lê de trás para frente, em páginas, só o que cabe nas últimas 600 mensagens:
 // uma sessão de 120 MB abre sem ser lida inteira.
 const MAX_HISTORICO = 600;
-function historicoDoTranscript(sessao, ate = null) {
+function historicoDoTranscript(sessao, ate = null) { return paginaDoHistorico(sessao, ate).eventos; }
+// Uma página do histórico (até 600 mensagens), a mais nova primeiro na leitura:
+//   { eventos, inicio, haMais }
+// inicio é o deslocamento, no arquivo, da linha mais antiga que entrou; passando-o de volta
+// em antesDe vem a página anterior ("carregar as anteriores", plano 3.4), sem reler o que já
+// foi lido e sem contar o arquivo inteiro. haMais: ainda há arquivo antes desta página.
+function paginaDoHistorico(sessao, ate = null, antesDe = null) {
   const arq = arqTranscript(sessao);
-  if (!arq) return [];
+  if (!arq) return { eventos: [], inicio: 0, haMais: false };
   let limite = null;
-  if (ate) {
+  if (Number.isInteger(antesDe) && antesDe >= 0) limite = antesDe;
+  else if (ate) {
     limite = jsonl.fimDaLinhaCom(arq, `"uuid":"${ate}"`);
     // Sem a linha (não achou), vale o arquivo todo, como antes.
   }
   const lista = [];
-  for (const { linha: l } of jsonl.linhasDeTras(arq, { ate: limite })) {
+  let inicio = 0;
+  let haMais = false;
+  for (const { linha: l, fim } of jsonl.linhasDeTras(arq, { ate: limite })) {
     let d;
     try { d = JSON.parse(l); } catch { continue; /* linha cortada */ }
     const ts = Date.parse(d.timestamp) || undefined;
@@ -260,9 +269,9 @@ function historicoDoTranscript(sessao, ate = null) {
       // de sistema (forma do 2.1.326). Viram o mesmo que aparece ao vivo, montado abaixo.
       lista.push({ local: d.content, marca: d.commandOutcome, ts });
     } else continue;
-    if (lista.length >= MAX_HISTORICO) break;
+    if (lista.length >= MAX_HISTORICO) { inicio = fim - Buffer.byteLength(l); haMais = inicio > 0; break; }
   }
-  return comandosLocaisComoAoVivo(lista.reverse());
+  return { eventos: comandosLocaisComoAoVivo(lista.reverse()), inicio, haMais };
 }
 // As linhas de comando local do transcript, como os eventos que a tela recebe ao vivo:
 // o comando vira o balão de comando (na forma <command-name>, que não ganha o lápis de
@@ -460,6 +469,7 @@ class Conversa {
     this.orquestrador = orquestrador;
     this.proc = null;
     this.eventos = [];
+    this.historico = null; // de onde veio o histórico mostrado e até onde foi lido (carregarAnteriores)
     this.pendentes = new Map(); // request_id → control_request ainda sem resposta
     this.info = { motor: this.motor, modelo: this.motor === 'codex' ? null : modelo ? MODELOS[modelo] : modeloPadrao(), esforco: esforco || (this.motor === 'codex' ? null : esforcoPadrao()), pasta: this.pasta, contexto: null, janela: null, uso5h: null, uso7d: null, modo: modoDeSubida(this.modo), rodada: this.rodada, rapido: this.rapido, fila: [], filaParada: false, shell: false, rotuloLongo: null, ocupado: false };
   }
@@ -484,7 +494,9 @@ class Conversa {
   registrar(ev) {
     if (!ev.ts && !ev.antigo) ev.ts = Date.now(); // horário ao lado de "Claude"
     this.eventos.push(ev);
-    if (this.eventos.length > 4000) this.eventos = this.eventos.slice(-3000);
+    // O que a pessoa pediu para carregar de antes não é cortado por causa do que chega agora.
+    const teto = 4000 + ((this.historico && this.historico.carregadas) || 0);
+    if (this.eventos.length > teto) this.eventos = this.eventos.slice(-(teto - 1000));
     this.enviar('conversa:evento', ev);
   }
   avisarInfo() { this.enviar('conversa:info', this.info); avisarLista(); }
@@ -587,7 +599,25 @@ class Conversa {
   // --- a pasta da conversa e o porteiro dela (confianca.js; plano 3.1) -----------------
   // O histórico que a conversa mostra antes de o motor subir (o mesmo que o iniciar carrega).
   historicoGuardado() {
-    return this.volta ? historicoDoTranscript(this.volta.de, this.volta.ate) : this.sessao ? historicoDoTranscript(this.sessao) : this.forkDe ? historicoDoTranscript(this.forkDe) : [];
+    const de = this.volta ? this.volta.de : this.sessao || this.forkDe || null;
+    if (!de) { this.historico = null; return []; }
+    const p = paginaDoHistorico(de, this.volta ? this.volta.ate : null);
+    // De onde veio e até onde foi lido: é o que o "carregar as anteriores" continua.
+    this.historico = { sessao: de, inicio: p.inicio, haMais: p.haMais, carregadas: 0 };
+    return p.eventos;
+  }
+  // "Carregar as anteriores" (plano 3.4): a conversa reaberta mostra só as últimas mensagens;
+  // isto traz a página de antes e a põe no começo. Não relê o que já está na tela.
+  carregarAnteriores() {
+    const h = this.historico;
+    if (this.motor === 'codex' || !h || !h.haMais) return { ok: false, haMais: false, novas: 0 };
+    const p = paginaDoHistorico(h.sessao, null, h.inicio);
+    h.inicio = p.inicio;
+    h.haMais = p.haMais;
+    h.carregadas += p.eventos.length;
+    this.eventos = [...p.eventos, ...this.eventos];
+    this.enviar('conversa:tudo', this.estado());
+    return { ok: true, haMais: h.haMais, novas: p.eventos.length };
   }
   // O Claude numa pasta que não é a pessoal só sobe depois de a pessoa aceitar o que a
   // pasta configura (hooks, MCP, regras, instruções), e só se nada mudou desde o aceite.
@@ -800,7 +830,7 @@ class Conversa {
       this.pendentes.clear();
       this.avisarInfo();
       this.registrar({ tipo: 'fim', texto: codigo ? `O Claude parou (código ${codigo}). ${erroTexto.trim().split('\n').slice(-3).join(' ')}` : 'A conversa foi pausada.' });
-      if (expirou) this.registrar({ tipo: 'aviso', texto: 'Esta conversa expirou no Claude; a próxima mensagem começa uma conversa nova.' });
+      if (expirou) this.registrar({ tipo: 'aviso', texto: 'Esta conversa expirou: o Claude apaga do disco as conversas antigas depois de um prazo (a configuração cleanupPeriodDays dele). A próxima mensagem começa uma conversa nova, na mesma pasta. Para tirá-la da lista, use o Arquivar do ⋯.' });
     });
     readline.createInterface({ input: proc.stdout }).on('line', (l) => {
       let d;
@@ -884,6 +914,7 @@ class Conversa {
         // /clear (e afins): a conversa recomeça no mesmo processo. A tela
         // limpa e fica a divisória; a sessão nova chega pelo init.
         this.eventos = [];
+        this.historico = null; // a conversa nova não tem "mensagens anteriores" para carregar
         this.pendentes.clear();
         this.marcarRodada(false); // conversa limpa: o que a rodada tinha carregado não está mais no contexto
         this.registrar({ tipo: 'limpa' });
@@ -1659,6 +1690,7 @@ class Conversa {
     // O que esperava na fila não dispara numa sessão nova: fica à vista, parado.
     this.filaParada = this.fila.length > 0;
     this.eventos = [];
+    this.historico = null;
     this.encerrarSemAviso();
     this.avisarFila();
     this.enviar('conversa:tudo', this.estado());
@@ -1703,7 +1735,9 @@ class Conversa {
 
   estado() {
     const comandos = this.motor === 'codex' ? listaComandos.montar({ motor: 'codex', skills: codex.comandosDoCodex() }) : this.comandos || comandosLocais();
-    return { id: this.id, comandos, eventos: this.eventos, pendentes: [...this.pendentes.values()], info: this.info, vivo: !!this.proc, pasta: this.cartaoDaPasta() };
+    return { id: this.id, comandos, eventos: this.eventos, pendentes: [...this.pendentes.values()], info: this.info, vivo: !!this.proc, pasta: this.cartaoDaPasta(),
+      // O histórico guardado tem mais mensagens antes das que estão na tela? E a pessoa já carregou alguma?
+      historico: this.historico ? { haMais: this.historico.haMais, carregouAnteriores: this.historico.carregadas > 0 } : null };
   }
 
   resumo() {
@@ -1943,13 +1977,18 @@ async function reabrirDeAnteriores(sessao) {
 
 function pararTodas() { for (const c of conversas.values()) c.parar(); }
 
-// Sair do app (X ou /exit), como o /exit do terminal: encerra todas as
-// conversas. O orquestrador começa uma rodada nova na próxima abertura e as
-// conversas avulsas saem da lista. Tudo continua no histórico do Claude.
+// Sair do app (X ou /exit): encerra todas as conversas. O orquestrador começa uma rodada
+// nova na próxima abertura. As conversas avulsas ficam na lista, pausadas, e voltam de onde
+// pararam quando a pessoa clicar nelas (plano 3.5); com a opção "saem da lista" das
+// Configurações, saem como era antes. A que nem começou (sem sessão para retomar) sai
+// sempre: não há de onde voltar. Tudo continua no histórico do Claude e em Anteriores.
 function encerrarTodas() {
+  const ficam = config.ler().conversasAoFechar !== 'saem';
   for (const c of [...conversas.values()]) {
-    if (c.orquestrador) c.encerrar();
-    else { c.parar(); conversas.delete(c.id); }
+    if (c.orquestrador) { c.encerrar(); continue; }
+    c.parar();
+    const temDeOndeVoltar = !!(c.sessao || c.volta || c.forkDe);
+    if (!ficam || !temDeOndeVoltar) conversas.delete(c.id);
   }
   gravarLista();
 }
@@ -2009,6 +2048,8 @@ module.exports = {
   anterioresDaTela, arquivarConversa, marcarArquivada, reabrirDeAnteriores, sessoesEmUso, sessoesDoOrquestrador,
   renomear: (id, titulo) => pegar(id).renomear(titulo),
   pastaDaConversa: (id) => pegar(id).pasta,
+  carregarAnteriores: (id) => pegar(id).carregarAnteriores(),
+  _paginaDoHistorico: paginaDoHistorico, // só para os testes
   tirarPastaExtra: (id, p) => pegar(id).tirarPastaExtra(p),
   threadNova: (id) => { pegar(id).threadNova(); return true; },
   // /stop: o processo sai (a linha "A conversa foi pausada." vem da saída dele);
