@@ -163,8 +163,10 @@ test('bichinho: reunião detectada, fim da ligação, miniatura da tela e arreme
   });
 });
 
-// 23/11: gravando, ele segura uma câmera; e um botão flutuante tira o print com um clique.
-test('bichinho: câmera na mão enquanto grava e botão flutuante de print', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
+// 23/11: gravando, ele segura uma câmera; e o print sai com um clique no balão de pensamento que
+// fica acima da cabeça dele (primeiro foi um botão solto no canto da tela; o pedido foi trazer para
+// junto do bichinho). O tempo de gravação ficou discreto (sem o fundo vermelho).
+test('bichinho: câmera na mão enquanto grava e balão de pensamento que tira o print', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
   const env = { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') };
   delete env.WAYLAND_DISPLAY;
   const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env });
@@ -173,50 +175,78 @@ test('bichinho: câmera na mão enquanto grava e botão flutuante de print', { s
   readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
   const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
   const espera = async (fn, ms = 10000) => { for (let i = 0; i < ms / 100; i++) { const r = recebidas.find(fn); if (r) return r; await new Promise((x) => setTimeout(x, 100)); } throw new Error(`não chegou: ${fn}`); };
-  const js = async (codigo, t2 = 'js') => { const i = recebidas.length; manda({ t: t2, codigo }); return (await espera((m, k) => k >= i && m.t === 'js')).r; };
-  const estado = async () => { const i = recebidas.length; manda({ t: 'estado' }); return espera((m, k) => k >= i && m.t === 'estado'); };
+  const js = async (codigo) => { const i = recebidas.length; manda({ t: 'js', codigo }); return (await espera((m, k) => k >= i && m.t === 'js')).r; };
   const dorme = (ms) => new Promise((x) => setTimeout(x, ms));
   const gravando = (x = {}) => ({ gravando: true, inicio: Date.now(), prints: 0, marcas: 0, printsLigados: true, processando: [], ...x });
+  const BALAO = "document.getElementById('pensa-print')";
+  const aVista = `(() => { const b = ${BALAO}; return !b.hidden && getComputedStyle(b).display !== 'none'; })()`;
   await espera((m) => m.t === 'iniciado', 20000);
   manda({ t: 'visual', visual: { cor: 'azul', itens: { mao: 'caneca' } }, tema: 'dark' });
   await dorme(300);
 
-  await t.test('sem gravar: na mão, o que ele já tinha; nada de botão flutuante', async () => {
+  await t.test('sem gravar: na mão, o que ele já tinha; nada de balão de print', async () => {
     assert.strictEqual(await js("!!document.querySelector('#pet .item-caneca') && !document.querySelector('#pet .item-camera')"), true);
-    assert.strictEqual((await estado()).botao, null);
+    assert.strictEqual(await js(aVista), false);
   });
 
-  await t.test('gravando: a câmera no lugar da caneca, com a luz vermelha; o botão flutuante aparece na borda direita', async () => {
+  await t.test('gravando: a câmera no lugar da caneca, com a luz vermelha; o balão de pensamento aparece acima dele, dentro do próprio bichinho', async () => {
     manda({ t: 'reuniao', estado: gravando({ evento: 'comecou' }) });
     for (let i = 0; i < 30 && !(await js("!!document.querySelector('#pet .item-camera')")); i++) await dorme(100);
     assert.strictEqual(await js("!!document.querySelector('#pet .item-camera .rec-luz') && !document.querySelector('#pet .item-caneca')"), true);
-    let e = await estado();
-    for (let i = 0; i < 30 && !e.botao; i++) { await dorme(100); e = await estado(); }
-    assert.ok(e.botao && e.botao.width === 64, JSON.stringify(e.botao));
-    const larg = await js('screen.availWidth');
-    assert.ok(e.botao.x + e.botao.width >= larg - 30, `na borda direita: ${e.botao.x}`);
+    for (let i = 0; i < 30 && !(await js(aVista)); i++) await dorme(100);
+    assert.strictEqual(await js(aVista), true);
+    // Ele chega andando de trás da borda: mede depois que parou dentro da janela.
+    const medir = () => js(`(() => { const b = ${BALAO}.getBoundingClientRect(), p = document.querySelector('#pet .pet-vira').getBoundingClientRect(); return { dentroDoBichinho: !!${BALAO}.closest('#pet'), acima: b.bottom <= p.top + 40, perto: p.top - b.bottom < 40 && Math.abs((b.left + b.right) / 2 - (p.left + p.right) / 2) < 90, naJanela: b.top >= 0 && b.left >= 0 && b.right <= innerWidth }; })()`);
+    let pos = await medir();
+    for (let i = 0; i < 60 && !pos.naJanela; i++) { await dorme(100); pos = await medir(); }
+    assert.deepStrictEqual(pos, { dentroDoBichinho: true, acima: true, perto: true, naJanela: true });
+    // O balão fica na frente do desenho do bichinho: o clique de verdade pega nele (e não no bichinho).
+    assert.strictEqual(await js(`(() => { const r = ${BALAO}.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && !!e.closest('#pensa-print'); })()`), true);
   });
 
-  await t.test('um clique no botão pede o print ao app na hora; a conta de prints aparece nele', async () => {
-    await dorme(500);
-    await js("(() => { const b = document.getElementById('b'); b.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, pointerId: 1, screenX: 10, screenY: 10 })); b.dispatchEvent(new PointerEvent('pointerup', { button: 0, bubbles: true, pointerId: 1, screenX: 10, screenY: 10 })); return b.classList.contains('flash'); })()", 'js-botao');
-    const r = await espera((m) => m.t === 'reuniao' && m.acao === 'print');
-    assert.match(r.id, /^botao-\d+$/);
+  await t.test('o tempo de gravação é discreto: sem fundo vermelho, só o ponto vermelho', async () => {
+    const cor = await js("(() => { const r = document.getElementById('rec'); const c = getComputedStyle(r); return { fundo: c.backgroundColor, ponto: getComputedStyle(r.querySelector('i')).backgroundColor }; })()");
+    assert.doesNotMatch(cor.fundo, /^rgba?\(198, 40, 40/, 'o fundo não é mais o vermelho forte');
+    assert.match(cor.ponto, /^rgb\(229, 72, 77\)$/);
+  });
+
+  await t.test('um clique no balão pede o print na hora, sem arrastar o bichinho nem abrir o painel; a conta aparece nele', async () => {
+    await js(`(() => { const b = ${BALAO}; for (const t of ['pointerdown', 'pointerup', 'click']) b.dispatchEvent(new PointerEvent(t, { button: 0, bubbles: true, pointerId: 1 })); return 1; })()`);
+    await espera((m) => m.t === 'reuniao' && m.acao === 'print');
+    assert.strictEqual(await js("document.getElementById('reuniao').hidden && !document.getElementById('pet').classList.contains('arrastado')"), true);
+    assert.strictEqual(await js(`${BALAO}.classList.contains('flash')`), true, 'o brilho aparece antes da resposta do app');
     manda({ t: 'reuniao', estado: gravando({ prints: 3, evento: 'print' }) });
-    for (let i = 0; i < 20 && (await js("document.getElementById('n').textContent", 'js-botao')) !== '3'; i++) await dorme(100);
-    assert.strictEqual(await js("document.getElementById('n').textContent", 'js-botao'), '3');
-    // Erro do app: o botão fica cinza e diz por quê.
-    manda({ t: 'reuniaoResposta', id: r.id, acao: 'print', erro: 'a tela não está sendo compartilhada' });
-    for (let i = 0; i < 20 && !(await js("document.getElementById('b').classList.contains('erro')", 'js-botao')); i++) await dorme(100);
-    assert.strictEqual(await js("document.getElementById('b').title", 'js-botao'), 'a tela não está sendo compartilhada');
+    for (let i = 0; i < 20 && (await js("document.getElementById('pensa-n').textContent")) !== '3'; i++) await dorme(100);
+    assert.strictEqual(await js("document.getElementById('pensa-n').textContent"), '3');
+    assert.strictEqual(await js("document.getElementById('bolha').hidden"), true, 'com o balão à vista, ele não fala por cima');
+    // Três cliques seguidos: três pedidos.
+    const antes = recebidas.filter((m) => m.t === 'reuniao' && m.acao === 'print').length;
+    await js(`(() => { for (let i = 0; i < 3; i++) ${BALAO}.click(); return 1; })()`);
+    await dorme(400);
+    assert.strictEqual(recebidas.filter((m) => m.t === 'reuniao' && m.acao === 'print').length, antes + 3);
   });
 
-  await t.test('prints desligados ou fim da gravação: o botão some e a caneca volta', async () => {
+  await t.test('erro do print: ele diz o motivo; com fala, menu ou painel aberto o balão sai da frente', async () => {
+    const r = recebidas.filter((m) => m.t === 'reuniao' && m.acao === 'print').pop();
+    manda({ t: 'reuniaoResposta', id: r.id, acao: 'print', erro: 'a tela não está sendo compartilhada' });
+    for (let i = 0; i < 20 && (await js("document.getElementById('bolha').hidden")); i++) await dorme(100);
+    assert.match(await js("document.getElementById('bolha').innerText"), /a tela não está sendo compartilhada/);
+    assert.strictEqual(await js(aVista), false, 'com a fala na tela, o balão de pensamento some');
+    for (let i = 0; i < 50 && !(await js("document.getElementById('bolha').hidden")); i++) await dorme(100);
+    assert.strictEqual(await js(aVista), true);
+    await js("document.querySelector('[data-m=reuniao]').click(); 1");
+    assert.strictEqual(await js(aVista), false, 'com o painel aberto, o Print é o do painel');
+    await js("document.getElementById('rn-fechar').click(); 1");
+    assert.strictEqual(await js(aVista), true);
+  });
+
+  await t.test('prints desligados ou fim da gravação: o balão some e a caneca volta', async () => {
     manda({ t: 'reuniao', estado: gravando({ printsLigados: false, evento: 'prints-off' }) });
-    await dorme(300);
-    assert.strictEqual((await estado()).botao, null);
+    for (let i = 0; i < 20 && (await js(aVista)); i++) await dorme(100);
+    assert.strictEqual(await js(aVista), false);
     manda({ t: 'reuniao', estado: { gravando: false, processando: [], evento: 'parou' } });
     for (let i = 0; i < 30 && !(await js("!!document.querySelector('#pet .item-caneca')")); i++) await dorme(100);
     assert.strictEqual(await js("!document.querySelector('#pet .item-camera')"), true);
+    assert.strictEqual(await js(aVista), false);
   });
 });

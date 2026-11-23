@@ -336,7 +336,6 @@ async function passear() {
 
 function receber(m) {
   if (m.t === 'visual') {
-    if (m.idioma) { idiomaAtual = m.idioma; if (botao && !botao.webContents.isLoading()) botao.webContents.send('ajudante', { t: 'idioma', idioma: idiomaAtual }); }
     especie = ESPECIES[m.visual && m.visual.especie] ? m.visual.especie : 'bicho';
     jeito = esp().jeito;
     paraTela(m);
@@ -350,21 +349,17 @@ function receber(m) {
   else if (m.t === 'noApp') { if (aviso) paraTela({ t: 'noApp' }); } // o usuário foi ao app em vez de responder aqui
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
-  else if (m.t === 'reuniaoResposta' && String(m.id || '').startsWith('botao-')) { if (m.erro && botao) botao.webContents.send('ajudante', { t: 'printErro', erro: m.erro }); }
   else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido' || m.t === 'reuniaoResposta') paraTela(m);
   // Modo reunião: o sinal de "gravando" vai para a tela; começou a gravar, ele aparece.
   else if (m.t === 'reuniao') {
     const e = m.estado || {};
-    mostrarBotao(!!e.gravando && e.printsLigados !== false);
-    if (botao) { const enviarConta = () => { if (botao) botao.webContents.send('ajudante', { t: 'contaPrints', n: e.prints || 0 }); }; if (botao.webContents.isLoading()) botao.webContents.once('did-finish-load', enviarConta); else enviarConta(); }
     const chama = e.gravando || ['detectada', 'acabou', 'comecou-sozinha', 'pronta'].includes(e.evento);
     if (chama && modo === 'escondido') aparecer(() => paraTela(m)); else paraTela(m);
   }
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') { win.showInactive(); win.setSkipTaskbar(true); win.setVisibleOnAllWorkspaces(true); } win.focus(); paraTela(m); }
   else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
-  else if (m.t === 'js-botao' && TESTE) { if (!botao) paraApp({ t: 'js', r: null }); else botao.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) })); }
   else if (m.t === 'js' && TESTE) win.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) }));
-  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, especie, floreio: ultimoFloreio, chao: Math.round(chao()), pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible(), botao: botao ? botao.getBounds() : null });
+  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, especie, floreio: ultimoFloreio, chao: Math.round(chao()), pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
   else if (m.t === 'print-tela' && TESTE) win.webContents.capturePage().then((img) => paraApp({ t: 'print', png: img.toPNG().toString('base64') }));
 }
 
@@ -402,48 +397,7 @@ function trocouArea(de, para) {
   entrada(a, para < de ? 'dir' : 'esq', volta, () => { if (!aviso && Math.random() < 0.6) paraTela({ t: 'falar', texto: sorteia(['Cheguei!', 'Te achei!', 'Esperei por você!', 'Opa, mudou de mesa?']) }); });
 }
 
-// --- botão flutuante de print (modo reunião) ---------------------------------------
-// Aparece enquanto a reunião grava (com os prints ligados), sempre por cima, na borda direita
-// do monitor principal; arrastando, muda de lugar (e fica lá até o fim da reunião).
-let botao = null;
-let botaoPos = null;
-let idiomaAtual = null; // o idioma do app (chega com o visual), para o botão flutuante
-const BOTAO = 64;
-function mostrarBotao(sim) {
-  if (!sim) { if (botao) { botao.destroy(); botao = null; } botaoPos = null; return; }
-  if (botao) return;
-  const a = screen.getPrimaryDisplay().workArea;
-  botaoPos = botaoPos || { x: a.x + a.width - BOTAO - 12, y: a.y + Math.round(a.height * 0.35) };
-  botao = new BrowserWindow({
-    x: botaoPos.x, y: botaoPos.y, width: BOTAO, height: BOTAO, show: false, frame: false, transparent: true, backgroundColor: '#00000000',
-    resizable: false, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true,
-    focusable: false, type: 'toolbar',
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false },
-  });
-  botao.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  botao.webContents.on('will-navigate', (e) => e.preventDefault());
-  botao.loadFile(path.join(__dirname, 'botao-print.html'));
-  botao.webContents.once('did-finish-load', () => { if (botao && idiomaAtual) botao.webContents.send('ajudante', { t: 'idioma', idioma: idiomaAtual }); });
-  botao.once('ready-to-show', () => {
-    if (!botao) return;
-    if (!TESTE) botao.showInactive();
-    botao.setAlwaysOnTop(true, 'screen-saver');
-    botao.setVisibleOnAllWorkspaces(true);
-    botao.setSkipTaskbar(true);
-  });
-}
-let pedidoBotao = 0;
-
-ipcMain.on('ajudante', (e, m) => {
-  // Mensagens do botão flutuante de print.
-  if (botao && e.sender === botao.webContents) {
-    if (m.t === 'printRapido') paraApp({ t: 'reuniao', acao: 'print', id: `botao-${++pedidoBotao}` });
-    else if (m.t === 'botaoArrastar') {
-      botaoPos = { x: botaoPos.x + Math.round(m.dx || 0), y: botaoPos.y + Math.round(m.dy || 0) };
-      botao.setBounds({ x: botaoPos.x, y: botaoPos.y, width: BOTAO, height: BOTAO });
-    }
-    return;
-  }
+ipcMain.on('ajudante', (_e, m) => {
   if (m.t === 'pronto') { pronto = true; for (const x of fila.splice(0)) win.webContents.send('ajudante', x); }
   else if (m.t === 'abrirConversa') abrirConversa();
   else if (m.t === 'fecharConversa') fecharConversa();

@@ -295,6 +295,10 @@
   function pintarRec() {
     $('rec').hidden = !rn.gravando;
     if (pet.classList.contains('gravando') !== !!rn.gravando) { classe('gravando', !!rn.gravando); desenharVisual(); }
+    // Balão de pensamento com a câmera: um clique tira o print na hora (com os prints ligados).
+    $('pensa-print').hidden = !(rn.gravando && rn.printsLigados !== false);
+    $('pensa-n').hidden = !rn.prints;
+    $('pensa-n').textContent = rn.prints ? String(rn.prints) : '';
     $('menu-reuniao').textContent = rn.gravando ? tr('🎙 Reunião (gravando)') : tr('🎙 Gravar reunião');
     clearInterval(tRec);
     if (rn.gravando) {
@@ -353,6 +357,15 @@
     }
   }
   $('rn-fechar').addEventListener('click', fecharReuniao);
+  // Balão de pensamento: o clique pede o print na hora (o brilho aparece antes da resposta). Os
+  // eventos param aqui: clicar nele não arrasta o bichinho nem abre o painel.
+  for (const tipo of ['pointerdown', 'pointerup', 'dblclick']) $('pensa-print').addEventListener(tipo, (ev) => ev.stopPropagation());
+  $('pensa-print').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const b = $('pensa-print');
+    b.classList.remove('flash', 'ok'); void b.offsetWidth; b.classList.add('flash');
+    pedirReuniao('print');
+  });
   $('reuniao').addEventListener('click', (ev) => {
     const a = ev.target.closest('[data-rn]')?.dataset.rn;
     if (!a) return;
@@ -391,7 +404,11 @@
     }
     if (!e.gravando) rnMini = null; // parou de gravar: a tela compartilhada foi solta
     if (e.evento === 'comecou') { classe('feliz'); setTimeout(() => classe('feliz', false), 900); if (!$('reuniao').hidden) { rnTela = 'gravando'; } }
-    else if (e.evento === 'print') { classe('feliz'); setTimeout(() => classe('feliz', false), 600); if ($('reuniao').hidden) falar(tr('Print guardado 📷'), 1200); }
+    else if (e.evento === 'print') {
+      classe('feliz'); setTimeout(() => classe('feliz', false), 600);
+      const b = $('pensa-print');
+      if (!b.hidden) { b.classList.remove('ok'); void b.offsetWidth; b.classList.add('ok'); } else if ($('reuniao').hidden) falar(tr('Print guardado 📷'), 1200);
+    }
     else if (e.evento === 'marca') { if ($('reuniao').hidden) falar(tr('Momento marcado ★'), 1200); }
     else if (e.evento === 'parou') { rnTela = 'montando'; }
     else if (e.evento === 'pronta') {

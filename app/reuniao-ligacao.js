@@ -140,8 +140,9 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
   const D = require('./reuniao-detectar');
   const modoDetectar = () => config.ler().reuniaoDetectar || 'perguntar';
   const detectar = D.criar({
-    // Desligado: nem olha quem usa o microfone.
-    listar: () => (modoDetectar() === 'desligado' ? Promise.resolve(null) : D.listarPipeWire()),
+    // Desligado: nem olha quem usa o microfone. Nos testes de tela só olha o servidor de som falso
+    // (ORQ_PW_DUMP): um teste nunca consulta o som de verdade do computador.
+    listar: () => (modoDetectar() === 'desligado' || (emTeste && !process.env.ORQ_PW_DUMP) ? Promise.resolve(null) : D.listarPipeWire()),
     gravando: () => r.estado().gravando,
     nossos: () => [process.pid],
     intervalo: emTeste ? 300 : 4000,

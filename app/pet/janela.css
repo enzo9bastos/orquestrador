@@ -227,9 +227,10 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 
 /* Modo reunião: sinal de gravando em cima do bichinho (sempre à vista enquanto grava), painel com
    o título, os aparelhos, as contas de prints e marcas, e a barra de andamento da nota. */
-.aj-rec { position: absolute; right: 100%; top: 35%; margin-right: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: #c62828; color: #fff; font: 600 11px var(--mono); white-space: nowrap; pointer-events: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+.aj-rec { position: absolute; right: 100%; top: 38%; margin-right: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--bg-elevado) 90%, transparent); border: 1px solid var(--borda); color: var(--fg-2); font: 500 11px var(--mono); white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
 .aj-rec[hidden] { display: none; }
-.aj-rec i { width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: aj-rec-pisca 1.2s steps(2, start) infinite; }
+.aj-rec i { width: 6px; height: 6px; border-radius: 50%; background: #e5484d; animation: aj-rec-pulsa 2s ease-in-out infinite; }
+@keyframes aj-rec-pulsa { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 @keyframes aj-rec-pisca { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .aj-rec i { animation: none; } }
 .aj-reuniao .rn-campo { display: grid; gap: 4px; font-size: 12px; color: var(--fg-3); margin: 0 0 8px; }
@@ -248,3 +249,20 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 @keyframes aj-filma { 0%, 100% { translate: 0 0; } 50% { translate: 0 -0.35px; } }
 .aj-pet .rec-luz { animation: aj-rec-pisca 1s steps(2, start) infinite; }
 @media (prefers-reduced-motion: reduce) { .aj-pet.gravando .braco-d, .aj-pet .rec-luz { animation: none; } }
+/* Balão de pensamento do print (modo reunião): fica acima da cabeça, com as bolinhas até ela; um
+   clique tira o print. Some quando ele fala, quando o menu abre ou quando um painel está aberto. */
+/* z-index: o desenho do bichinho ocupa a área acima da cabeça (onde vão os chapéus) e pegaria o clique. */
+.aj-pensa { position: absolute; z-index: 3; right: 44px; bottom: calc(100% - 14px); display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 16px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); color: var(--fg); font: 600 11.5px var(--sans); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); transition: transform .12s ease, border-color .12s ease; }
+.aj-pensa[hidden], .aj-pensa [hidden] { display: none; }
+.aj-pensa:hover, .aj-pensa:focus-visible { border-color: var(--claude); transform: scale(1.06); outline: none; }
+.aj-pensa .aj-pensa-ico { font-size: 15px; line-height: 1; }
+.aj-pensa .aj-pensa-n { color: var(--fg-3); font-variant-numeric: tabular-nums; }
+.aj-pensa i { position: absolute; border-radius: 50%; border: 1px solid var(--borda-forte); background: var(--bg-elevado); }
+.aj-pensa i:nth-of-type(1) { width: 9px; height: 9px; right: 2px; top: calc(100% + 1px); }
+.aj-pensa i:nth-of-type(2) { width: 5px; height: 5px; right: -6px; top: calc(100% + 10px); }
+.aj-pensa.flash { animation: aj-pensa-flash .35s ease-out; }
+@keyframes aj-pensa-flash { 0% { background: #fff; transform: scale(.9); } 100% { background: var(--bg-elevado); transform: scale(1); } }
+.aj-pensa.ok { animation: aj-pensa-ok .9s ease-out; }
+@keyframes aj-pensa-ok { 0% { border-color: #2fb170; box-shadow: 0 0 0 3px color-mix(in srgb, #2fb170 40%, transparent); } 100% { border-color: var(--borda-forte); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); } }
+.aj-bolha:not([hidden]) ~ .aj-pet .aj-pensa, .aj-menu:not([hidden]) ~ .aj-pet .aj-pensa, .aj-conversa:not([hidden]) ~ .aj-pet .aj-pensa { display: none; }
+@media (prefers-reduced-motion: reduce) { .aj-rec i, .aj-pensa.flash, .aj-pensa.ok { animation: none; } }
