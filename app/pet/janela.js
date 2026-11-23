@@ -173,11 +173,23 @@
       $('pg-acoes').innerHTML = '<button type="button" class="botao primario" data-pg="app">Abrir no app</button>';
     } else if (it.tipo === 'pergunta') {
       const q = it.perguntas[pg.i];
+      // Pergunta já respondida (a pessoa voltou com "‹ Voltar", ou avançou de novo depois de
+      // mudar uma de antes): a resposta dela aparece marcada, ou no campo, se foi escrita.
+      const rotulos = (q.options || []).map((o) => o.label);
+      const anterior = pg.respostas[chaveDa(q)];
+      let escolhida = null, escrita = '';
+      if (typeof anterior === 'string' && !pg.marcadas.size) {
+        if (q.multiSelect) {
+          const partes = anterior.split(', ');
+          if (partes.every((x) => rotulos.includes(x))) pg.marcadas = new Set(partes); else escrita = anterior;
+        } else if (rotulos.includes(anterior)) escolhida = anterior; else escrita = anterior;
+      }
       $('pg-passo').textContent = [it.perguntas.length > 1 ? `pergunta ${pg.i + 1} de ${it.perguntas.length}` : '', q.multiSelect ? 'pode marcar mais de uma' : ''].filter(Boolean).join(' · ');
       $('pg-corpo').innerHTML = `${q.header ? `<p class="aj-cabeca">${esc(q.header)}</p>` : ''}<p class="pergunta">${esc(q.question)}</p>
-        <div class="aj-opcoes">${(q.options || []).map((o) => `<button type="button" class="aj-opcao${pg.marcadas.has(o.label) ? ' marcada' : ''}" data-op="${esc(o.label)}"><strong>${esc(o.label)}</strong>${o.description ? `<small>${esc(o.description)}</small>` : ''}</button>`).join('')}</div>
-        <textarea id="pg-outra" rows="2" placeholder="Outra resposta… (Enter envia)"></textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
-      $('pg-acoes').innerHTML = `<button type="button" class="botao-texto" data-pg="app">Abrir no app</button>${q.multiSelect ? '<button type="button" class="botao primario" data-pg="confirmar">Confirmar</button>' : ''}`;
+        <div class="aj-opcoes">${(q.options || []).map((o) => { const m = pg.marcadas.has(o.label) || escolhida === o.label; return `<button type="button" class="aj-opcao${m ? ' marcada' : ''}" data-op="${esc(o.label)}"${q.multiSelect ? '' : ` aria-pressed="${m}"`}><strong>${esc(o.label)}</strong>${o.description ? `<small>${esc(o.description)}</small>` : ''}</button>`; }).join('')}</div>
+        <textarea id="pg-outra" rows="2" placeholder="Outra resposta… (Enter envia)">${esc(escrita)}</textarea>${erro ? `<p class="aj-erro">${esc(erro)}</p>` : ''}`;
+      // "‹ Voltar" a partir da 2ª pergunta: nada é enviado antes da última.
+      $('pg-acoes').innerHTML = `${pg.i > 0 ? '<button type="button" class="botao-texto aj-voltar" data-pg="voltar">‹ Voltar</button>' : ''}<button type="button" class="botao-texto" data-pg="app">Abrir no app</button>${q.multiSelect ? '<button type="button" class="botao primario" data-pg="confirmar">Confirmar</button>' : ''}`;
     } else if (it.tipo === 'aprovacao') {
       // Algo que só sai (ou só roda) com o seu sim: decide aqui mesmo.
       $('pg-passo').textContent = 'espera você aprovar';
@@ -196,10 +208,12 @@
       $('pg-acoes').innerHTML = '<button type="button" class="botao-texto" data-pg="app">Abrir no app</button><button type="button" class="botao-texto" data-pg="negar">Negar</button><button type="button" class="botao primario" data-pg="permitir">Permitir</button>';
     }
   }
+  // A chave da resposta: pelo id quando há (duas perguntas iguais não colidem).
+  const chaveDa = (q) => (q.id != null ? q.id : q.question);
   // Uma resposta por pergunta; na última, manda tudo.
   function proxima(resposta) {
     const q = pg.item.perguntas[pg.i];
-    pg.respostas[q.id != null ? q.id : q.question] = resposta; // pelo id quando há (duas perguntas iguais não colidem)
+    pg.respostas[chaveDa(q)] = resposta;
     pg.marcadas = new Set();
     if (pg.i + 1 < pg.item.perguntas.length) { pg.i++; desenharPergunta(); return; }
     enviarResposta({ respostas: pg.respostas });
@@ -226,6 +240,8 @@
     if (cp) { A.enviar({ t: 'copiar', texto: pg.item.comandos[Number(cp.dataset.copiar)] }); cp.textContent = 'Copiado'; setTimeout(() => { cp.textContent = 'Copiar'; }, 1500); return; }
     const a = ev.target.closest('[data-pg]')?.dataset.pg;
     if (a === 'feito') { enviarResposta({ feito: true }); return; }
+    // Volta uma pergunta: as respostas já dadas ficam guardadas e aparecem marcadas.
+    if (a === 'voltar') { if (pg.i > 0 && !pg.enviando) { pg.i--; pg.marcadas = new Set(); desenharPergunta(); } return; }
     if (a === 'app') A.enviar({ t: 'abrirApp', conversa: alvoPendencia });
     else if (a === 'permitir' || a === 'negar') enviarResposta({ permitir: a === 'permitir', ...($('pg-nota') ? { nota: $('pg-nota').value.trim() } : {}) });
     else if (a === 'confirmar') {

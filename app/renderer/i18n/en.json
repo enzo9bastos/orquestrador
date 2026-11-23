@@ -2017,7 +2017,8 @@
     "Você tinha negado e voltou atrás: este recado saiu depois.": "You had denied it and changed your mind: this message was sent afterwards.",
     "Você voltou atrás depois: o recado saiu.": "You changed your mind afterwards: the message was sent.",
     "negado há mais de 7 dias: peça ao orquestrador para escrever de novo": "denied more than 7 days ago: ask the orchestrator to write it again",
-    "este recado não está negado": "this message is not denied"
+    "este recado não está negado": "this message is not denied",
+    "‹ Voltar": "‹ Back"
   },
   "padroes": [
     [

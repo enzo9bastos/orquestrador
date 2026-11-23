@@ -222,3 +222,5 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 .aj-rc-anexo.grande { flex-basis: 100%; }
 .aj-rc-anexo.grande .aj-rc-mini { width: 100%; height: auto; max-height: 260px; object-fit: contain; cursor: zoom-out; }
 .aj-rc-aviso { margin: 6px 0; padding: 6px 8px; border: 1px solid var(--esperando, #b9922f); border-radius: 6px; font-size: 11.5px; }
+/* "‹ Voltar" na pergunta com várias partes: fica à esquerda, longe do Confirmar. */
+.aj-acoes .aj-voltar { margin-right: auto; }
