@@ -83,7 +83,7 @@ function criar({ base, gravar, capturar, transcrever, resumir = async () => null
   };
   const estado = () => ({
     gravando: !!atual,
-    ...(atual ? { pasta: atual.pasta, titulo: atual.meta.titulo, inicio: atual.meta.inicio, prints: atual.meta.prints.length, marcas: atual.meta.marcas.length, dispositivos: atual.meta.dispositivos, printsLigados: atual.printsLigados } : {}),
+    ...(atual ? { pasta: atual.pasta, titulo: atual.meta.titulo, inicio: atual.meta.inicio, prints: atual.meta.prints.length, marcas: atual.meta.marcas.length, dispositivos: atual.meta.dispositivos, printsLigados: atual.printsLigados, ...(atual.printsLigados ? {} : { motivoPrints: atual.motivoPrints || '' }) } : {}),
     processando: [...processando.entries()].map(([p, x]) => ({ pasta: p, ...x })),
   });
   const avisar = (extra = {}) => { try { aoMudar({ ...estado(), ...extra }); } catch { /* a tela fechou */ } };

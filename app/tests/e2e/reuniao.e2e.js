@@ -41,7 +41,8 @@ for (const idioma of ['pt-BR', 'en']) {
     if (en) { await clicar('terminar'); await clicar('terminar-sim'); await app.esperar(`/Note ready/.test(${textoBarra})`, 20000); assert.deepStrictEqual(app.erros, []); return; }
 
     await t.test('print: a imagem da tela vira um arquivo no minuto certo; marcar conta o momento', async () => {
-      await app.esperar("window.orqReuniao.estado().printsLigados !== false", 8000);
+      await app.espera(1500);
+      assert.strictEqual(await app.avaliar("window.orqReuniao.estado().printsLigados === false ? 'prints desligados: ' + window.orqReuniao.estado().motivoPrints : 'ligados'"), 'ligados');
       await app.espera(1200);
       await clicar('print');
       await app.esperar(`/📷 1/.test(${textoBarra})`, 15000);

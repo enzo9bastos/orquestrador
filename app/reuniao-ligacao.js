@@ -5,7 +5,7 @@
 // reuniao:terminar, reuniao:abrir, reuniao:voz (motor, modelos e recomendações para as Configurações).
 // Eventos para a tela: 'reuniao:mudou' (estado). O bichinho recebe { t: 'reuniao', ... }.
 const path = require('path');
-const { BrowserWindow, desktopCapturer, ipcMain, shell, Notification } = require('electron');
+const { app, BrowserWindow, desktopCapturer, ipcMain, shell, Notification } = require('electron');
 const reuniao = require('./reuniao');
 const pecas = require('./reuniao-pecas');
 const transcricao = require('./transcricao');
@@ -37,7 +37,10 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     janela.webContents.session.setDisplayMediaRequestHandler((_req, cb) => {
       // No Wayland o sistema mostra a escolha (janela ou tela) e devolve só a escolhida. No X11 não há
       // essa escolha: vale a tela inteira, como antes.
-      const wayland = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+      // Vale como o app está rodando de verdade (a opção --ozone-platform, se foi dada), e não só a
+      // sessão: um app em X11 dentro de uma sessão Wayland recebia a lista misturada e a captura falhava.
+      const plataforma = app.commandLine.getSwitchValue('ozone-platform') || (process.env.WAYLAND_DISPLAY ? 'wayland' : 'x11');
+      const wayland = plataforma === 'wayland';
       desktopCapturer.getSources({ types: wayland ? ['window', 'screen'] : ['screen'], thumbnailSize: { width: 0, height: 0 } })
         .then((s) => cb(s.length ? { video: s[0] } : {})).catch(() => cb({}));
     });
