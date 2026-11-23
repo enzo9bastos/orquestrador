@@ -4,6 +4,13 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.15.0 (2026-11-23)
+
+- A message to another computer that you denied by mistake can still go out: in the Recados tab, the denied
+  message (and the notice the orchestrator got about it) has "Send anyway…" for 7 days. It opens a confirmation
+  that names who receives it, and only a real click on "Send" sends it. The orchestrator is told it went out,
+  so it does not write it again.
+
 ## 0.14.0 (2026-11-23)
 
 - Stash the draft, as in the terminal: Ctrl+S takes what you are writing out of the message box and keeps
