@@ -2097,9 +2097,17 @@
     "Perguntar se grava": "Ask whether to record",
     "Gravar sozinho (com o sinal à vista)": "Record by itself (with the sign visible)",
     "Não fazer nada": "Do nothing",
-    "Sim, gravar": "Yes, record"
+    "Sim, gravar": "Yes, record",
+    "Print da tela agora (arraste para mudar de lugar)": "Screenshot now (drag to move it)",
+    "Print da reunião": "Meeting screenshot",
+    "O print não saiu": "The screenshot did not come out",
+    "Câmera": "Camera"
   },
   "padroes": [
+    [
+      "^Não achei mais este arquivo: (.+)$",
+      "Could not find this file anymore: $1"
+    ],
     [
       "^Comecei a gravar a reunião n(o|a) (.+), porque a ligação começou\\. Avise as pessoas que ela está sendo gravada\\.$",
       "I started recording the meeting in $2, because the call started. Tell the people that it is being recorded."

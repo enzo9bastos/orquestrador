@@ -122,19 +122,23 @@ for (const modo of ['perguntar', 'gravar']) {
 
     fs.writeFileSync(lista, JSON.stringify([{ app: 'Google Chrome', binario: 'chrome', pid: 4242 }]));
     if (modo === 'perguntar') {
-      await t.test('a ligação no navegador: a barra pergunta se grava, e nada é gravado antes do sim', async () => {
-        await app.esperar(`/Reunião no navegador ?\\? Sim, gravar Agora não/.test(${textoBarra})`, 8000);
+      await t.test('a ligação no navegador: quem pergunta é o bichinho (a barra não); nada é gravado antes do sim', async () => {
+        await app.espera(2500);
+        assert.strictEqual(await app.avaliar(`${BARRA}.hidden`), true, 'a barra do app não pergunta');
         assert.deepStrictEqual(pastas(), []);
-        await clicar('gravar');
+        // O "Sim, gravar" do bichinho chega ao app como este pedido.
+        await app.avaliar("window.orq.reuniao.comecar('')");
         await app.esperar(`${BARRA}.classList.contains('gravando')`, 8000);
         assert.strictEqual(pastas().length, 1);
       });
       await t.test('a miniatura do que os prints mostram fica disponível', async () => {
         await app.esperar('window.orq.reuniao.tela().then((x) => !!(x && /^data:image\\/jpeg;base64,/.test(x.miniatura)))', 10000);
       });
-      await t.test('a ligação solta o microfone: a barra pergunta se termina; "Terminar" monta a nota', async () => {
+      await t.test('a ligação solta o microfone: a barra continua só com a gravação (quem pergunta é o bichinho); terminar monta a nota', async () => {
         fs.writeFileSync(lista, '[]');
-        await app.esperar(`/A ligação acabou\\? Terminar a gravação\\?/.test(${textoBarra})`, 8000);
+        await app.espera(2500);
+        assert.match(await app.avaliar(textoBarra), /^Gravando/);
+        await clicar('terminar');
         await clicar('terminar-sim');
         await app.esperar(`/Nota pronta/.test(${textoBarra})`, 20000);
         assert.deepStrictEqual(app.erros, []);

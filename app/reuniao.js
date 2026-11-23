@@ -123,17 +123,25 @@ function criar({ base, gravar, capturar, transcrever, resumir = async () => null
     return estado();
   }
   const segundo = () => Math.max(0, (agora() - atual.meta.inicio) / 1000);
+  const reservados = new Set(); // nomes de print já escolhidos e ainda sendo gravados (cliques seguidos)
   async function print() {
     if (!atual) throw new Error('nenhuma reunião sendo gravada');
+    const reuniao = atual;
+    // O minuto é o do clique; o nome é reservado na hora, para dois cliques seguidos não disputarem.
     const seg = segundo();
+    const livre = (n) => !reservados.has(path.join(reuniao.pasta, 'prints', n)) && !fs.existsSync(path.join(reuniao.pasta, 'prints', n));
     let nome = `${minSeg(seg).replace(/:/g, '-')}.png`;
-    for (let n = 2; fs.existsSync(path.join(atual.pasta, 'prints', nome)); n++) nome = `${minSeg(seg).replace(/:/g, '-')}-${n}.png`;
-    const arquivo = path.join(atual.pasta, 'prints', nome);
-    await capturar(arquivo);
-    if (!fs.existsSync(arquivo)) throw new Error('o print não foi gravado');
-    atual.meta.prints.push({ seg, arquivo: `prints/${nome}` });
-    gravarMeta(atual.pasta, atual.meta);
-    avisar({ evento: 'print', arquivo });
+    for (let n = 2; !livre(nome); n++) nome = `${minSeg(seg).replace(/:/g, '-')}-${n}.png`;
+    const arquivo = path.join(reuniao.pasta, 'prints', nome);
+    reservados.add(arquivo);
+    try {
+      await capturar(arquivo);
+      if (!fs.existsSync(arquivo)) throw new Error('o print não foi gravado');
+    } finally { reservados.delete(arquivo); }
+    reuniao.meta.prints.push({ seg, arquivo: `prints/${nome}` });
+    reuniao.meta.prints.sort((a, b) => a.seg - b.seg);
+    gravarMeta(reuniao.pasta, reuniao.meta);
+    if (atual === reuniao) avisar({ evento: 'print', arquivo });
     return { seg, arquivo };
   }
   function marcar(texto = '') {

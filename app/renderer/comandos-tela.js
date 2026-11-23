@@ -327,8 +327,9 @@
     const id = V().ativa();
     if (item.motor === 'codex') {
       // Do que está na tela, em Markdown.
-      const partes = [...document.querySelectorAll('#mensagens .msg-voce .balao, #mensagens .msg-claude .texto-claude:not(.rascunho)')]
-        .map((e) => (e.closest('.msg-voce') ? `## Você\n\n${e.innerText.trim()}` : `## Codex\n\n${e.innerText.trim()}`));
+      // Mensagem com arquivos anexados: o texto guardado no balão (com a linha do anexo), como sempre saiu.
+      const partes = [...document.querySelectorAll('#mensagens .msg-voce:not(.com-arquivos) .balao, #mensagens .msg-voce.com-arquivos, #mensagens .msg-claude .texto-claude:not(.rascunho)')]
+        .map((e) => (e.classList.contains('com-arquivos') ? `## Você\n\n${(e.dataset.texto || '').trim()}` : e.closest('.msg-voce') ? `## Você\n\n${e.innerText.trim()}` : `## Codex\n\n${e.innerText.trim()}`));
       popupExport(partes.join('\n\n'), args || 'conversa-codex.md');
       return FEITO;
     }

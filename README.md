@@ -187,6 +187,11 @@ protocol), so there is no terminal to babysit.
   recording with the sign visible), and when the call releases the microphone it asks whether to stop. It only sees
   the program's name in the sound server, never the audio or the call's title. Screenshots show what you pick in
   the system's dialog at the start (the meeting window or a whole screen), with a thumbnail to check and *Change*.
+  While it records, the helper holds a small camera with a blinking light, and a floating round button stays on
+  the screen edge: one click takes the screenshot right away (drag it to move it). The question "a meeting
+  started, record it?" is asked by the helper itself.
+- **Attached files in your message** show as cards above the text (coloured type badge and file name), like image
+  thumbnails; clicking a card shows the file in its folder.
 - **Throw the desktop helper**: drag it and let go with some speed, and it flies across the screen, bounces on the
   screen edges and lands (other windows are not obstacles).
 - **Load the earlier ones**: a reopened conversation shows its latest 600 messages; a strip at the top says there

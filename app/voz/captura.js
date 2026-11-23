@@ -5,10 +5,21 @@
   const C = window.captura;
   let trilha = null;
   let quadros = null;
+  // O quadro da tela agora. Logo depois de começar, o primeiro quadro pode ainda não ter chegado:
+  // tenta de novo algumas vezes, com uma pausa curta, em vez de falhar.
+  async function quadro() {
+    if (!quadros) throw new Error('a tela não está sendo compartilhada');
+    let erro = null;
+    for (let i = 0; i < 6; i++) {
+      try { return await quadros.grabFrame(); } catch (e) { erro = e; await new Promise((r) => setTimeout(r, 150)); }
+      if (!quadros) break;
+    }
+    throw erro || new Error('a tela não está sendo compartilhada');
+  }
   C.ao(async (m) => {
     if (m.t === 'iniciar') {
       try {
-        const s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false });
+        const s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 10 }, audio: false });
         trilha = s.getVideoTracks()[0];
         trilha.addEventListener('ended', () => { trilha = null; quadros = null; C.r({ t: 'acabou' }); });
         quadros = new ImageCapture(trilha);
@@ -17,8 +28,7 @@
       } catch (e) { C.r({ t: 'iniciou', id: m.id, erro: String((e && e.message) || e) }); }
     } else if (m.t === 'print') {
       try {
-        if (!quadros) throw new Error('a tela não está sendo compartilhada');
-        const bmp = await quadros.grabFrame();
+        const bmp = await quadro();
         const tela = new OffscreenCanvas(bmp.width, bmp.height);
         tela.getContext('2d').drawImage(bmp, 0, 0);
         const png = await tela.convertToBlob({ type: 'image/png' });
@@ -26,8 +36,7 @@
       } catch (e) { C.r({ t: 'print', id: m.id, erro: String((e && e.message) || e) }); }
     } else if (m.t === 'miniatura') {
       try {
-        if (!quadros) throw new Error('a tela não está sendo compartilhada');
-        const bmp = await quadros.grabFrame();
+        const bmp = await quadro();
         const larg = Math.min(360, bmp.width);
         const alt = Math.round((bmp.height * larg) / bmp.width);
         const tela = new OffscreenCanvas(larg, alt);

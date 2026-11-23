@@ -1,5 +1,5 @@
 // Área: recados (voltar atrás num recado para fora que foi negado)
-// 23/11: o Enzo negou sem querer um recado para o Maestro e não havia como voltar atrás. Agora o
+// 23/11: um recado para fora foi negado sem querer e não havia como voltar atrás. Agora o
 // recado negado (e o aviso que o orquestrador recebeu sobre ele) tem "Enviar mesmo assim…", que
 // abre uma confirmação no próprio item; só o clique de verdade em "Enviar" manda. Vale por 7 dias.
 const test = require('node:test');

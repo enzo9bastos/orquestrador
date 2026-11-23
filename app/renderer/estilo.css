@@ -2095,7 +2095,24 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .reuniao-barra .rb-tempo { font-variant-numeric: tabular-nums; color: var(--fg); }
 .reuniao-barra .rb-terminar { border-color: color-mix(in srgb, #e5484d 50%, var(--borda-forte)); }
 .reuniao-barra .rb-fechar { width: 22px; height: 22px; }
-.reuniao-barra.detectada { border-color: color-mix(in srgb, var(--claude) 50%, var(--borda)); background: var(--claude-suave); }
-.reuniao-barra .rb-gravar { border-color: color-mix(in srgb, #e5484d 50%, var(--borda-forte)); }
 #config-voz-motor.erro { color: var(--perigo); }
 #config-sec-voz > .nota { padding: 0 18px; margin: 0 0 6px; }
+/* Arquivos anexados à mensagem: cartões acima do texto, como as miniaturas das imagens (conversa-tela.js). */
+.msg-voce .msg-coluna { display: grid; justify-items: end; gap: 6px; min-width: 0; max-width: var(--lado-voce); }
+.msg-voce .msg-coluna .balao { max-width: 100%; }
+.balao-arquivos { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 100%; }
+.arquivo-msg { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 320px; padding: 7px 14px 7px 7px; border-radius: 12px; border: 1px solid var(--borda); background: var(--painel); color: var(--fg); font: inherit; font-size: 13px; text-align: left; }
+button.arquivo-msg { cursor: pointer; }
+button.arquivo-msg:hover, button.arquivo-msg:focus-visible { border-color: var(--borda-forte); background: var(--painel-hover); }
+.arquivo-msg .arquivo-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arquivo-tipo { flex: none; min-width: 38px; height: 38px; padding: 0 5px; box-sizing: border-box; border-radius: 8px; display: grid; place-items: center; font: 700 10px var(--mono); letter-spacing: .03em; color: #fff; background: #6b7280; }
+.arquivo-tipo.arq-planilha { background: #1f9d55; }
+.arquivo-tipo.arq-pdf { background: #d64545; }
+.arquivo-tipo.arq-texto { background: #3b82f6; }
+.arquivo-tipo.arq-slides { background: #e8730c; }
+.arquivo-tipo.arq-pacote { background: #b7791f; }
+.arquivo-tipo.arq-imagem { background: #8b5cf6; }
+.arquivo-tipo.arq-midia { background: #db2777; }
+.arquivo-tipo.arq-codigo { background: #475569; }
+/* Na caixa, antes de enviar: o mesmo selo, menor. */
+.anexo-arquivo .arquivo-tipo { min-width: 26px; height: 24px; border-radius: 6px; font-size: 9px; }

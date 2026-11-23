@@ -191,6 +191,11 @@ há terminal para vigiar.
   microfone pergunta se termina. Ele só vê o nome do programa no servidor de som, nunca o áudio nem o título da
   ligação. Os prints mostram o que você escolher na janela do sistema no começo (a janela da reunião ou uma tela
   inteira), com a miniatura para conferir e *Trocar*.
+  Enquanto grava, o bichinho segura uma câmera com a luz piscando, e um botão redondo flutuante fica na borda da
+  tela: um clique tira o print na hora (dá para arrastar o botão). A pergunta "começou uma reunião, quer gravar?"
+  é feita pelo próprio bichinho.
+- **Arquivos anexados na sua mensagem** aparecem como cartões acima do texto (selo colorido do tipo e o nome), como
+  as miniaturas das imagens; o clique no cartão mostra o arquivo na pasta dele.
 - **Tacar o bichinho da área de trabalho**: arraste e solte com velocidade, e ele voa pela tela, quica nas bordas
   e cai no chão (as janelas dos outros programas não são obstáculo).
 - **Carregar as anteriores**: a conversa reaberta mostra as últimas 600 mensagens; uma faixa no topo avisa que há

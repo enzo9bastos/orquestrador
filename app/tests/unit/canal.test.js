@@ -263,7 +263,7 @@ test('canal: envio autorizado pelo usuário: confere o trecho; bateu sai, não b
   assert.strictEqual(r3.estado, 'na-fila', 'o que já sai sozinho não precisa conferir');
 });
 
-// 23/11: o Enzo negou sem querer um recado para fora e não havia como voltar atrás (só pedindo ao
+// 23/11: um recado para fora foi negado sem querer e não havia como voltar atrás (só pedindo ao
 // orquestrador para escrever de novo). Agora o recado negado pode sair, pela tela, depois da confirmação.
 test('canal: voltar atrás num recado negado põe na fila e avisa o orquestrador; só negado, só por 7 dias', () => {
   const a = ajustes();

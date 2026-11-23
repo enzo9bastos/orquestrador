@@ -10,8 +10,6 @@
   let e = { gravando: false, processando: [] };
   let pronta = null; // { nota, pasta, assunto } da última nota pronta (fica à vista por um tempo)
   let confirmando = false;
-  let pergunta = null; // { tipo: 'detectada' | 'acabou', nome } — a ligação que o app notou pelo microfone
-  let tPergunta = null;
   let tRelogio = null, tPronta = null;
   const relogio = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600); const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'); const ss = String(s % 60).padStart(2, '0'); return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`; };
   const aviso = (t, tipo) => { if (window.orqConversa && window.orqConversa.aviso) window.orqConversa.aviso(t, tipo); };
@@ -19,15 +17,7 @@
   function desenhar() {
     clearInterval(tRelogio);
     const p = (e.processando || [])[0];
-    if (pergunta && pergunta.tipo === 'detectada' && !e.gravando) {
-      barra.hidden = false;
-      barra.className = 'reuniao-barra detectada';
-      barra.innerHTML = `<span><span>Reunião</span> <span data-sem-traducao>n${esc(pergunta.nome || 'o computador')}</span>?</span> <button type="button" class="botao-texto rb-gravar" data-rb="gravar">Sim, gravar</button> <button type="button" class="botao-texto" data-rb="agora-nao">Agora não</button>`;
-    } else if (e.gravando && pergunta && pergunta.tipo === 'acabou') {
-      barra.hidden = false;
-      barra.className = 'reuniao-barra gravando';
-      barra.innerHTML = `<span class="rb-ponto"></span><span>A ligação acabou? Terminar a gravação?</span> <button type="button" class="botao-texto rb-terminar" data-rb="terminar-sim">Terminar</button> <button type="button" class="botao-texto" data-rb="continuar">Continuar gravando</button>`;
-    } else if (e.gravando) {
+    if (e.gravando) {
       barra.hidden = false;
       barra.className = 'reuniao-barra gravando';
       barra.innerHTML = confirmando
@@ -54,10 +44,8 @@
     if (a === 'print') r = await R.print();
     else if (a === 'marcar') r = await R.marcar('');
     else if (a === 'terminar') { confirmando = true; desenhar(); return; }
-    else if (a === 'continuar') { confirmando = false; pergunta = null; desenhar(); return; }
-    else if (a === 'terminar-sim') { confirmando = false; pergunta = null; r = await R.terminar(); }
-    else if (a === 'gravar') { pergunta = null; r = await R.comecar(''); if (r && !r.erro) aviso('Gravando a reunião. Avise as pessoas que ela está sendo gravada.'); }
-    else if (a === 'agora-nao') { pergunta = null; desenhar(); return; }
+    else if (a === 'continuar') { confirmando = false; desenhar(); return; }
+    else if (a === 'terminar-sim') { confirmando = false; r = await R.terminar(); }
     else if (a === 'nota' && pronta) r = await R.abrir(pronta.nota);
     else if (a === 'fechar') { pronta = null; desenhar(); return; }
     if (r && r.erro) aviso(`Reunião: ${r.erro}`, 'erro');
@@ -70,14 +58,7 @@
       clearTimeout(tPronta);
       tPronta = setTimeout(() => { pronta = null; desenhar(); }, 10 * 60 * 1000);
     }
-    if (e.evento === 'detectada' && !e.gravando) {
-      pergunta = { tipo: 'detectada', nome: e.nome };
-      clearTimeout(tPergunta);
-      tPergunta = setTimeout(() => { if (pergunta && pergunta.tipo === 'detectada') { pergunta = null; desenhar(); } }, 5 * 60 * 1000);
-    }
-    if (e.evento === 'acabou' && e.gravando) pergunta = { tipo: 'acabou', nome: e.nome };
-    if (e.gravando && pergunta && pergunta.tipo === 'detectada') pergunta = null;
-    if (!e.gravando && pergunta && pergunta.tipo === 'acabou') pergunta = null;
+    // "Começou uma reunião? Quer gravar?" e "A ligação acabou?" quem pergunta é o bichinho (ajudante.js).
     if (e.evento === 'comecou-sozinha') aviso(`Comecei a gravar a reunião n${e.nome || 'o computador'}, porque a ligação começou. Avise as pessoas que ela está sendo gravada.`);
     if (e.evento === 'falhou') aviso(`A nota da reunião não saiu: ${e.erro || ''}. O áudio continua na pasta.`, 'erro');
     if (e.evento === 'prints-off' && e.gravando) aviso(`Prints da reunião desligados: ${e.motivo || ''}. A gravação do áudio continua.`);

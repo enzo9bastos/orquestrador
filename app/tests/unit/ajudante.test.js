@@ -16,7 +16,9 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../renderer/pet-visu
 const V = ctx.window.petVisual;
 
 test('pet: guarda-roupa tem 30 itens nas 6 partes do corpo', () => {
-  assert.strictEqual(Object.keys(V.ITENS).length, 30);
+  assert.strictEqual(Object.values(V.ITENS).filter((i) => !i.escondido).length, 30);
+  // A câmera do modo reunião é um item da mão que não aparece no guarda-roupa.
+  assert.deepStrictEqual(Object.entries(V.ITENS).filter(([, i]) => i.escondido).map(([id, i]) => [id, i.parte]), [['camera', 'mao']]);
   const partes = new Set(V.PARTES.map((p) => p[0]));
   for (const [id, i] of Object.entries(V.ITENS)) assert.ok(partes.has(i.parte), id);
   for (const p of partes) assert.ok(Object.values(V.ITENS).some((i) => i.parte === p), p);

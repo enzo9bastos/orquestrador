@@ -184,3 +184,16 @@ test('reunião: o nome da pasta vem do assunto sem acento nem símbolo', () => {
   assert.strictEqual(reuniao.slug(''), '');
   assert.strictEqual(reuniao.minSeg(3725), '1:02:05');
 });
+
+// 23/11: botão flutuante de print — cliques seguidos no mesmo segundo não disputam o nome do arquivo.
+test('reunião: prints seguidos no mesmo segundo ganham nomes diferentes, todos guardados', async () => {
+  const lentos = [];
+  const { r } = montar({ capturar: (arquivo) => new Promise((ok) => { lentos.push(() => { fs.writeFileSync(arquivo, PNG, { flag: 'wx' }); ok(); }); }) });
+  const { pasta } = await r.comecar({});
+  const ps = [r.print(), r.print(), r.print()];
+  await new Promise((x) => setTimeout(x, 10));
+  for (const f of lentos) f();
+  const res = await Promise.all(ps);
+  assert.deepStrictEqual(res.map((x) => path.basename(x.arquivo)).sort(), ['00-00-2.png', '00-00-3.png', '00-00.png']);
+  assert.strictEqual(meta(pasta).prints.length, 3);
+});

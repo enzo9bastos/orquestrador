@@ -162,3 +162,61 @@ test('bichinho: reunião detectada, fim da ligação, miniatura da tela e arreme
     assert.ok(e.pos.x < antes.pos.x - 100, `foi para a esquerda: ${antes.pos.x} → ${e.pos.x}`);
   });
 });
+
+// 23/11: gravando, ele segura uma câmera; e um botão flutuante tira o print com um clique.
+test('bichinho: câmera na mão enquanto grava e botão flutuante de print', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
+  const env = { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') };
+  delete env.WAYLAND_DISPLAY;
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env });
+  t.after(() => p.kill());
+  const recebidas = [];
+  readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
+  const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
+  const espera = async (fn, ms = 10000) => { for (let i = 0; i < ms / 100; i++) { const r = recebidas.find(fn); if (r) return r; await new Promise((x) => setTimeout(x, 100)); } throw new Error(`não chegou: ${fn}`); };
+  const js = async (codigo, t2 = 'js') => { const i = recebidas.length; manda({ t: t2, codigo }); return (await espera((m, k) => k >= i && m.t === 'js')).r; };
+  const estado = async () => { const i = recebidas.length; manda({ t: 'estado' }); return espera((m, k) => k >= i && m.t === 'estado'); };
+  const dorme = (ms) => new Promise((x) => setTimeout(x, ms));
+  const gravando = (x = {}) => ({ gravando: true, inicio: Date.now(), prints: 0, marcas: 0, printsLigados: true, processando: [], ...x });
+  await espera((m) => m.t === 'iniciado', 20000);
+  manda({ t: 'visual', visual: { cor: 'azul', itens: { mao: 'caneca' } }, tema: 'dark' });
+  await dorme(300);
+
+  await t.test('sem gravar: na mão, o que ele já tinha; nada de botão flutuante', async () => {
+    assert.strictEqual(await js("!!document.querySelector('#pet .item-caneca') && !document.querySelector('#pet .item-camera')"), true);
+    assert.strictEqual((await estado()).botao, null);
+  });
+
+  await t.test('gravando: a câmera no lugar da caneca, com a luz vermelha; o botão flutuante aparece na borda direita', async () => {
+    manda({ t: 'reuniao', estado: gravando({ evento: 'comecou' }) });
+    for (let i = 0; i < 30 && !(await js("!!document.querySelector('#pet .item-camera')")); i++) await dorme(100);
+    assert.strictEqual(await js("!!document.querySelector('#pet .item-camera .rec-luz') && !document.querySelector('#pet .item-caneca')"), true);
+    let e = await estado();
+    for (let i = 0; i < 30 && !e.botao; i++) { await dorme(100); e = await estado(); }
+    assert.ok(e.botao && e.botao.width === 64, JSON.stringify(e.botao));
+    const larg = await js('screen.availWidth');
+    assert.ok(e.botao.x + e.botao.width >= larg - 30, `na borda direita: ${e.botao.x}`);
+  });
+
+  await t.test('um clique no botão pede o print ao app na hora; a conta de prints aparece nele', async () => {
+    await dorme(500);
+    await js("(() => { const b = document.getElementById('b'); b.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, pointerId: 1, screenX: 10, screenY: 10 })); b.dispatchEvent(new PointerEvent('pointerup', { button: 0, bubbles: true, pointerId: 1, screenX: 10, screenY: 10 })); return b.classList.contains('flash'); })()", 'js-botao');
+    const r = await espera((m) => m.t === 'reuniao' && m.acao === 'print');
+    assert.match(r.id, /^botao-\d+$/);
+    manda({ t: 'reuniao', estado: gravando({ prints: 3, evento: 'print' }) });
+    for (let i = 0; i < 20 && (await js("document.getElementById('n').textContent", 'js-botao')) !== '3'; i++) await dorme(100);
+    assert.strictEqual(await js("document.getElementById('n').textContent", 'js-botao'), '3');
+    // Erro do app: o botão fica cinza e diz por quê.
+    manda({ t: 'reuniaoResposta', id: r.id, acao: 'print', erro: 'a tela não está sendo compartilhada' });
+    for (let i = 0; i < 20 && !(await js("document.getElementById('b').classList.contains('erro')", 'js-botao')); i++) await dorme(100);
+    assert.strictEqual(await js("document.getElementById('b').title", 'js-botao'), 'a tela não está sendo compartilhada');
+  });
+
+  await t.test('prints desligados ou fim da gravação: o botão some e a caneca volta', async () => {
+    manda({ t: 'reuniao', estado: gravando({ printsLigados: false, evento: 'prints-off' }) });
+    await dorme(300);
+    assert.strictEqual((await estado()).botao, null);
+    manda({ t: 'reuniao', estado: { gravando: false, processando: [], evento: 'parou' } });
+    for (let i = 0; i < 30 && !(await js("!!document.querySelector('#pet .item-caneca')")); i++) await dorme(100);
+    assert.strictEqual(await js("!document.querySelector('#pet .item-camera')"), true);
+  });
+});

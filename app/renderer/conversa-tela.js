@@ -65,6 +65,41 @@
     caixa.append(el);
   }
 
+  // Arquivos anexados à mensagem (pedido de 23/11): no balão eles eram uma linha "📎 nome" (ao vivo)
+  // ou a lista crua de caminhos (conversa reaberta). Agora são cartões acima do texto, como as
+  // miniaturas das imagens. O texto guardado no balão (dataset.texto) continua o mesmo: é ele que o
+  // "voltar" confere e que o exportar usa.
+  const anexosPorTexto = new Map(); // texto do balão → [{ nome, caminho }], do que foi anexado nesta abertura do app
+  const FAMILIAS_DE_ARQUIVO = [
+    [/^(xlsx?|xlsm|ods|csv|tsv)$/, 'planilha'], [/^pdf$/, 'pdf'], [/^(docx?|odt|rtf|txt|md)$/, 'texto'], [/^(pptx?|odp|key)$/, 'slides'],
+    [/^(zip|7z|rar|tar|gz|tgz|bz2|xz)$/, 'pacote'], [/^(png|jpe?g|gif|webp|svg|bmp|heic)$/, 'imagem'],
+    [/^(mp3|wav|ogg|opus|m4a|flac|mp4|mkv|mov|webm|avi)$/, 'midia'],
+    [/^(json|ya?ml|xml|html?|css|js|ts|tsx|jsx|py|sh|sql|go|rs|java|c|cpp|h|php|rb|toml|ini|log)$/, 'codigo'],
+  ];
+  // A etiqueta do tipo (a extensão, até 4 letras) e a família, que dá a cor.
+  function tipoDoArquivo(nome) {
+    const m = /\.([A-Za-z0-9]{1,8})$/.exec(String(nome || ''));
+    const ext = m ? m[1].toLowerCase() : '';
+    const f = FAMILIAS_DE_ARQUIVO.find(([re]) => re.test(ext));
+    return { etiqueta: ext ? ext.slice(0, 4).toUpperCase() : '•', familia: f ? f[1] : 'outro' };
+  }
+  const seloDoArquivo = (nome) => { const t = tipoDoArquivo(nome); return `<span class="arquivo-tipo arq-${t.familia}" data-sem-traducao>${esc(t.etiqueta)}</span>`; };
+  function separarArquivos(t) {
+    const s = String(t);
+    // Conversa reaberta: o que foi ao Claude termina com a lista de caminhos.
+    let m = /^([\s\S]*?)(?:\n\n)?Arquivos anexados \(leia do disco\):\n((?:- [^\n]+(?:\n|$))+)$/.exec(s);
+    if (m) return { corpo: m[1], arquivos: m[2].trim().split('\n').map((l) => l.replace(/^- /, '')).map((c) => ({ nome: c.split('/').pop() || c, caminho: c })) };
+    // Ao vivo: o balão termina com a linha "📎 nome, nome".
+    m = /^([\s\S]*?)(?:^|\n)📎 ([^\n]+)$/.exec(s);
+    if (m) return { corpo: m[1], arquivos: anexosPorTexto.get(s) || m[2].split(', ').map((n) => ({ nome: n, caminho: '' })) };
+    return { corpo: s, arquivos: [] };
+  }
+  function cartoesDeArquivo(arquivos) {
+    return arquivos.map((a) => (a.caminho
+      ? `<button type="button" class="arquivo-msg" data-abrir-anexo="${esc(a.caminho)}" title="${esc(a.caminho)}">${seloDoArquivo(a.nome)}<span class="arquivo-nome" data-sem-traducao>${esc(a.nome)}</span></button>`
+      : `<div class="arquivo-msg" title="${esc(a.nome)}">${seloDoArquivo(a.nome)}<span class="arquivo-nome" data-sem-traducao>${esc(a.nome)}</span></div>`)).join('');
+  }
+
   function balaoUsuario(texto) {
     // Mensagem que um workflow mandou por trás: não é do usuário, vira só uma
     // linha discreta (abre para ver o texto).
@@ -120,9 +155,17 @@
     grupo = null;
     const el = document.createElement('div');
     el.className = 'msg-voce';
-    el.innerHTML = u.comando
-      ? `<div class="balao comando"><svg class="ico"><use href="#i-terminal"/></svg>${esc(u.comando)}</div>`
-      : `<button class="editar-msg" type="button" aria-label="Editar" title="Voltar a conversa para antes desta mensagem e corrigir"></button><div class="balao">${esc(u.texto)}</div>`;
+    const anexo = u.comando ? { corpo: '', arquivos: [] } : separarArquivos(u.texto);
+    if (anexo.arquivos.length) {
+      // Os cartões em cima e, se houver, o texto embaixo (sem a linha do anexo).
+      el.classList.add('com-arquivos');
+      el.innerHTML = `<button class="editar-msg" type="button" aria-label="Editar" title="Voltar a conversa para antes desta mensagem e corrigir"></button>
+        <div class="msg-coluna"><div class="balao-arquivos">${cartoesDeArquivo(anexo.arquivos)}</div>${anexo.corpo.trim() ? `<div class="balao">${esc(anexo.corpo.replace(/\n+$/, ''))}</div>` : ''}</div>`;
+    } else {
+      el.innerHTML = u.comando
+        ? `<div class="balao comando"><svg class="ico"><use href="#i-terminal"/></svg>${esc(u.comando)}</div>`
+        : `<button class="editar-msg" type="button" aria-label="Editar" title="Voltar a conversa para antes desta mensagem e corrigir"></button><div class="balao">${esc(u.texto)}</div>`;
+    }
     if (!u.comando) el.dataset.texto = u.texto;
     caixa.append(el);
   }
@@ -2006,7 +2049,7 @@
     $('anexos').hidden = !anexos.length && !arquivosAnexos.length;
     $('anexos').innerHTML = anexos.map((a, i) => `<div class="anexo"><img src="data:${a.tipo};base64,${a.dados}" alt="imagem anexada">
       <button type="button" data-tirar-anexo="${i}" aria-label="Tirar imagem" title="Tirar">✕</button></div>`).join('')
-      + arquivosAnexos.map((a, i) => `<div class="anexo anexo-arquivo" title="${esc(a.caminho)}"><span class="anexo-icone">📄</span><span class="anexo-nome">${esc(a.nome)}</span>
+      + arquivosAnexos.map((a, i) => `<div class="anexo anexo-arquivo" title="${esc(a.caminho)}">${seloDoArquivo(a.nome)}<span class="anexo-nome">${esc(a.nome)}</span>
       <button type="button" data-tirar-arquivo="${i}" aria-label="Tirar arquivo" title="Tirar">✕</button></div>`).join('');
   }
   function anexarCaminho(nome, caminho) {
@@ -2521,6 +2564,8 @@
     if (arquivos.length) {
       e.enviar = `${e.enviar}${e.enviar ? '\n\n' : ''}Arquivos anexados (leia do disco):\n${arquivos.map((a) => `- ${a.caminho}`).join('\n')}`;
       e.exibir = `${e.exibir || t}${t ? '\n' : ''}📎 ${arquivos.map((a) => a.nome).join(', ')}`;
+      anexosPorTexto.set(e.exibir, arquivos.map((a) => ({ nome: a.nome, caminho: a.caminho })));
+      if (anexosPorTexto.size > 200) anexosPorTexto.delete(anexosPorTexto.keys().next().value);
     }
     await C.daCaixa(ativa, e.enviar, imagens, e.exibir, { agora });
   });
@@ -2528,6 +2573,13 @@
     const ja = ev.target.closest('[data-fila-ja]'), tirar = ev.target.closest('[data-fila-tirar]');
     if (ja) { ja.disabled = true; await C.fila(ativa, 'ja', ja.dataset.filaJa); }
     else if (tirar) { tirar.disabled = true; await C.fila(ativa, 'tirar', tirar.dataset.filaTirar); }
+  });
+  // Cartão de arquivo anexado no balão: mostra o arquivo na pasta dele (nada é aberto nem rodado).
+  caixa.addEventListener('click', async (ev) => {
+    const c = ev.target.closest('[data-abrir-anexo]');
+    if (!c || !window.orq.abrirCaminho) return;
+    const ok = await window.orq.abrirCaminho(c.dataset.abrirAnexo, {});
+    if (!ok) aviso(`Não achei mais este arquivo: ${c.dataset.abrirAnexo}`, 'erro');
   });
   $('faixa-fila').addEventListener('click', () => { const q = caixa.querySelector('.msg-fila'); if (q) q.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
   // Interromper (botão Parar ou Esc): a tela diz o que isso significa.

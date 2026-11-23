@@ -44,11 +44,26 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     await janela.loadFile(path.join(__dirname, 'voz', 'captura.html'));
     const res = await pedir({ t: 'iniciar' }, 120000);
     if (res.erro) { fecharCaptura(); return { erro: res.erro }; }
-    // A miniatura do que foi escolhido, para a pessoa conferir se é a tela da reunião.
-    const mini = await pedir({ t: 'miniatura' });
-    tela = mini.erro ? null : { miniatura: mini.dataUrl, largura: res.largura, altura: res.altura };
-    avisarTudo({ ...r.estado(), evento: 'tela', tela });
+    // A miniatura do que foi escolhido, para a pessoa conferir se é a tela da reunião. Sai em
+    // seguida, sem segurar o começo da gravação nem os prints.
+    tamanhoDaTela = { largura: res.largura, altura: res.altura };
+    tirarMiniatura().catch(() => {});
     return { ok: true };
+  }
+  let tamanhoDaTela = null;
+  async function tirarMiniatura() {
+    const minha = janela;
+    for (let i = 0; i < 4 && janela && janela === minha; i++) {
+      const mini = await pedir({ t: 'miniatura' });
+      if (janela !== minha) return null;
+      if (!mini.erro && mini.dataUrl) {
+        tela = { miniatura: mini.dataUrl, ...(tamanhoDaTela || {}) };
+        avisarTudo({ ...r.estado(), evento: 'tela', tela });
+        return tela;
+      }
+      await new Promise((x) => setTimeout(x, 500));
+    }
+    return null;
   }
   function fecharCaptura() {
     if (!janela) return;
@@ -160,7 +175,7 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
   ipcMain.handle('reuniao:terminar', seguro(async () => terminar()));
   ipcMain.handle('reuniao:abrir', seguro(async (caminho) => abrir(caminho)));
   ipcMain.handle('reuniao:trocarTela', seguro(async () => trocarTela()));
-  ipcMain.handle('reuniao:tela', () => tela);
+  ipcMain.handle('reuniao:tela', async () => tela || (janela ? tirarMiniatura().catch(() => null) : null));
   ipcMain.handle('reuniao:voz', seguro(async (deNovo) => {
     const c = config.ler();
     const m = transcricao.maquina();

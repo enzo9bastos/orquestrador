@@ -283,11 +283,18 @@
   let rnUltima = null; // { nota, pasta, assunto } da última nota pronta
   let rnPedido = 0;
   let rnMini = null; // miniatura da tela ou janela que os prints mostram
+  let visualAtual = null;
+  // Gravando, ele segura a câmera (no lugar do que estiver na mão), com a luz vermelha piscando.
+  function desenharVisual() {
+    if (!visualAtual) return;
+    const v = rn.gravando ? { ...visualAtual, itens: { ...(visualAtual.itens || {}), mao: 'camera' } } : visualAtual;
+    vira.innerHTML = window.petVisual.svg(v);
+  }
   let tRec = null;
   const relogio = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600); const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'); const ss = String(s % 60).padStart(2, '0'); return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`; };
   function pintarRec() {
     $('rec').hidden = !rn.gravando;
-    classe('gravando', !!rn.gravando);
+    if (pet.classList.contains('gravando') !== !!rn.gravando) { classe('gravando', !!rn.gravando); desenharVisual(); }
     $('menu-reuniao').textContent = rn.gravando ? tr('🎙 Reunião (gravando)') : tr('🎙 Gravar reunião');
     clearInterval(tRec);
     if (rn.gravando) {
@@ -408,7 +415,8 @@
   A.aoMsg((m) => {
     if (m.t === 'visual') {
       if (m.idioma && window.orqI18n && window.orqI18n.idioma() !== m.idioma) window.orqI18n.definir(m.idioma, '../renderer/i18n/');
-      vira.innerHTML = window.petVisual.svg(m.visual);
+      visualAtual = m.visual;
+      desenharVisual();
       pet.dataset.especie = window.petVisual.limpar(m.visual).especie;
       document.documentElement.dataset.theme = m.tema || 'dark';
       if (m.destaque) document.documentElement.style.setProperty('--claude', m.destaque);

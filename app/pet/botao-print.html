@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Print da reunião</title>
+  <style>
+    html, body { margin: 0; background: transparent; overflow: hidden; user-select: none; }
+    #b { position: absolute; inset: 6px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .85); background: #c62828; color: #fff; font: 600 20px system-ui, sans-serif; display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, .45); touch-action: none; }
+    #b:hover { background: #d93636; }
+    #b.flash { animation: flash .35s ease-out; }
+    @keyframes flash { 0% { background: #fff; transform: scale(.88); } 100% { background: #c62828; transform: scale(1); } }
+    #n { position: absolute; right: 0; top: 0; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; background: #fff; color: #c62828; font: 700 11px system-ui, sans-serif; display: grid; place-items: center; }
+    #n[hidden] { display: none; }
+    #b.erro { background: #555; }
+  </style>
+</head>
+<body>
+  <!-- Botão flutuante do modo reunião: um clique tira o print na hora; arrastar muda o lugar. -->
+  <div id="b" role="button" aria-label="Print da tela agora" title="Print da tela agora (arraste para mudar de lugar)">📷</div>
+  <span id="n" hidden></span>
+  <script src="../renderer/i18n.js"></script>
+  <script src="botao-print.js"></script>
+</body>
+</html>

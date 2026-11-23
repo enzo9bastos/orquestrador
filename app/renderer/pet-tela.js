@@ -81,7 +81,7 @@
           ${'fixa' in V.ESPECIES[visual.especie] ? `<p class="gr-cor-fixa">Esta espécie tem a cor dela. Só o Clássico muda de cor.</p>` : `<div class="gr-cores">${V.CORES.map(([k, nome, cor]) => `<button type="button" class="gr-cor${visual.cor === k ? ' ativa' : ''}" data-gr-cor="${k}" title="${esc(nome)}" aria-label="${esc(nome)}" style="--c:${cor || 'var(--claude)'}"></button>`).join('')}</div>`}</div>
         <div class="gr-partes">${V.PARTES.map(([parte, rot]) => `<section><div class="menu-titulo">${rot}</div><div class="gr-itens">
           <button type="button" class="gr-item${visual.itens[parte] ? '' : ' ativo'}" data-gr-parte="${parte}" data-gr-item=""><span class="gr-nada">—</span><span>Nenhum</span></button>
-          ${Object.entries(V.ITENS).filter(([, i]) => i.parte === parte).map(([id, i]) => `<button type="button" class="gr-item${visual.itens[parte] === id ? ' ativo' : ''}" data-gr-parte="${parte}" data-gr-item="${id}" title="${esc(i.nome)}">${V.miniatura(id)}<span>${esc(i.nome)}</span></button>`).join('')}
+          ${Object.entries(V.ITENS).filter(([, i]) => i.parte === parte && !i.escondido).map(([id, i]) => `<button type="button" class="gr-item${visual.itens[parte] === id ? ' ativo' : ''}" data-gr-parte="${parte}" data-gr-item="${id}" title="${esc(i.nome)}">${V.miniatura(id)}<span>${esc(i.nome)}</span></button>`).join('')}
         </div></section>`).join('')}
         <section class="gr-fora"><div class="menu-titulo">Fora do app</div>
           <label class="marcar"><input type="checkbox" data-avisar-fora> Vir à tela quando houver pendência e o app estiver fora de foco</label>
@@ -122,7 +122,7 @@
       const itens = {};
       for (const [parte] of V.PARTES) {
         if (Math.random() < 0.45) continue;
-        const ops = Object.keys(V.ITENS).filter((id) => V.ITENS[id].parte === parte);
+        const ops = Object.keys(V.ITENS).filter((id) => V.ITENS[id].parte === parte && !V.ITENS[id].escondido);
         itens[parte] = ops[Math.floor(Math.random() * ops.length)];
       }
       const cor = V.CORES[Math.floor(Math.random() * V.CORES.length)][0];

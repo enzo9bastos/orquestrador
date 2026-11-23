@@ -111,9 +111,11 @@
     varinha: { parte: 'mao', nome: 'Varinha mágica', px: [[12, -1, 1, 4, '#5d4037'], [12, -2, 1, 1, '#f1c40f'], [13, -3, 1, 1, '#fdcb6e'], [11, -3, 1, 1, '#fdcb6e']] },
     notebook: { parte: 'mao', nome: 'Notebook', px: [[12, 0, 3, 3, '#636e72'], [12.4, 0.4, 2.2, 2.2, '#74b9ff'], [11, 3, 4, 1, '#b2bec3']] },
     balao: { parte: 'mao', nome: 'Balão', px: [[12, 0, 0.5, 3, '#b2bec3'], [11, -4, 3, 3, '#e84393'], [11, -4, 1, 1, '#fd79a8'], [12, -1, 1, 1, '#e84393']] },
+    // Só no modo reunião (o bichinho da área de trabalho segura enquanto grava): fora do guarda-roupa.
+    camera: { parte: 'mao', nome: 'Câmera', escondido: true, px: [[11.5, 0.6, 3.2, 2.2, '#2d3436'], [12, 0, 1.6, 0.6, '#636e72'], [14.7, 1, 1.1, 1.4, '#636e72'], [15, 1.3, 0.6, 0.8, '#74b9ff'], [11.9, 1, 0.7, 0.7, '#e5484d', null, 'rec-luz'], [11.5, 2.8, 0.8, 0.7, '#2d3436']] },
   };
 
-  const rects = (lista) => lista.map(([x, y, w, h, c, o]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"${o ? ` opacity="${o}"` : ''}/>`).join('');
+  const rects = (lista) => lista.map(([x, y, w, h, c, o, cls]) => `<rect${cls ? ` class="${cls}"` : ''} x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"${o ? ` opacity="${o}"` : ''}/>`).join('');
   const item = (id) => (ITENS[id] ? `<g class="item item-${id}">${rects(ITENS[id].px)}</g>` : '');
 
   // visual: { cor, itens: { parte: id } }

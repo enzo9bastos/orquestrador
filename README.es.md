@@ -198,6 +198,11 @@ que no hay ninguna terminal que vigilar.
   y cuando la llamada suelta el micrófono pregunta si termina. Solo ve el nombre del programa en el servidor de
   sonido, nunca el audio ni el título de la llamada. Las capturas muestran lo que elijas en el diálogo del sistema
   al empezar (la ventana de la reunión o una pantalla entera), con una miniatura para revisar y *Change*.
+  Mientras graba, la mascota sostiene una cámara con la luz parpadeando, y un botón redondo flotante queda en el
+  borde de la pantalla: un clic toma la captura al instante (se puede arrastrar). La pregunta "empezó una reunión,
+  ¿grabar?" la hace la propia mascota.
+- **Los archivos adjuntos en tu mensaje** aparecen como tarjetas sobre el texto (etiqueta de color con el tipo y el
+  nombre), como las miniaturas de las imágenes; un clic en la tarjeta muestra el archivo en su carpeta.
 - **Lanzar la mascota del escritorio**: arrástrala y suéltala con velocidad, y vuela por la pantalla, rebota en los
   bordes y cae al suelo (las ventanas de otros programas no son obstáculo).
 - **Load the earlier ones**: la conversación reabierta muestra sus últimos 600 mensajes; una franja arriba avisa
