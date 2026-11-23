@@ -4,6 +4,21 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.14.0 (2026-11-23)
+
+- Stash the draft, as in the terminal: Ctrl+S takes what you are writing out of the message box and keeps
+  it; with the box empty, the same shortcut brings it back, and after you send another message it comes back
+  by itself. If the box has other text, the two swap places, so nothing is lost. A marker above the box
+  shows that a draft is kept. It lives in memory only, while the app is open.
+- Write the message in the text editor: Ctrl+G opens the text of the message box in the computer's text
+  editor, easier for a long message. Every time you save there, the text shows up in the box; the same
+  shortcut or "Done" ends it. The text travels through a temporary file of the app that only you can read,
+  removed when you finish, and what comes from the editor is always plain text (never a "!" command).
+- Both shortcuts can be changed or turned off in Settings › Shortcuts.
+- When Claude's login expires, the conversation shows one card in plain words instead of the same English error
+  twice per message: "Sign in again" pastes `claude auth login` into the app's terminal (it does not run by
+  itself) and "Try again" restarts Claude in that conversation. Repeated failures update the same card.
+
 ## 0.13.0 (2026-11-18)
 
 - The message box now remembers what you wrote before. With the box empty, ↑ walks back through what you
