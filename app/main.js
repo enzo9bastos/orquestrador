@@ -911,6 +911,8 @@ ipcMain.handle('recados:pasta-anexos', () => {
 ipcMain.handle('canal:estado', () => situacaoCanal());
 ipcMain.handle('recados:lista', () => recados.ler());
 ipcMain.handle('recados:vezes', () => recados.lerVezes());
+// "Enviar mesmo assim" num recado para fora que foi negado (a tela já pediu a confirmação).
+ipcMain.handle('recados:voltarAtras', (_e, id) => { try { recados.voltarAtrasExterno(id); cicloRecados(); cicloCanal(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
 ipcMain.handle('recados:liberar', (_e, id) => { try { recados.liberar(id); cicloRecados(); return { ok: true }; } catch (e) { return { erro: e.message }; } });
 ipcMain.handle('recados:projetos', () => coletor.projetos().map((p) => ({ alvo: p.alvo, notas: recados.memoria(p.dir, { max: 1000 }).length })));
 ipcMain.handle('recados:memoria', (_e, alvo) => {

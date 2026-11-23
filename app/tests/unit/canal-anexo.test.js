@@ -590,3 +590,18 @@ test('cópia de envio: com falha, a cópia fica para reenviar; só a pasta do re
   assert.ok(fs.existsSync(path.join(vizinha, 'a.png')));
   assert.strictEqual(anexo.apagarSaida('nao-existe'), 0);
 });
+
+// 23/11: voltar atrás num recado negado com anexo: só sai se a cópia guardada for a mesma de antes,
+// e sai marcado como aprovado pelo usuário (é a confirmação dele na tela).
+test('trava: voltar atrás num recado negado com anexo confere a cópia e marca como aprovado por você', () => {
+  const r = recados.pedirExterno({ contato: contato(), texto: 'segue o print', anexos: [{ nome: 'tela.png', tipo: 'png', buf: ex.png() }] });
+  recados.decidir(r.id, false, '');
+  recados.voltarAtrasExterno(r.id);
+  const na = recados.externosNaFila().find((x) => x.id === r.id);
+  assert.ok(na && na.aprovadoPorUsuario === true);
+  const r2 = recados.pedirExterno({ contato: contato(), texto: 'outro print', anexos: [{ nome: 'b.png', tipo: 'png', buf: ex.png() }] });
+  recados.decidir(r2.id, false, '');
+  fs.appendFileSync(r2.anexos[0].arquivo, Buffer.from('mudou depois'));
+  assert.throws(() => recados.voltarAtrasExterno(r2.id));
+  assert.strictEqual(recados.ler().find((x) => x.id === r2.id).estado, 'negado', 'cópia mudada: continua negado');
+});

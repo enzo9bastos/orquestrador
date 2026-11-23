@@ -2079,3 +2079,7 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .compositor.editando-fora-ligado .caixa-entrada { border-style: dashed; }
 .compositor.editando-fora-ligado .caixa-entrada textarea { color: var(--fg-3); }
 .historico-item[aria-selected="true"] .historico-texto { color: var(--fg); }
+/* Recado para fora negado: "Enviar mesmo assim…" e a confirmação no próprio item (recados-tela.js). */
+.recado .recado-voltar { margin: 6px 0 0; }
+.recado-voltar-confirma { margin-top: 8px; display: grid; gap: 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, #d29922 45%, var(--borda)); background: color-mix(in srgb, #d29922 8%, transparent); font-size: 12.5px; color: var(--fg-2); }
+.recado-voltar-confirma .acoes { display: flex; gap: 8px; }

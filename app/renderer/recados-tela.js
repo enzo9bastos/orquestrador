@@ -112,6 +112,24 @@
     $('recados-linha').innerHTML = lista.map(itemRecado).join('');
     preencherMiniaturas();
   }
+  // Recado para fora que foi negado (pedido de 23/11: "neguei sem querer"): "Enviar mesmo assim…"
+  // abre uma confirmação no próprio item, e só o clique de verdade em "Enviar" manda. Aparece no
+  // recado e no aviso que o orquestrador recebeu sobre ele, por 7 dias (o motor confere de novo).
+  const PRAZO_VOLTAR_ATRAS = 7 * 24 * 60 * 60 * 1000;
+  const confirmandoVolta = new Set(); // ids dos itens com a confirmação aberta
+  function blocoVoltarAtras(r) {
+    const original = r.canal && r.para.tipo === 'externo' ? r : (r.tipo === 'negado' && r.envio ? recados.find((x) => x.id === r.envio) : null);
+    if (!original) return '';
+    if (original.voltouAtras) return `<div class="nota recado-motivo">${r === original ? 'Você tinha negado e voltou atrás: este recado saiu depois.' : 'Você voltou atrás depois: o recado saiu.'}</div>`;
+    if (original.estado !== 'negado' || Date.now() - original.ts > PRAZO_VOLTAR_ATRAS) return '';
+    if (confirmandoVolta.has(r.id)) {
+      return `<div class="pedido-decidir recado-voltar-confirma" role="group" aria-label="Confirmar o envio">
+        <span><span>Este recado vai sair deste computador para</span> <strong data-sem-traducao>${esc(original.para.nome)}</strong><span>. Enviar agora?</span></span>
+        <div class="acoes"><button type="button" class="botao secundario" data-rc-voltar-cancelar="${esc(r.id)}">Cancelar</button>
+        <button type="button" class="botao primario" data-rc-voltar-enviar="${esc(original.id)}" data-rc-item="${esc(r.id)}">Enviar</button></div></div>`;
+    }
+    return `<button type="button" class="botao-texto recado-voltar" data-rc-voltar="${esc(r.id)}">Enviar mesmo assim…</button>`;
+  }
   const CLASSE = { ciente: 'ciente', informacao: 'informação', pedido: 'pedido', decisao: 'decisão' };
   function itemRecado(r) {
     return `<li class="recado recado-${esc(r.estado)} recado-tipo-${esc(r.tipo)}" data-id="${esc(r.id)}">
@@ -135,6 +153,7 @@
         <div class="acoes"><button type="button" class="botao secundario" data-rc-decidir="${esc(r.id)}" data-aprovar="0">Negar</button>
         <button type="button" class="botao primario" data-rc-decidir="${esc(r.id)}" data-aprovar="1">Aprovar</button></div></div>` : ''}
       ${r.semAprovacao ? '<div class="nota recado-motivo">Saiu sem aprovação, pela regra que você escolheu.</div>' : ''}
+      ${blocoVoltarAtras(r)}
     </li>`;
   }
 
@@ -196,6 +215,26 @@
       d.disabled = true;
       const r = await R.decidir(id, d.dataset.aprovar === '1', campo ? campo.value : '');
       if (r && r.erro) { d.disabled = false; d.textContent = r.erro; return; }
+      await carregar();
+      return;
+    }
+    const vo = ev.target.closest('[data-rc-voltar]');
+    if (vo) {
+      confirmandoVolta.add(vo.dataset.rcVoltar);
+      desenharLinha();
+      const enviar = document.querySelector(`[data-rc-item="${CSS.escape(vo.dataset.rcVoltar)}"]`);
+      if (enviar) enviar.focus();
+      return;
+    }
+    const vc = ev.target.closest('[data-rc-voltar-cancelar]');
+    if (vc) { confirmandoVolta.delete(vc.dataset.rcVoltarCancelar); desenharLinha(); return; }
+    const ve = ev.target.closest('[data-rc-voltar-enviar]');
+    if (ve) {
+      if (!ev.isTrusted) return; // só o clique de verdade manda para fora
+      ve.disabled = true;
+      const r = await R.voltarAtras(ve.dataset.rcVoltarEnviar);
+      if (r && r.erro) { ve.disabled = false; ve.textContent = r.erro; return; }
+      confirmandoVolta.delete(ve.dataset.rcItem);
       await carregar();
       return;
     }

@@ -584,6 +584,21 @@ function decidirExterno(id, aprovar, nota = '') {
   mudar(id, { estado: 'negado', motivo: null, nota: n });
   avisarOrquestradorDoEnvio(r, `O usuário NÃO deixou sair o recado para ${r.para.nome}: «${r.texto.slice(0, 300)}»${n ? `\nMotivo/orientação: ${n}` : '\n(sem motivo)'}`, 'negado');
 }
+// Voltar atrás num recado para fora que o usuário negou (pedido de 23/11: "neguei sem querer").
+// Só pela tela, depois da confirmação dela; vale por 7 dias desde o pedido. Com anexo, a cópia
+// guardada tem de ser a mesma de antes. O recado vai para a fila como se tivesse sido aprovado,
+// e o orquestrador fica sabendo que ele saiu (para não mandar de novo).
+const PRAZO_VOLTAR_ATRAS = 7 * 24 * 60 * 60 * 1000;
+function voltarAtrasExterno(id, agora = Date.now()) {
+  const r = externoPorId(id);
+  if (!r) throw new Error('recado não encontrado');
+  if (r.estado !== 'negado') throw new Error('este recado não está negado');
+  if (agora - r.ts > PRAZO_VOLTAR_ATRAS) throw new Error('negado há mais de 7 dias: peça ao orquestrador para escrever de novo');
+  const temAnexo = r.anexos && r.anexos.length;
+  if (temAnexo) for (const x of r.anexos) { const c = canalAnexo.conferirCopia(x); if (c.erro) throw new Error(c.erro); }
+  mudar(id, { estado: 'na-fila', motivo: null, voltouAtras: agora, ...(temAnexo ? { aprovadoPorUsuario: true } : {}) });
+  avisarOrquestradorDoEnvio(r, `O usuário voltou atrás e deixou sair o recado para ${r.para.nome} que tinha negado: «${r.texto.slice(0, 300)}». Ele sai agora pelo canal; não mande de novo.`, 'aviso');
+}
 const conferindoExternos = () => ler(5000).filter((x) => x.canal && x.para.tipo === 'externo' && x.estado === 'conferindo');
 function conferirAutorizacao(id, achou) {
   const r = externoPorId(id);
@@ -774,4 +789,4 @@ function lembrar(dir, { titulo, texto, tipo = 'decisao', autor = 'orquestrador' 
   throw new Error('não achei um nome livre para a nota');
 }
 
-module.exports = { aprovacaoRecente, conferindoExternos, conferirAutorizacao, ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, pedir, decidirPedido, decidir, pedirExterno, decidirExterno, externosNaFila, anexoEnviado, anexosParaBaixar, anexoBaixado, anexoFalhou, comAnexoPorId, concluirExterno, adiarExterno, recebidoExterno, pedidosNaFila, pedidosRodando, marcarRodando, largarRodando, concluirPedido, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };
+module.exports = { voltarAtrasExterno, PRAZO_VOLTAR_ATRAS, aprovacaoRecente, conferindoExternos, conferirAutorizacao, ler, lerVezes, recolher, entregar, embrulho, liberar, instalar, escreverQuadros, pedir, decidirPedido, decidir, pedirExterno, decidirExterno, externosNaFila, anexoEnviado, anexosParaBaixar, anexoBaixado, anexoFalhou, comAnexoPorId, concluirExterno, adiarExterno, recebidoExterno, pedidosNaFila, pedidosRodando, marcarRodando, largarRodando, concluirPedido, gruposDeMemoria, sincronizarMemoria, instalarNosAgentes, acharFrente, mandarAoAgente, memoria, lembrar, arquivoLog, arquivoVezes, LIMITE, MARCA };

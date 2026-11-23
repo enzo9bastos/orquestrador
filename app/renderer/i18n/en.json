@@ -2009,7 +2009,15 @@
     "Mensagem do Claude": "Claude's message",
     "Colei no terminal do app: claude auth login. Aperte Enter lá, entre pelo navegador e volte para clicar em Tentar de novo.": "Pasted into the app's terminal: claude auth login. Press Enter there, sign in through the browser and come back to click Try again.",
     "Abra a aba Terminal e rode: claude auth login": "Open the Terminal tab and run: claude auth login",
-    "O Claude desta conversa reiniciou com o login atual; a conversa continua do mesmo ponto. Mande a mensagem de novo.": "Claude restarted in this conversation with the current login; the conversation goes on from the same point. Send the message again."
+    "O Claude desta conversa reiniciou com o login atual; a conversa continua do mesmo ponto. Mande a mensagem de novo.": "Claude restarted in this conversation with the current login; the conversation goes on from the same point. Send the message again.",
+    "Enviar mesmo assim…": "Send anyway…",
+    "Este recado vai sair deste computador para": "This message will leave this computer for",
+    ". Enviar agora?": ". Send now?",
+    "Confirmar o envio": "Confirm sending",
+    "Você tinha negado e voltou atrás: este recado saiu depois.": "You had denied it and changed your mind: this message was sent afterwards.",
+    "Você voltou atrás depois: o recado saiu.": "You changed your mind afterwards: the message was sent.",
+    "negado há mais de 7 dias: peça ao orquestrador para escrever de novo": "denied more than 7 days ago: ask the orchestrator to write it again",
+    "este recado não está negado": "this message is not denied"
   },
   "padroes": [
     [

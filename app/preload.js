@@ -201,6 +201,7 @@ contextBridge.exposeInMainWorld('orq', {
     lista: () => ipcRenderer.invoke('recados:lista'),
     vezes: () => ipcRenderer.invoke('recados:vezes'),
     liberar: (id) => ipcRenderer.invoke('recados:liberar', id),
+    voltarAtras: (id) => ipcRenderer.invoke('recados:voltarAtras', id),
     decidir: (id, aprovar, nota) => ipcRenderer.invoke('recados:decidir', id, aprovar, nota),
     projetos: () => ipcRenderer.invoke('recados:projetos'),
     anexo: (id, i) => ipcRenderer.invoke('recados:anexo', id, i),

@@ -262,3 +262,30 @@ test('canal: envio autorizado pelo usuário: confere o trecho; bateu sai, não b
   const r3 = recados.pedirExterno({ contato: a.contatos[0], texto: 'recebi', segurar: null, autorizadoPor: 'qualquer coisa aqui' });
   assert.strictEqual(r3.estado, 'na-fila', 'o que já sai sozinho não precisa conferir');
 });
+
+// 23/11: o Enzo negou sem querer um recado para fora e não havia como voltar atrás (só pedindo ao
+// orquestrador para escrever de novo). Agora o recado negado pode sair, pela tela, depois da confirmação.
+test('canal: voltar atrás num recado negado põe na fila e avisa o orquestrador; só negado, só por 7 dias', () => {
+  const a = ajustes();
+  const r = recados.pedirExterno({ contato: a.contatos[0], texto: 'pode mesclar o PR', titulo: 'Pedido', classe: 'pedido', segurar: 'decisão: espera você aprovar' });
+  assert.throws(() => recados.voltarAtrasExterno(r.id), /não está negado/, 'esperando aprovação: é Aprovar, não voltar atrás');
+  recados.decidir(r.id, false, '');
+  recados.voltarAtrasExterno(r.id);
+  const depois = recados.ler().find((x) => x.id === r.id);
+  assert.strictEqual(depois.estado, 'na-fila');
+  assert.ok(depois.voltouAtras > 0);
+  assert.ok(recados.externosNaFila().some((x) => x.id === r.id), 'vai sair pelo canal');
+  const avisos = recados.ler().filter((x) => x.envio === r.id);
+  assert.deepStrictEqual(avisos.map((x) => x.tipo), ['negado', 'aviso']);
+  assert.match(avisos[1].texto, /voltou atrás e deixou sair o recado para Bruno[\s\S]*não mande de novo/);
+  assert.match(recados.embrulho(avisos[1]), /canal="externo"/);
+  assert.throws(() => recados.voltarAtrasExterno(r.id), /não está negado/, 'uma vez só');
+  // Negado há mais de 7 dias: não volta (o motor confere, não só a tela).
+  const velho = recados.pedirExterno({ contato: a.contatos[1], texto: 'antigo', segurar: 'decisão: espera você aprovar' });
+  recados.decidir(velho.id, false, '');
+  assert.throws(() => recados.voltarAtrasExterno(velho.id, velho.ts + recados.PRAZO_VOLTAR_ATRAS + 1000), /mais de 7 dias/);
+  assert.strictEqual(recados.ler().find((x) => x.id === velho.id).estado, 'negado');
+  assert.throws(() => recados.voltarAtrasExterno('nao-existe'), /não encontrado/);
+  // Recado que não é para fora (pedido avulso negado) não passa por aqui.
+  assert.throws(() => recados.voltarAtrasExterno(avisos[0].id), /não encontrado/);
+});
