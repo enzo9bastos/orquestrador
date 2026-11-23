@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('orq', {
     voltarComArquivos: (id, ordemDoFim, texto, escopo) => ipcRenderer.invoke('conversa:voltarComArquivos', id, ordemDoFim, texto, escopo),
     configurar: (id, o) => ipcRenderer.invoke('conversa:configurar', id, o),
     modo: (id, modo) => ipcRenderer.invoke('conversa:modo', id, modo),
-    reiniciar: (id) => ipcRenderer.invoke('conversa:reiniciar', id),
+    reiniciar: (id, porque) => ipcRenderer.invoke('conversa:reiniciar', id, porque),
     nova: (o) => ipcRenderer.invoke('conversa:nova', o),
     // Pasta da conversa (janela "Nova conversa" e cartão de confiança).
     pastas: () => ipcRenderer.invoke('conversa:pastas'),

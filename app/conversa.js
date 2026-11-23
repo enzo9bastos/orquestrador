@@ -157,6 +157,16 @@ function comandoIndisponivel(d, mandado) {
   return { nome, comando };
 }
 
+// O login do Claude recusado (o prazo do login acabou, ou ele saiu da conta): o próprio Claude
+// monta a mensagem (modelo "<synthetic>") com o código authentication_failed, ao vivo e na
+// conversa guardada. A tela troca o texto em inglês, que vinha repetido (na resposta e no erro
+// do fim do turno), por um cartão só, em português, com o que fazer.
+function erroDeLogin(d) {
+  return !!d && d.error === 'authentication_failed' && !d.parent_tool_use_id && !!d.message && d.message.model === '<synthetic>';
+}
+const detalheDoErro = (m) => (Array.isArray(m && m.content) ? m.content : []).filter((b) => b.type === 'text').map((b) => b.text).join(' ').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, 600);
+const TEXTO_LOGIN = 'O login do Claude expirou. Entre de novo para continuar.';
+
 const MODOS_DO_CHIP = ['default', 'acceptEdits', 'auto', 'plan'];
 // Bypass ("sem perguntas"): fora da lista de propósito. Só entra por
 // definirModo, em conversa avulsa e com a opção das Configurações ligada.
@@ -256,7 +266,9 @@ function paginaDoHistorico(sessao, ate = null, antesDe = null) {
     let d;
     try { d = JSON.parse(l); } catch { continue; /* linha cortada */ }
     const ts = Date.parse(d.timestamp) || undefined;
-    if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) {
+    if (d.type === 'assistant' && erroDeLogin(d) && !d.isSidechain) {
+      lista.push({ tipo: 'login', detalhe: detalheDoErro(d.message), antigo: true, ts });
+    } else if ((d.type === 'user' || d.type === 'assistant') && d.message && !d.isMeta) {
       // Mensagem digitada que levou a saída de comandos "!": o balão volta só com o texto
       // da pessoa, e cada comando volta como o bloco que apareceu ao vivo (antes dele).
       const comShell = d.type === 'user' && typeof d.message.content === 'string' && d.message.content.startsWith('<bash-input>') ? shell.separar(d.message.content) : null;
@@ -944,6 +956,12 @@ class Conversa {
         return;
       }
       case 'assistant': {
+        if (erroDeLogin(d)) {
+          this.loginRecusado = true;
+          this.ultimoTexto = TEXTO_LOGIN;
+          this.registrar({ tipo: 'login', detalhe: detalheDoErro(d.message) });
+          return;
+        }
         if (!d.parent_tool_use_id && d.message.model !== '<synthetic>') this.turnoDoClaude();
         const u = d.message.usage;
         if (u && !d.parent_tool_use_id) {
@@ -978,7 +996,10 @@ class Conversa {
         }
         const mu = Object.values(d.modelUsage || {})[0];
         if (mu && mu.contextWindow) info.janela = mu.contextWindow;
-        this.fimDeTurno({ erro: d.is_error, duracao: d.duration_ms, texto: d.is_error ? d.result : null });
+        // Turno que caiu no login recusado: o cartão já explicou; o erro não aparece de novo.
+        const explicado = !!this.loginRecusado;
+        this.loginRecusado = false;
+        this.fimDeTurno({ erro: d.is_error, duracao: d.duration_ms, texto: d.is_error ? d.result : null, explicado });
         return;
       }
       case 'control_request':
@@ -1030,7 +1051,7 @@ class Conversa {
     this.info.ocupado = true;
     this.avisarInfo();
   }
-  fimDeTurno({ erro = false, duracao = null, texto = null } = {}) {
+  fimDeTurno({ erro = false, duracao = null, texto = null, explicado = false } = {}) {
     this.info.ocupado = false;
     this.tentarSondar();
     // O turno acabou: pedido que ficou sem resposta não vale mais (o cartão fecha).
@@ -1040,7 +1061,7 @@ class Conversa {
       avisarLista();
     }
     this.avisarInfo();
-    this.registrar({ tipo: 'resultado', erro, duracao, texto: erro ? texto : null });
+    this.registrar({ tipo: 'resultado', erro, duracao, texto: erro && !explicado ? texto : null, ...(erro && explicado ? { explicado: true } : {}) });
     if (!this.desligando && !this.bastidor) avisar({ tipo: 'resposta', id: this.id, titulo: this.titulo, orquestrador: this.orquestrador, texto: this.ultimoTexto || (erro ? 'Terminou com erro.' : 'Terminou.') });
     this.ultimoTexto = '';
     if (this.desligando) { this.desligando = false; this.encerrar(); return; }
@@ -2023,7 +2044,14 @@ module.exports = {
   configurar: (id, o) => pegar(id).configurar(o || {}),
   definirModo: (id, modo) => pegar(id).definirModo(modo),
   MODOS_DO_CHIP,
-  reiniciar: (id) => { const c = pegar(id); if (c.proc) c.reiniciar(); else c.iniciar(); return true; },
+  // porque 'login': o "Tentar de novo" do cartão do login recusado. O aviso entra depois do
+  // redesenho (a conversa volta do que o Claude guardou), para não sumir com ele.
+  reiniciar: (id, porque) => {
+    const c = pegar(id);
+    if (c.proc) c.reiniciar(); else c.iniciar();
+    if (porque === 'login') c.registrar({ tipo: 'aviso', texto: 'O Claude desta conversa reiniciou com o login atual; a conversa continua do mesmo ponto. Mande a mensagem de novo.' });
+    return true;
+  },
   // Comandos do "/" feitos pelo app.
   controle: (id, subtype, extra, ms) => pegar(id).controle(subtype, extra, ms),
   // O que o Claude desta conversa atende (registro por versão do CLI).

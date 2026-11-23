@@ -985,3 +985,46 @@ test('B6: a primeira mensagem "/model" ou "/rename x" não vira título da conve
   c.mandar('agora sim um assunto');
   assert.strictEqual(c.titulo, 'agora sim um assunto');
 });
+
+// 23/11: com o login do Claude expirado, a conversa mostrava a mesma frase em inglês duas vezes
+// (como resposta do Claude e como erro vermelho do fim do turno), a cada mensagem. Agora o motor
+// reconhece o código authentication_failed e manda um evento só ("login"), e o fim do turno sai
+// sem texto de erro (o cartão já explicou).
+test('login do Claude recusado: um evento "login" com a frase original, sem resposta repetida nem erro em texto', async (t) => {
+  const c = new conversa._Conversa({ id: 'login1', titulo: 'Login expirado' });
+  t.after(() => c.parar());
+  const antes = avisos.length;
+  c.mandar('login expirado');
+  await ate(() => turnos(c) === 1);
+  const login = c.eventos.filter((e) => e.tipo === 'login');
+  assert.strictEqual(login.length, 1);
+  assert.match(login[0].detalhe, /^Failed to authenticate: this login reached its time limit/);
+  assert.strictEqual(c.eventos.filter((e) => e.tipo === 'assistant').length, 0, 'a frase em inglês não vira resposta do Claude');
+  const r = c.eventos.filter((e) => e.tipo === 'resultado').pop();
+  assert.deepStrictEqual({ erro: r.erro, texto: r.texto, explicado: r.explicado }, { erro: true, texto: null, explicado: true });
+  assert.strictEqual(c.info.ocupado, false);
+  const aviso = avisos.slice(antes).find((a) => a.id === 'login1');
+  assert.ok(aviso, 'a notificação continua');
+  assert.strictEqual(aviso.texto, 'O login do Claude expirou. Entre de novo para continuar.');
+  // O turno seguinte, que dá certo, volta ao normal: erro comum continua aparecendo com o texto.
+  c.tratar({ type: 'result', is_error: true, result: 'outro erro qualquer', duration_ms: 1 });
+  const r2 = c.eventos.filter((e) => e.tipo === 'resultado').pop();
+  assert.deepStrictEqual({ texto: r2.texto, explicado: r2.explicado }, { texto: 'outro erro qualquer', explicado: undefined });
+});
+
+test('login do Claude recusado: só com o código e na mensagem montada pelo próprio Claude; a frase numa resposta comum continua resposta', () => {
+  const c = new conversa._Conversa({ id: 'login2', titulo: 'Frase citada' });
+  const frase = 'Failed to authenticate: this login reached its time limit and cannot be renewed.';
+  const msg = (model) => ({ role: 'assistant', ...(model ? { model } : {}), content: [{ type: 'text', text: frase }] });
+  c.tratar({ type: 'assistant', message: msg('claude-x'), error: 'authentication_failed', parent_tool_use_id: null });
+  c.tratar({ type: 'assistant', message: msg('<synthetic>'), parent_tool_use_id: null });
+  c.tratar({ type: 'assistant', message: msg('<synthetic>'), error: 'rate_limit', parent_tool_use_id: null });
+  c.tratar({ type: 'assistant', message: msg('<synthetic>'), error: 'authentication_failed', parent_tool_use_id: 'tu-sub' });
+  assert.strictEqual(c.eventos.filter((e) => e.tipo === 'login').length, 0);
+  assert.strictEqual(c.eventos.filter((e) => e.tipo === 'assistant').length, 4);
+  c.tratar({ type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: `${frase}\u0007${'x'.repeat(900)}` }] }, error: 'authentication_failed', parent_tool_use_id: null });
+  const l = c.eventos.filter((e) => e.tipo === 'login');
+  assert.strictEqual(l.length, 1);
+  assert.strictEqual(l[0].detalhe.length, 600, 'a frase guardada tem limite');
+  assert.ok(!l[0].detalhe.includes('\u0007'), 'sem caracteres de controle');
+});

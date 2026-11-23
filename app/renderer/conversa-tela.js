@@ -349,6 +349,55 @@
     });
     caixa.append(el);
   }
+  // O login do Claude foi recusado (o prazo acabou, ou ele saiu da conta): no lugar do texto em
+  // inglês, que vinha repetido, um cartão em português com o que fazer. O mesmo erro de novo,
+  // sem resposta do Claude no meio, não empilha cartões: o cartão desce e conta as vezes.
+  // Da conversa guardada (ev.antigo) vem só o registro, sem os botões.
+  function cartaoLogin(ev) {
+    limparRascunho(); grupo = null;
+    const antes = [...caixa.querySelectorAll('.cartao-login:not(.antigo)')].pop();
+    let vezes = 1;
+    if (!ev.antigo && antes && ![...caixa.querySelectorAll('.texto-claude')].some((t) => antes.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+      vezes = (Number(antes.dataset.vezes) || 1) + 1;
+      antes.remove();
+    }
+    const el = document.createElement('div');
+    el.className = `cartao-login${ev.antigo ? ' antigo' : ''}`;
+    el.dataset.vezes = String(vezes);
+    if (!ev.antigo) el.setAttribute('role', 'alert');
+    el.innerHTML = ev.antigo
+      ? `<strong>O login do Claude tinha expirado aqui</strong><span>Esta resposta não veio porque o Claude recusou o login.</span>`
+      : `<strong>O login do Claude expirou</strong>
+        <span>O Claude deste computador não aceitou mais o login (ele tem prazo e não se renova sozinho), então esta resposta não veio. Nada se perdeu: a conversa continua guardada.</span>
+        <ol class="cartao-login-passos">
+          <li><span>Entre de novo: o app abre o terminal com</span> <code data-sem-traducao>claude auth login</code><span>. Aperte Enter lá e siga o navegador.</span></li>
+          <li><span>Volte aqui e clique em Tentar de novo.</span></li>
+        </ol>
+        <div class="cartao-login-acoes"><button type="button" class="botao primario" data-login-entrar>Entrar de novo</button><button type="button" class="botao secundario" data-login-tentar>Tentar de novo</button></div>
+        ${vezes > 1 ? `<span class="cartao-login-vezes">Aconteceu ${vezes} vezes seguidas.</span>` : ''}`;
+    if (ev.detalhe) {
+      const d = document.createElement('details');
+      d.className = 'cartao-login-detalhe';
+      d.innerHTML = '<summary>Mensagem do Claude</summary><code data-sem-traducao></code>';
+      d.querySelector('code').textContent = ev.detalhe;
+      el.append(d);
+    }
+    if (!ev.antigo) {
+      el.querySelector('[data-login-entrar]').addEventListener('click', async () => {
+        const ok = window.orqTerminal ? await window.orqTerminal.colar('claude auth login') : false;
+        aviso(ok ? 'Colei no terminal do app: claude auth login. Aperte Enter lá, entre pelo navegador e volte para clicar em Tentar de novo.' : 'Abra a aba Terminal e rode: claude auth login');
+      });
+      el.querySelector('[data-login-tentar]').addEventListener('click', async (e) => {
+        const b = e.currentTarget;
+        b.disabled = true;
+        // Reinicia o Claude desta conversa (a sessão continua a mesma), para ele ler o login novo.
+        // A conversa é redesenhada do que o Claude guardou, e o motor põe o aviso no fim.
+        await C.reiniciar(ativa, 'login');
+      });
+    }
+    caixa.append(el);
+    colado = true; rolar();
+  }
   const conversaCodex = () => ((listaConversas.find((c) => c.id === ativa) || {}).motor || infoAtual.motor) === 'codex';
 
   function limparRascunho() {
@@ -392,9 +441,11 @@
         else if (b.type === 'tool_use') linhaFerramenta(b);
       }
       if (ev.naoDisponivel) avisoIndisponivel(ev);
+    } else if (ev.tipo === 'login') {
+      cartaoLogin(ev);
     } else if (ev.tipo === 'resultado') {
       limparRascunho();
-      if (ev.erro) aviso(ev.texto || 'O turno terminou com erro.', 'erro');
+      if (ev.erro && !ev.explicado) aviso(ev.texto || 'O turno terminou com erro.', 'erro');
       grupo = null;
     } else if (ev.tipo === 'encerrada' && ev.conversa) {
       // /exit: só esta conversa foi encerrada; a tela fica limpa, com o caminho de volta.

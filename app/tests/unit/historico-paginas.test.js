@@ -100,3 +100,21 @@ test('carregar as anteriores: conversa que cabe inteira não oferece; conversa n
   const x = new conversa._Conversa({ id: 'hist-x', titulo: 'X', motor: 'codex', sessao: 'th-qualquer-123' });
   assert.deepStrictEqual(x.carregarAnteriores(), { ok: false, haMais: false, novas: 0 });
 });
+
+// 23/11: a conversa guardada com o login recusado voltava com a frase em inglês como se fosse
+// resposta do Claude. Agora volta como o registro do login recusado (sem os botões, na tela).
+test('histórico: o login recusado gravado pelo Claude volta como evento "login", e a frase citada numa resposta comum continua resposta', () => {
+  const sessao = 'sessao-com-login-recusado-01';
+  const frase = 'Failed to authenticate: this login reached its time limit and cannot be renewed.';
+  fs.mkdirSync(raiz, { recursive: true });
+  fs.writeFileSync(path.join(raiz, `${sessao}.jsonl`), `${[
+    { type: 'user', message: { role: 'user', content: 'faz a passada' }, cwd: casa, uuid: 'l-1' },
+    { type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: frase }] }, error: 'authentication_failed', isApiErrorMessage: true, uuid: 'l-2' },
+    { type: 'user', message: { role: 'user', content: 'o que quer dizer isso?' }, cwd: casa, uuid: 'l-3' },
+    { type: 'assistant', message: { role: 'assistant', model: 'claude-x', content: [{ type: 'text', text: `A frase "${frase}" quer dizer que o login expirou.` }] }, uuid: 'l-4' },
+  ].map((l) => JSON.stringify(l)).join('\n')}\n`);
+  const p = conversa._paginaDoHistorico(sessao);
+  assert.deepStrictEqual(p.eventos.map((e) => e.tipo), ['user', 'login', 'user', 'assistant']);
+  assert.strictEqual(p.eventos[1].detalhe, frase);
+  assert.strictEqual(p.eventos[1].antigo, true);
+});

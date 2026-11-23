@@ -445,7 +445,7 @@ ipcMain.handle('conversa:voltarComArquivos', async (_e, id, ordemDoFim, texto, e
   } catch (e) { return { ok: false, erro: e.message }; }
 });
 ipcMain.handle('conversa:configurar', (_e, id, o) => conversa.configurar(id, o));
-ipcMain.handle('conversa:reiniciar', (_e, id) => conversa.reiniciar(id));
+ipcMain.handle('conversa:reiniciar', (_e, id, porque) => conversa.reiniciar(id, porque === 'login' ? 'login' : undefined));
 // Conversa nova: a tela pode escolher a pasta e o motor (janela "Nova conversa"). A pasta é
 // conferida no motor (existe, é pasta, caminho de verdade); pasta ruim devolve erro.
 ipcMain.handle('conversa:nova', (_e, o) => conversa.nova(o && typeof o === 'object' ? { pasta: typeof o.pasta === 'string' ? o.pasta : null, motor: o.motor === 'codex' ? 'codex' : 'claude' } : {}));

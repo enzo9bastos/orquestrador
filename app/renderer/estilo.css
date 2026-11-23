@@ -732,6 +732,18 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .rodada-encerrada { align-self: center; display: grid; justify-items: center; gap: 6px; text-align: center; padding: 18px 22px; border: 1px solid var(--borda); border-radius: 12px; background: var(--bg-elevado); }
 .rodada-encerrada strong { color: var(--fg); font-size: 14px; }
 .rodada-encerrada span { color: var(--fg-3); font-size: 12.5px; margin-bottom: 6px; }
+/* Login do Claude recusado: um cartão só, em português, com o que fazer (conversa-tela.js). */
+.cartao-login { align-self: stretch; display: grid; gap: 8px; padding: 14px 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, #d29922 45%, var(--borda)); border-left: 3px solid #d29922; background: color-mix(in srgb, #d29922 7%, var(--bg-elevado)); font-size: 13px; color: var(--fg-2); }
+.cartao-login strong { color: var(--fg); font-size: 14px; }
+.cartao-login > span { color: var(--fg-3); line-height: 1.5; }
+.cartao-login-passos { margin: 0; padding-left: 20px; display: grid; gap: 4px; color: var(--fg-2); line-height: 1.5; }
+.cartao-login code { font: 12px var(--mono); padding: 1px 5px; border-radius: 4px; background: var(--bg-afundado); border: 1px solid var(--borda); }
+.cartao-login-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.cartao-login .cartao-login-vezes { font-size: 12px; color: var(--fg-4); }
+.cartao-login-detalhe summary { cursor: pointer; font-size: 12px; color: var(--fg-4); width: fit-content; }
+.cartao-login-detalhe code { display: block; margin-top: 6px; padding: 6px 8px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg-3); }
+.cartao-login.antigo { padding: 10px 14px; gap: 4px; }
+.cartao-login.antigo strong { font-size: 13px; }
 /* /clear: divisória "Conversa limpa" no lugar do que saiu da tela. */
 .conversa-limpa { display: flex; align-items: center; gap: 10px; color: var(--fg-3); font-size: 12px; margin: 6px 0; }
 .conversa-limpa::before, .conversa-limpa::after { content: ''; flex: 1; border-top: 1px dashed var(--borda); }

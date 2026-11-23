@@ -1996,9 +1996,26 @@
     "clique para trazer de volta": "click to bring it back",
     "Trazer o rascunho de volta para a caixa": "Bring the draft back to the box",
     "Guardar o rascunho e trazer de volta": "Stash the draft and bring it back",
-    "Guardar o rascunho da caixa ou trazer de volta": "Stash the draft in the box or bring it back"
+    "Guardar o rascunho da caixa ou trazer de volta": "Stash the draft in the box or bring it back",
+    "O login do Claude expirou": "Claude's login expired",
+    "O login do Claude tinha expirado aqui": "Claude's login had expired here",
+    "Esta resposta não veio porque o Claude recusou o login.": "This answer did not come because Claude refused the login.",
+    "O Claude deste computador não aceitou mais o login (ele tem prazo e não se renova sozinho), então esta resposta não veio. Nada se perdeu: a conversa continua guardada.": "Claude on this computer no longer accepted the login (it has a time limit and does not renew by itself), so this answer did not come. Nothing was lost: the conversation is still kept.",
+    "Entre de novo: o app abre o terminal com": "Sign in again: the app opens the terminal with",
+    ". Aperte Enter lá e siga o navegador.": ". Press Enter there and follow the browser.",
+    "Volte aqui e clique em Tentar de novo.": "Come back here and click Try again.",
+    "Entrar de novo": "Sign in again",
+    "Tentar de novo": "Try again",
+    "Mensagem do Claude": "Claude's message",
+    "Colei no terminal do app: claude auth login. Aperte Enter lá, entre pelo navegador e volte para clicar em Tentar de novo.": "Pasted into the app's terminal: claude auth login. Press Enter there, sign in through the browser and come back to click Try again.",
+    "Abra a aba Terminal e rode: claude auth login": "Open the Terminal tab and run: claude auth login",
+    "O Claude desta conversa reiniciou com o login atual; a conversa continua do mesmo ponto. Mande a mensagem de novo.": "Claude restarted in this conversation with the current login; the conversation goes on from the same point. Send the message again."
   },
   "padroes": [
+    [
+      "^Aconteceu (\\d+) vezes seguidas\\.$",
+      "It happened $1 times in a row."
+    ],
     [
       "^Não consegui abrir o editor de texto: (.+)\\. O texto continua na caixa\\.$",
       "Couldn't open the text editor: $1. The text is still in the box."

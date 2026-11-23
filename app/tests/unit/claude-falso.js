@@ -306,6 +306,13 @@ leitor.on('line', (l) => {
       local_command_source: `<local-command-stdout>${texto}</local-command-stdout>`, local_command_outcome: { kind: 'unavailable_headless' }, session_id: SESSAO });
     return sai({ type: 'result', subtype: 'success', is_error: false, duration_ms: 1, num_turns: 0, result: texto, session_id: SESSAO });
   }
+  // "login expirado": como o Claude de verdade quando recusa o login (2.1.330): a mensagem
+  // montada por ele (modelo "<synthetic>") com o código authentication_failed e o fim de turno com erro.
+  if (t === 'login expirado') {
+    const frase = 'Failed to authenticate: this login reached its time limit and cannot be renewed. Run `claude auth login` to sign in again, or use `claude setup-token` and set CLAUDE_CODE_OAUTH_TOKEN for unattended jobs';
+    sai({ type: 'assistant', message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: frase }] }, parent_tool_use_id: null, error: 'authentication_failed', session_id: SESSAO });
+    return sai({ type: 'result', subtype: 'success', is_error: true, duration_ms: 3, num_turns: 1, result: frase, session_id: SESSAO });
+  }
   if (t === 'trabalha até parar') {
     trabalhando = true;
     return sai({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'começando…' }] }, session_id: SESSAO });
