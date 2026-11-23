@@ -4,6 +4,12 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.15.1 (2026-11-23)
+
+- The helper's question balloon (the one with "question 2 of 4") now has "‹ Back" from the second question on:
+  the answer you already gave shows as selected (or in the text field, if you typed it), changing one keeps the
+  others, and nothing is sent until the last question.
+
 ## 0.15.0 (2026-11-23)
 
 - A message to another computer that you denied by mistake can still go out: in the Recados tab, the denied
