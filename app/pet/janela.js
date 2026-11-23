@@ -103,7 +103,7 @@
   let apertou = null;
   pet.addEventListener('pointerdown', (ev) => {
     if (ev.button !== 0) return;
-    apertou = { x: ev.screenX, y: ev.screenY, ux: ev.screenX, uy: ev.screenY, t: Date.now(), moveu: false };
+    apertou = { x: ev.screenX, y: ev.screenY, ux: ev.screenX, uy: ev.screenY, t: Date.now(), moveu: false, rastro: [{ x: ev.screenX, y: ev.screenY, t: performance.now() }] };
     pet.setPointerCapture(ev.pointerId);
   });
   pet.addEventListener('pointermove', (ev) => {
@@ -112,6 +112,10 @@
     if (!apertou.moveu && Math.hypot(ev.screenX - apertou.x, ev.screenY - apertou.y) < 5) return;
     if (!apertou.moveu) { apertou.moveu = true; classe('arrastado'); falar(sorteia(['Uiii!', 'Para onde vamos?', 'Ei!']), 1200); }
     apertou.ux = ev.screenX; apertou.uy = ev.screenY;
+    // O rastro dos últimos 120 ms dá a velocidade do arremesso ao soltar.
+    const agora = performance.now();
+    apertou.rastro.push({ x: ev.screenX, y: ev.screenY, t: agora });
+    while (apertou.rastro.length > 2 && agora - apertou.rastro[0].t > 120) apertou.rastro.shift();
     A.enviar({ t: 'arrastar', dx, dy });
   });
   pet.addEventListener('pointerup', () => {
@@ -119,7 +123,16 @@
     const foi = apertou;
     apertou = null;
     classe('arrastado', false);
-    if (foi.moveu) { classe('voando'); A.enviar({ t: 'soltar' }); return; }
+    if (foi.moveu) {
+      // Velocidade do gesto (px/s): parou antes de soltar, sai sem impulso e só cai.
+      const r = foi.rastro, a = r[0], b = r[r.length - 1];
+      const dt = (b.t - a.t) / 1000;
+      const parou = performance.now() - b.t > 120;
+      const vx = dt > 0.008 && !parou ? (b.x - a.x) / dt : 0;
+      const vy = dt > 0.008 && !parou ? (b.y - a.y) / dt : 0;
+      classe('voando'); A.enviar({ t: 'soltar', vx, vy });
+      return;
+    }
     // Clique: pula e fala.
     classe('feliz'); setTimeout(() => classe('feliz', false), 900);
     if (rn.gravando && $('reuniao').hidden && $('conversa').hidden) { abrirReuniao('gravando'); return; }
@@ -147,6 +160,9 @@
     else if (a === 'depois') A.enviar({ t: 'irEmbora' });
     else if (a === 'abrir') A.enviar({ t: 'abrirApp', conversa: 'ajudante' });
     else if (a === 'nota' && rnUltima) pedirReuniao('abrir', { caminho: rnUltima.nota });
+    else if (a === 'rn-gravar') { pedirReuniao('comecar', { titulo: '' }); falar(tr('Gravando. Avise as pessoas da reunião que ela está sendo gravada.'), 4000); }
+    else if (a === 'rn-terminar') { pedirReuniao('terminar'); }
+    else if (a === 'rn-painel') abrirReuniao('gravando');
   });
   let tCarinho = null;
   pet.addEventListener('pointerenter', () => { tCarinho = setTimeout(() => { classe('feliz'); const c = pet.querySelector('.pet-coracao'); c.hidden = false; c.classList.remove('sobe'); void c.offsetWidth; c.classList.add('sobe'); }, 600); });
@@ -266,6 +282,7 @@
   let rnTela = 'inicio'; // inicio | gravando | terminar | montando | pronta
   let rnUltima = null; // { nota, pasta, assunto } da última nota pronta
   let rnPedido = 0;
+  let rnMini = null; // miniatura da tela ou janela que os prints mostram
   let tRec = null;
   const relogio = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600); const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'); const ss = String(s % 60).padStart(2, '0'); return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`; };
   function pintarRec() {
@@ -297,6 +314,7 @@
       $('rn-passo').textContent = '';
       corpo.innerHTML = `<label class="rn-campo"><span>${esc(tr('Título (opcional)'))}</span><input id="rn-nome" type="text" maxlength="120" placeholder="${esc(tr('Ex.: Alinhamento com o financeiro'))}"></label>
         <p class="aj-motivo rn-aviso">${esc(tr('Avise as pessoas da reunião que ela está sendo gravada.'))}</p>
+        <p class="nota">${esc(tr('Para os prints, o sistema vai perguntar o que mostrar: escolha a janela da reunião (Meet, Zoom, Teams…) ou a tela onde ela está.'))}</p>
         <p class="nota">${esc(tr('Grava você (microfone) e os outros (som do computador) em separado. O áudio fica no computador; no fim, a nota sai com a transcrição, os prints e o resumo.'))}</p>${msgErro}`;
       acoes.innerHTML = `<button type="button" class="botao-texto" data-rn="fechar">${esc(tr('Cancelar'))}</button><button type="button" class="botao primario" data-rn="comecar">${esc(tr('Começar a gravar'))}</button>`;
       setTimeout(() => { const c = $('rn-nome'); if (c) c.focus(); }, 50);
@@ -307,6 +325,7 @@
       const aparelhos = [d.voce ? `${tr('Microfone')}: ${d.voce}` : '', d.outros ? `${tr('Som do computador')}: ${d.outros}` : ''].filter(Boolean);
       corpo.innerHTML = `${aparelhos.length ? `<p class="nota rn-aparelhos">${aparelhos.map(esc).join('<br>')}</p>` : ''}
         <p class="rn-contas"><span>📷 ${rn.prints || 0}</span> <span>★ ${rn.marcas || 0}</span></p>
+        ${rnMini && rn.printsLigados !== false ? `<figure class="rn-tela"><img src="${esc(rnMini)}" alt=""><figcaption><span>${esc(tr('Os prints mostram isto.'))}</span> <button type="button" class="botao-texto" data-rn="trocar-tela">${esc(tr('Trocar'))}</button></figcaption></figure>` : ''}
         ${rn.printsLigados === false ? `<p class="aj-motivo">${esc(tr('Prints desligados nesta reunião.'))}</p>` : ''}
         ${rnTela === 'terminar' ? `<p class="pergunta">${esc(tr('Terminar a reunião? A gravação para e a nota começa a ser montada.'))}</p>` : ''}${msgErro}`;
       acoes.innerHTML = rnTela === 'terminar'
@@ -339,6 +358,7 @@
     else if (a === 'terminar-sim') { rnTela = 'montando'; desenharReuniao(); pedirReuniao('terminar'); }
     else if (a === 'nota' && rnUltima) pedirReuniao('abrir', { caminho: rnUltima.nota });
     else if (a === 'pasta' && rnUltima) pedirReuniao('abrir', { caminho: rnUltima.pasta });
+    else if (a === 'trocar-tela') { const b = ev.target.closest('button'); b.disabled = true; pedirReuniao('trocarTela'); }
   });
   $('reuniao').addEventListener('keydown', (ev) => {
     if (ev.target.id === 'rn-nome' && ev.key === 'Enter') { ev.preventDefault(); $('reuniao').querySelector('[data-rn=comecar]').click(); }
@@ -348,6 +368,21 @@
     const antes = rn;
     rn = e;
     pintarRec();
+    if (e.evento === 'tela') { rnMini = e.tela ? e.tela.miniatura : null; }
+    else if (e.evento === 'detectada' && !e.gravando) {
+      classe('chamando'); setTimeout(() => classe('chamando', false), 1500);
+      if ($('reuniao').hidden) falar(`${tr('Começou uma reunião')} n${e.nome || tr('o computador')}? ${tr('Quer gravar?')}`, 0, [['rn-gravar', tr('Sim, gravar')], ['depois', tr('Agora não')]]);
+      return;
+    } else if (e.evento === 'comecou-sozinha') {
+      classe('chamando'); setTimeout(() => classe('chamando', false), 1500);
+      if ($('reuniao').hidden) falar(`${tr('Comecei a gravar a reunião')} n${e.nome || tr('o computador')}. ${tr('Avise as pessoas que ela está sendo gravada.')}`, 0, [['depois', 'OK'], ['rn-painel', tr('Abrir o painel')]]);
+    } else if (e.evento === 'acabou' && e.gravando) {
+      classe('chamando'); setTimeout(() => classe('chamando', false), 1500);
+      calar();
+      falar(`${tr('A ligação')} n${e.nome || tr('o computador')} ${tr('acabou? Terminar a gravação?')}`, 0, [['rn-terminar', tr('Terminar')], ['depois', tr('Continuar gravando')]]);
+      return;
+    }
+    if (!e.gravando) rnMini = null; // parou de gravar: a tela compartilhada foi solta
     if (e.evento === 'comecou') { classe('feliz'); setTimeout(() => classe('feliz', false), 900); if (!$('reuniao').hidden) { rnTela = 'gravando'; } }
     else if (e.evento === 'print') { classe('feliz'); setTimeout(() => classe('feliz', false), 600); if ($('reuniao').hidden) falar(tr('Print guardado 📷'), 1200); }
     else if (e.evento === 'marca') { if ($('reuniao').hidden) falar(tr('Momento marcado ★'), 1200); }

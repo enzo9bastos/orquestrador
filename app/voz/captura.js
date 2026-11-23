@@ -24,6 +24,20 @@
         const png = await tela.convertToBlob({ type: 'image/png' });
         C.r({ t: 'print', id: m.id, png: new Uint8Array(await png.arrayBuffer()) });
       } catch (e) { C.r({ t: 'print', id: m.id, erro: String((e && e.message) || e) }); }
+    } else if (m.t === 'miniatura') {
+      try {
+        if (!quadros) throw new Error('a tela não está sendo compartilhada');
+        const bmp = await quadros.grabFrame();
+        const larg = Math.min(360, bmp.width);
+        const alt = Math.round((bmp.height * larg) / bmp.width);
+        const tela = new OffscreenCanvas(larg, alt);
+        tela.getContext('2d').drawImage(bmp, 0, 0, larg, alt);
+        const jpg = await tela.convertToBlob({ type: 'image/jpeg', quality: 0.7 });
+        const b = new Uint8Array(await jpg.arrayBuffer());
+        let s = '';
+        for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+        C.r({ t: 'miniatura', id: m.id, dataUrl: `data:image/jpeg;base64,${btoa(s)}` });
+      } catch (e) { C.r({ t: 'miniatura', id: m.id, erro: String((e && e.message) || e) }); }
     } else if (m.t === 'parar') {
       if (trilha) trilha.stop();
       trilha = null; quadros = null;

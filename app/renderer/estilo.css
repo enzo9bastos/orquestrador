@@ -2095,5 +2095,7 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .reuniao-barra .rb-tempo { font-variant-numeric: tabular-nums; color: var(--fg); }
 .reuniao-barra .rb-terminar { border-color: color-mix(in srgb, #e5484d 50%, var(--borda-forte)); }
 .reuniao-barra .rb-fechar { width: 22px; height: 22px; }
+.reuniao-barra.detectada { border-color: color-mix(in srgb, var(--claude) 50%, var(--borda)); background: var(--claude-suave); }
+.reuniao-barra .rb-gravar { border-color: color-mix(in srgb, #e5484d 50%, var(--borda-forte)); }
 #config-voz-motor.erro { color: var(--perigo); }
 #config-sec-voz > .nota { padding: 0 18px; margin: 0 0 6px; }

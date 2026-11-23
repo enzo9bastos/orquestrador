@@ -240,3 +240,6 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 .aj-reuniao .rn-aparelhos { line-height: 1.5; }
 .aj-reuniao .rn-barra { height: 8px; border-radius: 999px; background: var(--bg-afundado); border: 1px solid var(--borda); overflow: hidden; margin: 8px 0 4px; }
 .aj-reuniao .rn-barra i { display: block; height: 100%; background: var(--claude); transition: width .4s; }
+.aj-reuniao .rn-tela { margin: 6px 0; display: grid; gap: 4px; }
+.aj-reuniao .rn-tela img { width: 100%; max-height: 150px; object-fit: contain; border-radius: 6px; border: 1px solid var(--borda); background: #000; }
+.aj-reuniao .rn-tela figcaption { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11.5px; color: var(--fg-3); }

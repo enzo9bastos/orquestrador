@@ -151,6 +151,9 @@ const PADRAO = {
   reuniaoResumo: '',
   reuniaoModeloLocal: 'qwen2.5:7b',
   reuniaoPrints: true,
+  // Detectar a reunião pelo microfone (um programa de reunião usando o microfone): 'perguntar'
+  // (o bichinho pergunta se grava), 'gravar' (começa sozinho, com o sinal à vista) ou 'desligado'.
+  reuniaoDetectar: 'perguntar',
 };
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
@@ -272,6 +275,7 @@ function validar(m) {
       case 'reuniaoResumo': aceitar(k, ['', 'claude', 'local', 'nenhum'].includes(v), v); break;
       case 'reuniaoModeloLocal': aceitar(k, /^[\w.:/-]{1,80}$/.test(texto(v)), texto(v)); break;
       case 'reuniaoPrints': aceitar(k, typeof v === 'boolean', v); break;
+      case 'reuniaoDetectar': aceitar(k, ['perguntar', 'gravar', 'desligado'].includes(v), v); break;
       default: recusado.push(k);
     }
   }

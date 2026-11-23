@@ -180,6 +180,8 @@ contextBridge.exposeInMainWorld('orq', {
     terminar: () => ipcRenderer.invoke('reuniao:terminar'),
     abrir: (caminho) => ipcRenderer.invoke('reuniao:abrir', caminho),
     voz: (deNovo) => ipcRenderer.invoke('reuniao:voz', !!deNovo),
+    trocarTela: () => ipcRenderer.invoke('reuniao:trocarTela'),
+    tela: () => ipcRenderer.invoke('reuniao:tela'),
     aoMudar: (fn) => ipcRenderer.on('reuniao:mudou', (_e, e) => fn(e)),
   },
   // Escrever a mensagem no editor de texto do computador (editor-de-texto.js).

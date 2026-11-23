@@ -13,6 +13,8 @@ const transcricao = require('./transcricao');
 function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, emTeste = false }) {
   // --- prints: janela escondida que segura a imagem da tela ---------------------------
   let janela = null;
+  let tela = null; // { miniatura, largura, altura } do que está sendo mostrado
+  const avisarTudo = (e) => { enviarTela('reuniao:mudou', e); avisarBichinho(e); };
   let esperando = new Map();
   let n = 0;
   const pedir = (m, ms = 60000) => new Promise((ok) => {
@@ -30,13 +32,22 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
   async function abrirCaptura() {
     if (janela) return { ok: true };
     janela = new BrowserWindow({ show: false, width: 320, height: 200, webPreferences: { preload: path.join(__dirname, 'voz', 'captura-preload.js'), contextIsolation: true, sandbox: true, backgroundThrottling: false, partition: 'captura-reuniao' } });
-    // A tela inteira. No Wayland, o pedido passa pelo sistema, que mostra a escolha uma vez.
+    // A janela da reunião ou uma tela inteira. No Wayland o pedido passa pelo sistema, que mostra a
+    // escolha (janela ou monitor) uma vez; o que a pessoa escolher é o que os prints mostram.
     janela.webContents.session.setDisplayMediaRequestHandler((_req, cb) => {
-      desktopCapturer.getSources({ types: ['screen'] }).then((s) => cb(s.length ? { video: s[0] } : {})).catch(() => cb({}));
+      // No Wayland o sistema mostra a escolha (janela ou tela) e devolve só a escolhida. No X11 não há
+      // essa escolha: vale a tela inteira, como antes.
+      const wayland = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+      desktopCapturer.getSources({ types: wayland ? ['window', 'screen'] : ['screen'], thumbnailSize: { width: 0, height: 0 } })
+        .then((s) => cb(s.length ? { video: s[0] } : {})).catch(() => cb({}));
     });
     await janela.loadFile(path.join(__dirname, 'voz', 'captura.html'));
     const res = await pedir({ t: 'iniciar' }, 120000);
     if (res.erro) { fecharCaptura(); return { erro: res.erro }; }
+    // A miniatura do que foi escolhido, para a pessoa conferir se é a tela da reunião.
+    const mini = await pedir({ t: 'miniatura' });
+    tela = mini.erro ? null : { miniatura: mini.dataUrl, largura: res.largura, altura: res.altura };
+    avisarTudo({ ...r.estado(), evento: 'tela', tela });
     return { ok: true };
   }
   function fecharCaptura() {
@@ -46,6 +57,7 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     janela = null;
     for (const f of esperando.values()) f({ erro: 'a captura foi fechada' });
     esperando = new Map();
+    tela = null;
     setTimeout(() => { try { j.destroy(); } catch { /* já fechou */ } }, 200);
   }
   async function capturar(arquivo) {
@@ -78,8 +90,7 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     transcrever: (arquivo, o) => transcricao.transcrever(arquivo, { ...o, modelo: modelo(), escolhido: config.ler().vozPython }),
     resumir,
     aoMudar: (e) => {
-      enviarTela('reuniao:mudou', e);
-      avisarBichinho(e);
+      avisarTudo(e);
       if (e.evento === 'pronta' && Notification.isSupported() && !emTeste) {
         try { new Notification({ title: 'Nota da reunião pronta', body: e.assunto || 'Reunião' }).show(); } catch { /* sem notificações */ }
       }
@@ -97,6 +108,42 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     return r.estado();
   }
   async function terminar() { fecharCaptura(); const t = await r.terminar(); return { pasta: t.pasta }; }
+  // Trocar a tela ou janela dos prints no meio da reunião (o sistema pergunta de novo).
+  async function trocarTela() {
+    if (!r.estado().gravando) throw new Error('nenhuma reunião sendo gravada');
+    fecharCaptura();
+    await new Promise((x) => setTimeout(x, 300));
+    const a = await abrirCaptura();
+    if (a.erro) { r.printsDesligados(`sem permissão para ver a tela (${a.erro})`); throw new Error(a.erro); }
+    return { tela: !!tela };
+  }
+
+  // --- detectar a reunião pelo microfone (reuniao-detectar.js) ----------------------
+  // reuniaoDetectar: 'perguntar' (o bichinho pergunta se grava), 'gravar' (começa sozinho, com o
+  // sinal e o lembrete de avisar as pessoas) ou 'desligado'. Quando a ligação solta o microfone,
+  // pergunta se termina ('gravar': termina sozinho).
+  const D = require('./reuniao-detectar');
+  const modoDetectar = () => config.ler().reuniaoDetectar || 'perguntar';
+  const detectar = D.criar({
+    // Desligado: nem olha quem usa o microfone.
+    listar: () => (modoDetectar() === 'desligado' ? Promise.resolve(null) : D.listarPipeWire()),
+    gravando: () => r.estado().gravando,
+    nossos: () => [process.pid],
+    intervalo: emTeste ? 300 : 4000,
+    minimoMs: emTeste ? 600 : 10000,
+    acabouMs: emTeste ? 900 : 60000,
+    aoMudar: async (d) => {
+      const modo = modoDetectar();
+      if (modo === 'desligado') return;
+      if (d.evento === 'detectada' && modo === 'gravar') {
+        try { await comecar(''); avisarTudo({ ...r.estado(), evento: 'comecou-sozinha', nome: d.nome }); } catch (e) { avisarTudo({ ...r.estado(), evento: 'falhou', erro: e.message }); }
+        return;
+      }
+      if (d.evento === 'acabou' && modo === 'gravar') { try { await terminar(); } catch { /* já tinha parado */ } return; }
+      avisarTudo({ ...r.estado(), evento: d.evento, nome: d.nome });
+    },
+  });
+  detectar.ligar();
   // Abrir a nota ou a pasta: só o que está dentro da pasta das reuniões.
   async function abrir(caminho) {
     const base = config.ler().reunioesPasta;
@@ -112,6 +159,8 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
   ipcMain.handle('reuniao:marcar', seguro(async (texto) => r.marcar(typeof texto === 'string' ? texto : '')));
   ipcMain.handle('reuniao:terminar', seguro(async () => terminar()));
   ipcMain.handle('reuniao:abrir', seguro(async (caminho) => abrir(caminho)));
+  ipcMain.handle('reuniao:trocarTela', seguro(async () => trocarTela()));
+  ipcMain.handle('reuniao:tela', () => tela);
   ipcMain.handle('reuniao:voz', seguro(async (deNovo) => {
     const c = config.ler();
     const m = transcricao.maquina();
@@ -130,9 +179,10 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     if (acao === 'marcar') return r.marcar(typeof dados.texto === 'string' ? dados.texto : '');
     if (acao === 'terminar') return terminar();
     if (acao === 'abrir') return abrir(dados.caminho);
+    if (acao === 'trocarTela') return trocarTela();
     throw new Error('ação desconhecida');
   }
-  return { reuniao: r, executar, encerrar: async () => { fecharCaptura(); await r.encerrar(); } };
+  return { reuniao: r, executar, detectar, encerrar: async () => { detectar.desligar(); fecharCaptura(); await r.encerrar(); } };
 }
 
 module.exports = { ligar };

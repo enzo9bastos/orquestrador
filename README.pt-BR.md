@@ -185,7 +185,14 @@ há terminal para vigiar.
   próprio computador (faster-whisper, com o modelo que combina com a máquina), e a nota sai com a transcrição, os
   prints no minuto em que foram tirados, os momentos marcados e, se ligado, o resumo com decisões e pendências; a
   pasta ganha o assunto no nome. O áudio nunca sai do computador; o resumo leva só o texto, ao Claude ou a um
-  modelo local (Ollama). Configurações › *Voz e reuniões*.
+  modelo local (Ollama). Configurações › *Voz e reuniões*. O app também nota a ligação sozinho: quando um programa
+  de ligação (Meet ou Teams no navegador, Zoom, Slack, Discord…) usa o microfone por alguns segundos, o bichinho
+  pergunta se grava (ou, se você escolher, começa a gravar com o sinal à vista), e quando a ligação solta o
+  microfone pergunta se termina. Ele só vê o nome do programa no servidor de som, nunca o áudio nem o título da
+  ligação. Os prints mostram o que você escolher na janela do sistema no começo (a janela da reunião ou uma tela
+  inteira), com a miniatura para conferir e *Trocar*.
+- **Tacar o bichinho da área de trabalho**: arraste e solte com velocidade, e ele voa pela tela, quica nas bordas
+  e cai no chão (as janelas dos outros programas não são obstáculo).
 - **Carregar as anteriores**: a conversa reaberta mostra as últimas 600 mensagens; uma faixa no topo avisa que há
   mais antigas e traz a página de antes para cima, mantendo a tela onde você estava lendo, até chegar ao início da
   conversa. Nada do que já está na tela é lido de novo.

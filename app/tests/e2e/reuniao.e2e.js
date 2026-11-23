@@ -1,4 +1,5 @@
-// Área: voz (modo reunião no app: gravar, print, marcar, terminar e a nota pronta)
+// Área: voz [sozinho] (modo reunião no app: gravar, print, marcar, terminar e a nota pronta)
+// [sozinho]: o print captura a tela inteira; com outros apps de teste na mesma tela virtual, a captura falha.
 // Pedido de 23/11. O ffmpeg grava um tom gerado por ele (sem microfone), a transcrição é o
 // voz-falso.js, o resumo é o claude-resumo-falso.js; o print é de verdade, da tela virtual.
 const test = require('node:test');
@@ -99,5 +100,56 @@ for (const idioma of ['pt-BR', 'en']) {
       assert.strictEqual(JSON.parse(app.ler('.config/orq-app/config.json')).vozModelo, 'small');
       assert.deepStrictEqual(app.erros, []);
     });
+  });
+}
+
+// Pedido de 23/11 (como o Granola): o app nota a ligação pelo microfone. Aqui o pw-dump é falso:
+// o teste escreve num arquivo quem está usando o microfone.
+for (const modo of ['perguntar', 'gravar']) {
+  test(`reunião detectada pelo microfone (${modo})`, async (t) => {
+    const { pastaTemporaria } = require('../temporarias');
+    const lista = path.join(pastaTemporaria('orq-pw-'), 'microfone.json');
+    fs.writeFileSync(lista, '[]');
+    const app = await abrirApp({
+      config: { mostrarBichinho: false, reunioesPasta: '~/Reuniões', reuniaoResumo: 'claude', reuniaoPrints: true, reuniaoDetectar: modo },
+      env: { ORQ_REUNIAO_ENTRADA: 'teste', ORQ_VOZ_PYTHON: process.execPath, ORQ_VOZ_SCRIPT: FALSO, ORQ_REUNIAO_CLAUDE: CLAUDE, ORQ_PW_DUMP: path.join(__dirname, '..', 'unit', 'pw-dump-falso.js'), PW_FALSO_ARQ: lista },
+    });
+    t.after(() => app.fechar());
+    await app.esperar('!!window.orqReuniao');
+    const base = path.join(app.casa, 'Reuniões');
+    const pastas = () => { try { return fs.readdirSync(base); } catch { return []; } };
+    const clicar = (rb) => app.avaliar(`document.querySelector('#reuniao-barra [data-rb="${rb}"]').click()`);
+
+    fs.writeFileSync(lista, JSON.stringify([{ app: 'Google Chrome', binario: 'chrome', pid: 4242 }]));
+    if (modo === 'perguntar') {
+      await t.test('a ligação no navegador: a barra pergunta se grava, e nada é gravado antes do sim', async () => {
+        await app.esperar(`/Reunião no navegador ?\\? Sim, gravar Agora não/.test(${textoBarra})`, 8000);
+        assert.deepStrictEqual(pastas(), []);
+        await clicar('gravar');
+        await app.esperar(`${BARRA}.classList.contains('gravando')`, 8000);
+        assert.strictEqual(pastas().length, 1);
+      });
+      await t.test('a miniatura do que os prints mostram fica disponível', async () => {
+        await app.esperar('window.orq.reuniao.tela().then((x) => !!(x && /^data:image\\/jpeg;base64,/.test(x.miniatura)))', 10000);
+      });
+      await t.test('a ligação solta o microfone: a barra pergunta se termina; "Terminar" monta a nota', async () => {
+        fs.writeFileSync(lista, '[]');
+        await app.esperar(`/A ligação acabou\\? Terminar a gravação\\?/.test(${textoBarra})`, 8000);
+        await clicar('terminar-sim');
+        await app.esperar(`/Nota pronta/.test(${textoBarra})`, 20000);
+        assert.deepStrictEqual(app.erros, []);
+      });
+    } else {
+      await t.test('a ligação no navegador: começa a gravar sozinho e avisa para avisar as pessoas', async () => {
+        await app.esperar(`${BARRA}.classList.contains('gravando')`, 8000);
+        await app.esperar("[...document.querySelectorAll('#mensagens .aviso-conversa')].some((a) => /Comecei a gravar a reunião no navegador[\\s\\S]*Avise as pessoas/.test(a.innerText))", 5000);
+      });
+      await t.test('a ligação acaba: termina sozinho e a nota sai', async () => {
+        fs.writeFileSync(lista, '[]');
+        await app.esperar(`/Nota pronta/.test(${textoBarra})`, 20000);
+        assert.strictEqual(pastas().length, 1);
+        assert.deepStrictEqual(app.erros, []);
+      });
+    }
   });
 }

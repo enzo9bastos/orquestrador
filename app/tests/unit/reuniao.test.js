@@ -43,6 +43,8 @@ test('reunião: começar cria a pasta com data e hora, grava as duas trilhas e f
   assert.deepStrictEqual(e.dispositivos, { voce: 'Microfone de teste', outros: 'Fone de teste' });
   const m = meta(e.pasta);
   assert.deepStrictEqual([m.estado, m.titulo, m.trilhas], ['gravando', 'Alinhamento', { voce: 'audio/voce.opus', outros: 'audio/outros.opus' }]);
+  // Só o próprio usuário lê a reunião (pasta 700).
+  for (const p of [e.pasta, path.join(e.pasta, 'audio'), path.join(e.pasta, 'prints')]) assert.strictEqual(fs.statSync(p).mode & 0o777, 0o700, p);
   await assert.rejects(r.comecar({}), /já há uma reunião/);
 });
 

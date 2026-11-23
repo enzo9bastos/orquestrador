@@ -192,7 +192,14 @@ que no hay ninguna terminal que vigilar.
   transcribe en el propio equipo (faster-whisper, con el modelo que conviene a la máquina) y la nota sale con la
   transcripción, las capturas en el minuto en que se tomaron, los momentos marcados y, si está activado, el resumen
   con decisiones y pendientes; la carpeta recibe el asunto en el nombre. El audio nunca sale del equipo; el resumen
-  envía solo el texto, a Claude o a un modelo local (Ollama). Settings › *Voice and meetings*.
+  envía solo el texto, a Claude o a un modelo local (Ollama). Settings › *Voice and meetings*. La app también
+  nota la llamada sola: cuando un programa de llamadas (Meet o Teams en el navegador, Zoom, Slack, Discord…) usa
+  el micrófono unos segundos, la mascota pregunta si graba (o, si lo eliges, empieza a grabar con la señal visible),
+  y cuando la llamada suelta el micrófono pregunta si termina. Solo ve el nombre del programa en el servidor de
+  sonido, nunca el audio ni el título de la llamada. Las capturas muestran lo que elijas en el diálogo del sistema
+  al empezar (la ventana de la reunión o una pantalla entera), con una miniatura para revisar y *Change*.
+- **Lanzar la mascota del escritorio**: arrástrala y suéltala con velocidad, y vuela por la pantalla, rebota en los
+  bordes y cae al suelo (las ventanas de otros programas no son obstáculo).
 - **Load the earlier ones**: la conversación reabierta muestra sus últimos 600 mensajes; una franja arriba avisa
   que hay más antiguos y trae la página anterior por encima, manteniendo la pantalla donde estabas leyendo, hasta
   llegar al inicio de la conversación. Nada de lo que ya está en pantalla se vuelve a leer.

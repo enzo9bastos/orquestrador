@@ -628,6 +628,14 @@
               <input class="campo-config" data-cfg="reuniaoModeloLocal" placeholder="qwen2.5:7b">
             </div>
             <div class="config-linha">
+              <div><strong>Quando uma ligação começar</strong><span>O app nota a ligação pelo microfone (Meet, Zoom, Teams, Slack, Discord, no navegador ou no programa). Ele só vê o nome do programa, nunca o áudio nem o título da ligação.</span></div>
+              <select class="campo-config" data-cfg="reuniaoDetectar">
+                <option value="perguntar">Perguntar se grava</option>
+                <option value="gravar">Gravar sozinho (com o sinal à vista)</option>
+                <option value="desligado">Não fazer nada</option>
+              </select>
+            </div>
+            <div class="config-linha">
               <div><strong>Prints durante a reunião</strong><span>A tela é pedida uma vez, ao começar (o sistema pergunta qual tela); cada print depois sai sem janela.</span></div>
               <label class="chave"><input type="checkbox" data-cfg="reuniaoPrints"><span></span></label>
             </div>

@@ -95,3 +95,70 @@ test('bichinho: modo reunião', { skip: !process.env.DISPLAY && 'sem tela (DISPL
     assert.strictEqual(r.caminho, '/r/2026-11-23-09h30-nf/reuniao.md');
   });
 });
+
+// Pedido de 23/11: o app nota a ligação pelo microfone e o bichinho pergunta; a miniatura do que os
+// prints mostram, com "Trocar"; e tacar o bichinho pela tela, como o de dentro do app.
+test('bichinho: reunião detectada, fim da ligação, miniatura da tela e arremesso', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
+  const env = { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') };
+  delete env.WAYLAND_DISPLAY;
+  const p = spawn(process.env.ORQ_ELECTRON, [path.join(__dirname, '../../pet/main.js'), '--ozone-platform=x11'], { stdio: ['pipe', 'pipe', 'ignore'], env });
+  t.after(() => p.kill());
+  const recebidas = [];
+  readline.createInterface({ input: p.stdout }).on('line', (l) => { try { recebidas.push(JSON.parse(l)); } catch { /* outra saída */ } });
+  const manda = (m) => p.stdin.write(JSON.stringify(m) + '\n');
+  const espera = async (fn, ms = 10000) => { for (let i = 0; i < ms / 100; i++) { const r = recebidas.find(fn); if (r) return r; await new Promise((x) => setTimeout(x, 100)); } throw new Error(`não chegou: ${fn}`); };
+  const js = async (codigo) => { const i = recebidas.length; manda({ t: 'js', codigo }); return (await espera((m, k) => k >= i && m.t === 'js')).r; };
+  const estado = async () => { const i = recebidas.length; manda({ t: 'estado' }); return espera((m, k) => k >= i && m.t === 'estado'); };
+  const bolha = () => js("document.getElementById('bolha').hidden ? '' : document.getElementById('bolha').innerText.replace(/\\s+/g, ' ').trim()");
+  const dorme = (ms) => new Promise((x) => setTimeout(x, ms));
+  await espera((m) => m.t === 'iniciado', 20000);
+  manda({ t: 'visual', visual: { cor: 'azul', itens: {} }, tema: 'dark' });
+
+  await t.test('ligação detectada com ele escondido: ele aparece e pergunta; "Gravar" pede ao app', async () => {
+    manda({ t: 'reuniao', estado: { gravando: false, processando: [], evento: 'detectada', nome: 'o navegador' } });
+    await espera((m) => m.t === 'visivel' && m.visivel, 15000);
+    for (let i = 0; i < 40 && !/Começou uma reunião no navegador/.test(await bolha()); i++) await dorme(100);
+    assert.match(await bolha(), /^Começou uma reunião no navegador\? Quer gravar\? Sim, gravar Agora não$/);
+    await js("document.querySelector('#bolha [data-acao=\"rn-gravar\"]').click(); 1");
+    const r = await espera((m) => m.t === 'reuniao' && m.acao === 'comecar');
+    assert.strictEqual(r.titulo, '');
+  });
+
+  await t.test('gravando: a miniatura do que os prints mostram aparece no painel, com "Trocar"', async () => {
+    manda({ t: 'reuniao', estado: { gravando: true, inicio: Date.now(), prints: 0, marcas: 0, printsLigados: true, processando: [], evento: 'comecou' } });
+    const px = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+    manda({ t: 'reuniao', estado: { gravando: true, inicio: Date.now(), prints: 0, marcas: 0, printsLigados: true, processando: [], evento: 'tela', tela: { miniatura: px } } });
+    await dorme(300);
+    await js("document.querySelector('[data-m=reuniao]').click(); 1");
+    for (let i = 0; i < 30 && !(await js("!!document.querySelector('.rn-tela img')")); i++) await dorme(100);
+    assert.match(await js("document.querySelector('.rn-tela').innerText.replace(/\\s+/g, ' ').trim()"), /^Os prints mostram isto\. Trocar$/);
+    await js("document.querySelector('[data-rn=\"trocar-tela\"]').click(); 1");
+    await espera((m) => m.t === 'reuniao' && m.acao === 'trocarTela');
+    await js("document.getElementById('rn-fechar').click(); 1");
+  });
+
+  await t.test('a ligação acabou: ele pergunta se termina; "Terminar" pede ao app', async () => {
+    manda({ t: 'reuniao', estado: { gravando: true, inicio: Date.now(), prints: 0, marcas: 0, printsLigados: true, processando: [], evento: 'acabou', nome: 'o navegador' } });
+    for (let i = 0; i < 40 && !/acabou\?/.test(await bolha()); i++) await dorme(100);
+    assert.match(await bolha(), /^A ligação no navegador acabou\? Terminar a gravação\? Terminar Continuar gravando$/);
+    await js("document.querySelector('#bolha [data-acao=\"rn-terminar\"]').click(); 1");
+    await espera((m) => m.t === 'reuniao' && m.acao === 'terminar');
+    manda({ t: 'reuniao', estado: { gravando: false, processando: [], evento: 'parou' } });
+  });
+
+  await t.test('tacar: solto com velocidade para a esquerda e para cima, ele voa e para no chão, dentro da tela', async () => {
+    for (let i = 0; i < 60 && (await estado()).modo !== 'parado'; i++) await dorme(100);
+    const antes = await estado();
+    await js("window.ajudante.enviar({ t: 'soltar', vx: -250, vy: -1800 }); 1");
+    await dorme(150);
+    const voando = await estado();
+    assert.ok(voando.pos.y < antes.pos.y, `subiu: ${antes.pos.y} → ${voando.pos.y}`);
+    await dorme(2500);
+    let e = await estado();
+    for (let i = 0; i < 60 && Math.abs(e.pos.y - e.chao) > 1; i++) { await dorme(100); e = await estado(); }
+    assert.ok(Math.abs(e.pos.y - e.chao) <= 1, `parou no chão: y ${e.pos.y}, chão ${e.chao}`);
+    const larg = await js('screen.availWidth');
+    assert.ok(e.pos.x >= 0 && e.pos.x + e.tam.w <= larg + 1, `dentro da tela: x ${e.pos.x}`);
+    assert.ok(e.pos.x < antes.pos.x - 100, `foi para a esquerda: ${antes.pos.x} → ${e.pos.x}`);
+  });
+});

@@ -2077,9 +2077,33 @@
     "Print guardado 📷": "Screenshot saved 📷",
     "Momento marcado ★": "Moment marked ★",
     "A nota da reunião não saiu": "The meeting note did not come out",
-    "Fechar (a gravação continua)": "Close (recording continues)"
+    "Fechar (a gravação continua)": "Close (recording continues)",
+    "Para os prints, o sistema vai perguntar o que mostrar: escolha a janela da reunião (Meet, Zoom, Teams…) ou a tela onde ela está.": "For screenshots, the system will ask what to show: pick the meeting window (Meet, Zoom, Teams…) or the screen where it is.",
+    "Os prints mostram isto.": "Screenshots show this.",
+    "Trocar": "Change",
+    "Começou uma reunião": "A meeting started",
+    "o computador": "the computer",
+    "Quer gravar?": "Record it?",
+    "Agora não": "Not now",
+    "Comecei a gravar a reunião": "I started recording the meeting",
+    "Avise as pessoas que ela está sendo gravada.": "Tell the people that it is being recorded.",
+    "Abrir o painel": "Open the panel",
+    "A ligação": "The call",
+    "acabou? Terminar a gravação?": "ended? Stop recording?",
+    "Gravando. Avise as pessoas da reunião que ela está sendo gravada.": "Recording. Tell the people in the meeting that it is being recorded.",
+    "A ligação acabou? Terminar a gravação?": "Did the call end? Stop recording?",
+    "Quando uma ligação começar": "When a call starts",
+    "O app nota a ligação pelo microfone (Meet, Zoom, Teams, Slack, Discord, no navegador ou no programa). Ele só vê o nome do programa, nunca o áudio nem o título da ligação.": "The app notices the call through the microphone (Meet, Zoom, Teams, Slack, Discord, in the browser or the program). It only sees the program's name, never the audio or the call's title.",
+    "Perguntar se grava": "Ask whether to record",
+    "Gravar sozinho (com o sinal à vista)": "Record by itself (with the sign visible)",
+    "Não fazer nada": "Do nothing",
+    "Sim, gravar": "Yes, record"
   },
   "padroes": [
+    [
+      "^Comecei a gravar a reunião n(o|a) (.+), porque a ligação começou\\. Avise as pessoas que ela está sendo gravada\\.$",
+      "I started recording the meeting in $2, because the call started. Tell the people that it is being recorded."
+    ],
     [
       "^Prints da reunião desligados: (.*)\\. A gravação do áudio continua\\.$",
       "Meeting screenshots are off: $1. Audio recording continues."

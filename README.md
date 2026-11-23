@@ -182,6 +182,13 @@ protocol), so there is no terminal to babysit.
   comes out with the transcript, the screenshots at the minute they were taken, the marked moments and, if on,
   a summary with decisions and to-dos; the folder gets the subject in its name. Audio never leaves the computer;
   the summary sends only the text, to Claude or to a local model (Ollama). Settings › *Voice and meetings*.
+  The app can also notice a call by itself: when a call program (Meet or Teams in the browser, Zoom, Slack,
+  Discord…) uses the microphone for a few seconds, the helper asks whether to record (or, if you choose, starts
+  recording with the sign visible), and when the call releases the microphone it asks whether to stop. It only sees
+  the program's name in the sound server, never the audio or the call's title. Screenshots show what you pick in
+  the system's dialog at the start (the meeting window or a whole screen), with a thumbnail to check and *Change*.
+- **Throw the desktop helper**: drag it and let go with some speed, and it flies across the screen, bounces on the
+  screen edges and lands (other windows are not obstacles).
 - **Load the earlier ones**: a reopened conversation shows its latest 600 messages; a strip at the top says there
   are older ones and brings the previous page in above, keeping the screen where you were reading, until it reaches
   the start of the conversation. Nothing already on screen is read again.

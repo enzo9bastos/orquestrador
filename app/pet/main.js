@@ -94,6 +94,41 @@ function andar(x, vel, depois) {
   }, QUADRO);
 }
 
+// Arremesso (como o bichinho de dentro do app): solto com velocidade, ele voa pela tela, quica nas
+// bordas do monitor onde está e cai até o chão; quem voa não tem gravidade e vai freando no ar até
+// parar onde ficou. Só a tela conta: as janelas dos outros programas não são obstáculo.
+const GRAVIDADE = 2400; // px/s²
+const QUIQUE = 0.42; // quanto da velocidade sobra ao bater
+const VMAX = 3000;
+function arremessar(vx, vy) {
+  clearInterval(timer); timer = null;
+  vx = Math.max(-VMAX, Math.min(VMAX, vx));
+  vy = Math.max(-VMAX, Math.min(VMAX, vy));
+  const voa = jeito === 'voa';
+  let ultimo = Date.now();
+  let quieto = 0;
+  timer = setInterval(() => {
+    const agora = Date.now();
+    const dt = Math.min(0.05, (agora - ultimo) / 1000); ultimo = agora;
+    const a = area();
+    const x0 = a.x, x1 = a.x + a.width - tam.w, y0 = a.y, chaoY = chao(a);
+    if (voa) { vx *= Math.pow(0.12, dt); vy *= Math.pow(0.12, dt); } else vy += GRAVIDADE * dt;
+    pos.x += vx * dt; pos.y += vy * dt;
+    if (pos.x < x0) { pos.x = x0; vx = -vx * QUIQUE; }
+    if (pos.x > x1) { pos.x = x1; vx = -vx * QUIQUE; }
+    if (pos.y < y0) { pos.y = y0; vy = -vy * QUIQUE; }
+    if (pos.y >= chaoY) {
+      pos.y = chaoY;
+      if (Math.abs(vy) > 260) { vy = -vy * QUIQUE; vx *= 0.7; } else { vy = 0; vx *= Math.pow(0.02, dt); }
+    }
+    if (Math.abs(vx) > 30) paraTela({ t: 'andando', ligado: false, lado: vx < 0 ? 'esq' : 'dir' });
+    mover();
+    const parado = Math.hypot(vx, vy) < 25 && (voa || pos.y >= chaoY);
+    quieto = parado ? quieto + 1 : 0;
+    if (quieto >= 3) { clearInterval(timer); timer = null; paraTela({ t: 'pousou' }); }
+  }, QUADRO);
+}
+
 // Chegada de cada espécie, sem passar pelo monitor vizinho: a janela começa
 // encostada na borda, por dentro, e o bichinho sai de trás dela.
 //  - quem anda sai andando (o gatinho, trotando; o pinguim, de barriga);
@@ -316,7 +351,11 @@ function receber(m) {
   else if (m.t === 'sumir') sumir();
   else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido' || m.t === 'reuniaoResposta') paraTela(m);
   // Modo reunião: o sinal de "gravando" vai para a tela; começou a gravar, ele aparece.
-  else if (m.t === 'reuniao') { if (m.estado && m.estado.gravando && modo === 'escondido') aparecer(() => paraTela(m)); else paraTela(m); }
+  else if (m.t === 'reuniao') {
+    const e = m.estado || {};
+    const chama = e.gravando || ['detectada', 'acabou', 'comecou-sozinha', 'pronta'].includes(e.evento);
+    if (chama && modo === 'escondido') aparecer(() => paraTela(m)); else paraTela(m);
+  }
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') { win.showInactive(); win.setSkipTaskbar(true); win.setVisibleOnAllWorkspaces(true); } win.focus(); paraTela(m); }
   else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
   else if (m.t === 'js' && TESTE) win.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) }));
@@ -371,12 +410,7 @@ ipcMain.on('ajudante', (_e, m) => {
   else if (m.t === 'irEmbora') sumir();
   else if (m.t === 'passear') { paraTela({ t: 'falar', texto: 'Oba, passeio!' }); passear(); }
   else if (m.t === 'arrastar') { clearInterval(timer); timer = null; pos.x += m.dx; pos.y += m.dy; mover(); }
-  else if (m.t === 'soltar' && jeito === 'voa') paraTela({ t: 'pousou' }); // quem voa fica no ar onde foi solto
-  else if (m.t === 'soltar') {
-    // Cai até o chão do monitor onde foi solto.
-    const fim = chao();
-    const cair = setInterval(() => { pos.y = Math.min(fim, pos.y + 40); mover(); if (pos.y >= fim) { clearInterval(cair); paraTela({ t: 'pousou' }); } }, 16);
-  }
+  else if (m.t === 'soltar') arremessar(Number(m.vx) || 0, Number(m.vy) || 0);
 });
 
 app.whenReady().then(() => {

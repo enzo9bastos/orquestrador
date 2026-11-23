@@ -96,8 +96,11 @@ function criar({ base, gravar, capturar, transcrever, resumir = async () => null
     const inicio = agora();
     let pasta = path.join(b, `${carimbo(new Date(inicio))}-reuniao`);
     for (let n = 2; fs.existsSync(pasta); n++) pasta = path.join(b, `${carimbo(new Date(inicio))}-reuniao-${n}`);
-    fs.mkdirSync(path.join(pasta, 'audio'), { recursive: true });
-    fs.mkdirSync(path.join(pasta, 'prints'), { recursive: true });
+    // Só o próprio usuário lê a reunião (pasta 700), como no guia de gravação da equipe.
+    fs.mkdirSync(pasta, { mode: 0o700 });
+    fs.chmodSync(pasta, 0o700);
+    fs.mkdirSync(path.join(pasta, 'audio'), { mode: 0o700 });
+    fs.mkdirSync(path.join(pasta, 'prints'), { mode: 0o700 });
     const meta = { versao: 1, titulo: limpo(titulo, 120), inicio, fim: null, estado: 'gravando', prints: [], marcas: [], dispositivos: {}, trilhas: {} };
     gravarMeta(pasta, meta);
     const gravadores = {};
