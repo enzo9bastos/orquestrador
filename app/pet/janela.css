@@ -224,3 +224,19 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 .aj-rc-aviso { margin: 6px 0; padding: 6px 8px; border: 1px solid var(--esperando, #b9922f); border-radius: 6px; font-size: 11.5px; }
 /* "‹ Voltar" na pergunta com várias partes: fica à esquerda, longe do Confirmar. */
 .aj-acoes .aj-voltar { margin-right: auto; }
+
+/* Modo reunião: sinal de gravando em cima do bichinho (sempre à vista enquanto grava), painel com
+   o título, os aparelhos, as contas de prints e marcas, e a barra de andamento da nota. */
+.aj-rec { position: absolute; right: 100%; top: 35%; margin-right: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: #c62828; color: #fff; font: 600 11px var(--mono); white-space: nowrap; pointer-events: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+.aj-rec[hidden] { display: none; }
+.aj-rec i { width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: aj-rec-pisca 1.2s steps(2, start) infinite; }
+@keyframes aj-rec-pisca { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .aj-rec i { animation: none; } }
+.aj-reuniao .rn-campo { display: grid; gap: 4px; font-size: 12px; color: var(--fg-3); margin: 0 0 8px; }
+.aj-reuniao .rn-campo input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--borda-forte); background: var(--bg-afundado); color: var(--fg); font: inherit; font-size: 13px; }
+.aj-reuniao .rn-campo input:focus { outline: none; border-color: var(--claude); }
+.aj-reuniao .rn-aviso { font-weight: 600; color: var(--fg-2); }
+.aj-reuniao .rn-contas { display: flex; gap: 14px; font-size: 13px; color: var(--fg-2); margin: 6px 0; }
+.aj-reuniao .rn-aparelhos { line-height: 1.5; }
+.aj-reuniao .rn-barra { height: 8px; border-radius: 999px; background: var(--bg-afundado); border: 1px solid var(--borda); overflow: hidden; margin: 8px 0 4px; }
+.aj-reuniao .rn-barra i { display: block; height: 100%; background: var(--claude); transition: width .4s; }

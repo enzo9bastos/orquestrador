@@ -95,6 +95,7 @@
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
     if (!$('menu').hidden) $('menu').hidden = true;
+    else if (!$('reuniao').hidden) fecharReuniao();
     else if (!$('conversa').hidden) fecharConversa();
   });
 
@@ -121,6 +122,7 @@
     if (foi.moveu) { classe('voando'); A.enviar({ t: 'soltar' }); return; }
     // Clique: pula e fala.
     classe('feliz'); setTimeout(() => classe('feliz', false), 900);
+    if (rn.gravando && $('reuniao').hidden && $('conversa').hidden) { abrirReuniao('gravando'); return; }
     if ($('conversa').hidden) falar(sorteia(['Oi! Dois cliques para conversar.', 'Tô aqui!', 'Precisa de mim?', 'Hehe']), 1600);
   });
   pet.addEventListener('dblclick', abrirConversa);
@@ -131,6 +133,7 @@
     $('menu').hidden = true;
     if (m === 'conversar') abrirConversa();
     else if (m === 'capturar') { abrirConversa(); capturar(); }
+    else if (m === 'reuniao') abrirReuniao();
     else if (m === 'passear') A.enviar({ t: 'passear' });
     else if (m === 'voltar') A.enviar({ t: 'voltar' });
     else if (m === 'embora') A.enviar({ t: 'irEmbora' });
@@ -143,6 +146,7 @@
     if (a === 'ver') { A.enviar({ t: 'abrirApp', conversa: alvoPendencia }); A.enviar({ t: 'irEmbora' }); }
     else if (a === 'depois') A.enviar({ t: 'irEmbora' });
     else if (a === 'abrir') A.enviar({ t: 'abrirApp', conversa: 'ajudante' });
+    else if (a === 'nota' && rnUltima) pedirReuniao('abrir', { caminho: rnUltima.nota });
   });
   let tCarinho = null;
   pet.addEventListener('pointerenter', () => { tCarinho = setTimeout(() => { classe('feliz'); const c = pet.querySelector('.pet-coracao'); c.hidden = false; c.classList.remove('sobe'); void c.offsetWidth; c.classList.add('sobe'); }, 600); });
@@ -255,6 +259,116 @@
     if (ev.target.id === 'pg-outra' && ev.key === 'Enter' && !ev.shiftKey && ev.target.value.trim()) { ev.preventDefault(); proxima(ev.target.value.trim()); }
   });
 
+  // --- modo reunião --------------------------------------------------------------
+  // O app grava (reuniao.js); aqui só se pede e se mostra. Enquanto grava, o bichinho fica com o
+  // sinal vermelho e o tempo; o painel tem Print, Marcar momento e Terminar (com confirmação).
+  let rn = { gravando: false }; // último estado vindo do app
+  let rnTela = 'inicio'; // inicio | gravando | terminar | montando | pronta
+  let rnUltima = null; // { nota, pasta, assunto } da última nota pronta
+  let rnPedido = 0;
+  let tRec = null;
+  const relogio = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600); const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'); const ss = String(s % 60).padStart(2, '0'); return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`; };
+  function pintarRec() {
+    $('rec').hidden = !rn.gravando;
+    classe('gravando', !!rn.gravando);
+    $('menu-reuniao').textContent = rn.gravando ? tr('🎙 Reunião (gravando)') : tr('🎙 Gravar reunião');
+    clearInterval(tRec);
+    if (rn.gravando) {
+      const tique = () => { $('rec-tempo').textContent = relogio(Date.now() - rn.inicio); if (rnTela === 'gravando' && !$('reuniao').hidden) $('rn-passo').textContent = `${tr('gravando')} · ${relogio(Date.now() - rn.inicio)}`; };
+      tique();
+      tRec = setInterval(tique, 1000);
+    }
+  }
+  function abrirReuniao(tela) {
+    calar(); $('menu').hidden = true; $('conversa').hidden = true;
+    if (tela) rnTela = tela; else if (rn.gravando) rnTela = 'gravando'; else if (rn.processando && rn.processando.length) rnTela = 'montando'; else if (rnTela !== 'pronta') rnTela = 'inicio';
+    $('reuniao').hidden = false;
+    A.enviar({ t: 'abrirConversa' });
+    desenharReuniao();
+  }
+  function fecharReuniao() { $('reuniao').hidden = true; A.enviar({ t: 'fecharConversa' }); }
+  function pedirReuniao(acao, dados = {}) { A.enviar({ t: 'reuniao', acao, id: ++rnPedido, ...dados }); }
+  function desenharReuniao(erro) {
+    const corpo = $('rn-corpo');
+    const acoes = $('rn-acoes');
+    const msgErro = erro ? `<p class="aj-erro">${esc(erro)}</p>` : '';
+    if (rnTela === 'inicio') {
+      $('rn-titulo').textContent = tr('Gravar reunião');
+      $('rn-passo').textContent = '';
+      corpo.innerHTML = `<label class="rn-campo"><span>${esc(tr('Título (opcional)'))}</span><input id="rn-nome" type="text" maxlength="120" placeholder="${esc(tr('Ex.: Alinhamento com o financeiro'))}"></label>
+        <p class="aj-motivo rn-aviso">${esc(tr('Avise as pessoas da reunião que ela está sendo gravada.'))}</p>
+        <p class="nota">${esc(tr('Grava você (microfone) e os outros (som do computador) em separado. O áudio fica no computador; no fim, a nota sai com a transcrição, os prints e o resumo.'))}</p>${msgErro}`;
+      acoes.innerHTML = `<button type="button" class="botao-texto" data-rn="fechar">${esc(tr('Cancelar'))}</button><button type="button" class="botao primario" data-rn="comecar">${esc(tr('Começar a gravar'))}</button>`;
+      setTimeout(() => { const c = $('rn-nome'); if (c) c.focus(); }, 50);
+    } else if (rnTela === 'gravando' || rnTela === 'terminar') {
+      $('rn-titulo').textContent = rn.titulo || tr('Reunião');
+      $('rn-passo').textContent = rn.gravando ? `${tr('gravando')} · ${relogio(Date.now() - rn.inicio)}` : '';
+      const d = rn.dispositivos || {};
+      const aparelhos = [d.voce ? `${tr('Microfone')}: ${d.voce}` : '', d.outros ? `${tr('Som do computador')}: ${d.outros}` : ''].filter(Boolean);
+      corpo.innerHTML = `${aparelhos.length ? `<p class="nota rn-aparelhos">${aparelhos.map(esc).join('<br>')}</p>` : ''}
+        <p class="rn-contas"><span>📷 ${rn.prints || 0}</span> <span>★ ${rn.marcas || 0}</span></p>
+        ${rn.printsLigados === false ? `<p class="aj-motivo">${esc(tr('Prints desligados nesta reunião.'))}</p>` : ''}
+        ${rnTela === 'terminar' ? `<p class="pergunta">${esc(tr('Terminar a reunião? A gravação para e a nota começa a ser montada.'))}</p>` : ''}${msgErro}`;
+      acoes.innerHTML = rnTela === 'terminar'
+        ? `<button type="button" class="botao-texto" data-rn="continuar">${esc(tr('Continuar gravando'))}</button><button type="button" class="botao primario" data-rn="terminar-sim">${esc(tr('Terminar'))}</button>`
+        : `<button type="button" class="botao-texto" data-rn="print"${rn.printsLigados === false ? ' disabled' : ''}>📷 ${esc(tr('Print'))}</button><button type="button" class="botao-texto" data-rn="marcar">★ ${esc(tr('Marcar momento'))}</button><button type="button" class="botao secundario" data-rn="terminar">⏹ ${esc(tr('Terminar'))}</button>`;
+    } else if (rnTela === 'montando') {
+      const p = (rn.processando || [])[0];
+      $('rn-titulo').textContent = tr('Montando a nota');
+      $('rn-passo').textContent = '';
+      corpo.innerHTML = p ? `<p>${esc(p.fase === 'resumindo' ? tr('Escrevendo o resumo…') : tr('Transcrevendo…'))}</p><div class="rn-barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.pct || 0}"><i style="width:${p.pct || 0}%"></i></div><p class="nota">${p.pct || 0}%</p>${msgErro}`
+        : `<p>${esc(tr('Nada sendo montado agora.'))}</p>${msgErro}`;
+      acoes.innerHTML = `<button type="button" class="botao-texto" data-rn="fechar">${esc(tr('Fechar'))}</button>`;
+    } else if (rnTela === 'pronta') {
+      $('rn-titulo').textContent = tr('Nota da reunião pronta');
+      $('rn-passo').textContent = '';
+      corpo.innerHTML = `<p class="pergunta">${esc((rnUltima && rnUltima.assunto) || tr('Reunião'))}</p>${msgErro}`;
+      acoes.innerHTML = `<button type="button" class="botao-texto" data-rn="pasta">${esc(tr('Abrir a pasta'))}</button><button type="button" class="botao primario" data-rn="nota">${esc(tr('Abrir a nota'))}</button>`;
+    }
+  }
+  $('rn-fechar').addEventListener('click', fecharReuniao);
+  $('reuniao').addEventListener('click', (ev) => {
+    const a = ev.target.closest('[data-rn]')?.dataset.rn;
+    if (!a) return;
+    if (a === 'fechar') fecharReuniao();
+    else if (a === 'comecar') { const b = ev.target.closest('button'); b.disabled = true; b.textContent = tr('Começando…'); pedirReuniao('comecar', { titulo: ($('rn-nome') || {}).value || '' }); }
+    else if (a === 'print') { pedirReuniao('print'); }
+    else if (a === 'marcar') { pedirReuniao('marcar'); }
+    else if (a === 'terminar') { rnTela = 'terminar'; desenharReuniao(); }
+    else if (a === 'continuar') { rnTela = 'gravando'; desenharReuniao(); }
+    else if (a === 'terminar-sim') { rnTela = 'montando'; desenharReuniao(); pedirReuniao('terminar'); }
+    else if (a === 'nota' && rnUltima) pedirReuniao('abrir', { caminho: rnUltima.nota });
+    else if (a === 'pasta' && rnUltima) pedirReuniao('abrir', { caminho: rnUltima.pasta });
+  });
+  $('reuniao').addEventListener('keydown', (ev) => {
+    if (ev.target.id === 'rn-nome' && ev.key === 'Enter') { ev.preventDefault(); $('reuniao').querySelector('[data-rn=comecar]').click(); }
+  });
+  function aoReuniao(e) {
+    if (!e) return;
+    const antes = rn;
+    rn = e;
+    pintarRec();
+    if (e.evento === 'comecou') { classe('feliz'); setTimeout(() => classe('feliz', false), 900); if (!$('reuniao').hidden) { rnTela = 'gravando'; } }
+    else if (e.evento === 'print') { classe('feliz'); setTimeout(() => classe('feliz', false), 600); if ($('reuniao').hidden) falar(tr('Print guardado 📷'), 1200); }
+    else if (e.evento === 'marca') { if ($('reuniao').hidden) falar(tr('Momento marcado ★'), 1200); }
+    else if (e.evento === 'parou') { rnTela = 'montando'; }
+    else if (e.evento === 'pronta') {
+      rnUltima = { nota: e.nota, pasta: e.pasta, assunto: e.assunto };
+      rnTela = 'pronta';
+      if ($('reuniao').hidden) { classe('chamando'); setTimeout(() => classe('chamando', false), 1500); falar(`${tr('Nota da reunião pronta')}: ${e.assunto || tr('Reunião')}`, 0, [['depois', 'OK'], ['nota', tr('Abrir a nota')]]); }
+    } else if (e.evento === 'falhou') { if ($('reuniao').hidden) falar(`${tr('A nota da reunião não saiu')}: ${e.erro || ''}`, 4000); else desenharReuniao(e.erro); return; }
+    else if (e.evento === 'prints-off' && antes.printsLigados !== false && !$('reuniao').hidden) { desenharReuniao(); return; }
+    if (!$('reuniao').hidden) desenharReuniao();
+  }
+  function aoReuniaoResposta(m) {
+    if (m.erro) {
+      if (m.acao === 'comecar') { rnTela = 'inicio'; abrirReuniao('inicio'); desenharReuniao(m.erro); }
+      else if ($('reuniao').hidden) falar(m.erro, 3000); else desenharReuniao(m.erro);
+      return;
+    }
+    if (m.acao === 'comecar') { rnTela = 'gravando'; desenharReuniao(); }
+  }
+
   // --- mensagens do processo -----------------------------------------------
   A.aoMsg((m) => {
     if (m.t === 'visual') {
@@ -318,6 +432,8 @@
       calar(); classe('chamando', false);
       A.enviar({ t: 'avisoFechado' }); A.enviar({ t: 'irEmbora' });
     } else if (m.t === 'falar') falar(m.texto, 1800);
+    else if (m.t === 'reuniao') aoReuniao(m.estado);
+    else if (m.t === 'reuniaoResposta') aoReuniaoResposta(m);
     else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }
     else if (m.t === 'pousou') classe('voando', false);

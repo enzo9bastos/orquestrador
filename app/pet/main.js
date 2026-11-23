@@ -314,7 +314,9 @@ function receber(m) {
   else if (m.t === 'noApp') { if (aviso) paraTela({ t: 'noApp' }); } // o usuário foi ao app em vez de responder aqui
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
   else if (m.t === 'sumir') sumir();
-  else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido') paraTela(m);
+  else if (m.t === 'pensando' || m.t === 'resposta' || m.t === 'respondido' || m.t === 'reuniaoResposta') paraTela(m);
+  // Modo reunião: o sinal de "gravando" vai para a tela; começou a gravar, ele aparece.
+  else if (m.t === 'reuniao') { if (m.estado && m.estado.gravando && modo === 'escondido') aparecer(() => paraTela(m)); else paraTela(m); }
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') { win.showInactive(); win.setSkipTaskbar(true); win.setVisibleOnAllWorkspaces(true); } win.focus(); paraTela(m); }
   else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
   else if (m.t === 'js' && TESTE) win.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) }));
@@ -361,7 +363,7 @@ ipcMain.on('ajudante', (_e, m) => {
   else if (m.t === 'abrirConversa') abrirConversa();
   else if (m.t === 'fecharConversa') fecharConversa();
   else if (m.t === 'avisoFechado') aviso = false;
-  else if (m.t === 'perguntar' || m.t === 'responder') paraApp(m);
+  else if (m.t === 'perguntar' || m.t === 'responder' || m.t === 'reuniao') paraApp(m);
   else if (m.t === 'copiar') clipboard.writeText(String(m.texto || ''));
   else if (m.t === 'capturar') { if (!TESTE) win.hide(); setTimeout(() => paraApp({ t: 'capturar' }), 250); }
   else if (m.t === 'abrirApp') paraApp(m);

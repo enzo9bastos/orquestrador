@@ -186,6 +186,13 @@ que no hay ninguna terminal que vigilar.
   (en `~/.cache/orq-app/editor`, que solo tú puedes leer), eliminado cuando terminas. Lo que viene del editor es
   siempre texto común, nunca un comando de `!`. Los dos atajos se pueden cambiar o desactivar en *Settings ›
   Shortcuts*.
+- **Modo reunión**: desde la mascota (clic derecho › *Record meeting*) o la paleta, la app graba tu micrófono y el
+  sonido del equipo en dos pistas, para que la nota sepa quién habló. Mientras graba, una señal roja con el tiempo
+  queda en la mascota y en la barra superior, con *Screenshot*, *Mark moment* y *End*. Al terminar, el audio se
+  transcribe en el propio equipo (faster-whisper, con el modelo que conviene a la máquina) y la nota sale con la
+  transcripción, las capturas en el minuto en que se tomaron, los momentos marcados y, si está activado, el resumen
+  con decisiones y pendientes; la carpeta recibe el asunto en el nombre. El audio nunca sale del equipo; el resumen
+  envía solo el texto, a Claude o a un modelo local (Ollama). Settings › *Voice and meetings*.
 - **Load the earlier ones**: la conversación reabierta muestra sus últimos 600 mensajes; una franja arriba avisa
   que hay más antiguos y trae la página anterior por encima, manteniendo la pantalla donde estabas leyendo, hasta
   llegar al inicio de la conversación. Nada de lo que ya está en pantalla se vuelve a leer.

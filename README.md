@@ -175,6 +175,13 @@ protocol), so there is no terminal to babysit.
   meanwhile); the same shortcut or *Done* ends it. The text travels through a temporary file of the app (in
   `~/.cache/orq-app/editor`, readable only by you), removed when you finish. Text coming from the editor is always
   plain text, never a `!` command. Both shortcuts can be changed or turned off in *Settings › Shortcuts*.
+- **Meeting mode**: from the helper (right click › *Record meeting*) or the palette, the app records your
+  microphone and the computer's sound as two tracks, so the note knows who spoke. While it records, a red sign
+  with the time stays on the helper and on the top bar, with *Screenshot*, *Mark moment* and *End*. When it ends,
+  the audio is transcribed on the computer (faster-whisper, with the model that suits the machine), and the note
+  comes out with the transcript, the screenshots at the minute they were taken, the marked moments and, if on,
+  a summary with decisions and to-dos; the folder gets the subject in its name. Audio never leaves the computer;
+  the summary sends only the text, to Claude or to a local model (Ollama). Settings › *Voice and meetings*.
 - **Load the earlier ones**: a reopened conversation shows its latest 600 messages; a strip at the top says there
   are older ones and brings the previous page in above, keeping the screen where you were reading, until it reaches
   the start of the conversation. Nothing already on screen is read again.

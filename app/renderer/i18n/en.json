@@ -2018,9 +2018,112 @@
     "Você voltou atrás depois: o recado saiu.": "You changed your mind afterwards: the message was sent.",
     "negado há mais de 7 dias: peça ao orquestrador para escrever de novo": "denied more than 7 days ago: ask the orchestrator to write it again",
     "este recado não está negado": "this message is not denied",
-    "‹ Voltar": "‹ Back"
+    "‹ Voltar": "‹ Back",
+    "Gravando": "Recording",
+    "Terminar a reunião?": "End the meeting?",
+    "Continuar gravando": "Keep recording",
+    "Escrevendo o resumo da reunião…": "Writing the meeting summary…",
+    "Nota pronta:": "Note ready:",
+    "Abrir a nota": "Open the note",
+    "Print da tela agora": "Screenshot now",
+    "Marcar este momento como importante": "Mark this moment as important",
+    "Gravar reunião": "Record meeting",
+    "Print da tela na reunião": "Meeting screenshot",
+    "Marcar este momento da reunião": "Mark this moment of the meeting",
+    "Terminar a reunião": "End the meeting",
+    "grava você e os outros; no fim, a nota com transcrição e resumo": "records you and the others; at the end, the note with transcript and summary",
+    "Reunião": "Meeting",
+    "Gravando a reunião. Avise as pessoas que ela está sendo gravada.": "Recording the meeting. Tell the people that it is being recorded.",
+    "Voz e reuniões": "Voice and meetings",
+    "O áudio nunca sai do computador: a transcrição roda aqui mesmo. Uma reunião começa pelo bichinho (botão direito › Gravar reunião) ou pela paleta (Ctrl+K).": "The audio never leaves the computer: transcription runs right here. A meeting starts from the helper (right click › Record meeting) or from the palette (Ctrl+K).",
+    "Pasta das reuniões": "Meetings folder",
+    "Cada reunião vira uma pasta com a nota, o áudio e os prints; no fim ela ganha o assunto no nome.": "Each meeting becomes a folder with the note, the audio and the screenshots; at the end its name gets the subject.",
+    "Motor de transcrição": "Transcription engine",
+    "Modelo de transcrição": "Transcription model",
+    "Os maiores erram menos, mas demoram mais.": "Bigger ones make fewer mistakes, but take longer.",
+    "Recomendado para este computador": "Recommended for this computer",
+    "Leve": "Light",
+    "Robusto": "Robust",
+    "Melhor": "Best",
+    "Resumo da reunião": "Meeting summary",
+    "Resumo, decisões e pendências no começo da nota.": "Summary, decisions and to-dos at the top of the note.",
+    "Claude (sai do computador só o texto)": "Claude (only the text leaves the computer)",
+    "Modelo local, pelo Ollama (tudo fica no computador)": "Local model, through Ollama (everything stays on the computer)",
+    "Sem resumo (só a transcrição)": "No summary (transcript only)",
+    "Modelo local do resumo": "Local summary model",
+    "Só vale com o resumo local: o nome do modelo no Ollama.": "Only with the local summary: the model name in Ollama.",
+    "Prints durante a reunião": "Screenshots during the meeting",
+    "A tela é pedida uma vez, ao começar (o sistema pergunta qual tela); cada print depois sai sem janela.": "The screen is requested once, at the start (the system asks which screen); each screenshot after that is taken without any window.",
+    "🎙 Gravar reunião": "🎙 Record meeting",
+    "🎙 Reunião (gravando)": "🎙 Meeting (recording)",
+    "gravando": "recording",
+    "Título (opcional)": "Title (optional)",
+    "Ex.: Alinhamento com o financeiro": "E.g.: Sync with finance",
+    "Avise as pessoas da reunião que ela está sendo gravada.": "Tell the people in the meeting that it is being recorded.",
+    "Grava você (microfone) e os outros (som do computador) em separado. O áudio fica no computador; no fim, a nota sai com a transcrição, os prints e o resumo.": "Records you (microphone) and the others (computer sound) separately. The audio stays on the computer; at the end, the note comes with the transcript, the screenshots and the summary.",
+    "Começar a gravar": "Start recording",
+    "Começando…": "Starting…",
+    "Microfone": "Microphone",
+    "Som do computador": "Computer sound",
+    "Prints desligados nesta reunião.": "Screenshots are off in this meeting.",
+    "Terminar a reunião? A gravação para e a nota começa a ser montada.": "End the meeting? The recording stops and the note starts being put together.",
+    "Print": "Screenshot",
+    "Marcar momento": "Mark moment",
+    "Montando a nota": "Putting the note together",
+    "Escrevendo o resumo…": "Writing the summary…",
+    "Transcrevendo…": "Transcribing…",
+    "Nada sendo montado agora.": "Nothing being put together now.",
+    "Nota da reunião pronta": "Meeting note ready",
+    "Print guardado 📷": "Screenshot saved 📷",
+    "Momento marcado ★": "Moment marked ★",
+    "A nota da reunião não saiu": "The meeting note did not come out",
+    "Fechar (a gravação continua)": "Close (recording continues)"
   },
   "padroes": [
+    [
+      "^Prints da reunião desligados: (.*)\\. A gravação do áudio continua\\.$",
+      "Meeting screenshots are off: $1. Audio recording continues."
+    ],
+    [
+      "^Não comecei a gravar a reunião: (.+)$",
+      "Did not start recording the meeting: $1"
+    ],
+    [
+      "^A nota da reunião não saiu: (.*)\\. O áudio continua na pasta\\.$",
+      "The meeting note did not come out: $1. The audio is still in the folder."
+    ],
+    [
+      "^Reunião: (.+)$",
+      "Meeting: $1"
+    ],
+    [
+      "^Recomendado para este computador \\(modelo local\\)$",
+      "Recommended for this computer (local model)"
+    ],
+    [
+      "^Recomendado para este computador \\(Claude\\)$",
+      "Recommended for this computer (Claude)"
+    ],
+    [
+      "^Recomendado para este computador \\((Leve|Robusto|Melhor)\\)$",
+      "Recommended for this computer ($1)"
+    ],
+    [
+      "^Este computador: (\\d+) núcleos, (\\d+) GB de memória, (.+)\\. Os maiores erram menos, mas demoram mais\\.$",
+      "This computer: $1 cores, $2 GB of memory, $3. Bigger ones make fewer mistakes, but take longer."
+    ],
+    [
+      "^Este computador: (\\d+) núcleos, (\\d+) GB de memória, sem placa de vídeo NVIDIA\\. Os maiores erram menos, mas demoram mais\\.$",
+      "This computer: $1 cores, $2 GB of memory, no NVIDIA graphics card. Bigger ones make fewer mistakes, but take longer."
+    ],
+    [
+      "^Transcrevendo a reunião… (\\d+)%$",
+      "Transcribing the meeting… $1%"
+    ],
+    [
+      "^Gravando (\\d+:\\d\\d(?::\\d\\d)?)$",
+      "Recording $1"
+    ],
     [
       "^Aconteceu (\\d+) vezes seguidas\\.$",
       "It happened $1 times in a row."

@@ -171,6 +171,17 @@ contextBridge.exposeInMainWorld('orq', {
     versao: () => ipcRenderer.invoke('app:versao'),
     aoPrecisarReiniciar: (fn) => ipcRenderer.on('app:precisa-reiniciar', () => fn()),
   },
+  // Modo reunião (reuniao-ligacao.js): gravar, print, marcar, terminar; e o que as Configurações mostram.
+  reuniao: {
+    estado: () => ipcRenderer.invoke('reuniao:estado'),
+    comecar: (titulo) => ipcRenderer.invoke('reuniao:comecar', { titulo }),
+    print: () => ipcRenderer.invoke('reuniao:print'),
+    marcar: (texto) => ipcRenderer.invoke('reuniao:marcar', texto),
+    terminar: () => ipcRenderer.invoke('reuniao:terminar'),
+    abrir: (caminho) => ipcRenderer.invoke('reuniao:abrir', caminho),
+    voz: (deNovo) => ipcRenderer.invoke('reuniao:voz', !!deNovo),
+    aoMudar: (fn) => ipcRenderer.on('reuniao:mudou', (_e, e) => fn(e)),
+  },
   // Escrever a mensagem no editor de texto do computador (editor-de-texto.js).
   editor: {
     comecar: (texto) => ipcRenderer.invoke('editor:comecar', texto),

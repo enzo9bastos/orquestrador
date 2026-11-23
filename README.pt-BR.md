@@ -179,6 +179,13 @@ há terminal para vigiar.
   app (em `~/.cache/orq-app/editor`, que só você lê), removido quando você termina. O que vem do editor é sempre
   texto comum, nunca um comando do `!`. Os dois atalhos podem ser trocados ou desativados em *Configurações ›
   Atalhos*.
+- **Modo reunião**: pelo bichinho (botão direito › *Gravar reunião*) ou pela paleta, o app grava o seu microfone e
+  o som do computador em duas trilhas, para a nota saber quem falou. Enquanto grava, um sinal vermelho com o tempo
+  fica no bichinho e na barra de cima, com *Print*, *Marcar momento* e *Terminar*. No fim, o áudio é transcrito no
+  próprio computador (faster-whisper, com o modelo que combina com a máquina), e a nota sai com a transcrição, os
+  prints no minuto em que foram tirados, os momentos marcados e, se ligado, o resumo com decisões e pendências; a
+  pasta ganha o assunto no nome. O áudio nunca sai do computador; o resumo leva só o texto, ao Claude ou a um
+  modelo local (Ollama). Configurações › *Voz e reuniões*.
 - **Carregar as anteriores**: a conversa reaberta mostra as últimas 600 mensagens; uma faixa no topo avisa que há
   mais antigas e traz a página de antes para cima, mantendo a tela onde você estava lendo, até chegar ao início da
   conversa. Nada do que já está na tela é lido de novo.

@@ -41,6 +41,8 @@
     <button id="alternar-agentes" class="botao-icone alternar-coluna" type="button" title="Recolher a coluna de agentes (Ctrl+Alt+,)" aria-label="Recolher a coluna de agentes (Ctrl+Alt+,)" aria-expanded="true" aria-controls="coluna-agentes"><svg class="ico"><use href="#i-coluna-esq"/></svg><span class="sinal-coluna" hidden></span></button>
     <div class="arrasta espaco-topo" aria-hidden="true"></div>
     <div id="contagem" class="contagem" aria-live="polite"></div>
+    <!-- Modo reunião (reuniao-tela.js): gravando, com Print, Marcar e Terminar; depois, o andamento da nota. -->
+    <div id="reuniao-barra" class="reuniao-barra" role="status" aria-live="polite" hidden></div>
     <button id="tema" class="botao-icone" type="button" title="Tema claro / escuro" aria-label="Alternar tema"><svg class="ico"><use href="#i-tema"/></svg></button>
     <button id="abrir-config" class="botao-icone" type="button" title="Configurações" aria-label="Configurações"><svg class="ico"><use href="#i-engrenagem"/></svg></button>
     <button id="alternar-demandas" class="botao-icone alternar-coluna" type="button" title="Recolher a coluna de demandas (Ctrl+Alt+.)" aria-label="Recolher a coluna de demandas (Ctrl+Alt+.)" aria-expanded="true" aria-controls="coluna-demandas"><svg class="ico"><use href="#i-coluna-dir"/></svg><span class="sinal-coluna" hidden></span></button>
@@ -431,6 +433,7 @@
             <button type="button" role="tab" id="config-aba-ias" data-secao-config="ias" aria-controls="config-sec-ias" aria-selected="false" tabindex="-1">IAs conectadas (CLI)</button>
             <button type="button" role="tab" id="config-aba-projetos" data-secao-config="projetos" aria-controls="config-sec-projetos" aria-selected="false" tabindex="-1">Projetos e agentes</button>
             <button type="button" role="tab" id="config-aba-notas" data-secao-config="notas" aria-controls="config-sec-notas" aria-selected="false" tabindex="-1">Notas</button>
+            <button type="button" role="tab" id="config-aba-voz" data-secao-config="voz" aria-controls="config-sec-voz" aria-selected="false" tabindex="-1">Voz e reuniões</button>
             <button type="button" role="tab" id="config-aba-atalhos" data-secao-config="atalhos" aria-controls="config-sec-atalhos" aria-selected="false" tabindex="-1">Atalhos</button>
             <button type="button" role="tab" id="config-aba-avancado" data-secao-config="avancado" aria-controls="config-sec-avancado" aria-selected="false" tabindex="-1">Avançado</button>
           </nav>
@@ -591,6 +594,44 @@
               <input class="campo-config" data-cfg="pastaNotas" placeholder="~/notas">
             </div>
           </div>
+          <div class="config-painel" role="tabpanel" id="config-sec-voz" data-secao="voz" aria-labelledby="config-aba-voz" tabindex="-1" hidden>
+            <h3 class="config-secao">Voz e reuniões</h3>
+            <p class="nota">O áudio nunca sai do computador: a transcrição roda aqui mesmo. Uma reunião começa pelo bichinho (botão direito › Gravar reunião) ou pela paleta (Ctrl+K).</p>
+            <div class="config-linha">
+              <div><strong>Pasta das reuniões</strong><span>Cada reunião vira uma pasta com a nota, o áudio e os prints; no fim ela ganha o assunto no nome.</span></div>
+              <input class="campo-config" data-cfg="reunioesPasta" placeholder="~/Reuniões">
+            </div>
+            <div class="config-linha">
+              <div><strong>Motor de transcrição</strong><span id="config-voz-motor">Procurando…</span></div>
+              <input class="campo-config" data-cfg="vozPython" placeholder="Python com o faster-whisper (vazio: o app procura)">
+            </div>
+            <div class="config-linha">
+              <div><strong>Modelo de transcrição</strong><span id="config-voz-maquina">Os maiores erram menos, mas demoram mais.</span></div>
+              <select class="campo-config" data-cfg="vozModelo" id="config-voz-modelo">
+                <option value="">Recomendado para este computador</option>
+                <option value="small">Leve</option>
+                <option value="large-v3-turbo">Robusto</option>
+                <option value="large-v3">Melhor</option>
+              </select>
+            </div>
+            <div class="config-linha">
+              <div><strong>Resumo da reunião</strong><span id="config-voz-resumo">Resumo, decisões e pendências no começo da nota.</span></div>
+              <select class="campo-config" data-cfg="reuniaoResumo" id="config-voz-resumo-escolha">
+                <option value="">Recomendado para este computador</option>
+                <option value="claude">Claude (sai do computador só o texto)</option>
+                <option value="local">Modelo local, pelo Ollama (tudo fica no computador)</option>
+                <option value="nenhum">Sem resumo (só a transcrição)</option>
+              </select>
+            </div>
+            <div class="config-linha">
+              <div><strong>Modelo local do resumo</strong><span>Só vale com o resumo local: o nome do modelo no Ollama.</span></div>
+              <input class="campo-config" data-cfg="reuniaoModeloLocal" placeholder="qwen2.5:7b">
+            </div>
+            <div class="config-linha">
+              <div><strong>Prints durante a reunião</strong><span>A tela é pedida uma vez, ao começar (o sistema pergunta qual tela); cada print depois sai sem janela.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="reuniaoPrints"><span></span></label>
+            </div>
+          </div>
           <div class="config-painel" role="tabpanel" id="config-sec-atalhos" data-secao="atalhos" aria-labelledby="config-aba-atalhos" tabindex="-1" hidden>
             <h3 class="config-secao">Atalhos</h3>
             <p class="nota atalhos-intro">Clique na combinação e aperte as teclas novas (Esc cancela). Precisa de Ctrl, Alt ou Cmd junto com outra tecla. Uma combinação que o app ou o sistema já usa é recusada.</p>
@@ -728,6 +769,7 @@
   <script src="anteriores-tela.js"></script>
   <script src="historico-caixa-tela.js"></script>
   <script src="editor-caixa-tela.js"></script>
+  <script src="reuniao-tela.js"></script>
   <script src="comandos-tela.js"></script>
   <script src="repertorio-tela.js"></script>
   <script src="workflows-tela.js"></script>

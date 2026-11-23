@@ -139,6 +139,18 @@ const PADRAO = {
   // com o caminho e os argumentos; ele imprime o caminho da imagem na última
   // linha. Sem ele: gnome-screenshot. Ex.: ["~/bin/meu-print", "--salvar"].
   capturaTela: null,
+
+  // Voz e reuniões (plano de voz, V1 e V3). reunioesPasta: onde cada reunião vira uma pasta
+  // (nota, áudio e prints). vozModelo: '' = o recomendado para este computador; ou small,
+  // large-v3-turbo, large-v3. vozPython: Python com o faster-whisper ('' = o app procura).
+  // reuniaoResumo: '' = o recomendado para este computador; 'claude' (só o texto sai do
+  // computador), 'local' (Ollama) ou 'nenhum'. reuniaoPrints: o print da tela durante a reunião.
+  reunioesPasta: '~/Reuniões',
+  vozModelo: '',
+  vozPython: '',
+  reuniaoResumo: '',
+  reuniaoModeloLocal: 'qwen2.5:7b',
+  reuniaoPrints: true,
 };
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
@@ -163,6 +175,8 @@ function ler() {
   c.raizProjetos = casa(process.env.ORQ_APP_DEV || c.raizProjetos);
   c.pastaNotas = semBarraNoFim(casa(c.pastaNotas));
   c.iasCaminhos = caminhosIas(c.iasCaminhos) || {};
+  c.reunioesPasta = semBarraNoFim(casa(c.reunioesPasta));
+  c.vozPython = casa(c.vozPython);
   return c;
 }
 
@@ -252,6 +266,12 @@ function validar(m) {
       case 'canalAprovarEnvio': case 'canalSemAprovarCiente': case 'canalSemAprovarInformacao': aceitar(k, typeof v === 'boolean', v); break;
       case 'fontesRepertorio': aceitar(k, Array.isArray(v) && v.every((f) => f && texto(f.nome) && texto(f.caminho)), () => v.map((f) => ({ nome: texto(f.nome), ferramenta: texto(f.ferramenta) || 'outra', caminho: texto(f.caminho) }))); break;
       case 'pastasNotas': aceitar(k, Array.isArray(v) && v.every((p) => p && texto(p.caminho)), () => v.map((p) => ({ nome: texto(p.nome) || null, caminho: texto(p.caminho) }))); break;
+      case 'reunioesPasta': aceitar(k, /^(~|\/)/.test(texto(v)) && !texto(v).split('/').includes('..'), semBarraNoFim(texto(v))); break;
+      case 'vozModelo': aceitar(k, ['', 'small', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
+      case 'vozPython': aceitar(k, !texto(v) || (/^(~|\/)/.test(texto(v)) && !texto(v).split('/').includes('..')), texto(v)); break;
+      case 'reuniaoResumo': aceitar(k, ['', 'claude', 'local', 'nenhum'].includes(v), v); break;
+      case 'reuniaoModeloLocal': aceitar(k, /^[\w.:/-]{1,80}$/.test(texto(v)), texto(v)); break;
+      case 'reuniaoPrints': aceitar(k, typeof v === 'boolean', v); break;
       default: recusado.push(k);
     }
   }

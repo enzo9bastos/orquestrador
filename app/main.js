@@ -1064,6 +1064,16 @@ app.whenReady().then(() => {
       // Com anexo, recados.decidir confere o hash da cópia aprovada (erro = não aprova).
       recados.decidir(id, aprovar, nota); cicloRecados(); cicloCanal(); return true;
     }, conversa, responderAgente: coletor.responder, enviarTela: (canal, dado) => enviar(canal, dado), bin: path.join(__dirname, 'bin', 'orq-pet') });
+  // Modo reunião (plano de voz): grava, tira prints, monta a nota. A tela e o bichinho pedem as ações.
+  reuniaoApp = require('./reuniao-ligacao').ligar({
+    config,
+    comandoClaude: () => process.env.ORQ_REUNIAO_CLAUDE || ias.comando('claude', config.ler().iasCaminhos),
+    ambiente: () => conversa.ambienteLimpo(),
+    enviarTela: (canal, dado) => enviar(canal, dado),
+    avisarBichinho: (e) => ajudante.reuniao(e),
+    emTeste: process.env.ORQ_APP_E2E === '1',
+  });
+  ajudante.ligar({ reuniao: (acao, dados) => reuniaoApp.executar(acao, dados) });
   // Workflows: o relógio roda aqui; o aviso usa a notificação do sistema.
   workflows.ligar({
     conversa,
@@ -1081,7 +1091,17 @@ app.whenReady().then(() => {
   coletor.sinalDeVida();
   try { editorDeTexto.limparSobras(); } catch { /* sem a pasta: nada a limpar */ }
 });
-function encerrarTudo() {
+let reuniaoApp = null;
+let reuniaoParando = false;
+function encerrarTudo(ev) {
+  // Gravando uma reunião: o app espera a gravação fechar o arquivo de áudio direito antes de sair
+  // (o áudio até aqui fica, e a nota é montada na próxima abertura).
+  if (reuniaoApp && reuniaoApp.reuniao.estado().gravando && !reuniaoParando && ev && typeof ev.preventDefault === 'function') {
+    ev.preventDefault();
+    reuniaoParando = true;
+    reuniaoApp.encerrar().catch(() => {}).finally(() => app.quit());
+    return;
+  }
   try { editorDeTexto.terminar(); } catch { /* o arquivo da mensagem fica; sai na limpeza de sobras */ }
   for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
   terminais.clear();

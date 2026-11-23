@@ -85,6 +85,20 @@ async function receber(m) {
   // que terminou de sair ("visivel: false"); antes, os dois apareciam juntos.
   } else if (m.t === 'voltar') { /* a janelinha já está saindo */ }
   else if (m.t === 'responder') responder(m);
+  else if (m.t === 'reuniao') {
+    // Modo reunião pedido pelo bichinho (começar, print, marcar, terminar, abrir a nota).
+    let r;
+    try { r = { ok: true, ...((await ctx.reuniao(m.acao, m)) || {}) }; } catch (e) { r = { erro: e.message }; }
+    mandar({ t: 'reuniaoResposta', id: m.id, acao: m.acao, ...r });
+  }
+}
+// Estado do modo reunião: o bichinho mostra o "gravando" enquanto grava. Começou a gravar:
+// ele aparece, para o sinal ficar à vista (regra: gravar reunião é sempre visível).
+let gravandoAntes = false;
+function reuniao(e) {
+  if (e && e.gravando && !gravandoAntes) iniciar();
+  gravandoAntes = !!(e && e.gravando);
+  mandar({ t: 'reuniao', estado: e });
 }
 
 // Pede para trazer o app. No Wayland um programa não pode roubar o foco: o
@@ -384,4 +398,4 @@ function atualizarAparencia() { mandar({ t: 'visual', ...aparencia() }); }
 // O usuário escreveu ao orquestrador: o pedido de ação já foi visto.
 function limparAcoes(conversa) { for (const [id, p] of acoes) if (p.conversa === conversa) acoes.delete(id); }
 
-module.exports = { _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, pendenciaDeConversa, confirmarAviso, appEmFoco, conferirAVista, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
+module.exports = { reuniao, _comandoCaptura: comandoCaptura, acoesAbertas: () => [...acoes.keys()], limparAcoes, pedeAcao, atualizarAparencia, ligar, desligar, ler, gravar, gravarVisual, chamar, passear, recolher, pendencias, pendenciaDeConversa, confirmarAviso, appEmFoco, conferirAVista, responder, aviso, instalarAtalho, atalhoInstalado, estaFora: () => fora, CONVERSA, SOQUETE };
