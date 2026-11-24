@@ -4,6 +4,16 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.18.0 (2026-11-24)
+
+- Notes: the tabs on top are now the open notes, as in Obsidian. The file tree on the left always shows every
+  folder of the app, and the ✕ of a tab closes only that note (before, the tabs were the folders, and closing one
+  hid the whole tree). A click opens a note in the front tab; Ctrl+click, the middle button or "Open in another
+  tab" opens it in a new one; tabs come back after a restart.
+- With more than one notes folder in the app, each folder is a line of the tree that opens and collapses.
+- Demands: with the right column collapsed, its button now also counts the suggested demands waiting for your
+  "Approve" (before, only the requests of the "Needs you" strip).
+
 ## 0.17.0 (2026-11-24)
 
 - Update from inside the app: when it opens and every 6 hours, the app checks the repository it was installed from
