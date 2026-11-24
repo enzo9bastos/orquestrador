@@ -4,6 +4,21 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.16.1 (2026-11-24)
+
+- The right-click menu of the helper inside the app now offers "Record meeting" too (before, only the desktop
+  helper and the palette did). It does the same as the palette: starts recording and reminds you to tell people.
+  While recording, the entry becomes "End the meeting…" and asks for confirmation on the top bar.
+- Meeting mode: the thumbnail in the helper's panel ("the screenshots show this") is now live. Before, it was
+  taken once when the recording started and stayed frozen, so it could show the app itself instead of what the
+  screenshots were really capturing. The screenshots themselves were always right.
+- Desktop helper: thrown or dragged, it now reaches the real edges of the screen (it used to bounce off thin air
+  about 180 px before the left edge and 150 px below the top).
+- Desktop helper: its right-click menu is no longer cut off at the top, has a single "Back to the app" (it and "Go
+  away" did the same), and "Wander around the screen" becomes "Stay still" while it is wandering.
+- Desktop helper: grabbed in the middle of its arrival, it no longer stays stuck "arriving" (the penguin lying on
+  its belly); it lands, stands up and goes on.
+
 ## 0.16.0 (2026-11-24)
 
 - Meeting mode: from the helper (right click › "Record meeting") or the palette, the app records your microphone
