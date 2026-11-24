@@ -4,6 +4,35 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.16.0 (2026-11-24)
+
+- Meeting mode: from the helper (right click › "Record meeting") or the palette, the app records your microphone
+  and the computer's sound as two tracks. While it records, a red sign with the time stays on the helper and on
+  the top bar, with Screenshot, Mark moment and End (End asks to confirm).
+- When the meeting ends, the audio is transcribed on the computer (faster-whisper, with the model that suits the
+  machine) and the note comes out with who spoke, the screenshots at the right minute, the marked moments and a
+  summary with decisions and to-dos. The folder gets the subject in its name; nothing is overwritten.
+- Audio never leaves the computer. The summary sends only the text, to Claude or to a local model (Ollama), and
+  can be turned off. New section: Settings › Voice and meetings (folder, engine, model, summary, screenshots),
+  with a recommendation based on the computer.
+- If the app closes during a meeting, the audio recorded so far is kept and the note is put together on the
+  next start.
+- The app can notice a call by itself: when a call program (Meet or Teams in the browser, Zoom, Slack, Discord…)
+  uses the microphone for a few seconds, the helper asks whether to record (or, if you choose in Settings, it
+  starts recording with the sign visible); when the call releases the microphone, it asks whether to stop. Only
+  the program's name is read from the sound server, never the audio or the call's title.
+- Screenshots show what you pick in the system's dialog at the start (the meeting window or a whole screen), with a
+  thumbnail to check and Change.
+- Meeting folders are private (mode 700); the summary does not follow instructions spoken in the meeting.
+- Throw the desktop helper: drag it and let go with speed, and it flies across the screen, bounces on the edges
+  and lands.
+- While recording, the helper holds a small camera with a blinking light, shows the time in a red pill, and
+  has a pixel-art thought cloud with a camera above its head (above the hat, when it wears one): one click takes a
+  screenshot right away, with a flash on the click and a check mark when it is saved; a click while the check
+  mark is still showing takes another one.
+- Attached files in your message now show as cards above the text (coloured type badge and file name), like
+  image thumbnails; clicking a card shows the file in its folder.
+
 ## 0.15.1 (2026-11-23)
 
 - The helper's question balloon (the one with "question 2 of 4") now has "‹ Back" from the second question on:
