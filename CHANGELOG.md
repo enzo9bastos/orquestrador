@@ -4,6 +4,13 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.19.1 (2026-11-24)
+
+- Dictation: a word the preview got right no longer turns into a wrong one when the sentence is closed, and one
+  wrong word no longer repeats in the sentences that follow. The earlier text was being handed to the model as
+  context, and the model copied it into short stretches of speech; now each stretch is transcribed from its own
+  sound only.
+
 ## 0.19.0 (2026-11-24)
 
 - Dictation: speak instead of typing. The microphone next to the send button (or Ctrl+Shift+D, or the palette)
