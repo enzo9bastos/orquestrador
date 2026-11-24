@@ -283,6 +283,8 @@
   let rnUltima = null; // { nota, pasta, assunto } da última nota pronta
   let rnPedido = 0;
   let rnMini = null; // miniatura da tela ou janela que os prints mostram
+  let rnMiniEm = 0; // quando ela chegou: uma antiga não é mostrada como se fosse de agora
+  let tMini = null;
   let visualAtual = null;
   // Gravando, ele segura a câmera (no lugar do que estiver na mão), com a luz vermelha piscando.
   function desenharVisual() {
@@ -324,8 +326,17 @@
       tRec = setInterval(tique, 1000);
     }
   }
+  // A miniatura é de agora: com o painel aberto e gravando, pede uma nova ao abrir e a cada 2 s
+  // (a do começo mostrava o que estava na tela quando a gravação começou, não o que os prints mostram).
+  const precisaMini = () => !$('reuniao').hidden && (rnTela === 'gravando' || rnTela === 'terminar') && !!rn.gravando && rn.printsLigados !== false;
+  function vigiarMiniatura() {
+    if (tMini || !precisaMini()) return;
+    pedirReuniao('tela');
+    tMini = setInterval(() => { if (precisaMini()) pedirReuniao('tela'); else { clearInterval(tMini); tMini = null; } }, 2000);
+  }
   function abrirReuniao(tela) {
     calar(); $('menu').hidden = true; $('conversa').hidden = true;
+    if ($('reuniao').hidden && Date.now() - rnMiniEm > 3000) rnMini = null; // antiga: espera a de agora
     if (tela) rnTela = tela; else if (rn.gravando) rnTela = 'gravando'; else if (rn.processando && rn.processando.length) rnTela = 'montando'; else if (rnTela !== 'pronta') rnTela = 'inicio';
     $('reuniao').hidden = false;
     A.enviar({ t: 'abrirConversa' });
@@ -372,6 +383,7 @@
       corpo.innerHTML = `<p class="pergunta">${esc((rnUltima && rnUltima.assunto) || tr('Reunião'))}</p>${msgErro}`;
       acoes.innerHTML = `<button type="button" class="botao-texto" data-rn="pasta">${esc(tr('Abrir a pasta'))}</button><button type="button" class="botao primario" data-rn="nota">${esc(tr('Abrir a nota'))}</button>`;
     }
+    vigiarMiniatura();
   }
   $('rn-fechar').addEventListener('click', fecharReuniao);
   // Balão de pensamento: o clique pede o print na hora (o brilho aparece antes da resposta), sempre:
@@ -406,7 +418,7 @@
     const antes = rn;
     rn = e;
     pintarRec();
-    if (e.evento === 'tela') { rnMini = e.tela ? e.tela.miniatura : null; }
+    if (e.evento === 'tela') { rnMini = e.tela ? e.tela.miniatura : null; rnMiniEm = Date.now(); }
     else if (e.evento === 'detectada' && !e.gravando) {
       classe('chamando'); setTimeout(() => classe('chamando', false), 1500);
       if ($('reuniao').hidden) falar(`${tr('Começou uma reunião')} n${e.nome || tr('o computador')}? ${tr('Quer gravar?')}`, 0, [['rn-gravar', tr('Sim, gravar')], ['depois', tr('Agora não')]]);
@@ -438,6 +450,14 @@
     if (!$('reuniao').hidden) desenharReuniao();
   }
   function aoReuniaoResposta(m) {
+    if (m.acao === 'tela') {
+      // Miniatura de agora: troca só a imagem, sem redesenhar o painel (um clique no meio não se perde).
+      if (m.erro || !m.tela || !m.tela.miniatura) return;
+      rnMini = m.tela.miniatura; rnMiniEm = Date.now();
+      const img = document.querySelector('#rn-corpo .rn-tela img');
+      if (img) img.src = rnMini; else if (precisaMini()) desenharReuniao();
+      return;
+    }
     if (m.erro) {
       if (m.acao === 'comecar') { rnTela = 'inicio'; abrirReuniao('inicio'); desenharReuniao(m.erro); }
       else if ($('reuniao').hidden) falar(m.erro, 3000); else desenharReuniao(m.erro);

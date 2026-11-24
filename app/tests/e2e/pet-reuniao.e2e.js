@@ -137,6 +137,49 @@ test('bichinho: reunião detectada, fim da ligação, miniatura da tela e arreme
     await js("document.getElementById('rn-fechar').click(); 1");
   });
 
+  // Pedido de 24/11: a miniatura era tirada uma vez, no começo da gravação, e ficava parada. Quem
+  // começava a reunião pelo app via o próprio app nela e achava que os prints mostravam a tela errada.
+  await t.test('a miniatura é a de agora: aberto, o painel pede uma nova na hora e de 2 em 2 s; a antiga não reaparece; fechado, para de pedir', async () => {
+    const pedidos = () => recebidas.filter((m) => m.t === 'reuniao' && m.acao === 'tela').length;
+    const img = () => js("(document.querySelector('#rn-corpo .rn-tela img') || {}).src || ''");
+    const uma = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    const outra = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    await dorme(3200); // a miniatura do subteste anterior envelhece
+    const antes = pedidos();
+    await js("document.querySelector('[data-m=reuniao]').click(); 1");
+    for (let i = 0; i < 30 && pedidos() === antes; i++) await dorme(100);
+    assert.strictEqual(pedidos(), antes + 1, 'pede a de agora ao abrir');
+    assert.strictEqual(await img(), '', 'a miniatura antiga não aparece como se fosse de agora');
+    manda({ t: 'reuniaoResposta', acao: 'tela', ok: true, tela: { miniatura: uma } });
+    for (let i = 0; i < 30 && (await img()) !== uma; i++) await dorme(100);
+    assert.strictEqual(await img(), uma);
+    // 2 s depois pede de novo; a resposta troca só a imagem (o painel não é redesenhado).
+    await js("document.querySelector('#rn-corpo .rn-tela').dataset.marca = 'a mesma'; 1");
+    for (let i = 0; i < 40 && pedidos() < antes + 2; i++) await dorme(100);
+    assert.ok(pedidos() >= antes + 2, 'pede de novo em 2 s');
+    manda({ t: 'reuniaoResposta', acao: 'tela', ok: true, tela: { miniatura: outra } });
+    for (let i = 0; i < 30 && (await img()) !== outra; i++) await dorme(100);
+    assert.strictEqual(await img(), outra);
+    assert.strictEqual(await js("document.querySelector('#rn-corpo .rn-tela').dataset.marca"), 'a mesma', 'só a imagem mudou');
+    // Resposta sem imagem (a captura não respondeu): fica a última, sem mensagem de erro.
+    manda({ t: 'reuniaoResposta', acao: 'tela', erro: 'a captura não respondeu' });
+    await dorme(300);
+    assert.strictEqual(await img(), outra);
+    assert.strictEqual(await js("!!document.querySelector('#rn-corpo .aj-erro')"), false);
+    // Na confirmação de terminar a miniatura continua viva; com o painel fechado, os pedidos param.
+    await js("document.querySelector('[data-rn=terminar]').click(); 1");
+    const naConfirmacao = pedidos();
+    for (let i = 0; i < 40 && pedidos() === naConfirmacao; i++) await dorme(100);
+    assert.ok(pedidos() > naConfirmacao, 'continua pedindo na confirmação de terminar');
+    assert.strictEqual(await img(), outra);
+    await js("document.querySelector('[data-rn=continuar]').click(); 1");
+    await js("document.getElementById('rn-fechar').click(); 1");
+    await dorme(300);
+    const fechado = pedidos();
+    await dorme(2600);
+    assert.strictEqual(pedidos(), fechado, 'com o painel fechado não pede miniatura');
+  });
+
   await t.test('a ligação acabou: ele pergunta se termina; "Terminar" pede ao app', async () => {
     manda({ t: 'reuniao', estado: { gravando: true, inicio: Date.now(), prints: 0, marcas: 0, printsLigados: true, processando: [], evento: 'acabou', nome: 'o navegador' } });
     for (let i = 0; i < 40 && !/acabou\?/.test(await bolha()); i++) await dorme(100);

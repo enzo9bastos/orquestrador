@@ -190,7 +190,7 @@ há terminal para vigiar.
   pergunta se grava (ou, se você escolher, começa a gravar com o sinal à vista), e quando a ligação solta o
   microfone pergunta se termina. Ele só vê o nome do programa no servidor de som, nunca o áudio nem o título da
   ligação. Os prints mostram o que você escolher na janela do sistema no começo (a janela da reunião ou uma tela
-  inteira), com a miniatura para conferir e *Trocar*.
+  inteira), com a miniatura ao vivo para conferir (o que os prints mostram agora) e *Trocar*.
   Enquanto grava, o bichinho segura uma câmera com a luz piscando, mostra o tempo numa etiqueta vermelha e tem uma
   nuvem de pensamento em pixel, com uma câmera, acima da cabeça (acima do chapéu, quando usa um): um clique nela
   tira o print na hora, com um clarão no clique e um ✓ quando o print é guardado. A pergunta "começou uma

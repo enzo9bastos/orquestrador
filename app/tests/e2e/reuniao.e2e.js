@@ -135,6 +135,24 @@ for (const modo of ['perguntar', 'gravar']) {
       await t.test('a miniatura do que os prints mostram fica disponível', async () => {
         await app.esperar('window.orq.reuniao.tela().then((x) => !!(x && /^data:image\\/jpeg;base64,/.test(x.miniatura)))', 10000);
       });
+      // Pedido de 24/11: a miniatura era a do começo da gravação e ficava parada; agora é a de agora.
+      await t.test('a miniatura é a de agora: mostra o que está na tela neste momento, não o que estava no começo', async (tt) => {
+        // Nos testes a janela do app não aparece na tela virtual: o que muda a tela aqui é o fundo dela.
+        const { execFileSync } = require('child_process');
+        const fundo = (cor) => execFileSync('xsetroot', ['-solid', cor], { stdio: 'ignore' });
+        try { fundo('black'); } catch { tt.skip('sem xsetroot para mudar a tela virtual'); return; }
+        const meio = `(async () => { const x = await window.orq.reuniao.tela(); if (!x) return null; const i = new Image(); i.src = x.miniatura; await i.decode(); const c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const g = c.getContext('2d'); g.drawImage(i, 0, 0); const p = g.getImageData(Math.floor(i.width / 2), Math.floor(i.height / 2), 1, 1).data; return { cor: [p[0], p[1], p[2]], mini: x.miniatura }; })()`;
+        const rosa = (c) => c[0] > 60 && c[0] > c[1] + 40 && c[0] > c[2] + 40; // o vermelho manda (a captura escurece a cor)
+        await app.espera(800);
+        const antes = await app.avaliar(meio);
+        assert.ok(antes && !rosa(antes.cor), `antes, o meio da tela não é rosa: ${JSON.stringify(antes && antes.cor)}`);
+        fundo('#e0125a');
+        let depois = null;
+        for (let i = 0; i < 10; i++) { await app.espera(500); depois = await app.avaliar(meio); if (depois && rosa(depois.cor)) break; }
+        fundo('black');
+        assert.notStrictEqual(depois.mini, antes.mini, 'a miniatura mudou');
+        assert.ok(rosa(depois.cor), `a miniatura mostra a tela de agora (rosa): ${JSON.stringify(depois.cor)}`);
+      });
       await t.test('a ligação solta o microfone: a barra continua só com a gravação (quem pergunta é o bichinho); terminar monta a nota', async () => {
         fs.writeFileSync(lista, '[]');
         await app.espera(2500);

@@ -68,6 +68,17 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     }
     return null;
   }
+  // A miniatura de AGORA, para quem pede (o painel do bichinho, enquanto está aberto). A do começo
+  // ficava parada: mostrava o que estava na tela quando a gravação começou (quase sempre o próprio
+  // app), e não o que os prints estão mostrando. Sem quadro novo, devolve nada (nunca uma antiga).
+  async function miniaturaAgora() {
+    if (!janela) return null;
+    const minha = janela;
+    const mini = await pedir({ t: 'miniatura' }, 8000);
+    if (janela !== minha || mini.erro || !mini.dataUrl) return null;
+    tela = { miniatura: mini.dataUrl, ...(tamanhoDaTela || {}) };
+    return tela;
+  }
   function fecharCaptura() {
     if (!janela) return;
     try { janela.webContents.send('captura', { t: 'parar' }); } catch { /* já fechou */ }
@@ -179,7 +190,7 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
   ipcMain.handle('reuniao:terminar', seguro(async () => terminar()));
   ipcMain.handle('reuniao:abrir', seguro(async (caminho) => abrir(caminho)));
   ipcMain.handle('reuniao:trocarTela', seguro(async () => trocarTela()));
-  ipcMain.handle('reuniao:tela', async () => tela || (janela ? tirarMiniatura().catch(() => null) : null));
+  ipcMain.handle('reuniao:tela', async () => miniaturaAgora().catch(() => null));
   ipcMain.handle('reuniao:voz', seguro(async (deNovo) => {
     const c = config.ler();
     const m = transcricao.maquina();
@@ -199,6 +210,7 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     if (acao === 'terminar') return terminar();
     if (acao === 'abrir') return abrir(dados.caminho);
     if (acao === 'trocarTela') return trocarTela();
+    if (acao === 'tela') return { tela: await miniaturaAgora() };
     throw new Error('ação desconhecida');
   }
   return { reuniao: r, executar, detectar, encerrar: async () => { detectar.desligar(); fecharCaptura(); await r.encerrar(); } };

@@ -186,7 +186,7 @@ protocol), so there is no terminal to babysit.
   Discord…) uses the microphone for a few seconds, the helper asks whether to record (or, if you choose, starts
   recording with the sign visible), and when the call releases the microphone it asks whether to stop. It only sees
   the program's name in the sound server, never the audio or the call's title. Screenshots show what you pick in
-  the system's dialog at the start (the meeting window or a whole screen), with a thumbnail to check and *Change*.
+  the system's dialog at the start (the meeting window or a whole screen), with a live thumbnail to check (what the screenshots show right now) and *Change*.
   While it records, the helper holds a small camera with a blinking light, shows the time in a red pill, and
   has a pixel-art thought cloud with a camera above its head (above the hat, when it wears one): one click on it
   takes the screenshot right away, with a flash on the click and a check mark when the screenshot is saved. The

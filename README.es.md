@@ -197,7 +197,7 @@ que no hay ninguna terminal que vigilar.
   el micrófono unos segundos, la mascota pregunta si graba (o, si lo eliges, empieza a grabar con la señal visible),
   y cuando la llamada suelta el micrófono pregunta si termina. Solo ve el nombre del programa en el servidor de
   sonido, nunca el audio ni el título de la llamada. Las capturas muestran lo que elijas en el diálogo del sistema
-  al empezar (la ventana de la reunión o una pantalla entera), con una miniatura para revisar y *Change*.
+  al empezar (la ventana de la reunión o una pantalla entera), con una miniatura en vivo para revisar (lo que las capturas muestran ahora) y *Change*.
   Mientras graba, la mascota sostiene una cámara con la luz parpadeando, muestra el tiempo en una etiqueta roja
   y tiene una nube de pensamiento en píxeles, con una cámara, sobre la cabeza (sobre el sombrero, si lleva uno): un
   clic en ella toma la captura al instante, con un destello en el clic y un ✓ cuando la captura queda guardada. La
