@@ -78,4 +78,9 @@ orchestrator outside the sandbox with `auto_review`, the Codex side request insi
 
 ## What the app does not do
 
-No telemetry, no network calls of its own (only the AI CLIs you connect), no automatic updates.
+No telemetry. The app makes one network call of its own: the update check, a `git fetch` of the repository it
+was installed from, when it opens and every 6 hours (turn it off in *Settings › Orchestration › Updates*). It sends
+nothing of yours and never asks for a password. Everything else on the network is the AI CLIs you connect. An
+update is applied only when you click *Update now*, unless you turn on *Update by itself* (off by default); it only
+moves the folder forward to a released version (a `vX.Y.Z` tag on the published branch) and refuses when files
+were changed by hand. Whoever can publish to that repository controls what an update brings, as with any install.

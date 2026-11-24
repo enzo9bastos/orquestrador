@@ -154,6 +154,13 @@ const PADRAO = {
   // Detectar a reunião pelo microfone (um programa de reunião usando o microfone): 'perguntar'
   // (o bichinho pergunta se grava), 'gravar' (começa sozinho, com o sinal à vista) ou 'desligado'.
   reuniaoDetectar: 'perguntar',
+  // Atualizar pelo app (atualizacao.js). atualizacaoAvisar: o app consulta o repositório de onde foi
+  // instalado ao abrir e de 6 em 6 horas e avisa quando sai versão nova. atualizacaoSozinha: baixa a
+  // versão nova sem perguntar (o reinício continua sendo pedido). atualizacaoAdiada: a versão em que
+  // a pessoa clicou "Depois" no aviso (o aviso dela não volta; as Configurações continuam mostrando).
+  atualizacaoAvisar: true,
+  atualizacaoSozinha: false,
+  atualizacaoAdiada: '',
 };
 
 const casa = (p) => (typeof p === 'string' ? p.replace(/^~(?=$|\/)/, os.homedir()) : p);
@@ -276,6 +283,8 @@ function validar(m) {
       case 'reuniaoModeloLocal': aceitar(k, /^[\w.:/-]{1,80}$/.test(texto(v)), texto(v)); break;
       case 'reuniaoPrints': aceitar(k, typeof v === 'boolean', v); break;
       case 'reuniaoDetectar': aceitar(k, ['perguntar', 'gravar', 'desligado'].includes(v), v); break;
+      case 'atualizacaoAvisar': case 'atualizacaoSozinha': aceitar(k, typeof v === 'boolean', v); break;
+      case 'atualizacaoAdiada': aceitar(k, v === '' || /^\d+\.\d+\.\d+$/.test(v || ''), v); break;
       default: recusado.push(k);
     }
   }

@@ -230,6 +230,20 @@ test('bichinho: reunião detectada, fim da ligação, miniatura da tela e arreme
     assert.strictEqual(await js("getComputedStyle(document.getElementById('pet')).transform"), 'matrix(1, 0, 0, 1, 0, 0)');
   });
 
+  // Visto na bateria de 24/11, com a máquina carregada: parado a menos de 1 px para fora da borda, ele
+  // não se ajeitava e o arredondamento deixava o desenho 1 px deslocado dentro da janela.
+  await t.test('parado a menos de 1 px da borda, ele acerta no lugar: o desenho não fica 1 px deslocado', async () => {
+    const a = (await estado()).area;
+    let e = await estado();
+    assert.deepStrictEqual({ x: e.pos.x, dx: e.dentro.x }, { x: a.x, dx: 0 }, 'começa encostado na borda esquerda, ajeitado');
+    await js("window.ajudante.enviar({ t: 'arrastar', dx: -0.7, dy: 0 }); 1");
+    await js("window.ajudante.enviar({ t: 'soltar', vx: 0, vy: 0 }); 1");
+    await dorme(600);
+    e = await estado();
+    assert.deepStrictEqual({ x: e.dentro.x, y: e.dentro.y, janelaX: e.janela.x }, { x: 0, y: 0, janelaX: a.x });
+    assert.strictEqual(await js("getComputedStyle(document.getElementById('pet')).transform"), 'matrix(1, 0, 0, 1, 0, 0)');
+  });
+
   await t.test('tacado com força, o desenho chega à borda esquerda e ao topo (e, para o outro lado, à direita); a janela fica dentro da tela', async () => {
     const a = (await estado()).area;
     const taca = async (vx, vy) => {

@@ -1902,11 +1902,26 @@ body.sem-agentes.sem-demandas { --larg-nota: min(1080px, max(760px, 52%)); }
 .sem-transicao .barra-nota { transition: none; } /* testes de tela: a janela não anima */
 
 /* Faixa "reinicie para aplicar a atualização" (recarga.js) */
-#faixa-reinicio { position: relative; z-index: 9000; flex: 0 1 auto; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 10px;
+#faixa-reinicio, #faixa-atualizacao { position: relative; z-index: 9000; flex: 0 1 auto; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 10px;
   height: 33px; padding: 0 6px 0 12px; border: 1px solid var(--borda-forte); border-radius: 8px; background: var(--bg-elevado); color: inherit; font-size: 12.5px; white-space: nowrap; -webkit-app-region: no-drag; }
-#faixa-reinicio > span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-#faixa-reinicio > button { flex: none; }
-#faixa-reinicio .botao, #faixa-reinicio .botao-texto { padding: 2px 9px; font-size: 12px; }
+#faixa-reinicio > span, #faixa-atualizacao > span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#faixa-reinicio > button, #faixa-atualizacao > button { flex: none; }
+#faixa-reinicio .botao, #faixa-reinicio .botao-texto, #faixa-atualizacao .botao, #faixa-atualizacao .botao-texto { padding: 2px 9px; font-size: 12px; }
+/* Atualizar pelo app: o aviso de versão nova (acima) e o bloco das Configurações › Avançado. */
+#faixa-atualizacao + #faixa-reinicio { margin-left: 6px; }
+.atualizacao-botoes { display: flex; gap: 8px; align-items: center; }
+#atualizacao-estado span, #atualizacao-estado strong { display: inline; margin: 0; }
+#atualizacao-estado strong { font-weight: 600; }
+#atualizacao-aplicar span { color: inherit; font-size: inherit; }
+.atualizacao-notas { padding: 4px 18px 16px; border-bottom: 1px solid var(--borda); font-size: 12.5px; color: var(--fg-2); }
+.atualizacao-notas[hidden] { display: none; }
+.atualizacao-notas h4 { margin: 10px 0 6px; font-size: 12px; color: var(--fg-3); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.atualizacao-notas .atualizacao-versao { margin: 8px 0 4px; color: var(--fg); }
+.atualizacao-notas ul { margin: 0 0 6px; padding-left: 18px; }
+.atualizacao-notas li { margin: 3px 0; line-height: 1.45; }
+.atualizacao-notas .atualizacao-motivo { margin: 8px 0 6px; }
+.atualizacao-notas .atualizacao-falha { margin: 8px 0 6px; color: var(--perigo); }
+.atualizacao-notas .atualizacao-comando { display: block; padding: 8px 10px; border-radius: 8px; background: var(--bg-elevado); border: 1px solid var(--borda); font: 12px var(--mono); white-space: pre-wrap; word-break: break-all; user-select: all; }
 
 /* --- gaveta da pergunta rápida (/btw; lado-tela.js) ----------------------- */
 /* Fica na mesma célula da coluna da direita, por cima dela e com a mesma largura: a

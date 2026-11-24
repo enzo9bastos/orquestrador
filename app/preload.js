@@ -171,6 +171,13 @@ contextBridge.exposeInMainWorld('orq', {
     versao: () => ipcRenderer.invoke('app:versao'),
     aoPrecisarReiniciar: (fn) => ipcRenderer.on('app:precisa-reiniciar', () => fn()),
   },
+  // Atualizar pelo app (atualizacao.js): a última versão lançada, o que mudou e aplicar.
+  atualizacao: {
+    estado: () => ipcRenderer.invoke('atualizacao:estado'),
+    procurar: () => ipcRenderer.invoke('atualizacao:procurar'),
+    aplicar: (versao) => ipcRenderer.invoke('atualizacao:aplicar', versao),
+    aoMudar: (fn) => ipcRenderer.on('atualizacao:mudou', (_e, e) => fn(e)),
+  },
   // Modo reunião (reuniao-ligacao.js): gravar, print, marcar, terminar; e o que as Configurações mostram.
   reuniao: {
     estado: () => ipcRenderer.invoke('reuniao:estado'),

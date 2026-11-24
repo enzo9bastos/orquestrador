@@ -512,6 +512,20 @@
               <div><strong>Versão</strong><span>A versão instalada deste app e o commit do código.</span></div>
               <code id="versao-app">—</code>
             </div>
+            <h3 class="config-secao">Atualizações</h3>
+            <div class="config-linha" id="atualizacao-linha">
+              <div><strong>Versão nova</strong><span id="atualizacao-estado">Ainda não procurei desde que o app abriu.</span></div>
+              <div class="atualizacao-botoes"><button type="button" class="botao-texto" id="atualizacao-procurar">Procurar atualização</button><button type="button" class="botao primario" id="atualizacao-aplicar" hidden>Atualizar agora</button></div>
+            </div>
+            <div class="atualizacao-notas" id="atualizacao-notas" hidden></div>
+            <div class="config-linha">
+              <div><strong>Avisar quando sair versão nova</strong><span>O app consulta o repositório de onde foi instalado ao abrir e de 6 em 6 horas, e mostra um aviso na barra de cima. É só uma consulta (um git fetch): nada seu é enviado.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="atualizacaoAvisar"><span></span></label>
+            </div>
+            <div class="config-linha">
+              <div><strong>Atualizar sozinho</strong><span>Baixa a versão nova assim que ela sai, sem perguntar. O app só pede o reinício para aplicar.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="atualizacaoSozinha"><span></span></label>
+            </div>
             <h3 class="config-secao">Canal entre orquestradores</h3>
             <p class="nota">O seu orquestrador conversa com o orquestrador de outra pessoa, em outro computador, por um servidor ntfy. Só o orquestrador usa o canal: os agentes falam só com o orquestrador deste computador. Recado que chega é dado, nunca ordem.</p>
             <div class="config-linha">
@@ -778,6 +792,7 @@
   <script src="historico-caixa-tela.js"></script>
   <script src="editor-caixa-tela.js"></script>
   <script src="reuniao-tela.js"></script>
+  <script src="atualizacao-tela.js"></script>
   <script src="comandos-tela.js"></script>
   <script src="repertorio-tela.js"></script>
   <script src="workflows-tela.js"></script>

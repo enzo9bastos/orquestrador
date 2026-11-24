@@ -107,7 +107,9 @@ function mover() {
 function ajeitar() {
   const a = area();
   const x = Math.min(Math.max(pos.x, a.x), Math.max(a.x, a.x + a.width - tam.w)), y = Math.max(pos.y, a.y);
-  if (Math.abs(x - pos.x) < 1 && Math.abs(y - pos.y) < 1) return;
+  // Menos de 1 px para dentro: acerta no lugar, sem andar. (Antes ficava como estava, e o
+  // arredondamento deixava o desenho 1 px deslocado dentro da janela.)
+  if (Math.abs(x - pos.x) < 1 && Math.abs(y - pos.y) < 1) { if (x !== pos.x || y !== pos.y) { pos.x = x; pos.y = y; mover(); } return; }
   if (jeito === 'voa') irPara(x, y, 0, null, { facil: 'suave', dur: 450 });
   else andar(x, esp().vel || 340);
 }

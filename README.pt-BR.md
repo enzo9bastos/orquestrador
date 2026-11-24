@@ -580,6 +580,16 @@ As imagens deste README saem do app de verdade do mesmo jeito, com dados inventa
 
 Cada versão tem uma tag (`vX.Y.Z`) e uma release com as notas na página Releases do repositório; as mesmas notas estão no [CHANGELOG.md](CHANGELOG.md), em inglês. A versão instalada e o commit aparecem em Configurações, ao lado de "Reiniciar o app".
 
+**Atualizar por dentro do app.** Ao abrir e de 6 em 6 horas, o app consulta o repositório de onde foi instalado
+(um `git fetch`, mais nada) para ver se saiu versão nova: uma tag `vX.Y.Z` que já está no ramo publicado, nunca um
+commit solto. Quando há, aparece um aviso na barra de cima com *O que mudou* (as notas de cada versão no caminho),
+*Atualizar agora* e *Depois* (o aviso daquela versão não volta). *Atualizar agora* avança a pasta do app até a
+versão e pede só o reinício; as conversas continuam. Em *Configurações › Orquestração › Atualizações* dá para
+procurar na hora, desligar a consulta (*Avisar quando sair versão nova*) e ligar o *Atualizar sozinho* (desligado
+por padrão). O app não atualiza por ali quando há arquivos do app mexidos à mão, quando a pasta tem commits
+próprios ou quando a versão muda as dependências (aí ele mostra o comando). Ele nunca pede senha: com credencial
+faltando, a consulta só falha.
+
 ## Créditos
 
 - Cores inspiradas no guia de marca público da [Alethe](https://github.com/Kc1t/alethe-agents) (só os valores das

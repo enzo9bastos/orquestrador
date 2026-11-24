@@ -357,6 +357,52 @@ function notificar(opcoes) {
   n.show();
   return n;
 }
+// --- atualizar pelo app (atualizacao.js) --------------------------------------
+// Procura a última versão lançada no repositório de onde o app foi instalado: ao abrir e de 6 em 6
+// horas (Configurações › Orquestração › "Avisar quando sair versão nova"), ou no botão "Procurar
+// atualização". A tela mostra o aviso e o que mudou; "Atualizar" avança a pasta do app até a
+// versão e pede o reinício. É o único acesso à rede do próprio app (um `git fetch`).
+// Nos testes de tela nunca consulta o repositório de verdade: só a pasta que o teste indicar.
+const atualizacao = require('./atualizacao');
+const PASTA_ATUALIZACAO = process.env.ORQ_ATUALIZACAO_PASTA || __dirname;
+const atualizacaoLigada = process.env.ORQ_APP_E2E !== '1' || !!process.env.ORQ_ATUALIZACAO_PASTA;
+let estadoAtualizacao = { ligada: atualizacaoLigada, rodando: app.getVersion(), instalada: atualizacao.versaoInstalada(PASTA_ATUALIZACAO), ultima: null, notas: [], pode: false, motivo: null, comando: null, erro: null, quando: 0, procurando: false, baixada: null };
+const mandarAtualizacao = () => { if (janela && !janela.isDestroyed()) janela.webContents.send('atualizacao:mudou', estadoAtualizacao); };
+async function aplicarAtualizacao(versao) {
+  if (!atualizacaoLigada) return { erro: 'desligada' };
+  const r = await atualizacao.aplicar(PASTA_ATUALIZACAO, String(versao || ''));
+  if (r.ok) {
+    estadoAtualizacao = { ...estadoAtualizacao, instalada: r.versao, baixada: r.versao, ultima: null, pode: false, motivo: 'em-dia', comando: null };
+    mandarAtualizacao();
+    pedirReinicio();
+  }
+  return r;
+}
+let procurandoAtualizacao = null;
+function procurarAtualizacao() {
+  if (!atualizacaoLigada) return Promise.resolve(estadoAtualizacao);
+  if (procurandoAtualizacao) return procurandoAtualizacao;
+  estadoAtualizacao = { ...estadoAtualizacao, procurando: true };
+  mandarAtualizacao();
+  procurandoAtualizacao = atualizacao.procurar(PASTA_ATUALIZACAO)
+    .then(async (r) => {
+      estadoAtualizacao = { ...estadoAtualizacao, ...r, procurando: false };
+      // "Atualizar sozinho" (desligado por padrão): baixa a versão nova e só pede o reinício.
+      if (r.ultima && r.pode && config.ler().atualizacaoSozinha === true) await aplicarAtualizacao(r.ultima.versao);
+    })
+    .catch((e) => { estadoAtualizacao = { ...estadoAtualizacao, procurando: false, erro: String((e && e.message) || e) }; })
+    .then(() => { procurandoAtualizacao = null; mandarAtualizacao(); return estadoAtualizacao; });
+  return procurandoAtualizacao;
+}
+ipcMain.handle('atualizacao:estado', () => estadoAtualizacao);
+ipcMain.handle('atualizacao:procurar', () => procurarAtualizacao());
+ipcMain.handle('atualizacao:aplicar', (_e, versao) => aplicarAtualizacao(versao));
+if (atualizacaoLigada) {
+  const sozinho = () => { if (config.ler().atualizacaoAvisar !== false) procurarAtualizacao(); };
+  setTimeout(sozinho, Number(process.env.ORQ_ATUALIZACAO_ESPERA_MS) || 20000).unref();
+  setInterval(sozinho, 6 * 60 * 60 * 1000).unref();
+}
+
 // Pedido de dado de um servidor MCP no modo página: o endereço já vem conferido
 // (elicitacao.js); aqui a mesma regra dos links, e nos testes de tela nada abre.
 conversa.ligarAbrirPagina((url) => {

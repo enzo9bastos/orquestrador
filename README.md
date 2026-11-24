@@ -635,6 +635,16 @@ bundled names for Claude, and the JSON schema that `codex app-server generate-js
 
 Each version has a tag (`vX.Y.Z`) and a release with notes on the repository's Releases page; the same notes are in [CHANGELOG.md](CHANGELOG.md). The installed version and its commit show in Settings, next to "Restart the app".
 
+**Updating from inside the app.** When it opens and every 6 hours, the app checks the repository it was installed
+from (a `git fetch`, nothing else) for a newer released version: a `vX.Y.Z` tag already on the published branch,
+never a loose commit. When there is one, a notice shows on the top bar with *What changed* (the notes of each
+version on the way), *Update now* and *Later* (the notice for that version does not come back). *Update now*
+moves the app folder forward to that version and asks only for the restart; conversations stay. In *Settings ›
+Orchestration › Updates* you can look for an update yourself, turn the check off (*Tell me when a new version is
+out*) and turn on *Update by itself* (off by default). The app does not update from there when files of the app
+were changed by hand, when the folder has commits of its own, or when the version changes the dependencies (it
+then shows the command to run). It never asks for a password: with a missing credential the check just fails.
+
 ## Credits
 
 - Colors inspired by the public brand guide of [Alethe](https://github.com/Kc1t/alethe-agents) (color
