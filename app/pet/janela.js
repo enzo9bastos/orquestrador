@@ -289,6 +289,23 @@
     if (!visualAtual) return;
     const v = rn.gravando ? { ...visualAtual, itens: { ...(visualAtual.itens || {}), mao: 'camera' } } : visualAtual;
     vira.innerHTML = window.petVisual.svg(v);
+    // O balão de pensamento sobe o tanto do chapéu, para não ficar em cima dele (o desenho tem 14 de altura em 75 px).
+    const chapeu = window.petVisual.ITENS[(v.itens || {}).cabeca];
+    const topo = chapeu && chapeu.parte === 'cabeca' ? Math.max(0, -Math.min(...chapeu.px.map((r) => r[1]))) : 0;
+    pet.style.setProperty('--chapeu', `${Math.round(topo * 75 / 14)}px`);
+  }
+  // Balão de pensamento do print: uma nuvem em pixel, como o bichinho ([x, y, largura, altura, cor];
+  // cada 1 vale 5 px). Dentro, a câmera; o ✓ (print guardado) e o clarão (clique) aparecem por cima.
+  const PN = {
+    nuvem: [[2, 0, 3, 1], [7, 0, 3, 1], [1, 1, 10, 1], [0, 2, 12, 3], [1, 5, 10, 1], [2, 6, 3, 1], [6, 6, 4, 1]],
+    sombra: [[1, 5.4, 10, 0.6], [2, 6, 3, 1], [6, 6, 4, 1]],
+    camera: [[4.5, 1.6, 1.5, 0.6, '#636e72'], [3.5, 2.2, 5, 3, '#2d3436'], [3.5, 2.2, 5, 0.6, '#4a5559'], [5, 2.8, 2, 2, '#dfe6e9'], [5.5, 3.3, 1, 1, '#74b9ff'], [7.4, 2.9, 0.6, 0.5, '#fdcb6e']],
+    certo: [[3, 3, 1, 1], [4, 4, 1, 1], [5, 5, 1, 1], [6, 4, 1, 1], [7, 3, 1, 1], [8, 2, 1, 1]],
+    clarao: [[7.4, 1.1, 0.6, 3.6], [5.9, 2.6, 3.6, 0.6], [7, 2.2, 1.4, 1.4]], // estrela no flash da câmera
+  };
+  {
+    const r = (l, folga = 0) => l.map(([x, y, w, h, c]) => `<rect x="${x - folga}" y="${y - folga}" width="${w + 2 * folga}" height="${h + 2 * folga}"${c ? ` fill="${c}"` : ''}/>`).join('');
+    $('pensa-print').insertAdjacentHTML('afterbegin', `<svg class="pn-nuvem" viewBox="0 0 12 7" shape-rendering="crispEdges" aria-hidden="true"><g class="pn-borda">${r(PN.nuvem, 0.2)}</g><g class="pn-fundo">${r(PN.nuvem)}</g><g class="pn-sombra">${r(PN.sombra)}</g><g class="pn-camera">${r(PN.camera)}</g><g class="pn-certo" fill="#22a06b">${r(PN.certo)}</g><g class="pn-clarao" fill="#fff">${r(PN.clarao)}</g></svg>`);
   }
   let tRec = null;
   const relogio = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600); const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'); const ss = String(s % 60).padStart(2, '0'); return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`; };

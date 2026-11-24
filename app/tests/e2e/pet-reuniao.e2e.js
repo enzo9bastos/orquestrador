@@ -165,7 +165,9 @@ test('bichinho: reunião detectada, fim da ligação, miniatura da tela e arreme
 
 // 23/11: gravando, ele segura uma câmera; e o print sai com um clique no balão de pensamento que
 // fica acima da cabeça dele (primeiro foi um botão solto no canto da tela; o pedido foi trazer para
-// junto do bichinho). O tempo de gravação ficou discreto (sem o fundo vermelho).
+// junto do bichinho). Depois o balão virou uma nuvem desenhada em pixel, como o bichinho, com a
+// câmera dentro e a conta numa etiqueta, e passou a subir quando ele usa chapéu. O tempo de gravação
+// é a etiqueta vermelha: a versão discreta (escura, só com o ponto vermelho) não agradou e foi desfeita.
 test('bichinho: câmera na mão enquanto grava e balão de pensamento que tira o print', { skip: !process.env.DISPLAY && 'sem tela (DISPLAY) para o modo X11' }, async (t) => {
   const env = { ...process.env, ORQ_PET_TESTE: '1', HOME: pastaTemporaria('orq-tela-') };
   delete env.WAYLAND_DISPLAY;
@@ -202,12 +204,29 @@ test('bichinho: câmera na mão enquanto grava e balão de pensamento que tira o
     assert.deepStrictEqual(pos, { dentroDoBichinho: true, acima: true, perto: true, naJanela: true });
     // O balão fica na frente do desenho do bichinho: o clique de verdade pega nele (e não no bichinho).
     assert.strictEqual(await js(`(() => { const r = ${BALAO}.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && !!e.closest('#pensa-print'); })()`), true);
+    // O balão é uma nuvem desenhada em pixel (sem fundo de botão), com a câmera desenhada dentro (sem emoji).
+    assert.deepStrictEqual(await js(`(() => { const b = ${BALAO}; const s = b.querySelector('svg.pn-nuvem'); return { nuvem: !!s && s.getAttribute('shape-rendering') === 'crispEdges' && s.querySelectorAll('.pn-fundo rect').length > 4, camera: b.querySelectorAll('.pn-camera rect').length > 3, semEmoji: !/\\p{Extended_Pictographic}/u.test(b.textContent), fundoDoBotao: getComputedStyle(b).backgroundColor, bolinhas: b.querySelectorAll('i').length }; })()`), { nuvem: true, camera: true, semEmoji: true, fundoDoBotao: 'rgba(0, 0, 0, 0)', bolinhas: 2 });
   });
 
-  await t.test('o tempo de gravação é discreto: sem fundo vermelho, só o ponto vermelho', async () => {
-    const cor = await js("(() => { const r = document.getElementById('rec'); const c = getComputedStyle(r); return { fundo: c.backgroundColor, ponto: getComputedStyle(r.querySelector('i')).backgroundColor }; })()");
-    assert.doesNotMatch(cor.fundo, /^rgba?\(198, 40, 40/, 'o fundo não é mais o vermelho forte');
-    assert.match(cor.ponto, /^rgb\(229, 72, 77\)$/);
+  await t.test('o tempo de gravação fica na etiqueta vermelha, com letra e ponto brancos (a versão discreta não agradou)', async () => {
+    const cor = await js("(() => { const r = document.getElementById('rec'); const c = getComputedStyle(r); return { fundo: c.backgroundColor, letra: c.color, ponto: getComputedStyle(r.querySelector('i')).backgroundColor }; })()");
+    assert.deepStrictEqual(cor, { fundo: 'rgb(198, 40, 40)', letra: 'rgb(255, 255, 255)', ponto: 'rgb(255, 255, 255)' });
+  });
+
+  await t.test('de chapéu alto, o balão sobe: nem a nuvem nem as bolinhas ficam em cima do chapéu', async () => {
+    // Medidas com tudo parado (o balão boia e o bichinho respira).
+    await js("(() => { const e = document.createElement('style'); e.id = 'teste-parado'; e.textContent = '.aj-pet, .aj-pet * { animation: none !important; }'; document.head.appendChild(e); return 1; })()");
+    const medir = () => js(`(() => { const b = ${BALAO}; const r = b.getBoundingClientRect(); const ch = document.querySelector('#pet .item-cartola'); return { topo: Math.round(r.top), fundo: Math.round(Math.max(r.bottom, ...[...b.querySelectorAll('i')].map((i) => i.getBoundingClientRect().bottom))), topoDoChapeu: ch ? Math.round(ch.getBoundingClientRect().top) : null }; })()`);
+    const sem = await medir();
+    manda({ t: 'visual', visual: { cor: 'azul', itens: { cabeca: 'cartola' } }, tema: 'dark' });
+    for (let i = 0; i < 30 && !(await js("!!document.querySelector('#pet .item-cartola')")); i++) await dorme(100);
+    const com = await medir();
+    assert.ok(com.topoDoChapeu !== null && com.fundo <= com.topoDoChapeu, `acima do chapéu: ${JSON.stringify(com)}`);
+    assert.ok(com.topo < sem.topo - 15 && com.topo >= 0, `subiu e continua na janela: ${sem.topo} → ${com.topo}`);
+    manda({ t: 'visual', visual: { cor: 'azul', itens: { mao: 'caneca' } }, tema: 'dark' });
+    for (let i = 0; i < 30 && (await js("!!document.querySelector('#pet .item-cartola')")); i++) await dorme(100);
+    assert.strictEqual((await medir()).topo, sem.topo, 'sem o chapéu, volta para o lugar');
+    await js("document.getElementById('teste-parado').remove(); 1");
   });
 
   await t.test('um clique no balão pede o print na hora, sem arrastar o bichinho nem abrir o painel; a conta aparece nele', async () => {
@@ -218,6 +237,7 @@ test('bichinho: câmera na mão enquanto grava e balão de pensamento que tira o
     manda({ t: 'reuniao', estado: gravando({ prints: 3, evento: 'print' }) });
     for (let i = 0; i < 20 && (await js("document.getElementById('pensa-n').textContent")) !== '3'; i++) await dorme(100);
     assert.strictEqual(await js("document.getElementById('pensa-n').textContent"), '3');
+    assert.strictEqual(await js(`${BALAO}.classList.contains('ok')`), true, 'print guardado: o ✓ aparece na nuvem');
     assert.strictEqual(await js("document.getElementById('bolha').hidden"), true, 'com o balão à vista, ele não fala por cima');
     // Três cliques seguidos: três pedidos.
     const antes = recebidas.filter((m) => m.t === 'reuniao' && m.acao === 'print').length;

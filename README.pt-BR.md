@@ -191,8 +191,9 @@ há terminal para vigiar.
   microfone pergunta se termina. Ele só vê o nome do programa no servidor de som, nunca o áudio nem o título da
   ligação. Os prints mostram o que você escolher na janela do sistema no começo (a janela da reunião ou uma tela
   inteira), com a miniatura para conferir e *Trocar*.
-  Enquanto grava, o bichinho segura uma câmera com a luz piscando, mostra o tempo numa etiqueta discreta e tem um
-  balão de pensamento com uma câmera acima da cabeça: um clique nele tira o print na hora. A pergunta "começou uma
+  Enquanto grava, o bichinho segura uma câmera com a luz piscando, mostra o tempo numa etiqueta vermelha e tem uma
+  nuvem de pensamento em pixel, com uma câmera, acima da cabeça (acima do chapéu, quando usa um): um clique nela
+  tira o print na hora, com um clarão no clique e um ✓ quando o print é guardado. A pergunta "começou uma
   reunião, quer gravar?" é feita pelo próprio bichinho.
 - **Arquivos anexados na sua mensagem** aparecem como cartões acima do texto (selo colorido do tipo e o nome), como
   as miniaturas das imagens; o clique no cartão mostra o arquivo na pasta dele.

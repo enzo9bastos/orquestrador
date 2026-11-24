@@ -187,8 +187,9 @@ protocol), so there is no terminal to babysit.
   recording with the sign visible), and when the call releases the microphone it asks whether to stop. It only sees
   the program's name in the sound server, never the audio or the call's title. Screenshots show what you pick in
   the system's dialog at the start (the meeting window or a whole screen), with a thumbnail to check and *Change*.
-  While it records, the helper holds a small camera with a blinking light, shows the time in a discreet pill, and
-  has a thought bubble with a camera above its head: one click on it takes the screenshot right away. The
+  While it records, the helper holds a small camera with a blinking light, shows the time in a red pill, and
+  has a pixel-art thought cloud with a camera above its head (above the hat, when it wears one): one click on it
+  takes the screenshot right away, with a flash on the click and a check mark when the screenshot is saved. The
   question "a meeting started, record it?" is asked by the helper itself.
 - **Attached files in your message** show as cards above the text (coloured type badge and file name), like image
   thumbnails; clicking a card shows the file in its folder.

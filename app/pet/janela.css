@@ -227,10 +227,9 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 
 /* Modo reunião: sinal de gravando em cima do bichinho (sempre à vista enquanto grava), painel com
    o título, os aparelhos, as contas de prints e marcas, e a barra de andamento da nota. */
-.aj-rec { position: absolute; right: 100%; top: 38%; margin-right: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--bg-elevado) 90%, transparent); border: 1px solid var(--borda); color: var(--fg-2); font: 500 11px var(--mono); white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
+.aj-rec { position: absolute; right: 100%; top: 35%; margin-right: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: #c62828; color: #fff; font: 600 11px var(--mono); white-space: nowrap; pointer-events: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
 .aj-rec[hidden] { display: none; }
-.aj-rec i { width: 6px; height: 6px; border-radius: 50%; background: #e5484d; animation: aj-rec-pulsa 2s ease-in-out infinite; }
-@keyframes aj-rec-pulsa { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.aj-rec i { width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: aj-rec-pisca 1.2s steps(2, start) infinite; }
 @keyframes aj-rec-pisca { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .aj-rec i { animation: none; } }
 .aj-reuniao .rn-campo { display: grid; gap: 4px; font-size: 12px; color: var(--fg-3); margin: 0 0 8px; }
@@ -249,20 +248,46 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 @keyframes aj-filma { 0%, 100% { translate: 0 0; } 50% { translate: 0 -0.35px; } }
 .aj-pet .rec-luz { animation: aj-rec-pisca 1s steps(2, start) infinite; }
 @media (prefers-reduced-motion: reduce) { .aj-pet.gravando .braco-d, .aj-pet .rec-luz { animation: none; } }
-/* Balão de pensamento do print (modo reunião): fica acima da cabeça, com as bolinhas até ela; um
-   clique tira o print. Some quando ele fala, quando o menu abre ou quando um painel está aberto. */
-/* z-index: o desenho do bichinho ocupa a área acima da cabeça (onde vão os chapéus) e pegaria o clique. */
-.aj-pensa { position: absolute; z-index: 3; right: 44px; bottom: calc(100% - 14px); display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 16px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); color: var(--fg); font: 600 11.5px var(--sans); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); transition: transform .12s ease, border-color .12s ease; }
+/* Balão de pensamento do print (modo reunião): uma nuvem em pixel, como o bichinho, com uma câmera
+   desenhada; fica acima da cabeça (ou do chapéu: --chapeu), com as bolinhas até ela. Um clique tira
+   o print. Some quando ele fala, quando o menu abre ou quando um painel está aberto.
+   z-index: o desenho do bichinho ocupa a área acima da cabeça (onde vão os chapéus) e pegaria o clique.
+   As cores são fixas, como as dos itens do bichinho (não seguem o tema): --pn-* troca tudo de uma vez. */
+.aj-pensa { --pn-fundo: #f6f7fb; --pn-sombra: #d9deea; --pn-borda: rgba(20, 22, 30, .55); --pn-conta: #2d3436; --pn-conta-fg: #fff;
+  position: absolute; z-index: 3; right: 38px; bottom: calc(100% - 14px + var(--chapeu, 0px)); width: 60px; height: 35px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
+  transform-origin: 85% 130%; transition: transform .12s ease; animation: aj-pensa-surge .38s cubic-bezier(.3, 1.5, .5, 1) backwards, aj-pensa-boia 3.4s ease-in-out .4s infinite; }
 .aj-pensa[hidden], .aj-pensa [hidden] { display: none; }
-.aj-pensa:hover, .aj-pensa:focus-visible { border-color: var(--claude); transform: scale(1.06); outline: none; }
-.aj-pensa .aj-pensa-ico { font-size: 15px; line-height: 1; }
-.aj-pensa .aj-pensa-n { color: var(--fg-3); font-variant-numeric: tabular-nums; }
-.aj-pensa i { position: absolute; border-radius: 50%; border: 1px solid var(--borda-forte); background: var(--bg-elevado); }
-.aj-pensa i:nth-of-type(1) { width: 9px; height: 9px; right: 2px; top: calc(100% + 1px); }
-.aj-pensa i:nth-of-type(2) { width: 5px; height: 5px; right: -6px; top: calc(100% + 10px); }
-.aj-pensa.flash { animation: aj-pensa-flash .35s ease-out; }
-@keyframes aj-pensa-flash { 0% { background: #fff; transform: scale(.9); } 100% { background: var(--bg-elevado); transform: scale(1); } }
-.aj-pensa.ok { animation: aj-pensa-ok .9s ease-out; }
-@keyframes aj-pensa-ok { 0% { border-color: #2fb170; box-shadow: 0 0 0 3px color-mix(in srgb, #2fb170 40%, transparent); } 100% { border-color: var(--borda-forte); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); } }
+.aj-pensa:focus-visible { outline: none; }
+.aj-pensa:hover, .aj-pensa:focus-visible { transform: scale(1.08); --pn-borda: var(--claude); }
+.aj-pensa:active { transform: scale(.94); }
+.aj-pensa .pn-nuvem { display: block; width: 60px; height: 35px; overflow: visible; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .35)); }
+.aj-pensa .pn-borda { fill: var(--pn-borda); transition: fill .12s ease; }
+.aj-pensa .pn-fundo { fill: var(--pn-fundo); }
+.aj-pensa .pn-sombra { fill: var(--pn-sombra); }
+.aj-pensa .pn-certo, .aj-pensa .pn-clarao { opacity: 0; }
+.aj-pensa .pn-camera, .aj-pensa .pn-certo, .aj-pensa .pn-clarao { transform-box: fill-box; transform-origin: 50% 50%; }
+/* As bolinhas até a cabeça: quadradas, em pixel. */
+.aj-pensa i { position: absolute; background: var(--pn-fundo); box-shadow: 0 0 0 1px var(--pn-borda), 0 2px 4px rgba(0, 0, 0, .3); transition: box-shadow .12s ease; animation: aj-pensa-ponto .3s ease-out backwards; }
+.aj-pensa i:nth-of-type(1) { width: 8px; height: 8px; right: 5px; top: calc(100% + 4px); animation-delay: .06s; }
+.aj-pensa i:nth-of-type(2) { width: 5px; height: 5px; right: -4px; top: calc(100% + 15px); }
+/* Quantos prints já foram: uma etiqueta no canto da nuvem. */
+.aj-pensa .aj-pensa-n { position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; box-sizing: border-box; border-radius: 5px; background: var(--pn-conta); color: var(--pn-conta-fg); font: 700 10.5px/17px var(--mono); text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--pn-fundo), 0 2px 4px rgba(0, 0, 0, .3); }
+@keyframes aj-pensa-surge { 0% { scale: .2; opacity: 0; } 100% { scale: 1; opacity: 1; } }
+@keyframes aj-pensa-ponto { 0% { scale: 0; } 100% { scale: 1; } }
+@keyframes aj-pensa-boia { 0%, 100% { translate: 0 0; } 50% { translate: 0 -2.5px; } }
+/* O clique: a câmera dispara (clarão amarelo) antes mesmo de o app responder. */
+.aj-pensa.flash .pn-clarao { animation: aj-pensa-clarao .4s ease-out; }
+.aj-pensa.flash .pn-fundo { animation: aj-pensa-acende .4s ease-out; }
+.aj-pensa.flash .pn-camera { animation: aj-pensa-dispara .28s ease-out; }
+@keyframes aj-pensa-clarao { 0% { opacity: 1; scale: .3; } 55% { opacity: 1; scale: 1.15; } 100% { opacity: 0; scale: 1.35; } }
+@keyframes aj-pensa-acende { 0%, 35% { fill: #ffd97a; } 100% { fill: var(--pn-fundo); } }
+@keyframes aj-pensa-dispara { 0% { scale: .82; } 60% { scale: 1.08; } 100% { scale: 1; } }
+/* O print foi guardado: a câmera dá lugar a um ✓ verde por um instante e a conta dá um pulinho. */
+.aj-pensa.ok .pn-camera { animation: aj-pensa-some .95s ease-out; }
+.aj-pensa.ok .pn-certo { animation: aj-pensa-certo .95s ease-out; }
+.aj-pensa.ok .aj-pensa-n { animation: aj-pensa-conta .45s ease-out; }
+@keyframes aj-pensa-some { 0%, 75% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes aj-pensa-certo { 0% { opacity: 1; scale: .5; } 18% { scale: 1.15; } 30%, 75% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1; } }
+@keyframes aj-pensa-conta { 0% { scale: 1.45; } 100% { scale: 1; } }
 .aj-bolha:not([hidden]) ~ .aj-pet .aj-pensa, .aj-menu:not([hidden]) ~ .aj-pet .aj-pensa, .aj-conversa:not([hidden]) ~ .aj-pet .aj-pensa { display: none; }
-@media (prefers-reduced-motion: reduce) { .aj-rec i, .aj-pensa.flash, .aj-pensa.ok { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .aj-pensa, .aj-pensa i, .aj-pensa.flash .pn-clarao, .aj-pensa.flash .pn-fundo, .aj-pensa.flash .pn-camera, .aj-pensa.ok .pn-camera, .aj-pensa.ok .pn-certo, .aj-pensa.ok .aj-pensa-n { animation: none; } }
