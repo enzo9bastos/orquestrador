@@ -4,6 +4,21 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.19.0 (2026-11-24)
+
+- Dictation: speak instead of typing. The microphone next to the send button (or Ctrl+Shift+D, or the palette)
+  listens, and the text appears in the message box while you speak, where the cursor was; each sentence is tidied up
+  when you pause. You send it yourself, with Enter (or by voice, if you turn that on: see below). The same button,
+  the shortcut or Esc stops listening.
+- Transcription runs on the computer, with the engine of meeting mode (faster-whisper): the audio is not saved and
+  never leaves the computer. Without an NVIDIA card it uses the light model, the only one that keeps up with speech
+  on a laptop processor.
+- Send by voice (off by default; Settings › Voice and meetings): with it on, ending what you say with "send message"
+  ("enviar mensagem" with the app in Portuguese, or a phrase you choose) sends the message, without the phrase. In
+  the middle of a sentence the phrase is just text.
+- Settings › Voice and meetings: the dictation model and "Keep listening after sending". Settings › Shortcuts: the
+  dictation shortcut can be changed or turned off.
+
 ## 0.18.0 (2026-11-24)
 
 - Notes: the tabs on top are now the open notes, as in Obsidian. The file tree on the left always shows every
