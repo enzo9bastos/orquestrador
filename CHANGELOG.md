@@ -4,6 +4,21 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.17.0 (2026-11-24)
+
+- Update from inside the app: when it opens and every 6 hours, the app checks the repository it was installed from
+  (a `git fetch`, nothing else) for a newer released version. When there is one, a notice shows on the top bar with
+  "What changed" (the notes of each version on the way), "Update now" and "Later". "Update now" moves the app
+  folder forward to that version and asks only for the restart; conversations stay.
+- Settings › Orchestration › Updates: "Look for an update", the list of what changed, "Tell me when a new version
+  is out" (on) and "Update by itself" (off by default).
+- The app does not update from there when files of the app were changed by hand, when the folder has commits of
+  its own, or when the version changes the dependencies; it says why and shows the command to run. It never asks
+  for a password.
+- SECURITY.md now describes this check: it is the only network access the app makes on its own.
+- Desktop helper: resting less than 1 px outside a screen edge, the drawing stayed 1 px off inside its window; it
+  now settles in place.
+
 ## 0.16.1 (2026-11-24)
 
 - The right-click menu of the helper inside the app now offers "Record meeting" too (before, only the desktop
