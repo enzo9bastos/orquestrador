@@ -46,6 +46,8 @@ const PADRAO = {
   atalhoGuardarRascunho: 'Ctrl+KeyS',
   // Atalho que abre o que está na caixa de mensagem no editor de texto do sistema. "" desliga.
   atalhoEditorDeTexto: 'Ctrl+KeyG',
+  // Atalho que liga e desliga o ditado (falar em vez de escrever na caixa de mensagem). "" desliga.
+  atalhoDitado: 'Ctrl+Shift+KeyD',
 
   // Onde estão os projetos. niveis 1: <raiz>/<projeto>; niveis 2:
   // <raiz>/<grupo>/<projeto>. Pastas que casam com ignorar ficam de fora.
@@ -154,6 +156,16 @@ const PADRAO = {
   // Detectar a reunião pelo microfone (um programa de reunião usando o microfone): 'perguntar'
   // (o bichinho pergunta se grava), 'gravar' (começa sozinho, com o sinal à vista) ou 'desligado'.
   reuniaoDetectar: 'perguntar',
+  // Ditado (falar em vez de escrever; ditado.js). ditadoModelo: '' = o que acompanha a fala neste
+  // computador (o leve; com placa NVIDIA, o robusto); ou small, large-v3-turbo, large-v3.
+  // ditadoContinua: depois de enviar a mensagem o ditado continua ouvindo (a próxima fala já é a
+  // mensagem seguinte); desligado, enviar termina o ditado. ditadoEnviarPorVoz: a fala que termina
+  // com a frase combinada envia a mensagem (a frase sai do texto); desligado, só o Enter envia.
+  // ditadoFraseEnviar: a frase ('' = "enviar mensagem"; com o app em inglês, "send message").
+  ditadoModelo: '',
+  ditadoContinua: false,
+  ditadoEnviarPorVoz: false,
+  ditadoFraseEnviar: '',
   // Atualizar pelo app (atualizacao.js). atualizacaoAvisar: o app consulta o repositório de onde foi
   // instalado ao abrir e de 6 em 6 horas e avisa quando sai versão nova. atualizacaoSozinha: baixa a
   // versão nova sem perguntar (o reinício continua sendo pedido). atualizacaoAdiada: a versão em que
@@ -249,7 +261,7 @@ function validar(m) {
       case 'iniciarDesligar': aceitar(k, ['barra', 'menu'].includes(v), v); break;
       case 'conversasAoFechar': aceitar(k, ['pausadas', 'saem'].includes(v), v); break;
       case 'atalhosColunas': aceitar(k, atalhosColunasOk(v) && !Object.values(atalhosComo(m).soltos).filter(Boolean).some((a) => [v.agentes, v.demandas].includes(a)), () => ({ agentes: v.agentes, demandas: v.demandas })); break;
-      case 'atalhoPerguntaRapida': case 'atalhoBuscaEscritos': case 'atalhoGuardarRascunho': case 'atalhoEditorDeTexto': aceitar(k, atalhoOk(v, outrosAtalhos(m, k)), v); break;
+      case 'atalhoPerguntaRapida': case 'atalhoBuscaEscritos': case 'atalhoGuardarRascunho': case 'atalhoEditorDeTexto': case 'atalhoDitado': aceitar(k, atalhoOk(v, outrosAtalhos(m, k)), v); break;
       case 'colunas': aceitar(k, colunasOk(v), () => colunasLimpas(v)); break;
       case 'notificacoes': aceitar(k, !!v && typeof v === 'object', () => ({ pedidos: v.pedidos !== false, respostas: v.respostas !== false, agentes: v.agentes !== false, ajudante: v.ajudante !== false })); break;
       case 'comandoInicial': case 'comandoDesligar':
@@ -283,6 +295,9 @@ function validar(m) {
       case 'reuniaoModeloLocal': aceitar(k, /^[\w.:/-]{1,80}$/.test(texto(v)), texto(v)); break;
       case 'reuniaoPrints': aceitar(k, typeof v === 'boolean', v); break;
       case 'reuniaoDetectar': aceitar(k, ['perguntar', 'gravar', 'desligado'].includes(v), v); break;
+      case 'ditadoModelo': aceitar(k, ['', 'small', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
+      case 'ditadoContinua': case 'ditadoEnviarPorVoz': aceitar(k, typeof v === 'boolean', v); break;
+      case 'ditadoFraseEnviar': aceitar(k, typeof v === 'string' && v.trim().length <= 60 && (!v.trim() || /[\p{L}\p{N}]/u.test(v)), texto(v).trim()); break;
       case 'atualizacaoAvisar': case 'atualizacaoSozinha': aceitar(k, typeof v === 'boolean', v); break;
       case 'atualizacaoAdiada': aceitar(k, v === '' || /^\d+\.\d+\.\d+$/.test(v || ''), v); break;
       default: recusado.push(k);

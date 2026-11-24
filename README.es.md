@@ -187,6 +187,16 @@ que no hay ninguna terminal que vigilar.
   (en `~/.cache/orq-app/editor`, que solo tú puedes leer), eliminado cuando terminas. Lo que viene del editor es
   siempre texto común, nunca un comando de `!`. Los dos atajos se pueden cambiar o desactivar en *Settings ›
   Shortcuts*.
+- **Dictado**: habla en vez de escribir. El micrófono al lado del botón de enviar (o `Ctrl+Shift+D`, o la paleta)
+  empieza a escuchar, y el texto aparece en la caja de mensaje mientras hablas, donde estaba el cursor; cada frase
+  se ajusta cuando haces una pausa. Quien envía eres tú, con Enter. Si activas *Send by voice* (viene apagado),
+  terminar lo que dices con la frase acordada ("send message", u otra que elijas) envía el mensaje, sin la frase;
+  en medio de una oración la frase es solo texto. El mismo botón, el
+  atajo o Esc lo detienen, y también se detiene cuando envías el mensaje, sales de la pestaña de la conversación o
+  pasas un minuto sin hablar. La transcripción corre en el ordenador (faster-whisper, el mismo motor del modo
+  reunión); el audio no se guarda y nunca sale del ordenador. Sin tarjeta NVIDIA usa el modelo ligero, el único que
+  sigue el ritmo del habla en un procesador de portátil; *Settings › Voice and meetings* tiene el modelo y la opción
+  de seguir escuchando después de enviar, y el atajo se puede cambiar o apagar en *Settings › Shortcuts*.
 - **Modo reunión**: desde la mascota, dentro de la app o en el escritorio (clic derecho › *Record meeting*), o desde la paleta, la app graba tu micrófono y el
   sonido del equipo en dos pistas, para que la nota sepa quién habló. Mientras graba, una señal roja con el tiempo
   queda en la mascota y en la barra superior, con *Screenshot*, *Mark moment* y *End*. Al terminar, el audio se

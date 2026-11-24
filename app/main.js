@@ -722,6 +722,24 @@ const editorDeTexto = require('./editor-de-texto').criar({
 ipcMain.handle('editor:comecar', (_e, texto) => editorDeTexto.comecar(texto));
 ipcMain.handle('editor:terminar', () => editorDeTexto.terminar());
 ipcMain.handle('editor:estado', () => editorDeTexto.estado());
+
+// Ditado: falar em vez de escrever (ditado.js). O microfone é lido aqui, o som vai para o motor de
+// voz deste computador e só o texto chega à tela, na caixa de mensagem; quem envia é a pessoa.
+// Nos testes de tela o motor e o microfone são programas de mentira (ORQ_DITADO_MOTOR e
+// ORQ_DITADO_CAPTURA); sem eles o ditado não liga: um teste nunca abre o microfone de verdade.
+const pecasDoDitado = require('./ditado');
+const ditado = pecasDoDitado.criar({
+  motor: pecasDoDitado.motorDeVerdade({ transcricao: require('./transcricao'), config, emTeste: process.env.ORQ_APP_E2E === '1' }),
+  capturar: () => pecasDoDitado.capturarMicrofone({ aparelho: () => require('./reuniao-pecas').aparelho('voce'), emTeste: process.env.ORQ_APP_E2E === '1' }),
+  aoEvento: (e) => enviar('ditado:evento', e),
+  semFalaMs: Number(process.env.ORQ_DITADO_SEM_FALA_MS) || 60000,
+});
+const comDitado = (fn) => async (_e, ...a) => { try { return { ok: true, ...(await fn(...a)) }; } catch (e) { return { erro: String((e && e.message) || e) }; } };
+ipcMain.handle('ditado:comecar', comDitado((contexto) => ditado.comecar({ contexto: typeof contexto === 'string' ? contexto : '' })));
+ipcMain.handle('ditado:parar', comDitado(() => ditado.parar()));
+ipcMain.handle('ditado:largar', comDitado(async () => ditado.largar()));
+ipcMain.handle('ditado:cortar', comDitado(async (contexto) => ditado.cortar(typeof contexto === 'string' ? contexto : '')));
+ipcMain.handle('ditado:estado', () => ditado.estado());
 ipcMain.handle('conversa:renomear', comErro((id, titulo) => ({ titulo: conversa.renomear(id, titulo) })));
 // O pedido de apagar veio do orquestrador: ele fica sabendo do que o usuário decidiu.
 const avisarDecisao = (t, acao) => { try { topicos.avisarOrquestrador(conversa, t, acao); } catch { /* o aviso é extra; a decisão já está feita */ } };
@@ -1149,6 +1167,7 @@ function encerrarTudo(ev) {
     return;
   }
   try { editorDeTexto.terminar(); } catch { /* o arquivo da mensagem fica; sai na limpeza de sobras */ }
+  try { ditado.encerrar(); } catch { /* o motor e o microfone saem junto com o app */ }
   for (const t of terminais.values()) { try { t.pty.kill(); } catch { /* já saiu */ } }
   terminais.clear();
   workflows.desligar();

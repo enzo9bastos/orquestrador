@@ -2673,6 +2673,7 @@
   // enviado era o que estava lá) e o rascunho guardado volta sozinho.
   function caixaEsvaziouPorEnvio() {
     if (window.orqEditorDeTexto) window.orqEditorDeTexto.depoisDeEnviar();
+    if (window.orqDitado) window.orqDitado.depoisDeEnviar(); // o ditado termina (ou, se a pessoa escolheu, recomeça numa caixa vazia)
     if (!guardado || entrada.value.trim()) return;
     const t = guardado.texto;
     if (alternarRascunho()) voltouSozinho = t;

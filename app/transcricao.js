@@ -5,13 +5,14 @@
 // baixar um modelo só acontece quando a pessoa pede (opção --baixar do voz/transcrever.py).
 //
 //   acharMotor()            → { ok, python, versao } ou { ok: false, motivo }
+//   acharMotorSemTravar()   → o mesmo, numa Promise (não segura o processo principal)
 //   maquina()               → { nucleos, memoriaGB, nvidia }
 //   modelos()               → [{ id, nome, tamanho, local, recomendado }]
 //   transcrever(arquivo, o) → Promise<{ trechos: [{ ini, fim, texto }], duracao, modelo, aparelho }>
 //                             o: { modelo, idioma, aoProgresso(pct), sinal (AbortSignal) }
 //
 // Uma transcrição por vez (fila), num processo à parte com prioridade baixa.
-const { spawn, execFileSync } = require('child_process');
+const { spawn, execFile, execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -84,6 +85,22 @@ function acharMotor({ escolhido = '', deNovo = false } = {}) {
   return r;
 }
 
+// O mesmo, sem segurar o processo principal enquanto pergunta a cada Python (o ditado começa
+// com a tela viva). Guarda a resposta no mesmo lugar.
+async function acharMotorSemTravar({ escolhido = '', deNovo = false } = {}) {
+  if (motorGuardado && !deNovo && motorGuardado.escolhido === escolhido) return motorGuardado.r;
+  let r = { ok: false, motivo: 'não achei um Python com o faster-whisper neste computador' };
+  for (const py of candidatos(escolhido)) {
+    if (py !== 'python3' && !fs.existsSync(py)) continue;
+    const v = await new Promise((ok) => {
+      execFile(py, ['-c', 'import faster_whisper; print(faster_whisper.__version__)'], { timeout: 20000, encoding: 'utf8' }, (erro, saida) => ok(erro ? '' : String(saida || '').trim()));
+    });
+    if (v) { r = { ok: true, python: py, versao: v }; break; }
+  }
+  motorGuardado = { escolhido, r };
+  return r;
+}
+
 // --- a fila ---------------------------------------------------------------------
 let fila = Promise.resolve();
 function transcrever(arquivo, o = {}) {
@@ -127,4 +144,4 @@ function rodar(arquivo, { modelo = 'large-v3-turbo', idioma = 'pt', baixar = fal
   });
 }
 
-module.exports = { acharMotor, maquina, modelos, recomendado, transcrever, MODELOS, _candidatos: candidatos };
+module.exports = { acharMotor, acharMotorSemTravar, maquina, modelos, recomendado, transcrever, MODELOS, _candidatos: candidatos };

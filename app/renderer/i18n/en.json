@@ -2074,7 +2074,7 @@
     "Reunião": "Meeting",
     "Gravando a reunião. Avise as pessoas que ela está sendo gravada.": "Recording the meeting. Tell the people that it is being recorded.",
     "Voz e reuniões": "Voice and meetings",
-    "O áudio nunca sai do computador: a transcrição roda aqui mesmo. Uma reunião começa pelo bichinho (botão direito › Gravar reunião) ou pela paleta (Ctrl+K).": "The audio never leaves the computer: transcription runs right here. A meeting starts from the helper (right click › Record meeting) or from the palette (Ctrl+K).",
+    "O áudio nunca sai do computador: a transcrição roda aqui mesmo. Uma reunião começa pelo bichinho (botão direito › Gravar reunião) ou pela paleta (Ctrl+K). O ditado usa o mesmo motor e não guarda o áudio.": "The audio never leaves the computer: transcription runs right here. A meeting starts from the helper (right click › Record meeting) or from the palette (Ctrl+K). Dictation uses the same engine and does not keep the audio.",
     "Pasta das reuniões": "Meetings folder",
     "Cada reunião vira uma pasta com a nota, o áudio e os prints; no fim ela ganha o assunto no nome.": "Each meeting becomes a folder with the note, the audio and the screenshots; at the end its name gets the subject.",
     "Motor de transcrição": "Transcription engine",
@@ -2138,7 +2138,37 @@
     "Gravar sozinho (com o sinal à vista)": "Record by itself (with the sign visible)",
     "Não fazer nada": "Do nothing",
     "Sim, gravar": "Yes, record",
-    "Câmera": "Camera"
+    "Câmera": "Camera",
+    "Ditar: fale e o texto aparece aqui": "Dictate: speak and the text appears here",
+    "Ditar a mensagem": "Dictate the message",
+    "Parar de ouvir": "Stop listening",
+    "Preparando o ditado. Pode ir falando.": "Getting dictation ready. You can start speaking.",
+    "Ouvindo. Fale: o texto aparece na caixa, e você envia quando quiser.": "Listening. Speak: the text appears in the box, and you send it when you want.",
+    "Terminando de escrever o que você falou…": "Finishing writing what you said…",
+    "Microfone:": "Microphone:",
+    "Ditado": "Dictation",
+    "Fale em vez de escrever: o microfone ao lado do botão de enviar, ou o atalho. O texto aparece na caixa enquanto você fala, e quem envia é você.": "Speak instead of typing: the microphone next to the send button, or the shortcut. The text appears in the box while you speak, and you are the one who sends it.",
+    "Continuar ouvindo depois de enviar": "Keep listening after sending",
+    "Desligado, o ditado termina quando você envia a mensagem. Ligado, ele continua ouvindo, e a fala seguinte já é a próxima mensagem.": "Off, dictation ends when you send the message. On, it keeps listening, and what you say next is already the next message.",
+    "Liga o microfone e escreve na caixa o que você fala. O mesmo atalho para de ouvir. Quem envia a mensagem é você.": "Turns the microphone on and writes what you say in the box. The same shortcut stops listening. You are the one who sends the message.",
+    "A mensagem está aberta no editor de texto. Termine lá antes de ditar.": "The message is open in the text editor. Finish there before dictating.",
+    "Parei de ouvir: passou um minuto sem fala. O que você ditou continua na caixa.": "I stopped listening: a minute went by with no speech. What you dictated is still in the box.",
+    "Parar o ditado": "Stop dictation",
+    "fale em vez de escrever; o texto aparece na caixa e você envia": "speak instead of typing; the text appears in the box and you send it",
+    "Leve · recomendado": "Light · recommended",
+    "Robusto · recomendado": "Robust · recommended",
+    "Melhor · recomendado": "Best · recommended",
+    "Robusto · atrasa vários segundos sem placa NVIDIA": "Robust · lags several seconds without an NVIDIA card",
+    "Melhor · atrasa vários segundos sem placa NVIDIA": "Best · lags several seconds without an NVIDIA card",
+    "Leve · ainda não está neste computador": "Light · not on this computer yet",
+    "Robusto · ainda não está neste computador": "Robust · not on this computer yet",
+    "Melhor · ainda não está neste computador": "Best · not on this computer yet",
+    "Ouvindo. Para enviar, diga": "Listening. To send, say",
+    "Enviar por voz": "Send by voice",
+    "Ligado, a fala que termina com a frase combinada envia a mensagem, e a frase sai do texto. Vale no fim da fala, depois da pausa; no meio de uma frase não envia. Desligado, só o Enter envia.": "On, speech that ends with the agreed phrase sends the message, and the phrase is left out of the text. It counts at the end of what you say, after the pause; in the middle of a sentence it does not send. Off, only Enter sends.",
+    "Frase que envia": "Phrase that sends",
+    "O que você diz no fim da fala para enviar. Em branco, vale a frase que aparece no campo.": "What you say at the end to send. Left blank, the phrase shown in the field is used.",
+    "enviar mensagem": "send message"
   },
   "padroes": [
     [
@@ -3516,6 +3546,14 @@
     [
       "^Abrir a coluna de demandas · (\\d+) precisam de você$",
       "Open the requests column · $1 need you"
+    ],
+    [
+      "^Não consegui ligar o ditado: (.+)\\. O texto da caixa continua como estava\\.$",
+      "Could not start dictation: $1. The text in the box stays as it was."
+    ],
+    [
+      "^O ditado parou: (.+)\\. O que já estava na caixa continua lá\\.$",
+      "Dictation stopped: $1. What was already in the box is still there."
     ]
   ]
 }

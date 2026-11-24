@@ -176,6 +176,16 @@ protocol), so there is no terminal to babysit.
   meanwhile); the same shortcut or *Done* ends it. The text travels through a temporary file of the app (in
   `~/.cache/orq-app/editor`, readable only by you), removed when you finish. Text coming from the editor is always
   plain text, never a `!` command. Both shortcuts can be changed or turned off in *Settings › Shortcuts*.
+- **Dictation**: speak instead of typing. The microphone next to the send button (or `Ctrl+Shift+D`, or the
+  palette) starts listening, and the text shows up in the message box while you speak, where the cursor was; each
+  sentence is tidied up when you pause. You send it yourself, with Enter. If you turn on *Send by voice* (off by
+  default), ending what you say with the send phrase ("send message", or one you choose) sends the message,
+  without the phrase; in the middle of a sentence the phrase is just text. The same
+  button, the shortcut or Esc stops it, and it also stops when you send the message, leave the conversation tab or
+  stay a minute without speaking. Transcription runs on the computer (faster-whisper, the same engine as meeting
+  mode); the audio is not saved and never leaves the computer. Without an NVIDIA card it uses the light model, the
+  only one that keeps up with speech on a laptop processor; *Settings › Voice and meetings* has the model and the
+  option to keep listening after you send, and the shortcut can be changed or turned off in *Settings › Shortcuts*.
 - **Meeting mode**: from the helper, in the app or on the desktop (right click › *Record meeting*), or from the palette, the app records your
   microphone and the computer's sound as two tracks, so the note knows who spoke. While it records, a red sign
   with the time stays on the helper and on the top bar, with *Screenshot*, *Mark moment* and *End*. When it ends,

@@ -161,10 +161,12 @@
           <div id="anexos" class="anexos" hidden></div>
           <div id="corrigindo" class="corrigindo" hidden><span id="corrigindo-texto"></span> <button id="corrigindo-voltar" class="botao-texto" type="button">Voltar</button><button id="corrigindo-cancelar" class="botao-texto" type="button">Cancelar (Esc)</button></div>
           <div id="editando-fora" class="editando-fora" role="status" hidden><span>Escrevendo no editor de texto. O que você salvar lá aparece aqui.</span> <button id="editando-fora-terminar" class="botao-texto" type="button"><span>Terminar</span> <kbd id="editando-fora-tecla" data-sem-traducao></kbd></button></div>
+          <div id="ditando" class="ditando" role="status" hidden><span class="ditando-ponto" aria-hidden="true"></span><span id="ditando-preparando">Preparando o ditado. Pode ir falando.</span><span id="ditando-ouvindo">Ouvindo. Fale: o texto aparece na caixa, e você envia quando quiser.</span><span id="ditando-terminando">Terminando de escrever o que você falou…</span><span id="ditando-por-voz" hidden><span>Ouvindo. Para enviar, diga</span> <strong id="ditando-frase" data-sem-traducao></strong></span><span class="ditando-microfone" id="ditando-microfone"><span>Microfone:</span> <span id="ditando-microfone-nome" data-sem-traducao></span></span> <button id="ditando-parar" class="botao-texto" type="button"><span>Parar</span> <kbd id="ditando-tecla" data-sem-traducao></kbd></button></div>
           <button id="rascunho-guardado" class="rascunho-guardado" type="button" title="Trazer o rascunho de volta para a caixa" hidden><svg class="ico" viewBox="0 0 16 16"><path d="M3.5 2.5h9v11l-4.5-3-4.5 3z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span>Rascunho guardado</span><span class="rascunho-como" id="rascunho-com-tecla"><kbd id="rascunho-guardado-tecla" data-sem-traducao></kbd> <span>traz de volta</span></span><span class="rascunho-como" id="rascunho-com-clique" hidden>clique para trazer de volta</span></button>
           <div class="caixa-entrada">
             <button id="anexar" class="botao-anexar" type="button" title="Anexar arquivo ou imagem (também dá para arrastar ou colar)" aria-label="Anexar arquivo ou imagem"><svg class="ico" viewBox="0 0 16 16"><path d="M10.5 4.5 5.4 9.6a1.6 1.6 0 0 0 2.3 2.3l5.4-5.4a3 3 0 0 0-4.2-4.2L3.4 7.8a4.4 4.4 0 0 0 6.2 6.2l4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <textarea id="entrada" rows="1" placeholder="Escreva para o orquestrador…"></textarea>
+            <button id="ditar" class="botao-ditar" type="button" title="Ditar: fale e o texto aparece aqui" aria-label="Ditar a mensagem" aria-pressed="false"><svg class="ico" viewBox="0 0 16 16"><rect x="5.75" y="1.75" width="4.5" height="8" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3.25 7.5a4.75 4.75 0 0 0 9.5 0M8 12.25v2.25M5.5 14.5h5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
             <button id="enviar" class="botao-enviar" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-enviar"/></svg></button>
           </div>
           <div class="dicas-caixa" id="dicas-caixa">
@@ -610,7 +612,7 @@
           </div>
           <div class="config-painel" role="tabpanel" id="config-sec-voz" data-secao="voz" aria-labelledby="config-aba-voz" tabindex="-1" hidden>
             <h3 class="config-secao">Voz e reuniões</h3>
-            <p class="nota">O áudio nunca sai do computador: a transcrição roda aqui mesmo. Uma reunião começa pelo bichinho (botão direito › Gravar reunião) ou pela paleta (Ctrl+K).</p>
+            <p class="nota">O áudio nunca sai do computador: a transcrição roda aqui mesmo. Uma reunião começa pelo bichinho (botão direito › Gravar reunião) ou pela paleta (Ctrl+K). O ditado usa o mesmo motor e não guarda o áudio.</p>
             <div class="config-linha">
               <div><strong>Pasta das reuniões</strong><span>Cada reunião vira uma pasta com a nota, o áudio e os prints; no fim ela ganha o assunto no nome.</span></div>
               <input class="campo-config" data-cfg="reunioesPasta" placeholder="~/Reuniões">
@@ -627,6 +629,27 @@
                 <option value="large-v3-turbo">Robusto</option>
                 <option value="large-v3">Melhor</option>
               </select>
+            </div>
+            <div class="config-linha">
+              <div><strong>Ditado</strong><span id="config-ditado-nota">Fale em vez de escrever: o microfone ao lado do botão de enviar, ou o atalho. O texto aparece na caixa enquanto você fala, e quem envia é você.</span></div>
+              <select class="campo-config" data-cfg="ditadoModelo" id="config-ditado-modelo">
+                <option value="">Recomendado para este computador</option>
+                <option value="small">Leve</option>
+                <option value="large-v3-turbo">Robusto</option>
+                <option value="large-v3">Melhor</option>
+              </select>
+            </div>
+            <div class="config-linha">
+              <div><strong>Continuar ouvindo depois de enviar</strong><span>Desligado, o ditado termina quando você envia a mensagem. Ligado, ele continua ouvindo, e a fala seguinte já é a próxima mensagem.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="ditadoContinua"><span></span></label>
+            </div>
+            <div class="config-linha">
+              <div><strong>Enviar por voz</strong><span>Ligado, a fala que termina com a frase combinada envia a mensagem, e a frase sai do texto. Vale no fim da fala, depois da pausa; no meio de uma frase não envia. Desligado, só o Enter envia.</span></div>
+              <label class="chave"><input type="checkbox" data-cfg="ditadoEnviarPorVoz"><span></span></label>
+            </div>
+            <div class="config-linha">
+              <div><strong>Frase que envia</strong><span>O que você diz no fim da fala para enviar. Em branco, vale a frase que aparece no campo.</span></div>
+              <input class="campo-config" data-cfg="ditadoFraseEnviar" placeholder="enviar mensagem" maxlength="60">
             </div>
             <div class="config-linha">
               <div><strong>Resumo da reunião</strong><span id="config-voz-resumo">Resumo, decisões e pendências no começo da nota.</span></div>
@@ -707,6 +730,14 @@
                 <button type="button" class="botao-texto atalho-tecla" data-atalho-mudar="editor" aria-describedby="atalhos-aviso"></button>
                 <button type="button" class="botao-texto" data-atalho-desligar="editor">Desativar</button>
                 <button type="button" class="botao-texto" data-atalho-padrao="editor">Voltar ao padrão</button>
+              </div>
+            </div>
+            <div class="config-linha" data-atalho-linha="ditado">
+              <div><strong>Ditar a mensagem</strong><span>Liga o microfone e escreve na caixa o que você fala. O mesmo atalho para de ouvir. Quem envia a mensagem é você.</span></div>
+              <div class="atalho-controles">
+                <button type="button" class="botao-texto atalho-tecla" data-atalho-mudar="ditado" aria-describedby="atalhos-aviso"></button>
+                <button type="button" class="botao-texto" data-atalho-desligar="ditado">Desativar</button>
+                <button type="button" class="botao-texto" data-atalho-padrao="ditado">Voltar ao padrão</button>
               </div>
             </div>
             <div class="config-linha">
@@ -791,6 +822,7 @@
   <script src="anteriores-tela.js"></script>
   <script src="historico-caixa-tela.js"></script>
   <script src="editor-caixa-tela.js"></script>
+  <script src="ditado-tela.js"></script>
   <script src="reuniao-tela.js"></script>
   <script src="atualizacao-tela.js"></script>
   <script src="comandos-tela.js"></script>

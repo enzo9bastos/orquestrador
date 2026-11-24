@@ -19,7 +19,7 @@
   };
   const A = window.orqAtalhos;
   // Os atalhos que a pessoa pode trocar: os dois das colunas e os soltos da lista (pergunta
-  // rápida, busca no que já escreveu, guardar o rascunho, editor de texto).
+  // rápida, busca no que já escreveu, guardar o rascunho, editor de texto, ditado).
   const SOLTOS = Object.entries(A.SOLTOS); // [nome, { chave, padrao }], na ordem da tela
   const PADROES = { ...A.PADRAO, ...Object.fromEntries(SOLTOS.map(([n, s]) => [n, s.padrao])) };
   const TROCAVEIS = Object.keys(PADROES);

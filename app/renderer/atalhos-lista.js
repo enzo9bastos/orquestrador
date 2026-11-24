@@ -22,6 +22,8 @@
   const PADRAO_RASCUNHO = 'Ctrl+KeyS';
   // Abrir o que está na caixa de mensagem no editor de texto do sistema (o Ctrl+G do terminal).
   const PADRAO_EDITOR = 'Ctrl+KeyG';
+  // Ligar e desligar o ditado (falar em vez de escrever na caixa de mensagem).
+  const PADRAO_DITADO = 'Ctrl+Shift+KeyD';
   // Os atalhos soltos que a pessoa pode trocar ou desligar em Configurações › Atalhos, na ordem
   // da tela: nome na tela → chave na configuração e padrão. A tela (colunas-tela.js) e a
   // conferência do arquivo (config.js) leem esta mesma lista.
@@ -30,6 +32,7 @@
     escritos: { chave: 'atalhoBuscaEscritos', padrao: PADRAO_ESCRITOS },
     rascunho: { chave: 'atalhoGuardarRascunho', padrao: PADRAO_RASCUNHO },
     editor: { chave: 'atalhoEditorDeTexto', padrao: PADRAO_EDITOR },
+    ditado: { chave: 'atalhoDitado', padrao: PADRAO_DITADO },
   };
 
   // O que já usa teclado no app (e no sistema), com o nome que a engrenagem mostra.
@@ -84,6 +87,6 @@
     return null;
   }
 
-  const api = { PADRAO, PADRAO_PERGUNTA, PADRAO_ESCRITOS, PADRAO_RASCUNHO, PADRAO_EDITOR, SOLTOS, USADOS, deEvento, mostrar, conferir };
+  const api = { PADRAO, PADRAO_PERGUNTA, PADRAO_ESCRITOS, PADRAO_RASCUNHO, PADRAO_EDITOR, PADRAO_DITADO, SOLTOS, USADOS, deEvento, mostrar, conferir };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.orqAtalhos = api;
 })(typeof window !== 'undefined' ? window : globalThis);

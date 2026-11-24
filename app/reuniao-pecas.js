@@ -117,4 +117,4 @@ async function recomendacaoResumo(maquina) {
   return { recomendado: 'claude', ollama: true, motivo: 'sem placa de vídeo NVIDIA com 8 GB ou mais, o resumo local fica lento e bem pior' };
 }
 
-module.exports = { gravar, resumirClaude, resumirLocal, recomendacaoResumo, extrairJson, PEDIDO };
+module.exports = { gravar, aparelho, resumirClaude, resumirLocal, recomendacaoResumo, extrairJson, PEDIDO };

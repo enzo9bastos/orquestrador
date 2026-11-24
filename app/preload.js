@@ -198,6 +198,15 @@ contextBridge.exposeInMainWorld('orq', {
     estado: () => ipcRenderer.invoke('editor:estado'),
     aoMudar: (fn) => ipcRenderer.on('editor:mudou', (_e, texto) => fn(texto)),
   },
+  // Ditado (ditado.js): falar em vez de escrever. Só texto chega à tela, aos poucos.
+  ditado: {
+    comecar: (contexto) => ipcRenderer.invoke('ditado:comecar', contexto),
+    parar: () => ipcRenderer.invoke('ditado:parar'),
+    largar: () => ipcRenderer.invoke('ditado:largar'),
+    cortar: (contexto) => ipcRenderer.invoke('ditado:cortar', contexto),
+    estado: () => ipcRenderer.invoke('ditado:estado'),
+    aoEvento: (fn) => ipcRenderer.on('ditado:evento', (_e, e) => fn(e)),
+  },
   janela: {
     minimizar: () => ipcRenderer.send('janela:minimizar'),
     maximizar: () => ipcRenderer.send('janela:maximizar'),

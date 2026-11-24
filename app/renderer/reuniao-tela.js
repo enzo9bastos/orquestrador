@@ -93,6 +93,13 @@
       const x = r.modelos.find((y) => y.id === o.value);
       if (x) o.textContent = `${NOMES[x.id]}: ${x.nota} · ${x.local ? 'já no computador' : `baixa ${x.tamanho}`}${x.recomendado ? ' · recomendado' : ''}`;
     }
+    // O ditado: sem placa NVIDIA só o leve acompanha a fala (os maiores atrasam vários segundos).
+    const recDitado = (r.ditado && r.ditado.recomendado) || 'small';
+    for (const o of $('config-ditado-modelo').options) {
+      if (!o.value) { o.textContent = `Recomendado para este computador (${NOMES[recDitado]})`; continue; }
+      const x = r.modelos.find((y) => y.id === o.value);
+      if (x) o.textContent = `${NOMES[x.id]}${!x.local ? ' · ainda não está neste computador' : x.id === recDitado ? ' · recomendado' : !m.nvidia && x.id !== 'small' ? ' · atrasa vários segundos sem placa NVIDIA' : ''}`;
+    }
     const res = $('config-voz-resumo-escolha');
     for (const o of res.options) if (!o.value) o.textContent = `Recomendado para este computador (${r.resumo.recomendado === 'local' ? 'modelo local' : 'Claude'})`;
     $('config-voz-resumo').textContent = `Recomendação: ${r.resumo.recomendado === 'local' ? 'modelo local' : 'Claude'}, porque ${r.resumo.motivo}.`;

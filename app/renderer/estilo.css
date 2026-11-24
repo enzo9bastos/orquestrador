@@ -2094,6 +2094,23 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .editando-fora .botao-texto { flex: none; margin-left: 4px; }
 .compositor.editando-fora-ligado .caixa-entrada { border-style: dashed; }
 .compositor.editando-fora-ligado .caixa-entrada textarea { color: var(--fg-3); }
+/* Ditado (ditado-tela.js): o microfone ao lado do enviar e a faixa "ouvindo" acima da caixa. */
+.botao-ditar { position: relative; flex: none; align-self: flex-end; width: 32px; height: 32px; margin: 0 2px 0 0; display: grid; place-items: center; border-radius: 10px; color: var(--fg-3); }
+.botao-ditar:hover { background: var(--painel-hover); color: var(--fg); }
+.botao-ditar .ico { width: 16px; height: 16px; position: relative; }
+.botao-ditar.ligado { background: var(--perigo); color: #fff; }
+.botao-ditar.ligado:hover { background: color-mix(in srgb, var(--perigo) 88%, #000); color: #fff; }
+/* O anel cresce com o volume do microfone: a pessoa vê que ele está ouvindo. */
+.botao-ditar.ligado::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--perigo); opacity: .28; transform: scale(calc(1 + var(--nivel, 0) * .55)); transition: transform .09s linear; }
+.botao-ditar.preparando { animation: ditar-espera 1s ease-in-out infinite; }
+@keyframes ditar-espera { 50% { opacity: .55; } }
+.ditando { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 12px; color: var(--fg-3); padding: 4px 4px 0; }
+.ditando[hidden], .ditando [hidden] { display: none; }
+.ditando .ditando-ponto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--perigo); animation: piscar 1.4s steps(1) infinite; }
+.ditando .ditando-microfone { color: var(--fg-4); }
+.ditando .botao-texto { flex: none; margin-left: 4px; }
+.ditando kbd { font: 10.5px var(--mono); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--borda-forte); color: var(--fg-2); background: var(--bg-afundado); }
+.compositor.ditando-ligado .caixa-entrada, .compositor.ditando-ligado .caixa-entrada:focus-within { border-color: color-mix(in srgb, var(--perigo) 55%, var(--borda)); }
 .historico-item[aria-selected="true"] .historico-texto { color: var(--fg); }
 /* Recado para fora negado: "Enviar mesmo assim…" e a confirmação no próprio item (recados-tela.js). */
 .recado .recado-voltar { margin: 6px 0 0; }
