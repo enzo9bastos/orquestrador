@@ -15,7 +15,9 @@ Entrada (stdin), em quadros: 1 byte de tipo + 4 bytes de tamanho (little-endian)
          {"t": "sair"}
 
 Saída (stdout), uma linha de JSON por evento:
-  {"t": "pronto", "modelo", "aparelho", "ms"}   modelo carregado
+  {"t": "pronto", "modelo", "previa", "revisor", "aparelho", "ms"}   modelo carregado; previa: o texto
+                                              aparece enquanto a pessoa fala (senão, frase por frase)
+  {"t": "escrevendo", "id", "epoca", "sim"}  só sem prévia: uma frase está sendo transcrita (ou acabou)
   {"t": "parcial", "id", "epoca", "texto"}   o trecho aberto até agora (ainda pode mudar)
   {"t": "final", "id", "epoca", "n", "texto"} um trecho fechado; n conta os trechos do ditado
   {"t": "revisao", "id", "epoca", "de", "ate", "texto"}  só com --revisor: o texto corrigido dos
@@ -33,6 +35,13 @@ O texto que veio antes (o "contexto" que o app manda no começar e no cortar) N�
 modelo. Entregue, ele era copiado para dentro das falas curtas: a prévia acertava "teste", o
 fecho trocava por uma palavra errada e, com ela no contexto, todo "teste" seguinte saía igual
 (medido com fala de verdade; sem o contexto não acontece).
+
+Sem prévia: um modelo grande no processador (sem placa de vídeo) não acompanha a fala, então não
+há "parcial": cada frase é transcrita uma vez só, quando a pessoa faz a pausa, e sai como "final"
+alguns segundos depois. É o modo que menos usa o processador, e o que menos erra. Uma frase bem
+curta (menos de 2 s) é transcrita junto com o som da anterior e sai como "revisao" das duas: sozinha,
+o modelo grande erra (medido: "um ticket novo" solto saiu errado; junto com a frase anterior, certo).
+Fala comprida sem pausa é fechada no maior vão entre as palavras.
 
 --revisor: um modelo maior, lento demais para acompanhar a fala num processador comum, corrige
 por trás o que o modelo de --modelo já fechou. Ele trabalha em blocos: os trechos fechados que
@@ -252,6 +261,7 @@ class Ditado:
         self.ativo = False
         self.id = None
         self.n = 0  # quantos trechos este ditado já fechou
+        self.anterior = None  # sem prévia: (n do primeiro trecho, som) da última frase, para acompanhar uma curta
         self.epoca = 0
         self.pcm = bytearray()
         self.novo = 0
@@ -262,6 +272,7 @@ class Ditado:
         self.ativo = True
         self.id = id_
         self.n = 0
+        self.anterior = None
         self.epoca = 0
         self.pcm = bytearray()
         self.novo = 0
@@ -281,6 +292,7 @@ class Ditado:
         self.pcm = bytearray()
         self.novo = 0
         self.parcial = ""
+        self.anterior = None
         if contexto is not None:
             self.contexto = contexto[-300:]
         if self.revisor:
@@ -309,8 +321,49 @@ class Ditado:
         self.parcial = texto
         self.dizer({"t": "parcial", "id": self.id, "epoca": self.epoca, "texto": texto})
 
+    def com_previa(self):
+        return getattr(self.motor, "previa", True)
+
+    def fechar_frase(self, som, fim, manter_de):
+        """Sem prévia: a frase inteira, uma vez só. A frase curta vai junto com o som da anterior e
+        o texto novo vale pelas duas."""
+        total = len(self.pcm) // 2
+        de = manter_de if manter_de is not None else max(fim, total - int(self.p["margem"] * SR))
+        del self.pcm[: de * 2]
+        b = SR * 2
+        n = self.n
+        self.n += 1
+        segundos = len(som) / b
+        ant = self.anterior
+        self.dizer({"t": "escrevendo", "id": self.id, "epoca": self.epoca, "sim": True})
+        try:
+            if segundos < self.p["rev_min"] and ant and segundos + len(ant[1]) / b <= self.p["rev_max"]:
+                junto = ant[1] + b"\0" * int(0.4 * b) + som
+                texto = self.motor.frase(junto)
+                if texto:
+                    self.dizer({"t": "revisao", "id": self.id, "epoca": self.epoca, "de": ant[0], "ate": n, "texto": texto})
+                    self.anterior = (ant[0], junto)
+                return
+            texto = self.motor.frase(som)
+            if texto:
+                self.dizer({"t": "final", "id": self.id, "epoca": self.epoca, "n": n, "texto": texto})
+                self.anterior = (n, som) if segundos <= self.p["rev_max"] else None
+        finally:
+            self.dizer({"t": "escrevendo", "id": self.id, "epoca": self.epoca, "sim": False})
+
+    def maior_vao(self, falas, ini):
+        """Fala comprida sem pausa: o meio do maior vão entre as palavras (depois dos 2 primeiros segundos)."""
+        melhor, corte = 0, None
+        for (_, fim_a), (ini_b, _) in zip(falas, falas[1:]):
+            if fim_a - ini >= 2 * SR and ini_b - fim_a > melhor:
+                melhor, corte = ini_b - fim_a, (fim_a + ini_b) // 2
+        return corte
+
     def fechar(self, ini, fim, manter_de=None):
         som = bytes(self.pcm[ini * 2: fim * 2])
+        if not self.com_previa():
+            self.fechar_frase(som, fim, manter_de)
+            return
         trechos = self.motor.transcrever(som, True, self.contexto)
         texto = " ".join(t[2] for t in trechos if t[2])
         total = len(self.pcm) // 2
@@ -347,6 +400,17 @@ class Ditado:
         if fechar or silencio >= self.p["pausa"]:
             self.fechar(ini, fim)
             return
+        if not self.com_previa():
+            # Sem prévia nada é transcrito no meio da fala: só se fecha, na pausa (acima) ou, em fala
+            # comprida, no maior vão entre as palavras.
+            if aberto >= self.p["aberto"]:
+                corte = self.maior_vao(falas, ini)
+                if corte:
+                    self.fechar(ini, corte, manter_de=corte)
+                    return
+            if aberto >= self.p["duro"]:
+                self.fechar(ini, total)
+            return
         if aberto >= self.p["duro"]:
             self.fechar(ini, total)
             return
@@ -366,8 +430,9 @@ class MotorEnsaio:
 
     aparelho = "ensaio"
 
-    def __init__(self, ms=0):
+    def __init__(self, ms=0, previa=True):
         self.ms = ms
+        self.previa = previa
 
     @staticmethod
     def _amostras(pcm):
@@ -416,6 +481,13 @@ class MotorEnsaio:
                 saida.append((k0 / SR, k1 / SR, f"{letra}{round((k1 - k0) * 10 / SR)}{'!' if final else ''}"))
         return saida
 
+    def frase(self, som):
+        """Sem prévia: a frase inteira de uma vez (as "palavras" do som, em maiúscula)."""
+        espera = int(os.environ.get("ORQ_DITADO_ENSAIO_FRASE_MS", "0")) / 1000
+        if espera:
+            time.sleep(espera)
+        return " ".join(t[2].upper() for t in self.transcrever(som, False, ""))
+
     def revisor(self, _nome):
         """A correção de mentira: as mesmas "palavras" do som, em maiúscula."""
         espera = int(os.environ.get("ORQ_DITADO_ENSAIO_REV_MS", "0")) / 1000
@@ -461,7 +533,14 @@ class MotorWhisper:
         # A janela de agora é de cada linha de processamento (o modelo de correção roda em outra).
         self.aqui = threading.local()
         self.encurta = hasattr(T, "pad_or_trim")
-        self.curta = self.aparelho == "cpu" and modelo in ("tiny", "base", "small") and self.encurta
+        leve = modelo in ("tiny", "base", "small")
+        # Com prévia (o texto aparece enquanto a pessoa fala): só quando o modelo acompanha a fala,
+        # que é o leve no processador ou qualquer um na placa de vídeo. Um modelo grande no
+        # processador trabalha frase por frase (ver frase()).
+        self.previa = leve or self.aparelho == "cuda"
+        self.curta = self.aparelho == "cpu" and leve and self.encurta
+        self.bloco_curto = {"sim": self.aparelho == "cpu" and self.encurta}
+        self.folga_bloco = float(os.environ.get("ORQ_DITADO_FOLGA_BLOCO", "6"))
         if self.encurta:
             original = T.pad_or_trim
             T.pad_or_trim = lambda a, length=None, **k: original(a, length if length is not None else (getattr(self.aqui, "quadros", None) or 3000), **k)
@@ -503,18 +582,15 @@ class MotorWhisper:
             self.curta = False
             return self._rodar(a, final, 30)
 
-    def revisor(self, nome):
-        """Carrega o modelo de correção (roda na linha de processamento dele) e devolve a função
-        que transcreve um bloco. Feixe 1 e sem contexto; a janela acompanha o bloco, com folga:
-        medido com o robusto em 4 linhas, um bloco de 4,5 s sai em 1,6 s (com a janela de 30 s são
-        9 a 12 s, lento demais para corrigir enquanto a pessoa fala). Sem marcas de tempo: com a
-        janela curta o modelo grande se perde nelas e repete ou inventa pedaços (medido); a
-        correção não precisa delas."""
-        m = self.Modelo(nome, device="cpu", compute_type="int8", cpu_threads=self.threads, local_files_only=self.so_local)
-        folga = float(os.environ.get("ORQ_DITADO_FOLGA_REVISOR", "3"))
-        estado = {"curta": self.encurta}
+    def _bloco(self, m, som, curto):
+        """Um bloco inteiro de uma vez, com um modelo grande: feixe 1, sem contexto e sem marcas de
+        tempo (com a janela curta o modelo grande se perde nelas e repete ou inventa pedaços; medido).
+        A janela acompanha o bloco, com 6 s de folga: medido com o robusto em 4 linhas, uma frase
+        de 2,5 s sai em 1,5 s (com a janela de 30 s são 9 a 12 s), e com só 3 s de folga o fim da
+        frase saía truncado."""
+        a = self._float(som)
 
-        def rodar(a, janela):
+        def rodar(janela):
             self.aqui.quadros = janela * 100
             try:
                 trechos, _ = m.transcribe(
@@ -525,17 +601,25 @@ class MotorWhisper:
             finally:
                 self.aqui.quadros = None
 
-        def revisar(som):
-            a = self._float(som)
-            janela = min(30, max(4, int(math.ceil(len(a) / SR + folga)))) if estado["curta"] else 30
-            try:
-                return rodar(a, janela)
-            except Exception:  # noqa: BLE001
-                if janela == 30:
-                    raise
-                estado["curta"] = False
-                return rodar(a, 30)
-        return revisar
+        janela = min(30, max(4, int(math.ceil(len(a) / SR + self.folga_bloco)))) if curto["sim"] else 30
+        try:
+            return rodar(janela)
+        except Exception:  # noqa: BLE001
+            if janela == 30:
+                raise
+            curto["sim"] = False
+            return rodar(30)
+
+    def frase(self, som):
+        """Sem prévia: a frase inteira de uma vez, com o modelo deste motor."""
+        return self._bloco(self.m, som, self.bloco_curto)
+
+    def revisor(self, nome):
+        """Carrega o modelo de correção (roda na linha de processamento dele) e devolve a função
+        que transcreve um bloco."""
+        m = self.Modelo(nome, device="cpu", compute_type="int8", cpu_threads=self.threads, local_files_only=self.so_local)
+        curto = {"sim": self.encurta}
+        return lambda som: self._bloco(m, som, curto)
 
 
 def sair(codigo):
@@ -567,11 +651,11 @@ def ler(fila):
 
 
 def opcoes(args):
-    o = {"modelo": "small", "revisor": None, "idioma": "pt", "baixar": False, "ensaio": False, "threads": None, "p": dict(PADRAO)}
+    o = {"modelo": "small", "revisor": None, "idioma": "pt", "baixar": False, "ensaio": False, "sem-previa": False, "threads": None, "p": dict(PADRAO)}
     i = 0
     while i < len(args):
         a = args[i]
-        if a in ("--baixar", "--ensaio"):
+        if a in ("--baixar", "--ensaio", "--sem-previa"):
             o[a[2:]] = True
         elif a in ("--modelo", "--revisor", "--idioma", "--threads") and i + 1 < len(args):
             o[a[2:]] = args[i + 1]
@@ -597,7 +681,7 @@ def main():
     threading.Thread(target=ler, args=(fila,), daemon=True).start()
     t0 = time.time()
     if o["ensaio"]:
-        motor = MotorEnsaio(ms=int(os.environ.get("ORQ_DITADO_ENSAIO_MS", "0")))
+        motor = MotorEnsaio(ms=int(os.environ.get("ORQ_DITADO_ENSAIO_MS", "0")), previa=not o["sem-previa"])
     else:
         try:
             nucleos = os.cpu_count() or 4
@@ -615,9 +699,9 @@ def main():
     # O modelo de correção só entra quando é outro e o ditado roda no processador (na placa de
     # vídeo o modelo grande já acompanha a fala). Ele carrega na linha de processamento dele,
     # sem segurar o "pronto".
-    com_revisor = o["revisor"] and o["revisor"] != o["modelo"] and motor.aparelho != "cuda"
+    com_revisor = o["revisor"] and o["revisor"] != o["modelo"] and motor.aparelho != "cuda" and motor.previa
     revisor = Revisor(lambda: motor.revisor(o["revisor"]), o["p"]) if com_revisor else None
-    dizer({"t": "pronto", "modelo": o["modelo"], "revisor": o["revisor"] if com_revisor else None, "aparelho": motor.aparelho, "ms": int((time.time() - t0) * 1000)})
+    dizer({"t": "pronto", "modelo": o["modelo"], "previa": bool(motor.previa), "revisor": o["revisor"] if com_revisor else None, "aparelho": motor.aparelho, "ms": int((time.time() - t0) * 1000)})
     d = Ditado(motor, o["p"], revisor=revisor)
     while True:
         try:

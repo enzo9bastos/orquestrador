@@ -162,9 +162,11 @@ const PADRAO = {
   // mensagem seguinte); desligado, enviar termina o ditado. ditadoEnviarPorVoz: a fala que termina
   // com a frase combinada envia a mensagem (a frase sai do texto); desligado, só o Enter envia.
   // ditadoFraseEnviar: a frase ('' = "enviar mensagem"; com o app em inglês, "send message").
-  // ditadoRevisor: um modelo maior que corrige por trás cada frase que o ditado já escreveu:
-  // '' = o robusto, quando o computador tem folga e ele já está no computador; 'nenhum'; ou
-  // large-v3-turbo, large-v3.
+  // ditadoModelo: '' = o recomendado para o computador (com placa NVIDIA, ou sem ela mas com folga,
+  // o robusto; senão o leve). Sem placa NVIDIA o robusto trabalha frase por frase (o texto aparece
+  // alguns segundos depois de cada pausa); o leve escreve enquanto a pessoa fala e erra mais.
+  // ditadoRevisor: só com o modelo leve: um modelo maior (large-v3-turbo, large-v3) refaz por trás
+  // cada frase que o leve escreveu; '' = não corrige.
   ditadoModelo: '',
   ditadoRevisor: '',
   ditadoContinua: false,
@@ -300,7 +302,7 @@ function validar(m) {
       case 'reuniaoPrints': aceitar(k, typeof v === 'boolean', v); break;
       case 'reuniaoDetectar': aceitar(k, ['perguntar', 'gravar', 'desligado'].includes(v), v); break;
       case 'ditadoModelo': aceitar(k, ['', 'small', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
-      case 'ditadoRevisor': aceitar(k, ['', 'nenhum', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
+      case 'ditadoRevisor': aceitar(k, ['', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
       case 'ditadoContinua': case 'ditadoEnviarPorVoz': aceitar(k, typeof v === 'boolean', v); break;
       case 'ditadoFraseEnviar': aceitar(k, typeof v === 'string' && v.trim().length <= 60 && (!v.trim() || /[\p{L}\p{N}]/u.test(v)), texto(v).trim()); break;
       case 'atualizacaoAvisar': case 'atualizacaoSozinha': aceitar(k, typeof v === 'boolean', v); break;

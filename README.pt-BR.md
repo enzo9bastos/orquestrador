@@ -181,18 +181,20 @@ há terminal para vigiar.
   texto comum, nunca um comando do `!`. Os dois atalhos podem ser trocados ou desativados em *Configurações ›
   Atalhos*.
 - **Ditado**: fale em vez de escrever. O microfone ao lado do botão de enviar (ou `Ctrl+Shift+D`, ou a paleta)
-  começa a ouvir, e o texto aparece na caixa de mensagem enquanto você fala, onde o cursor estava; cada frase é
-  acertada quando você faz uma pausa. Quem envia é você, com Enter. Se você ligar o *Enviar por voz* (vem
-  desligado), terminar a fala com a frase combinada ("enviar mensagem", ou outra que você escolher) envia a
-  mensagem, sem a frase; no meio de uma frase ela é só texto. O mesmo botão, o
-  atalho ou o Esc param, e ele também para quando você envia a mensagem, sai da aba da conversa ou fica um minuto
-  sem falar. A transcrição roda no computador (faster-whisper, o mesmo motor do modo reunião); o áudio não é
-  guardado e nunca sai do computador. Sem placa NVIDIA ele usa o modelo leve, o único que acompanha a fala num
-  processador de notebook. Quando o computador tem folga (8 núcleos e 12 GB ou mais) e o modelo robusto já
-  está nele, esse modelo refaz cada frase por trás, e alguns segundos depois o texto da caixa é trocado pelo
-  corrigido (*Corrigir cada frase com um modelo maior*, na mesma seção das Configurações, desliga isso ou
-  escolhe o modelo; com o enviar por voz, a mensagem espera a correção); *Configurações › Voz e reuniões* tem o modelo e a opção de continuar ouvindo depois de
-  enviar, e o atalho pode ser trocado ou desligado em *Configurações › Atalhos*.
+  começa a ouvir, e o que você fala é escrito na caixa de mensagem, onde o cursor estava. Quem envia é você, com
+  Enter. Se você ligar o *Enviar por voz* (vem desligado), terminar a fala com a frase combinada ("enviar
+  mensagem", ou outra que você escolher) envia a mensagem, sem a frase; no meio de uma frase ela é só texto. O
+  mesmo botão, o atalho ou o Esc param, e ele também para quando você envia a mensagem, sai da aba da conversa ou
+  fica um minuto sem falar. A transcrição roda no computador (faster-whisper, o mesmo motor do modo reunião); o
+  áudio não é guardado e nunca sai do computador.
+  Qual modelo, e como o texto aparece: com placa NVIDIA, o modelo robusto escreve enquanto você fala. Sem ela,
+  quando o computador tem folga (8 núcleos e 12 GB ou mais) e o robusto já está nele, o ditado usa esse modelo
+  frase por frase: nada aparece enquanto você fala, e cada frase entra na caixa alguns segundos depois da pausa,
+  com uma transcrição só por frase (menos erros, e é o jeito que menos usa o processador). Senão, usa o modelo
+  leve, que escreve enquanto você fala e erra mais; com o leve dá para ligar também um modelo maior que refaz
+  cada frase por trás (roda os dois modelos ao mesmo tempo). *Configurações › Voz e reuniões* tem o modelo, essa
+  opção e a de continuar ouvindo depois de enviar; o atalho pode ser trocado ou desligado em *Configurações ›
+  Atalhos*.
 - **Modo reunião**: pelo bichinho, dentro do app ou na área de trabalho (botão direito › *Gravar reunião*), ou pela paleta, o app grava o seu microfone e
   o som do computador em duas trilhas, para a nota saber quem falou. Enquanto grava, um sinal vermelho com o tempo
   fica no bichinho e na barra de cima, com *Print*, *Marcar momento* e *Terminar*. No fim, o áudio é transcrito no

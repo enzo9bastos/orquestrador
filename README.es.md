@@ -188,18 +188,20 @@ que no hay ninguna terminal que vigilar.
   siempre texto común, nunca un comando de `!`. Los dos atajos se pueden cambiar o desactivar en *Settings ›
   Shortcuts*.
 - **Dictado**: habla en vez de escribir. El micrófono al lado del botón de enviar (o `Ctrl+Shift+D`, o la paleta)
-  empieza a escuchar, y el texto aparece en la caja de mensaje mientras hablas, donde estaba el cursor; cada frase
-  se ajusta cuando haces una pausa. Quien envía eres tú, con Enter. Si activas *Send by voice* (viene apagado),
-  terminar lo que dices con la frase acordada ("send message", u otra que elijas) envía el mensaje, sin la frase;
-  en medio de una oración la frase es solo texto. El mismo botón, el
-  atajo o Esc lo detienen, y también se detiene cuando envías el mensaje, sales de la pestaña de la conversación o
-  pasas un minuto sin hablar. La transcripción corre en el ordenador (faster-whisper, el mismo motor del modo
-  reunión); el audio no se guarda y nunca sale del ordenador. Sin tarjeta NVIDIA usa el modelo ligero, el único que
-  sigue el ritmo del habla en un procesador de portátil. Cuando el ordenador tiene margen (8 núcleos y 12 GB o
-  más) y el modelo robusto ya está en él, ese modelo rehace cada frase por detrás, y unos segundos después el
-  texto de la caja se cambia por el corregido (*Fix each sentence with a bigger model*, en la misma sección de
-  Settings, lo apaga o elige el modelo; con el envío por voz, el mensaje espera la corrección); *Settings › Voice and meetings* tiene el modelo y la opción
-  de seguir escuchando después de enviar, y el atajo se puede cambiar o apagar en *Settings › Shortcuts*.
+  empieza a escuchar, y lo que dices se escribe en la caja de mensaje, donde estaba el cursor. Quien envía eres
+  tú, con Enter. Si activas *Send by voice* (viene apagado), terminar lo que dices con la frase acordada ("send
+  message", u otra que elijas) envía el mensaje, sin la frase; en medio de una oración la frase es solo texto. El
+  mismo botón, el atajo o Esc lo detienen, y también se detiene cuando envías el mensaje, sales de la pestaña de
+  la conversación o pasas un minuto sin hablar. La transcripción corre en el ordenador (faster-whisper, el mismo
+  motor del modo reunión); el audio no se guarda y nunca sale del ordenador.
+  Qué modelo, y cómo aparece el texto: con tarjeta NVIDIA, el modelo robusto escribe mientras hablas. Sin ella,
+  cuando el ordenador tiene margen (8 núcleos y 12 GB o más) y el robusto ya está en él, el dictado usa ese
+  modelo frase por frase: no aparece nada mientras hablas, y cada frase entra en la caja unos segundos después de
+  la pausa, con una sola transcripción por frase (menos errores, y lo que menos usa el procesador). Si no, usa el
+  modelo ligero, que escribe mientras hablas y se equivoca más; con el ligero también se puede activar un modelo
+  mayor que rehace cada frase por detrás (corre los dos modelos a la vez). *Settings › Voice and meetings* tiene
+  el modelo, esa opción y la de seguir escuchando después de enviar; el atajo se puede cambiar o apagar en
+  *Settings › Shortcuts*.
 - **Modo reunión**: desde la mascota, dentro de la app o en el escritorio (clic derecho › *Record meeting*), o desde la paleta, la app graba tu micrófono y el
   sonido del equipo en dos pistas, para que la nota sepa quién habló. Mientras graba, una señal roja con el tiempo
   queda en la mascota y en la barra superior, con *Screenshot*, *Mark moment* y *End*. Al terminar, el audio se

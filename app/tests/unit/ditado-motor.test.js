@@ -128,6 +128,62 @@ test('motor do ditado: sair encerra; a entrada fechada também', { skip: semPyth
   assert.strictEqual(await b.saiu, 0);
 });
 
+// Frase por frase (modelo grande sem placa de vídeo; no ensaio, --sem-previa): nada é transcrito no
+// meio da fala. Cada frase sai inteira depois da pausa (no ensaio, as mesmas palavras em maiúscula),
+// com o aviso "escrevendo" antes e depois; a frase curta sai junto com a anterior.
+const SEM_PREVIA = ['--sem-previa', '--aberto', '4', '--duro', '8'];
+test('motor do ditado: frase por frase: sem prévia, a frase inteira depois da pausa; a curta vai junto com a anterior', { skip: semPython }, async (t) => {
+  const m = motor(t, SEM_PREVIA);
+  const pronto = await m.espera((e) => e.t === 'pronto');
+  assert.deepStrictEqual([pronto.previa, pronto.revisor], [false, null]);
+  m.cmd({ t: 'comecar', id: 9, contexto: '' });
+  await m.tocar(som(0.2, 0), som(2.5, ALTURA.b), som(0.6, 0));
+  const f0 = await m.espera((e) => e.t === 'final');
+  assert.deepStrictEqual([f0.id, f0.epoca, f0.n], [9, 0, 0]);
+  assert.match(f0.texto, /^B(24|25|26)$/);
+  assert.strictEqual(m.eventos.filter((e) => e.t === 'parcial').length, 0, 'nenhuma prévia');
+  assert.deepStrictEqual(m.eventos.filter((e) => e.t !== 'pronto').map((e) => (e.t === 'escrevendo' ? `escrevendo:${e.sim}` : e.t)), ['escrevendo:true', 'final', 'escrevendo:false']);
+  // Uma frase curta: sai junto com a anterior, e o texto novo vale pelas duas.
+  await m.tocar(som(0.6, ALTURA.d), som(0.6, 0));
+  const r = await m.espera((e) => e.t === 'revisao');
+  assert.deepStrictEqual([r.de, r.ate, r.epoca], [0, 1, 0]);
+  assert.match(r.texto, /^B(24|25|26) D[567]$/);
+  assert.strictEqual(m.eventos.filter((e) => e.t === 'final').length, 1, 'a curta não sai sozinha');
+  // Parar no meio de uma frase: ela sai inteira antes do "parou".
+  await m.tocar(som(2.2, ALTURA.c));
+  m.cmd({ t: 'parar' });
+  await m.espera((e) => e.t === 'parou');
+  const fim = m.eventos.filter((e) => e.t !== 'escrevendo').slice(-2);
+  assert.deepStrictEqual(fim.map((e) => e.t), ['final', 'parou']);
+  assert.match(fim[0].texto, /^C(21|22|23)$/);
+  // Outro ditado: a primeira fala é curta e não há anterior; sai sozinha mesmo.
+  m.cmd({ t: 'comecar', id: 10, contexto: '' });
+  await m.tocar(som(0.6, ALTURA.e), som(0.6, 0));
+  const f = await m.espera((e) => e.t === 'final' && e.id === 10);
+  assert.match(f.texto, /^E[567]$/);
+  assert.strictEqual(m.eventos.filter((e) => e.t === 'revisao' && e.id === 10).length, 0);
+});
+
+test('motor do ditado: frase por frase: fala comprida sem pausa é fechada no maior vão entre as palavras; sem vão, no limite duro', { skip: semPython }, async (t) => {
+  const m = motor(t, SEM_PREVIA);
+  m.cmd({ t: 'comecar', id: 1, contexto: '' });
+  // Três pedaços de 2,2 s separados por vãos de 0,24 s (menos que a pausa de 0,3 s): 7 s sem pausa; o limite aberto é 4 s.
+  await m.tocar(som(2.2, ALTURA.b), som(0.24, 0), som(2.2, ALTURA.c), som(0.24, 0), som(2.2, ALTURA.d));
+  const f0 = await m.espera((e) => e.t === 'final');
+  assert.match(f0.texto, /^B2[123]( C2[123])?$/, 'fechou num vão, não no meio de uma palavra');
+  await m.tocar(som(0.6, 0));
+  m.cmd({ t: 'parar' });
+  await m.espera((e) => e.t === 'parou');
+  const textos = m.eventos.filter((e) => e.t === 'final' || e.t === 'revisao').map((e) => e.texto);
+  assert.match(textos.join(' '), /B2[123].*C2[123].*D2[123]$/, `nada se perdeu no corte: ${JSON.stringify(textos)}`);
+  // Uma fala só, sem vão nenhum: fecha no limite duro (8 s).
+  const s = motor(t, SEM_PREVIA);
+  s.cmd({ t: 'comecar', id: 1, contexto: '' });
+  await s.tocar(som(8.6, ALTURA.b));
+  const duro = await s.espera((e) => e.t === 'final');
+  assert.match(duro.texto, /^B(7\d|8\d)$/);
+});
+
 // Correção por trás (--revisor): um modelo maior refaz o que o pequeno já fechou. No ensaio, a
 // "correção" devolve as mesmas palavras em maiúscula. Um trecho comprido é corrigido sozinho; um
 // curto vai junto com o som do bloco anterior; curto e sem nada antes, fica como está.

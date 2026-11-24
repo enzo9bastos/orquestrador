@@ -13,10 +13,16 @@
 // vale num trecho fechado (ela disse e fez a pausa); no meio de uma frase é texto. A mensagem vai
 // como texto comum: um "!comando" enviado por voz nunca roda.
 //
-// Correção por trás: quando o computador dá conta, um modelo maior refaz cada trecho já fechado
-// e o texto dele na caixa é trocado pelo corrigido, alguns segundos depois. Enquanto falta
-// corrigir, a faixa avisa; o enviar por voz espera a correção chegar (a mensagem vai corrigida);
-// o Enter manda na hora o que está na caixa. Se a pessoa mexeu no texto, a correção não entra.
+// Frase por frase (sem prévia): com um modelo grande num computador sem placa de vídeo, o texto
+// não aparece enquanto a pessoa fala: cada frase entra na caixa alguns segundos depois da pausa,
+// e a faixa diz "Escrevendo o que você falou…" nesse meio-tempo. Erra menos e usa menos o
+// processador. Uma frase bem curta chega junto com a anterior (o texto novo vale pelas duas).
+//
+// Correção por trás (só se a pessoa escolher, com o modelo leve): um modelo maior refaz cada trecho
+// já fechado e o texto dele na caixa é trocado pelo corrigido, alguns segundos depois. Enquanto
+// falta corrigir, a faixa avisa; o enviar por voz espera a correção chegar (a mensagem vai
+// corrigida); o Enter manda na hora o que está na caixa. Se a pessoa mexeu no texto, a correção
+// não entra.
 (() => {
   const D = window.orq && window.orq.ditado;
   if (!D || !window.orqConversa) return;
@@ -37,6 +43,8 @@
   let pecas = []; // o que foi ditado e já fechou, na ordem: { de, ate, texto, revisto, comando }
   let previa = ''; // a prévia do trecho aberto
   let revisor = false; // há um modelo maior corrigindo por trás o que já fechou
+  let comPrevia = true; // o texto aparece enquanto a pessoa fala (senão, frase por frase)
+  let escrevendo = false; // sem prévia: uma frase está sendo transcrita agora
   let envio = null; // enviar por voz esperando a correção: { relogio, depois: [o que foi falado depois da frase] }
   let sobra = []; // o que foi falado entre a frase de enviar e o envio (vai para a mensagem seguinte)
   const ESPERA_DA_CORRECAO = 8000;
@@ -55,9 +63,14 @@
     $('compositor').classList.toggle('ditando-ligado', ligado);
     for (const e of ['preparando', 'ouvindo', 'terminando']) $(`ditando-${e}`).hidden = estado !== e;
     // Com o enviar por voz ligado, a faixa troca a frase de sempre pela que ensina o que dizer;
-    // enquanto falta corrigir, pela que diz isso (uma frase só de cada vez: a faixa cabe numa linha).
+    // enquanto falta corrigir ou escrever, pela que diz isso (uma frase só de cada vez: a faixa
+    // cabe numa linha).
     const corrigindo = estado === 'ouvindo' && !envio && faltaCorrigir();
-    $('ditando-ouvindo').hidden = estado !== 'ouvindo' || frases.length > 0 || corrigindo;
+    const naEscrita = estado === 'ouvindo' && !envio && escrevendo && !corrigindo;
+    $('ditando-ouvindo').hidden = estado !== 'ouvindo' || frases.length > 0 || corrigindo || naEscrita || !comPrevia;
+    $('ditando-ouvindo-frase').hidden = estado !== 'ouvindo' || frases.length > 0 || corrigindo || naEscrita || comPrevia;
+    $('ditando-escrevendo').hidden = !naEscrita || frases.length > 0;
+    $('ditando-escrevendo-curto').hidden = !naEscrita || !frases.length;
     $('ditando-microfone').hidden = !microfone || estado === 'terminando';
     $('ditando-microfone-nome').textContent = microfone;
     const c = V.atalhoDaCaixa('ditado');
@@ -134,6 +147,7 @@
     depois = v.slice(pos);
     pecas = []; previa = '';
     ultimo = v;
+    escrevendo = false;
     cancelarEnvio(); // a pessoa mexeu no texto: o envio por voz que esperava a correção não acontece
   }
   function reancorar() {
@@ -147,7 +161,7 @@
     if (ativo()) return;
     if (window.orqEditorDeTexto && window.orqEditorDeTexto.editando()) { V.aviso('A mensagem está aberta no editor de texto. Termine lá antes de ditar.'); return; }
     estado = 'preparando';
-    id = null; epoca = 0; microfone = ''; revisor = false; sobra = [];
+    id = null; epoca = 0; microfone = ''; revisor = false; comPrevia = true; sobra = [];
     entrada.focus();
     ancorar();
     pintar();
@@ -209,6 +223,7 @@
       if (id === null && typeof e.id === 'number') id = e.id;
       if (e.microfone) microfone = e.microfone;
       if (typeof e.revisor === 'boolean') revisor = e.revisor;
+      if (typeof e.previa === 'boolean') comPrevia = e.previa;
       if (estado !== 'terminando') estado = e.estado;
       pintar();
       return;
@@ -217,13 +232,15 @@
     if (e.t === 'parou') {
       if (!ativo() || (id !== null && e.id !== id)) return;
       if (envio) enviarPorVoz(); // a frase de enviar foi dita e o ditado acabou: manda o que há
+      escrevendo = false;
       estado = 'parado';
       pintar();
       if (e.motivo === 'silencio') V.aviso('Parei de ouvir: passou um minuto sem fala. O que você ditou continua na caixa.');
       return;
     }
-    if (e.t !== 'parcial' && e.t !== 'final' && e.t !== 'revisao') return;
+    if (e.t !== 'parcial' && e.t !== 'final' && e.t !== 'revisao' && e.t !== 'escrevendo') return;
     if (!ativo() || (id !== null && e.id !== id) || e.epoca !== epoca) return;
+    if (e.t === 'escrevendo') { escrevendo = e.sim === true; pintar(); return; }
     if (e.t === 'revisao') {
       // A correção de trechos já fechados: o texto deles é trocado pelo corrigido.
       const dentro = pecas.filter((x) => x.de >= 0 && x.de >= e.de && x.ate <= e.ate);
@@ -295,7 +312,7 @@
     ? { grupo: 'Ações', titulo: 'Parar o ditado', faz: () => parar() }
     : { grupo: 'Ações', titulo: 'Ditar a mensagem', sub: 'fale em vez de escrever; o texto aparece na caixa e você envia', faz: () => comecar() }]);
 
-  window.orqDitado = { estado: () => ({ estado, id, epoca, microfone, revisor, faltaCorrigir: pecas.filter((x) => !x.revisto).length, enviando: !!envio }), ativo, comecar, parar, alternar, depoisDeEnviar, tirarComando };
+  window.orqDitado = { estado: () => ({ estado, id, epoca, microfone, revisor, previa: comPrevia, escrevendo, faltaCorrigir: pecas.filter((x) => !x.revisto).length, enviando: !!envio }), ativo, comecar, parar, alternar, depoisDeEnviar, tirarComando };
   pintar();
   // A tela recarregou com o microfone aberto: solta (o texto de partida se perdeu com a tela).
   D.estado().then((r) => { if (r && r.estado && r.estado !== 'parado' && !ativo()) D.largar().catch(() => {}); }).catch(() => {});

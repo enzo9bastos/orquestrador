@@ -8,7 +8,10 @@
 //     motor()        → Promise<{ comando, args, env }> do processo do motor (lança se não houver)
 //     capturar()     → Promise<{ processo, microfone }>: o processo escreve na saída o som em PCM de
 //                      16 bits, 16 kHz, mono (lança se o microfone não abrir)
-//     aoEvento(e)    → { t: 'estado', estado, id, microfone, revisor }  revisor: há um modelo maior corrigindo por trás
+//     aoEvento(e)    → { t: 'estado', estado, id, microfone, previa, revisor }
+//                          previa: o texto aparece enquanto a pessoa fala (senão, frase por frase)
+//                          revisor: há um modelo maior corrigindo por trás
+//                      { t: 'escrevendo', id, epoca, sim }         sem prévia: uma frase está sendo transcrita
 //                      { t: 'nivel', v }                           volume do microfone, de 0 a 1
 //                      { t: 'parcial', id, epoca, texto }
 //                      { t: 'final', id, epoca, n, texto }         n conta os trechos fechados do ditado
@@ -44,14 +47,14 @@ function criar({ motor, capturar, aoEvento = () => {}, ociosoMs = 5 * 60 * 1000,
   let epoca = 0;
   let microfone = null;
   let captura = null;
-  let motorP = null, motorPronto = false, motorChave = '', motorRevisor = false;
+  let motorP = null, motorPronto = false, motorChave = '', motorRevisor = false, motorPrevia = true;
   let comecando = null;
   let aoParar = null; // quem espera o motor dizer que terminou
   let tOcioso = null, tSemFala = null;
   let restoNivel = Buffer.alloc(0), ultimoNivel = 0;
 
   const dizer = (e) => { try { aoEvento(e); } catch { /* a tela fechou */ } };
-  const mudar = (novo) => { estado = novo; dizer({ t: 'estado', estado, id, microfone, revisor: motorRevisor }); };
+  const mudar = (novo) => { estado = novo; dizer({ t: 'estado', estado, id, microfone, previa: motorPrevia, revisor: motorRevisor }); };
   const escrever = (tipo, corpo) => {
     if (!motorP || !motorP.stdin.writable) return;
     try { motorP.stdin.write(quadro(tipo, Buffer.isBuffer(corpo) ? corpo : Buffer.from(JSON.stringify(corpo)))); } catch { /* o motor saiu */ }
@@ -106,6 +109,7 @@ function criar({ motor, capturar, aoEvento = () => {}, ociosoMs = 5 * 60 * 1000,
     if (e.t === 'pronto') {
       motorPronto = true;
       motorRevisor = !!e.revisor;
+      motorPrevia = e.previa !== false;
       if (estado === 'preparando') mudar('ouvindo');
     } else if (e.t === 'parcial' || e.t === 'final') {
       if (id === null || e.id !== id || typeof e.texto !== 'string') return;
@@ -114,7 +118,10 @@ function criar({ motor, capturar, aoEvento = () => {}, ociosoMs = 5 * 60 * 1000,
     } else if (e.t === 'revisao') {
       if (id === null || e.id !== id) return;
       const base = { t: 'revisao', id, epoca: Number(e.epoca) || 0, de: Number(e.de) || 0, ate: Number(e.ate) || 0 };
+      if (typeof e.texto === 'string' && e.texto) armarSemFala();
       dizer(typeof e.texto === 'string' && e.texto ? { ...base, texto: e.texto.slice(0, 8000) } : { ...base, igual: true });
+    } else if (e.t === 'escrevendo') {
+      if (id !== null && e.id === id) dizer({ t: 'escrevendo', id, epoca: Number(e.epoca) || 0, sim: e.sim === true });
     } else if (e.t === 'parou') {
       if (e.id === id && estado === 'terminando') acabar(motivoDoParar);
     } else if (e.t === 'erro') {
@@ -129,7 +136,7 @@ function criar({ motor, capturar, aoEvento = () => {}, ociosoMs = 5 * 60 * 1000,
     if (motorP && motorChave === chave) return;
     derrubarMotor();
     const p = spawn(m.comando, m.args, { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PYTHONUNBUFFERED: '1', ...(m.env || {}) } });
-    motorP = p; motorChave = chave; motorPronto = false; motorRevisor = false;
+    motorP = p; motorChave = chave; motorPronto = false; motorRevisor = false; motorPrevia = true;
     let resto = '', errSaida = '';
     p.stdin.on('error', () => { /* o motor saiu com o cano aberto */ });
     p.stdout.on('data', (d) => {
@@ -226,7 +233,7 @@ function criar({ motor, capturar, aoEvento = () => {}, ociosoMs = 5 * 60 * 1000,
     if (estado !== 'parado') { estado = 'parado'; id = null; const f = aoParar; aoParar = null; if (f) f(); }
   }
 
-  return { comecar, parar, largar, cortar, encerrar, estado: () => ({ estado, id, microfone, revisor: motorRevisor }), _motorVivo: () => !!motorP };
+  return { comecar, parar, largar, cortar, encerrar, estado: () => ({ estado, id, microfone, previa: motorPrevia, revisor: motorRevisor }), _motorVivo: () => !!motorP };
 }
 
 // --- as peças de verdade ------------------------------------------------------------
@@ -258,21 +265,24 @@ function capturarMicrofone({ ffmpeg = process.env.ORQ_DITADO_FFMPEG || 'ffmpeg',
   });
 }
 
-// O modelo do ditado: o escolhido nas Configurações ou o que acompanha a fala neste computador.
-// Sem placa NVIDIA só o leve dá conta (medido: num processador de notebook, o robusto leva de 4 a
-// 14 s para fechar cada frase); com ela, o robusto é rápido e erra bem menos.
-const recomendado = (maquina) => (maquina && maquina.nvidia && (maquina.nvidia.memoriaGB || 0) >= 6 ? 'large-v3-turbo' : 'small');
+// O modelo do ditado: o escolhido nas Configurações ou o recomendado para este computador.
+// - Com placa NVIDIA: o robusto, que ali acompanha a fala (o texto aparece enquanto a pessoa fala).
+// - Sem ela, num computador com folga (8 núcleos e 12 GB ou mais) e com o robusto já no
+//   computador: o robusto também, frase por frase. Ele não acompanha a fala no processador, então
+//   cada frase aparece alguns segundos depois da pausa (medido: 1 a 3 s de conta por frase), com
+//   uma transcrição só por frase. Erra bem menos que o leve e é o modo que menos usa o processador.
+// - Senão: o leve, que acompanha a fala e erra mais.
+function recomendado(maquina, modelos) {
+  if (maquina && maquina.nvidia && (maquina.nvidia.memoriaGB || 0) >= 6) return 'large-v3-turbo';
+  const folga = maquina && (maquina.nucleos || 0) >= 8 && (maquina.memoriaGB || 0) >= 12;
+  return folga && (modelos || []).some((x) => x.id === 'large-v3-turbo' && x.local) ? 'large-v3-turbo' : 'small';
+}
 
-// Corrigir por trás: sem placa NVIDIA o ditado roda com o modelo leve, que acompanha a fala mas
-// erra mais; num computador com folga (8 núcleos e 12 GB ou mais), o robusto, que já esteja no
-// computador, refaz cada frase em 1 a 3 s enquanto a pessoa continua falando (medido).
-// ditadoRevisor: '' = esta recomendação; 'nenhum'; ou o modelo que corrige.
-function revisorDoDitado({ escolhido = '', modelo, maquina, modelos }) {
-  if (escolhido === 'nenhum') return null;
-  const tem = (id) => !!(modelos || []).find((x) => x.id === id && x.local);
-  if (escolhido) return escolhido === modelo ? null : escolhido;
-  if (modelo !== 'small' || !maquina || (maquina.nucleos || 0) < 8 || (maquina.memoriaGB || 0) < 12) return null;
-  return tem('large-v3-turbo') ? 'large-v3-turbo' : null;
+// Corrigir por trás (só quando a pessoa escolhe, e só com o modelo leve): o leve escreve enquanto
+// ela fala e um modelo maior refaz cada frase em outra linha de processamento, trocando o texto
+// alguns segundos depois. Usa os dois modelos ao mesmo tempo: mais memória e mais processador.
+function revisorDoDitado({ escolhido = '', modelo }) {
+  return escolhido && modelo === 'small' && escolhido !== modelo ? escolhido : null;
 }
 
 // O processo do motor: o Python com o faster-whisper (transcricao.js acha) rodando voz/ditado.py.
@@ -284,11 +294,11 @@ function motorDeVerdade({ transcricao, config, emTeste = false }) {
     const c = config.ler();
     const achado = await transcricao.acharMotorSemTravar({ escolhido: c.vozPython });
     if (!achado.ok) throw new Error(`${achado.motivo}. Veja em Configurações › Voz e reuniões`);
-    const modelo = c.ditadoModelo || recomendado(transcricao.maquina());
     const lista = transcricao.modelos();
+    const modelo = c.ditadoModelo || recomendado(transcricao.maquina(), lista);
     const m = lista.find((x) => x.id === modelo);
     if (m && !m.local) throw new Error(`o modelo de voz "${m.nome}" ainda não está neste computador. Veja em Configurações › Voz e reuniões`);
-    const revisor = revisorDoDitado({ escolhido: c.ditadoRevisor || '', modelo, maquina: transcricao.maquina(), modelos: lista });
+    const revisor = revisorDoDitado({ escolhido: c.ditadoRevisor || '', modelo });
     const r = revisor && lista.find((x) => x.id === revisor);
     if (r && !r.local) throw new Error(`o modelo de voz "${r.nome}", escolhido para corrigir o ditado, ainda não está neste computador. Veja em Configurações › Voz e reuniões`);
     return { comando: achado.python, args: [SCRIPT, '--modelo', modelo, '--idioma', c.idioma === 'en' ? 'en' : 'pt', ...(revisor ? ['--revisor', revisor] : [])] };

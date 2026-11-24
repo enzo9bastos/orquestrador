@@ -93,18 +93,16 @@
       const x = r.modelos.find((y) => y.id === o.value);
       if (x) o.textContent = `${NOMES[x.id]}: ${x.nota} · ${x.local ? 'já no computador' : `baixa ${x.tamanho}`}${x.recomendado ? ' · recomendado' : ''}`;
     }
-    // O ditado: sem placa NVIDIA só o leve acompanha a fala (os maiores atrasam vários segundos).
+    // O ditado: sem placa NVIDIA os modelos grandes escrevem frase por frase; o leve, enquanto a pessoa fala.
     const recDitado = (r.ditado && r.ditado.recomendado) || 'small';
     for (const o of $('config-ditado-modelo').options) {
       if (!o.value) { o.textContent = `Recomendado para este computador (${NOMES[recDitado]})`; continue; }
       const x = r.modelos.find((y) => y.id === o.value);
-      if (x) o.textContent = `${NOMES[x.id]}${!x.local ? ' · ainda não está neste computador' : x.id === recDitado ? ' · recomendado' : !m.nvidia && x.id !== 'small' ? ' · atrasa vários segundos sem placa NVIDIA' : ''}`;
+      if (x) o.textContent = `${NOMES[x.id]}${!x.local ? ' · ainda não está neste computador' : x.id === recDitado ? ' · recomendado' : m.nvidia ? '' : x.id === 'small' ? ' · texto enquanto você fala, erra mais' : ' · frase por frase'}`;
     }
-    // A correção por trás: o que o computador recomenda (corrigir com o robusto, ou não corrigir).
-    const revisor = r.ditado && r.ditado.revisor;
+    // A correção por trás (só com o leve): os modelos que podem corrigir.
     for (const o of $('config-ditado-revisor').options) {
-      if (!o.value) { o.textContent = revisor ? `Recomendado para este computador (corrige com o ${NOMES[revisor]})` : 'Recomendado para este computador (não corrige)'; continue; }
-      const x = r.modelos.find((y) => y.id === o.value);
+      const x = o.value && r.modelos.find((y) => y.id === o.value);
       if (x) o.textContent = `${NOMES[x.id]}${x.local ? '' : ' · ainda não está neste computador'}`;
     }
     const res = $('config-voz-resumo-escolha');

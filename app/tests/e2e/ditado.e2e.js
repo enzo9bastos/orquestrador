@@ -330,6 +330,71 @@ test('ditado: enviar por voz (a fala que termina com "enviar mensagem" manda a m
   });
 });
 
+// Frase por frase: o motor de mentira faz de conta que é um modelo grande num computador sem placa
+// de vídeo. Não há prévia; meio segundo depois de cada fala terminar, ela chega inteira.
+test('ditado: frase por frase (o modelo robusto sem placa de vídeo: sem prévia, cada frase entra inteira depois da pausa)', async (t) => {
+  const a = await abrir(t, { env: { DITADO_FALSO_SEM_PREVIA: '1', DITADO_FALSO_FRASE_MS: '500' } });
+  const { app } = a;
+  const DITADO = 'window.orqDitado.estado()';
+  const LONGA = 'um dois três quatro cinco seis sete oito nove dez.';
+  const enviada = async (n) => { for (let i = 0; i < 200 && a.aoClaude().length <= n; i++) await dorme(40); return a.aoClaude()[n]; };
+
+  await t.test('a faixa diz que o texto vem na pausa; no meio da fala a caixa fica como está; depois, "Escrevendo…" e a frase inteira', async () => {
+    a.controle({ falas: [LONGA] });
+    await a.ligar();
+    assert.strictEqual(await app.avaliar(`${DITADO}.previa`), false);
+    assert.strictEqual(await app.avaliar(linha('ditando')), 'Ouvindo. O texto aparece quando você faz uma pausa. Microfone: microfone de teste Parar Ctrl+Shift+D');
+    await dorme(250); // umas quatro palavras já foram "faladas"
+    assert.strictEqual(await a.caixa(), '', 'nada aparece no meio da fala');
+    await app.esperar(`${DITADO}.escrevendo === true`, 8000);
+    assert.strictEqual(await app.avaliar(linha('ditando')), 'Ouvindo. Escrevendo o que você falou… Microfone: microfone de teste Parar Ctrl+Shift+D');
+    assert.strictEqual(await a.caixa(), '');
+    await app.esperar(`${CAIXA} === ${JSON.stringify(LONGA)}`, 8000);
+    await app.esperar(`${DITADO}.escrevendo === false`, 8000);
+    assert.strictEqual(await app.avaliar(linha('ditando')), 'Ouvindo. O texto aparece quando você faz uma pausa. Microfone: microfone de teste Parar Ctrl+Shift+D');
+    await a.desligar();
+    await a.porNaCaixa('');
+  });
+
+  await t.test('uma frase curta chega junto com a anterior: o texto novo vale pelas duas', async () => {
+    a.controle({ falas: ['Abre a tela de vendas', 'e filtra.'], juntas: { 'e filtra.': 'Abre a tela de vendas e filtra.' } });
+    await a.ligar();
+    await app.esperar(`${CAIXA} === 'Abre a tela de vendas'`, 8000);
+    await app.esperar(`${CAIXA} === 'Abre a tela de vendas e filtra.'`, 8000);
+    await a.desligar();
+    assert.strictEqual(await a.caixa(), 'Abre a tela de vendas e filtra.');
+    await a.porNaCaixa('');
+  });
+
+  await t.test('parar no meio de uma fala: o que foi dito dela entra na caixa antes de o ditado acabar', async () => {
+    a.controle({ falas: [LONGA], fimDoParar: ' (fecho)' });
+    await a.ligar();
+    await dorme(300);
+    await a.desligar();
+    assert.match(await a.caixa(), /^um dois( \S+)* \(fecho\)$/);
+    await a.porNaCaixa('');
+  });
+
+  await t.test('enviar por voz frase por frase: a frase de enviar na mesma fala, ou sozinha (chegando junto com a anterior)', async () => {
+    await app.avaliar('window.orq.config.gravar({ ditadoEnviarPorVoz: true })');
+    a.controle({ falas: ['Quero o relatório das vendas. Enviar mensagem.'] });
+    let antes = a.aoClaude().length;
+    await a.ligar();
+    assert.strictEqual(await app.avaliar(linha('ditando')), 'Ouvindo. Para enviar, diga “enviar mensagem” Microfone: microfone de teste Parar Ctrl+Shift+D');
+    assert.strictEqual(await enviada(antes), 'Quero o relatório das vendas.');
+    await app.esperar(`${ESTADO} === 'parado'`, 8000);
+    await a.parado();
+    a.controle({ falas: ['Quero o relatório das vendas.', 'enviar mensagem'], juntas: { 'enviar mensagem': 'Quero o relatório das vendas. Enviar mensagem.' } });
+    antes = a.aoClaude().length;
+    await a.ligar();
+    assert.strictEqual(await enviada(antes), 'Quero o relatório das vendas.');
+    await app.esperar(`${ESTADO} === 'parado'`, 8000);
+    await a.parado();
+    assert.strictEqual(await a.caixa(), '');
+    await app.avaliar('window.orq.config.gravar({ ditadoEnviarPorVoz: false })');
+  });
+});
+
 // Correção por trás: o motor de mentira faz de conta que há um modelo maior, e a correção de cada
 // trecho chega meio segundo depois do fecho dele (o que cada fecho vira está no arquivo de controle).
 test('ditado: correção por trás (um modelo maior refaz cada frase e o texto da caixa é trocado)', async (t) => {
@@ -565,7 +630,7 @@ test('ditado: um minuto sem fala para sozinho e avisa; Configurações e inglês
     const voz = await app.avaliar("(() => { const s = document.getElementById('config-ditado-modelo'); const c = document.querySelector('[data-cfg=ditadoContinua]'); return { valor: s.value, opcoes: [...s.options].map((o) => o.value), continua: c.checked, titulos: [s.closest('.config-linha').querySelector('strong').textContent, c.closest('.config-linha').querySelector('strong').textContent] }; })()");
     assert.deepStrictEqual(voz, { valor: '', opcoes: ['', 'small', 'large-v3-turbo', 'large-v3'], continua: false, titulos: ['Dictation', 'Keep listening after sending'] });
     assert.deepStrictEqual(await app.avaliar("(() => { const s = document.getElementById('config-ditado-revisor'); return { valor: s.value, opcoes: [...s.options].map((o) => o.value), titulo: s.closest('.config-linha').querySelector('strong').textContent, primeira: s.options[0].textContent, segunda: s.options[1].textContent }; })()"),
-      { valor: '', opcoes: ['', 'nenhum', 'large-v3-turbo', 'large-v3'], titulo: 'Fix each sentence with a bigger model', primeira: 'Recommended for this computer (does not fix)', segunda: 'Do not fix' });
+      { valor: '', opcoes: ['', 'large-v3-turbo', 'large-v3'], titulo: 'With Light, fix with a bigger model', primeira: 'Do not fix', segunda: 'Robust · not on this computer yet' });
     assert.deepStrictEqual(await app.avaliar("(() => { const v = document.querySelector('[data-cfg=ditadoEnviarPorVoz]'); const f = document.querySelector('[data-cfg=ditadoFraseEnviar]'); return { porVoz: v.checked, frase: f.value, dica: f.placeholder, titulos: [v.closest('.config-linha').querySelector('strong').textContent, f.closest('.config-linha').querySelector('strong').textContent] }; })()"),
       { porVoz: false, frase: '', dica: 'send message', titulos: ['Send by voice', 'Phrase that sends'] });
     await app.avaliar("document.querySelector('[data-secao-config=atalhos]').click()");
