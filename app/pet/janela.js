@@ -62,7 +62,7 @@
   // --- conversa -------------------------------------------------------------
   function abrirConversa() {
     calar();
-    $('menu').hidden = true;
+    menu(false);
     $('conversa').hidden = false;
     A.enviar({ t: 'abrirConversa' });
     setTimeout(() => $('texto').focus(), 50);
@@ -94,7 +94,7 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
-    if (!$('menu').hidden) $('menu').hidden = true;
+    if (!$('menu').hidden) menu(false);
     else if (!$('reuniao').hidden) fecharReuniao();
     else if (!$('conversa').hidden) fecharConversa();
   });
@@ -139,17 +139,26 @@
     if ($('conversa').hidden) falar(sorteia(['Oi! Dois cliques para conversar.', 'Tô aqui!', 'Precisa de mim?', 'Hehe']), 1600);
   });
   pet.addEventListener('dblclick', abrirConversa);
-  pet.addEventListener('contextmenu', (ev) => { ev.preventDefault(); $('menu').hidden = !$('menu').hidden; });
+  // O menu tem mais itens do que cabem acima do bichinho: aberto, a janelinha cresce para cima
+  // (main.js recebe a altura de que ele precisa) e ele para de andar; fechado, ela volta.
+  let passeando = false; // ele está passeando sozinho pela tela (main.js avisa)
+  function menu(aberto) {
+    const m = $('menu');
+    if (m.hidden === !aberto) return;
+    if (aberto) $('menu-passeio').textContent = passeando ? tr('Ficar parado') : tr('Passear pela tela');
+    m.hidden = !aberto;
+    A.enviar(aberto ? { t: 'menu', aberto: true, altura: Math.ceil(m.offsetHeight + (parseFloat(getComputedStyle(m).bottom) || 0) + 8) } : { t: 'menu', aberto: false });
+  }
+  pet.addEventListener('contextmenu', (ev) => { ev.preventDefault(); menu($('menu').hidden); });
   $('menu').addEventListener('click', (ev) => {
     const m = ev.target.closest('[data-m]')?.dataset.m;
     if (!m) return;
-    $('menu').hidden = true;
+    menu(false);
     if (m === 'conversar') abrirConversa();
     else if (m === 'capturar') { abrirConversa(); capturar(); }
     else if (m === 'reuniao') abrirReuniao();
-    else if (m === 'passear') A.enviar({ t: 'passear' });
+    else if (m === 'passear') A.enviar({ t: passeando ? 'ficar' : 'passear' });
     else if (m === 'voltar') A.enviar({ t: 'voltar' });
-    else if (m === 'embora') A.enviar({ t: 'irEmbora' });
   });
   $('bolha').addEventListener('click', (ev) => {
     const a = ev.target.closest('[data-acao]')?.dataset.acao;
@@ -171,7 +180,7 @@
   // --- pergunta trazida do app: responder aqui mesmo -------------------------
   let pg = null; // { id, item, i, respostas, marcadas }
   function abrirPergunta(id, item) {
-    calar(); $('menu').hidden = true; $('conversa').hidden = true;
+    calar(); menu(false); $('conversa').hidden = true;
     pg = { id, item, i: 0, respostas: {}, marcadas: new Set() };
     $('pergunta').hidden = false;
     A.enviar({ t: 'abrirConversa' });
@@ -295,6 +304,12 @@
     const chapeu = window.petVisual.ITENS[(v.itens || {}).cabeca];
     const topo = chapeu && chapeu.parte === 'cabeca' ? Math.max(0, -Math.min(...chapeu.px.map((r) => r[1]))) : 0;
     pet.style.setProperty('--chapeu', `${Math.round(topo * 75 / 14)}px`);
+    // As folgas do desenho dentro da caixa (corpo e roupa não ocupam a caixa toda): o processo usa
+    // para as bordas da tela valerem para o desenho, e não para a janelinha.
+    try {
+      const svg = vira.querySelector('svg'), g = svg.getBBox(), vb = svg.viewBox.baseVal, k = 96 / vb.width;
+      A.enviar({ t: 'corpo', esq: Math.round((g.x - vb.x) * k), dir: Math.round((vb.x + vb.width - g.x - g.width) * k), topo: Math.round((g.y - vb.y) * k) });
+    } catch { /* sem desenho ainda */ }
   }
   // Balão de pensamento do print: uma nuvem em pixel, como o bichinho ([x, y, largura, altura, cor];
   // cada 1 vale 5 px). Dentro, a câmera; o ✓ (print guardado) e o clarão (clique) aparecem por cima.
@@ -335,7 +350,7 @@
     tMini = setInterval(() => { if (precisaMini()) pedirReuniao('tela'); else { clearInterval(tMini); tMini = null; } }, 2000);
   }
   function abrirReuniao(tela) {
-    calar(); $('menu').hidden = true; $('conversa').hidden = true;
+    calar(); menu(false); $('conversa').hidden = true;
     if ($('reuniao').hidden && Date.now() - rnMiniEm > 3000) rnMini = null; // antiga: espera a de agora
     if (tela) rnTela = tela; else if (rn.gravando) rnTela = 'gravando'; else if (rn.processando && rn.processando.length) rnTela = 'montando'; else if (rnTela !== 'pronta') rnTela = 'inicio';
     $('reuniao').hidden = false;
@@ -532,9 +547,11 @@
     } else if (m.t === 'falar') falar(m.texto, 1800);
     else if (m.t === 'reuniao') aoReuniao(m.estado);
     else if (m.t === 'reuniaoResposta') aoReuniaoResposta(m);
-    else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; $('menu').hidden = true; $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
+    else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; menu(false); $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }
     else if (m.t === 'pousou') classe('voando', false);
+    else if (m.t === 'passeio') passeando = !!m.ligado;
+    else if (m.t === 'dentro') { pet.style.setProperty('--dx', `${Number(m.x) || 0}px`); pet.style.setProperty('--dy', `${Number(m.y) || 0}px`); }
     else if (m.t === 'floreio' && PERSISTENTES.includes(m.tipo)) classe(m.tipo); // fica até a próxima chegada
     else if (m.t === 'floreio' && FLOREIOS[m.tipo]) {
       classe(m.tipo, false); void pet.offsetWidth; classe(m.tipo);

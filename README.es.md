@@ -205,7 +205,9 @@ que no hay ninguna terminal que vigilar.
 - **Los archivos adjuntos en tu mensaje** aparecen como tarjetas sobre el texto (etiqueta de color con el tipo y el
   nombre), como las miniaturas de las imágenes; un clic en la tarjeta muestra el archivo en su carpeta.
 - **Lanzar la mascota del escritorio**: arrástrala y suéltala con velocidad, y vuela por la pantalla, rebota en los
-  bordes y cae al suelo (las ventanas de otros programas no son obstáculo).
+  bordes y cae al suelo (las ventanas de otros programas no son obstáculo). Los bordes son los de verdad: el propio
+  dibujo toca la izquierda, la derecha y la parte de arriba de la pantalla. En el escritorio, su menú del clic
+  derecho tiene *Stay still* (deja de pasear hasta que elijas *Wander around the screen*) y *Back to the app*.
 - **Load the earlier ones**: la conversación reabierta muestra sus últimos 600 mensajes; una franja arriba avisa
   que hay más antiguos y trae la página anterior por encima, manteniendo la pantalla donde estabas leyendo, hasta
   llegar al inicio de la conversación. Nada de lo que ya está en pantalla se vuelve a leer.

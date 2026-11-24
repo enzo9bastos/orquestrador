@@ -198,7 +198,9 @@ há terminal para vigiar.
 - **Arquivos anexados na sua mensagem** aparecem como cartões acima do texto (selo colorido do tipo e o nome), como
   as miniaturas das imagens; o clique no cartão mostra o arquivo na pasta dele.
 - **Tacar o bichinho da área de trabalho**: arraste e solte com velocidade, e ele voa pela tela, quica nas bordas
-  e cai no chão (as janelas dos outros programas não são obstáculo).
+  e cai no chão (as janelas dos outros programas não são obstáculo). As bordas são as de verdade: o próprio desenho
+  encosta na esquerda, na direita e no topo da tela. Na área de trabalho, o menu do botão direito tem *Ficar parado*
+  (ele para de passear até você escolher *Passear pela tela*) e *Voltar para o app*.
 - **Carregar as anteriores**: a conversa reaberta mostra as últimas 600 mensagens; uma faixa no topo avisa que há
   mais antigas e traz a página de antes para cima, mantendo a tela onde você estava lendo, até chegar ao início da
   conversa. Nada do que já está na tela é lido de novo.

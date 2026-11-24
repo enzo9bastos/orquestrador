@@ -194,7 +194,9 @@ protocol), so there is no terminal to babysit.
 - **Attached files in your message** show as cards above the text (coloured type badge and file name), like image
   thumbnails; clicking a card shows the file in its folder.
 - **Throw the desktop helper**: drag it and let go with some speed, and it flies across the screen, bounces on the
-  screen edges and lands (other windows are not obstacles).
+  screen edges and lands (other windows are not obstacles). The edges are the real ones: the drawing itself touches
+  the left, the right and the top of the screen. On the desktop, its right-click menu has *Stay still* (it stops
+  wandering until you pick *Wander around the screen*) and *Back to the app*.
 - **Load the earlier ones**: a reopened conversation shows its latest 600 messages; a strip at the top says there
   are older ones and brings the previous page in above, keeping the screen where you were reading, until it reaches
   the start of the conversation. Nothing already on screen is read again.

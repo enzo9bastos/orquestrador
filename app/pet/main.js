@@ -62,16 +62,55 @@ const paraApp = (m) => {
 };
 const paraTela = (m) => { if (pronto && win) win.webContents.send('ajudante', m); else fila.push(m); };
 
+// O desenho do bichinho dentro da janelinha: a caixa dele fica a 18 px da direita e a 2 px de baixo
+// (janela.css), com 96×75, e o corpo ocupa só uma parte dela (a tela manda as folgas a cada roupa).
+const CAIXA = { dir: 18, baixo: 2, w: 96, h: 75 };
+let corpo = { esq: 16, dir: 21, topo: 37 };
+// O monitor onde ele está é o do desenho (não o do meio da janelinha, que é bem maior que ele).
 function area() {
   const d = win && modo !== 'escondido'
-    ? screen.getDisplayNearestPoint({ x: Math.round(pos.x + tam.w / 2), y: Math.round(pos.y + tam.h / 2) })
+    ? screen.getDisplayNearestPoint({ x: Math.round(pos.x + tam.w - CAIXA.dir - CAIXA.w / 2), y: Math.round(pos.y + tam.h - CAIXA.baixo - CAIXA.h / 2) })
     : screen.getPrimaryDisplay();
   return d.workArea;
 }
+// As bordas da tela valem para o DESENHO, não para a janelinha: até onde o canto da janela pode ir
+// para o desenho encostar na borda da esquerda, da direita e de cima. (O chão já era o do desenho.)
+const limites = (a = area()) => ({
+  x0: a.x - (tam.w - CAIXA.dir - CAIXA.w + corpo.esq),
+  x1: a.x + a.width - tam.w + CAIXA.dir + corpo.dir,
+  y0: a.y - (tam.h - CAIXA.baixo - CAIXA.h + corpo.topo),
+});
 const chao = (a = area()) => a.y + a.height - tam.h;
 // Onde ele espera: no chão, ou no ar (quem voa).
 const parada = (a = area()) => (jeito === 'voa' ? Math.max(a.y, chao(a) - esp().noAr) : chao(a));
-function mover() { if (win) win.setBounds({ x: Math.round(pos.x), y: Math.round(pos.y), width: tam.w, height: tam.h }); }
+// A janela nunca sai da tela (o gerenciador de janelas não deixa): perto da esquerda, da direita e
+// do topo ela para na borda e é o desenho que anda dentro dela (janela.js recebe quanto). Arrastado
+// além da borda, pos continua contando e o desenho espera encostado até o ponteiro voltar.
+let dentro = { x: 0, y: 0 };
+let extremos = null;
+function mover() {
+  if (!win) return;
+  const a = area(), l = limites(a);
+  const vx = Math.min(Math.max(pos.x, l.x0), l.x1), vy = Math.max(pos.y, l.y0);
+  const x = Math.min(Math.max(vx, a.x), Math.max(a.x, a.x + a.width - tam.w)), y = Math.max(vy, a.y);
+  const d = { x: Math.round(vx - x), y: Math.round(vy - y) };
+  if (d.x !== dentro.x || d.y !== dentro.y) { dentro = d; paraTela({ t: 'dentro', x: d.x, y: d.y }); }
+  if (TESTE && extremos) { // até onde o desenho chegou (os testes de arremesso conferem as bordas)
+    const ex = Math.round(x) + tam.w - CAIXA.dir - CAIXA.w + d.x, ey = Math.round(y) + tam.h - CAIXA.baixo - CAIXA.h + d.y;
+    extremos.esq = Math.min(extremos.esq, ex + corpo.esq); extremos.dir = Math.max(extremos.dir, ex + CAIXA.w - corpo.dir); extremos.topo = Math.min(extremos.topo, ey + corpo.topo);
+    extremos.janelaEsq = Math.min(extremos.janelaEsq, Math.round(x)); extremos.janelaTopo = Math.min(extremos.janelaTopo, Math.round(y)); extremos.janelaDir = Math.max(extremos.janelaDir, Math.round(x) + tam.w);
+  }
+  win.setBounds({ x: Math.round(x), y: Math.round(y), width: tam.w, height: tam.h });
+}
+// Parou com o desenho deslocado (perto de uma borda): dá uns passos para dentro, para os balões,
+// o menu e o sinal de gravando voltarem a caber em volta dele.
+function ajeitar() {
+  const a = area();
+  const x = Math.min(Math.max(pos.x, a.x), Math.max(a.x, a.x + a.width - tam.w)), y = Math.max(pos.y, a.y);
+  if (Math.abs(x - pos.x) < 1 && Math.abs(y - pos.y) < 1) return;
+  if (jeito === 'voa') irPara(x, y, 0, null, { facil: 'suave', dur: 450 });
+  else andar(x, esp().vel || 340);
+}
 
 // Anda até x (canto esquerdo da janela). vel em px/s.
 function andar(x, vel, depois) {
@@ -111,7 +150,7 @@ function arremessar(vx, vy) {
     const agora = Date.now();
     const dt = Math.min(0.05, (agora - ultimo) / 1000); ultimo = agora;
     const a = area();
-    const x0 = a.x, x1 = a.x + a.width - tam.w, y0 = a.y, chaoY = chao(a);
+    const { x0, x1, y0 } = limites(a), chaoY = chao(a);
     if (voa) { vx *= Math.pow(0.12, dt); vy *= Math.pow(0.12, dt); } else vy += GRAVIDADE * dt;
     pos.x += vx * dt; pos.y += vy * dt;
     if (pos.x < x0) { pos.x = x0; vx = -vx * QUIQUE; }
@@ -125,7 +164,7 @@ function arremessar(vx, vy) {
     mover();
     const parado = Math.hypot(vx, vy) < 25 && (voa || pos.y >= chaoY);
     quieto = parado ? quieto + 1 : 0;
-    if (quieto >= 3) { clearInterval(timer); timer = null; paraTela({ t: 'pousou' }); }
+    if (quieto >= 3) { clearInterval(timer); timer = null; paraTela({ t: 'pousou' }); ajeitar(); const f = aoChegar; aoChegar = null; if (f) f(); }
   }, QUADRO);
 }
 
@@ -136,20 +175,33 @@ function arremessar(vx, vy) {
 //    no ar e dá o seu floreio (pirueta, rolinho, looping) — e fica voando ali;
 //  - quem pula chega em pulos e quica ao pousar;
 //  - o cogumelo não vem de lugar nenhum: brota do chão onde vai ficar.
+// Agarrado no meio da chegada ou da saída: a caminhada para e quem esperava o fim dela nunca era
+// avisado. Ele ficava "chegando" para sempre (o pinguim, deitado de barriga, sem passear mais) ou
+// "saindo" para sempre. Agora, agarrado, a chegada acaba ali (o que ele ia fazer ao chegar fica
+// para quando pousar) e a saída é cancelada: ele fica.
+let aoChegar = null;
+function agarrado() {
+  if (modo !== 'entrando' && modo !== 'saindo') return;
+  if (modo === 'saindo') { saida++; aoChegar = null; }
+  modo = 'parado';
+  paraTela({ t: 'deslizar', ligado: false });
+  paraTela({ t: 'andando', ligado: false });
+}
 function entrada(a, lado, destinoX, depois) {
   clearInterval(timer); timer = null;
   const e = esp();
   const borda = lado === 'dir' ? a.x + a.width - tam.w : a.x;
   const alvo = Math.min(Math.max(destinoX, a.x), a.x + a.width - tam.w);
   modo = 'entrando';
-  const chegou = () => { modo = 'parado'; floreio(e.chega); if (depois) depois(); };
+  aoChegar = depois || null;
+  const chegou = () => { modo = 'parado'; aoChegar = null; floreio(e.chega); if (depois) depois(); };
   if (e.brota) {
     pos = { x: alvo, y: chao(a) };
     mover();
     paraTela({ t: 'entrar', lado, estilo: 'brota' });
     floreio('brota');
     const minha = saida;
-    setTimeout(() => { if (minha === saida && modo === 'entrando') { modo = 'parado'; if (depois) depois(); } }, 950);
+    setTimeout(() => { if (minha === saida && modo === 'entrando') { modo = 'parado'; aoChegar = null; if (depois) depois(); } }, 950);
     return;
   }
   if (jeito === 'voa') {
@@ -239,7 +291,8 @@ function aparecer(depois) {
     modo = 'entrando';
     paraTela({ t: 'entrar', lado: 'dir' });
     const volta = a.x + Math.round(a.width * 0.78) - tam.w;
-    const fim = () => { modo = 'parado'; if (depois) depois(); };
+    aoChegar = depois || null;
+    const fim = () => { modo = 'parado'; aoChegar = null; if (depois) depois(); };
     const e = esp();
     if (e.brota) { floreio('brota'); setTimeout(fim, 950); }
     else if (jeito === 'voa') irPara(volta, parada(a), 0, fim, { facil: 'chega', dur: 900 });
@@ -261,7 +314,8 @@ function aparecer(depois) {
 }
 
 function sumir() {
-  passeando = false;
+  mudarPasseio(false);
+  ficar = false;
   aviso = false;
   if (modo === 'escondido') return;
   fecharConversa();
@@ -283,6 +337,12 @@ function sumir() {
   }), 500);
 }
 
+// Onde o desenho está na tela agora (as bordas do corpo, com a roupa): os testes conferem por aqui.
+function desenho() {
+  const j = win.getBounds();
+  const x = j.x + tam.w - CAIXA.dir - CAIXA.w + dentro.x, y = j.y + tam.h - CAIXA.baixo - CAIXA.h + dentro.y;
+  return { esq: x + corpo.esq, dir: x + CAIXA.w - corpo.dir, topo: y + corpo.topo, baixo: y + CAIXA.h };
+}
 // A conversa cresce para a esquerda e para cima, com o bichinho no mesmo lugar.
 function redimensionar(novo) {
   pos.x += tam.w - novo.w;
@@ -296,7 +356,8 @@ function redimensionar(novo) {
 function abrirConversa() {
   if (conversaAberta) return;
   conversaAberta = true;
-  clearInterval(timer);
+  clearTimeout(tMenu);
+  if (timer) { clearInterval(timer); timer = null; paraTela({ t: 'andando', ligado: false }); }
   redimensionar(GRANDE);
   win.setFocusable(true);
   win.focus();
@@ -309,17 +370,27 @@ function fecharConversa() {
   if (jeito !== 'voa') { pos.y = chao(); mover(); }
 }
 
-// Passeio: na tela e livre (sem conversa aberta nem aviso esperando), ele
-// anda de um lado para o outro do monitor sozinho.
+// Passeio: na tela e livre (sem conversa nem menu abertos, nem aviso esperando), ele anda de um lado
+// para o outro do monitor sozinho. No menu, "Ficar parado" para o passeio até ele ir embora ou a
+// pessoa escolher "Passear pela tela" de novo.
 let aviso = false;
+let ficar = false; // a pessoa pediu "Ficar parado": nada o põe para passear de novo nesta saída
+let passeio = 0; // cada passeio tem um número: parar e recomeçar não deixa dois andando ao mesmo tempo
+const mudarPasseio = (v) => { if (passeando !== v) { passeando = v; paraTela({ t: 'passeio', ligado: v }); } };
+// Espera a caminhada acabar ou ser interrompida (arrastar, conversa, menu). Antes o passeio esperava
+// só o fim dela: interrompida, ficava esperando para sempre e ele nunca mais passeava.
+const semCaminhada = () => new Promise((r) => { const t = setInterval(() => { if (!timer) { clearInterval(t); r(); } }, 60); });
 async function passear() {
-  if (passeando) return;
-  passeando = true;
+  if (passeando || ficar) return;
+  mudarPasseio(true);
+  const meu = ++passeio;
+  const segue = () => passeando && meu === passeio && modo !== 'escondido';
   let primeiro = true;
-  while (passeando && modo !== 'escondido') {
+  while (segue()) {
     await new Promise((r) => setTimeout(r, primeiro ? 1500 + Math.random() * 2500 : 3000 + Math.random() * 5000));
     primeiro = false;
-    if (!passeando || conversaAberta || aviso || timer || modo !== 'parado') continue;
+    if (!segue()) break;
+    if (conversaAberta || menuAberto || aviso || timer || modo !== 'parado') continue;
     const a = area();
     const x = a.x + Math.round(Math.random() * (a.width - tam.w));
     if (jeito === 'voa') {
@@ -327,11 +398,46 @@ async function passear() {
       const y = a.y + 40 + Math.round(Math.random() * Math.max(0, chao(a) - a.y - 40));
       const dur = Math.max(900, Math.hypot(x - pos.x, y - pos.y) / 110 * 1000);
       const curva = { x: (x + pos.x) / 2 + (Math.random() - 0.5) * 200, y: Math.max(a.y, Math.min(chao(a), (y + pos.y) / 2 + (Math.random() - 0.5) * 200)) };
-      await new Promise((r) => irPara(x, y, 0, r, { facil: 'suave', dur, curva }));
-    } else if (jeito === 'pula') await new Promise((r) => irPara(x, chao(a), esp().passo * 0.6, r, { pulos: true, altura: Math.round(esp().pulo * 0.55) }));
-    else await new Promise((r) => andar(x, especie === 'gatinho' ? 110 : especie === 'pinguim' ? 55 : 70, r));
-    if (Math.random() < 0.3) paraTela({ t: 'gesto' });
+      irPara(x, y, 0, null, { facil: 'suave', dur, curva });
+    } else if (jeito === 'pula') irPara(x, chao(a), esp().passo * 0.6, null, { pulos: true, altura: Math.round(esp().pulo * 0.55) });
+    else andar(x, especie === 'gatinho' ? 110 : especie === 'pinguim' ? 55 : 70);
+    await semCaminhada();
+    if (segue() && Math.random() < 0.3) paraTela({ t: 'gesto' });
   }
+  if (meu === passeio) mudarPasseio(false);
+}
+// Para a caminhada onde ele está. Só com ele parado na tela: a chegada e a saída não são cortadas.
+function pararCaminhada() {
+  if (!timer || modo !== 'parado') return;
+  clearInterval(timer); timer = null;
+  paraTela({ t: 'andando', ligado: false });
+  if (jeito !== 'voa') { pos.y = chao(); mover(); }
+}
+function ficarParado() { ficar = true; passeio++; mudarPasseio(false); pararCaminhada(); }
+
+// Menu do botão direito: tem mais itens do que cabem acima do bichinho na janelinha (os de cima
+// ficavam cortados). Aberto, ele para de andar e a janela cresce para cima o tanto que o menu pede
+// (como na conversa); fechado, volta ao tamanho de sempre.
+let menuAberto = false;
+let tMenu = null;
+function abrirMenu(altura) {
+  menuAberto = true;
+  clearTimeout(tMenu);
+  if (conversaAberta) return;
+  pararCaminhada();
+  const h = Math.max(PEQUENA.h, Math.min(GRANDE.h, Math.ceil(Number(altura) || 0)));
+  if (h !== tam.h) redimensionar({ w: PEQUENA.w, h });
+}
+function fecharMenu() {
+  if (!menuAberto) return;
+  menuAberto = false;
+  // Um instante depois: se o item escolhido abre a conversa, a janela vai direto ao tamanho dela.
+  clearTimeout(tMenu);
+  tMenu = setTimeout(() => {
+    if (menuAberto || conversaAberta || tam.h === PEQUENA.h) return;
+    redimensionar(PEQUENA);
+    if (jeito !== 'voa') { pos.y = chao(); mover(); }
+  }, 40);
 }
 
 function receber(m) {
@@ -358,8 +464,9 @@ function receber(m) {
   }
   else if (m.t === 'imagem') { if (!TESTE && modo !== 'escondido') { win.showInactive(); win.setSkipTaskbar(true); win.setVisibleOnAllWorkspaces(true); } win.focus(); paraTela(m); }
   else if (m.t === 'trocarArea' && TESTE) trocouArea(m.de, m.para);
+  else if (m.t === 'extremos' && TESTE) extremos = { esq: Infinity, dir: -Infinity, topo: Infinity, janelaEsq: Infinity, janelaTopo: Infinity, janelaDir: -Infinity };
   else if (m.t === 'js' && TESTE) win.webContents.executeJavaScript(m.codigo).then((r) => paraApp({ t: 'js', r }), (e) => paraApp({ t: 'js', erro: String(e) }));
-  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, tam, passeando, especie, floreio: ultimoFloreio, chao: Math.round(chao()), pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible() });
+  else if (m.t === 'estado') paraApp({ t: 'estado', modo, conversaAberta, menuAberto, tam, passeando, especie, floreio: ultimoFloreio, chao: Math.round(chao()), pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, janela: win.getBounds(), visivel: win.isVisible(), area: area(), dentro, corpo, desenho: desenho(), extremos });
   else if (m.t === 'print-tela' && TESTE) win.webContents.capturePage().then((img) => paraApp({ t: 'print', png: img.toPNG().toString('base64') }));
 }
 
@@ -402,14 +509,17 @@ ipcMain.on('ajudante', (_e, m) => {
   else if (m.t === 'abrirConversa') abrirConversa();
   else if (m.t === 'fecharConversa') fecharConversa();
   else if (m.t === 'avisoFechado') aviso = false;
+  else if (m.t === 'corpo') { const n = (v, p) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(60, Math.round(Number(v)))) : p); corpo = { esq: n(m.esq, corpo.esq), dir: n(m.dir, corpo.dir), topo: n(m.topo, corpo.topo) }; }
   else if (m.t === 'perguntar' || m.t === 'responder' || m.t === 'reuniao') paraApp(m);
   else if (m.t === 'copiar') clipboard.writeText(String(m.texto || ''));
   else if (m.t === 'capturar') { if (!TESTE) win.hide(); setTimeout(() => paraApp({ t: 'capturar' }), 250); }
   else if (m.t === 'abrirApp') paraApp(m);
   else if (m.t === 'voltar') { sumir(); paraApp({ t: 'voltar' }); }
   else if (m.t === 'irEmbora') sumir();
-  else if (m.t === 'passear') { paraTela({ t: 'falar', texto: 'Oba, passeio!' }); passear(); }
-  else if (m.t === 'arrastar') { clearInterval(timer); timer = null; pos.x += m.dx; pos.y += m.dy; mover(); }
+  else if (m.t === 'passear') { ficar = false; paraTela({ t: 'falar', texto: 'Oba, passeio!' }); passear(); }
+  else if (m.t === 'ficar') { ficarParado(); paraTela({ t: 'falar', texto: 'Fico aqui!' }); }
+  else if (m.t === 'menu') { if (m.aberto) abrirMenu(m.altura); else fecharMenu(); }
+  else if (m.t === 'arrastar') { agarrado(); clearInterval(timer); timer = null; pos.x += m.dx; pos.y += m.dy; mover(); }
   else if (m.t === 'soltar') arremessar(Number(m.vx) || 0, Number(m.vy) || 0);
 });
 

@@ -2,7 +2,8 @@
    conversa aparecem. Reaproveita os estilos e animações do app. */
 html, body { background: transparent !important; margin: 0; height: 100%; overflow: hidden; user-select: none; }
 body { position: relative; font: 13px var(--sans); color: var(--fg); }
-.aj-pet { position: absolute; left: auto; top: auto; right: 18px; bottom: 2px; transform: none; transition: translate .45s linear; }
+/* --dx/--dy: perto de uma borda da tela a janelinha para e é o desenho que anda dentro dela (main.js). */
+.aj-pet { position: absolute; left: auto; top: auto; right: 18px; bottom: 2px; transform: translate(var(--dx, 0px), var(--dy, 0px)); transition: translate .45s linear; }
 /* Atrás da borda do monitor (a janela encosta nela): entra e sai deslizando. */
 .aj-pet.fora-dir { translate: 130px 0; }
 .aj-pet.fora-esq { translate: -300px 0; }

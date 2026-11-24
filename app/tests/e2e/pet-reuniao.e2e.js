@@ -204,6 +204,85 @@ test('bichinho: reunião detectada, fim da ligação, miniatura da tela e arreme
     assert.ok(e.pos.x >= 0 && e.pos.x + e.tam.w <= larg + 1, `dentro da tela: x ${e.pos.x}`);
     assert.ok(e.pos.x < antes.pos.x - 100, `foi para a esquerda: ${antes.pos.x} → ${e.pos.x}`);
   });
+
+  // Pedido de 24/11: as paredes valiam para a janelinha (280×200, com o bichinho no canto de baixo, à
+  // direita): ele batia no ar uns 180 px antes da borda esquerda e uns 150 px abaixo do topo da tela.
+  await t.test('as bordas da tela valem para o desenho: arrastado, ele encosta na esquerda, no topo e na direita, e a janela não sai da tela', async () => {
+    for (let i = 0; i < 60 && (await estado()).modo !== 'parado'; i++) await dorme(100);
+    const a = (await estado()).area;
+    const dentroDaTela = (e) => e.janela.x >= a.x && e.janela.y >= a.y && e.janela.x + e.janela.width <= a.x + a.width && e.janela.y + e.janela.height <= a.y + a.height;
+    const arrasta = async (dx, dy) => { await js(`window.ajudante.enviar({ t: 'arrastar', dx: ${dx}, dy: ${dy} }); 1`); await dorme(150); const e = await estado(); assert.ok(dentroDaTela(e), `a janela não sai da tela: ${JSON.stringify(e.janela)}`); return e; };
+    let e = await arrasta(-5000, -300);
+    assert.ok(Math.abs(e.desenho.esq - a.x) <= 1, `encosta na borda esquerda: ${e.desenho.esq}`);
+    assert.strictEqual(e.janela.x, a.x, 'a janela para na borda esquerda; quem anda é o desenho dentro dela');
+    assert.ok(e.dentro.x < -100, `o desenho andou para a esquerda dentro da janela: ${e.dentro.x}`);
+    assert.strictEqual(await js("getComputedStyle(document.getElementById('pet')).transform"), `matrix(1, 0, 0, 1, ${e.dentro.x}, ${e.dentro.y})`);
+    e = await arrasta(5000, -5000);
+    assert.ok(Math.abs(e.desenho.topo - a.y) <= 1, `encosta no topo: ${e.desenho.topo}`);
+    assert.strictEqual(e.janela.y, a.y);
+    e = await arrasta(5000, 5000);
+    assert.ok(Math.abs(e.desenho.dir - (a.x + a.width)) <= 1, `encosta na borda direita: ${e.desenho.dir}`);
+    // Solto encostado na esquerda, sem impulso: cai até o chão e dá uns passos para dentro, até caber de novo.
+    await arrasta(-10000, 0);
+    await js("window.ajudante.enviar({ t: 'soltar', vx: 0, vy: 0 }); 1");
+    for (let i = 0; i < 80; i++) { await dorme(100); e = await estado(); if (Math.abs(e.pos.y - e.chao) <= 1 && e.dentro.x === 0 && e.dentro.y === 0 && e.pos.x === a.x) break; }
+    assert.deepStrictEqual({ x: e.dentro.x, y: e.dentro.y, janelaX: e.janela.x, noChao: Math.abs(e.pos.y - e.chao) <= 1 }, { x: 0, y: 0, janelaX: a.x, noChao: true });
+    assert.strictEqual(await js("getComputedStyle(document.getElementById('pet')).transform"), 'matrix(1, 0, 0, 1, 0, 0)');
+  });
+
+  await t.test('tacado com força, o desenho chega à borda esquerda e ao topo (e, para o outro lado, à direita); a janela fica dentro da tela', async () => {
+    const a = (await estado()).area;
+    const taca = async (vx, vy) => {
+      manda({ t: 'extremos' });
+      await js(`window.ajudante.enviar({ t: 'soltar', vx: ${vx}, vy: ${vy} }); 1`);
+      await dorme(1500);
+      let e = await estado();
+      for (let i = 0; i < 80 && !(Math.abs(e.pos.y - e.chao) <= 1 && e.dentro.x === 0 && e.dentro.y === 0); i++) { await dorme(100); e = await estado(); }
+      return e;
+    };
+    let e = await taca(-3000, -3000);
+    assert.ok(e.extremos.esq <= a.x + 1, `chegou à borda esquerda: ${e.extremos.esq}`);
+    assert.ok(e.extremos.topo <= a.y + 1, `chegou ao topo: ${e.extremos.topo}`);
+    assert.ok(e.extremos.janelaEsq >= a.x && e.extremos.janelaTopo >= a.y, `a janela ficou dentro da tela: ${JSON.stringify(e.extremos)}`);
+    assert.deepStrictEqual({ x: e.dentro.x, y: e.dentro.y, noChao: Math.abs(e.pos.y - e.chao) <= 1 }, { x: 0, y: 0, noChao: true }, 'parado, o desenho volta a caber na janela');
+    e = await taca(3000, -1200);
+    assert.ok(e.extremos.dir >= a.x + a.width - 1, `chegou à borda direita: ${e.extremos.dir}`);
+    assert.ok(e.extremos.janelaDir <= a.x + a.width, `a janela ficou dentro da tela: ${JSON.stringify(e.extremos)}`);
+    assert.deepStrictEqual({ x: e.dentro.x, y: e.dentro.y }, { x: 0, y: 0 });
+  });
+
+  // Pedido de 24/11 (visto num print: o pinguim deitado, parado no alto da tela): agarrado no meio da
+  // chegada, ele ficava "chegando" para sempre, deitado de barriga, e não passeava mais.
+  await t.test('agarrado no meio da chegada: a chegada acaba ali; pousado, ele fica em pé e faz o que veio fazer (passear)', async () => {
+    manda({ t: 'sumir' });
+    for (let i = 0; i < 100 && (await estado()).modo !== 'escondido'; i++) await dorme(100);
+    manda({ t: 'visual', visual: { especie: 'pinguim', cor: 'azul', itens: {} }, tema: 'dark' });
+    manda({ t: 'passear' });
+    for (let i = 0; i < 200 && (await estado()).modo !== 'entrando'; i++) await dorme(50);
+    await dorme(300);
+    assert.strictEqual((await estado()).modo, 'entrando');
+    await js("window.ajudante.enviar({ t: 'arrastar', dx: -200, dy: -200 }); 1");
+    await dorme(150);
+    await js("window.ajudante.enviar({ t: 'soltar', vx: 0, vy: 0 }); 1");
+    let e = await estado();
+    for (let i = 0; i < 60 && !(Math.abs(e.pos.y - e.chao) <= 1 && e.passeando); i++) { await dorme(100); e = await estado(); }
+    const classes = await js("document.getElementById('pet').className");
+    assert.deepStrictEqual({ modo: e.modo, passeando: e.passeando, noChao: Math.abs(e.pos.y - e.chao) <= 1, deitado: /deslizando/.test(classes) }, { modo: 'parado', passeando: true, noChao: true, deitado: false });
+  });
+
+  await t.test('agarrado no meio da saída: a saída é cancelada e ele fica na tela', async () => {
+    manda({ t: 'sumir' });
+    for (let i = 0; i < 100 && (await estado()).modo !== 'saindo'; i++) await dorme(50);
+    await dorme(700);
+    const desde = recebidas.length;
+    await js("window.ajudante.enviar({ t: 'arrastar', dx: -150, dy: -100 }); 1");
+    await dorme(150);
+    await js("window.ajudante.enviar({ t: 'soltar', vx: 0, vy: 0 }); 1");
+    await dorme(3000);
+    const e = await estado();
+    const foiEmbora = recebidas.slice(desde).some((m) => m.t === 'visivel' && m.visivel === false);
+    assert.deepStrictEqual({ modo: e.modo, foiEmbora, noChao: Math.abs(e.pos.y - e.chao) <= 1 }, { modo: 'parado', foiEmbora: false, noChao: true });
+  });
 });
 
 // 23/11: gravando, ele segura uma câmera; e o print sai com um clique no balão de pensamento que
