@@ -72,8 +72,9 @@
     if (r && r.erro) aviso(`Não comecei a gravar a reunião: ${r.erro}`, 'erro');
     else aviso('Gravando a reunião. Avise as pessoas que ela está sendo gravada.');
   }
+  const pedirTerminar = () => { if (!e.gravando) return; confirmando = true; desenhar(); }; // a confirmação aparece na barra
   window.orqPaleta?.registrar(() => (e.gravando
-    ? [{ grupo: 'Reunião', titulo: 'Print da tela na reunião', faz: () => R.print() }, { grupo: 'Reunião', titulo: 'Marcar este momento da reunião', faz: () => R.marcar('') }, { grupo: 'Reunião', titulo: 'Terminar a reunião', faz: () => { confirmando = true; desenhar(); } }]
+    ? [{ grupo: 'Reunião', titulo: 'Print da tela na reunião', faz: () => R.print() }, { grupo: 'Reunião', titulo: 'Marcar este momento da reunião', faz: () => R.marcar('') }, { grupo: 'Reunião', titulo: 'Terminar a reunião', faz: pedirTerminar }]
     : [{ grupo: 'Reunião', titulo: 'Gravar reunião', sub: 'grava você e os outros; no fim, a nota com transcrição e resumo', faz: comecar }]));
 
   // --- Configurações › Voz e reuniões: o que este computador tem --------------------------
@@ -97,5 +98,6 @@
     $('config-voz-resumo').textContent = `Recomendação: ${r.resumo.recomendado === 'local' ? 'modelo local' : 'Claude'}, porque ${r.resumo.motivo}.`;
   }
   document.querySelector('[data-secao-config="voz"]')?.addEventListener('click', () => desenharVoz(false));
-  window.orqReuniao = { estado: () => e, desenharVoz };
+  // comecar e pedirTerminar: o menu do bichinho de dentro do app (pet-tela.js) faz o mesmo que a paleta.
+  window.orqReuniao = { estado: () => e, desenharVoz, comecar, pedirTerminar };
 })();

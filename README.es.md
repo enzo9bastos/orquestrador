@@ -186,7 +186,7 @@ que no hay ninguna terminal que vigilar.
   (en `~/.cache/orq-app/editor`, que solo tú puedes leer), eliminado cuando terminas. Lo que viene del editor es
   siempre texto común, nunca un comando de `!`. Los dos atajos se pueden cambiar o desactivar en *Settings ›
   Shortcuts*.
-- **Modo reunión**: desde la mascota (clic derecho › *Record meeting*) o la paleta, la app graba tu micrófono y el
+- **Modo reunión**: desde la mascota, dentro de la app o en el escritorio (clic derecho › *Record meeting*), o desde la paleta, la app graba tu micrófono y el
   sonido del equipo en dos pistas, para que la nota sepa quién habló. Mientras graba, una señal roja con el tiempo
   queda en la mascota y en la barra superior, con *Screenshot*, *Mark moment* y *End*. Al terminar, el audio se
   transcribe en el propio equipo (faster-whisper, con el modelo que conviene a la máquina) y la nota sale con la

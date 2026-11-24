@@ -175,7 +175,7 @@ protocol), so there is no terminal to babysit.
   meanwhile); the same shortcut or *Done* ends it. The text travels through a temporary file of the app (in
   `~/.cache/orq-app/editor`, readable only by you), removed when you finish. Text coming from the editor is always
   plain text, never a `!` command. Both shortcuts can be changed or turned off in *Settings › Shortcuts*.
-- **Meeting mode**: from the helper (right click › *Record meeting*) or the palette, the app records your
+- **Meeting mode**: from the helper, in the app or on the desktop (right click › *Record meeting*), or from the palette, the app records your
   microphone and the computer's sound as two tracks, so the note knows who spoke. While it records, a red sign
   with the time stays on the helper and on the top bar, with *Screenshot*, *Mark moment* and *End*. When it ends,
   the audio is transcribed on the computer (faster-whisper, with the model that suits the machine), and the note

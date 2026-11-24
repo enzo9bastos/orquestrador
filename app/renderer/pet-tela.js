@@ -24,11 +24,18 @@
   menu.hidden = true;
   menu.innerHTML = `<li role="menuitem" data-pm="conversar">Conversar com ele<span>2 cliques</span></li>
     <li role="menuitem" data-pm="print">📷 Mostrar um pedaço da tela</li>
+    <li role="menuitem" data-pm="reuniao">🎙 Gravar reunião</li>
     <li role="menuitem" data-pm="roupa">Guarda-roupa…</li>
     <li role="menuitem" data-pm="passear">Passear pela área de trabalho</li>
     <li role="menuitem" data-pm="esconder">Esconder o bichinho</li>`;
   document.body.append(menu);
+  // Reunião: o mesmo caminho da paleta (reuniao-tela.js). Sem reunião, começa a gravar; gravando,
+  // pede para terminar (a confirmação aparece na barra de cima).
+  const itemReuniao = menu.querySelector('[data-pm="reuniao"]');
   pet.aoMenu = (ev) => {
+    const rn = window.orqReuniao;
+    itemReuniao.style.display = rn ? '' : 'none'; // ponte antiga, sem modo reunião: o item não aparece
+    if (rn) itemReuniao.textContent = rn.estado().gravando ? '🎙 Terminar a reunião…' : '🎙 Gravar reunião';
     menu.hidden = false;
     const r = menu.getBoundingClientRect();
     menu.style.left = `${Math.min(ev.clientX, innerWidth - r.width - 8)}px`;
@@ -41,6 +48,7 @@
     menu.hidden = true;
     if (m === 'conversar') chamar();
     else if (m === 'print') chamar(true);
+    else if (m === 'reuniao') { const rn = window.orqReuniao; if (rn.estado().gravando) rn.pedirTerminar(); else rn.comecar(); }
     else if (m === 'roupa') abrir();
     else if (m === 'passear') { pet.falar('Vou dar uma volta lá fora!', 1200); setTimeout(() => P.passear(), 600); }
     else if (m === 'esconder') window.orq.config.gravar({ mostrarBichinho: false }).then(() => window.dispatchEvent(new CustomEvent('orq:config', { detail: { mostrarBichinho: false } })));

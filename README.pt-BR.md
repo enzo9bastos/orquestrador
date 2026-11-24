@@ -179,7 +179,7 @@ há terminal para vigiar.
   app (em `~/.cache/orq-app/editor`, que só você lê), removido quando você termina. O que vem do editor é sempre
   texto comum, nunca um comando do `!`. Os dois atalhos podem ser trocados ou desativados em *Configurações ›
   Atalhos*.
-- **Modo reunião**: pelo bichinho (botão direito › *Gravar reunião*) ou pela paleta, o app grava o seu microfone e
+- **Modo reunião**: pelo bichinho, dentro do app ou na área de trabalho (botão direito › *Gravar reunião*), ou pela paleta, o app grava o seu microfone e
   o som do computador em duas trilhas, para a nota saber quem falou. Enquanto grava, um sinal vermelho com o tempo
   fica no bichinho e na barra de cima, com *Print*, *Marcar momento* e *Terminar*. No fim, o áudio é transcrito no
   próprio computador (faster-whisper, com o modelo que combina com a máquina), e a nota sai com a transcrição, os
