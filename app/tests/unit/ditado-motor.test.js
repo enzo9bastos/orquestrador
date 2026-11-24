@@ -128,6 +128,33 @@ test('motor do ditado: sair encerra; a entrada fechada também', { skip: semPyth
   assert.strictEqual(await b.saiu, 0);
 });
 
+// Defeito de 24/11, visto no uso de verdade: a prévia acertava "teste" e, ao fechar a frase, o texto
+// trocava por uma palavra errada, que dali em diante se repetia. O fecho entregava ao modelo o texto
+// anterior como contexto, e o modelo copiava o contexto para dentro das falas curtas. Aqui o modelo
+// é um boneco que só anota o que recebeu: nada do texto anterior pode chegar a ele.
+test('motor do ditado: ao fechar um trecho, o texto que veio antes não é entregue ao modelo', { skip: semPython }, () => {
+  const codigo = `
+import json, sys
+sys.path.insert(0, ${JSON.stringify(VOZ)})
+import ditado as d
+recebido = []
+class Boneco:
+    def transcribe(self, a, **k):
+        recebido.append({"contexto": k.get("initial_prompt"), "anterior": k.get("condition_on_previous_text"), "feixe": k.get("beam_size")})
+        return [], None
+m = d.MotorWhisper.__new__(d.MotorWhisper)
+m.m, m.idioma, m.curta, m.quadros = Boneco(), "pt", False, None
+m.feixe, m.folga = {False: 1, True: 5}, {False: 1.5, True: 3.0}
+m._float = lambda pcm: [0.0] * (len(pcm) // 2)
+som = bytes(32000)
+m.transcrever(som, True, "E aí a gente aplica direto, pode ser? Taishe.")
+m.transcrever(som, False, "E aí a gente aplica direto, pode ser? Taishe.")
+print(json.dumps(recebido))`;
+  const r = spawnSync('python3', ['-B', '-c', codigo], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.deepStrictEqual(JSON.parse(r.stdout), [{ contexto: null, anterior: false, feixe: 5 }, { contexto: null, anterior: false, feixe: 1 }]);
+});
+
 test('motor do ditado: a limpeza do texto (frase inventada em cima de ruído, reticências, frase e palavra em laço)', { skip: semPython }, () => {
   const codigo = `
 import json, sys

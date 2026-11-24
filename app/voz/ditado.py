@@ -8,8 +8,8 @@ existe na memória deste processo: nada é gravado em disco e nada sai do comput
 Entrada (stdin), em quadros: 1 byte de tipo + 4 bytes de tamanho (little-endian) + corpo
   'A'  áudio: PCM de 16 bits, 16 kHz, mono
   'C'  comando, em JSON:
-         {"t": "comecar", "id": n, "contexto": "o texto que já está antes do cursor"}
-         {"t": "cortar", "epoca": n, "contexto": "..."}  larga o trecho aberto (a pessoa mexeu no texto)
+         {"t": "comecar", "id": n}
+         {"t": "cortar", "epoca": n}  larga o trecho aberto (a pessoa mexeu no texto)
          {"t": "parar"}    fecha o trecho aberto e termina o ditado
          {"t": "largar"}   termina sem fechar o trecho (o que estava na caixa já foi enviado)
          {"t": "sair"}
@@ -23,8 +23,13 @@ Saída (stdout), uma linha de JSON por evento:
 
 Como o texto aparece "enquanto fala" com um modelo que não é de tempo real: a cada pedaço novo de
 áudio o trecho aberto inteiro é transcrito de novo, rápido (feixe 1), e sai como "parcial".
-Quando a pessoa faz uma pausa, o trecho é transcrito com cuidado (feixe 5, com o que veio antes
-como contexto) e sai como "final". Fala comprida sem pausa é fechada aos poucos, no fim de uma frase.
+Quando a pessoa faz uma pausa, o trecho é transcrito com cuidado (feixe 5) e sai como "final".
+Fala comprida sem pausa é fechada aos poucos, no fim de uma frase.
+
+O texto que veio antes (o "contexto" que o app manda no começar e no cortar) NÃO é entregue ao
+modelo. Entregue, ele era copiado para dentro das falas curtas: a prévia acertava "teste", o
+fecho trocava por uma palavra errada e, com ela no contexto, todo "teste" seguinte saía igual
+(medido com fala de verdade; sem o contexto não acontece).
 
 --ensaio troca o modelo por um faz de conta (para os testes do recorte, sem modelo nenhum):
 "fala" é onde o som passa de um limiar, e o "texto" é uma letra pela altura do som seguida do
@@ -315,38 +320,34 @@ class MotorWhisper:
     def fala(self, pcm):
         return [(int(f["start"]), int(f["end"])) for f in self._falas(self._float(pcm), self._vad)]
 
-    def _rodar(self, a, final, contexto, janela):
+    def _rodar(self, a, final, janela):
         self.quadros = janela * 100
         try:
-            # O contexto (o que veio antes) só entra ao fechar: na prévia, com pouco som, o modelo
-            # às vezes devolve o próprio contexto no lugar da fala.
+            # Sem contexto nenhum (initial_prompt): cada trecho é transcrito só pelo som dele.
             # O limite de palavras acompanha o tamanho do som (a fala corrida dá umas 4 por segundo):
             # sem ele, quando o som acaba o modelo às vezes entra em laço e escreve até cansar.
             segundos = len(a) / SR
             trechos, _ = self.m.transcribe(
                 a, language=self.idioma, beam_size=self.feixe[final], temperature=(0.0, 0.4) if final else 0.0,
-                condition_on_previous_text=False, initial_prompt=(contexto or None) if final else None, chunk_length=janela, vad_filter=False,
+                condition_on_previous_text=False, initial_prompt=None, chunk_length=janela, vad_filter=False,
                 max_new_tokens=int(segundos * (12 if final else 9)) + 24,
             )
-            saida = [(t.start, t.end, limpar(t.text)) for t in trechos]
+            return [(t.start, t.end, limpar(t.text)) for t in trechos]
         finally:
             self.quadros = None
-        # O mesmo eco, ao fechar: um trecho igual ao fim do contexto não é fala nova.
-        fim = " ".join((contexto or "").split()).lower()
-        return [t for t in saida if not (t[2] and len(t[2]) > 8 and fim.endswith(t[2].lower()))]
 
-    def transcrever(self, pcm, final, contexto):
+    def transcrever(self, pcm, final, _contexto):
         a = self._float(pcm)
         janela = 30
         if self.curta:
             janela = min(30, max(4, int(math.ceil(len(a) / SR + self.folga[final]))))
         try:
-            return self._rodar(a, final, contexto, janela)
+            return self._rodar(a, final, janela)
         except Exception:  # noqa: BLE001
             if janela == 30:
                 raise
             self.curta = False
-            return self._rodar(a, final, contexto, 30)
+            return self._rodar(a, final, 30)
 
 
 def sair(codigo):
