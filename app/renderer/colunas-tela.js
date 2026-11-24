@@ -92,17 +92,19 @@
   }
 
   // O que espera você em cada lado: agentes pedindo permissão ou esperando e
-  // perguntas de conversas (esquerda); a fila "Precisa de você" (direita).
+  // perguntas de conversas (esquerda); a fila "Precisa de você" e as demandas
+  // sugeridas, que esperam o seu "Aprovar" ou "Recusar" (direita).
   function contar() {
     const r = ultimoEstado;
     const conversas = document.querySelectorAll('#conversas .ponto.permissao').length;
     sinais = {
       agentes: (r ? r.frentes.filter((f) => f.estado === 'permissao' || f.estado === 'esperando').length : 0) + conversas,
-      demandas: r ? r.fila.length : 0,
+      demandas: (r ? r.fila.length : 0) + (window.orqDemandas ? window.orqDemandas.sugeridas() : 0),
     };
     desenhar();
   }
   window.addEventListener('orq:estado', (ev) => { ultimoEstado = ev.detail; contar(); });
+  window.addEventListener('orq:demandas', contar);
   new MutationObserver(contar).observe($('conversas'), { childList: true, subtree: true });
 
   // Botões, chips do topo e escolha de uma frente (o detalhe mora na direita).

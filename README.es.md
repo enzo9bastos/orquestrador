@@ -57,7 +57,8 @@ los **requests** junto con los detalles del agente elegido a la derecha.
 Las dos columnas laterales **se pliegan**, con los botones en los dos extremos de la barra superior o con
 `Ctrl+Alt+,` (agentes) y `Ctrl+Alt+.` (requests). Fuera de la pestaña del Orchestrator se pliegan solas, y Notes,
 Workflows y las demás pestañas se quedan con toda la ventana; lo que vuelves a abrir se recuerda por pestaña y
-sobrevive a un reinicio. Una columna plegada nunca esconde algo que te necesita: su botón muestra un contador.
+sobrevive a un reinicio. Una columna plegada nunca esconde algo que te necesita: su botón muestra un contador (en la derecha, los pedidos
+que te esperan y las demandas sugeridas que esperan tu *Approve*).
 Cambia o desactiva los dos atajos en ⚙ Settings → *Shortcuts*.
 
 ### 💬 Orchestrator
@@ -272,8 +273,11 @@ Un editor de Markdown al estilo Notion sobre las carpetas que elijas: bloques, m
 destacados, imágenes. Guarda solo y conserva todas las versiones anteriores; borrar una nota la manda a la papelera
 del sistema. Clic derecho en una carpeta para **ocultarla de Notes** (no se borra nada; tráela de vuelta desde el menú
 del espacio vacío › *Hidden folders*) o para **mandarla a la papelera**, tras una confirmación que dice cuántas notas
-y archivos van con ella. Cada carpeta es una pestaña: la ✕ solo **cierra la pestaña** (la carpeta sigue en la app y en
-el disco) y *+ Folder* la reabre; quitar una carpeta de la app se hace en ⚙ Settings.
+y archivos van con ella. El árbol de archivos, a la izquierda, muestra siempre todas las carpetas de la app (con más
+de una, cada carpeta es una línea que se abre y se pliega). Las pestañas de arriba son las **notas abiertas**, como
+en Obsidian: la ✕ cierra solo esa nota, y los archivos siguen en el árbol. Un clic en una nota la abre en la pestaña
+de delante; `Ctrl`+clic, el botón del medio u *Open in another tab* la abren en una pestaña nueva; las pestañas
+vuelven después de reiniciar. Quitar una carpeta de la app se hace en ⚙ Settings.
 
 ### 📚 Library
 

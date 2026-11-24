@@ -177,7 +177,13 @@
     </article>`;
   }
 
+  // Demandas sugeridas esperam o "Aprovar" ou "Recusar" da pessoa: com a coluna recolhida, o botão
+  // dela mostra quantas são (colunas-tela.js), como o da coluna de agentes.
+  let sugeridas = 0;
+  window.orqDemandas = { sugeridas: () => sugeridas };
   function desenhar() {
+    const n = lista.filter((t) => t.estado === 'sugerido').length;
+    if (n !== sugeridas) { sugeridas = n; window.dispatchEvent(new CustomEvent('orq:demandas', { detail: { sugeridas } })); }
     // Não redesenha debaixo de quem está digitando: espera sair do campo.
     const ativo = document.activeElement;
     if ($('topicos').contains(ativo) && ((ativo.tagName === 'INPUT' && ativo.type === 'text') || ativo.tagName === 'TEXTAREA')) { pendente = true; return; }

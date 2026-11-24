@@ -194,85 +194,146 @@ test('notas', async (t) => {
   });
 });
 
-// Pedido de 2026-11-16: o ✕ da aba de uma pasta só FECHA a aba. Antes ele
-// virava "Tirar?" (em vermelho, parecia exclusão) e tirava a pasta do app. A
-// pasta continua no app e no disco, e reabre pelo "+ Pasta".
-test('notas: o ✕ da aba só fecha a aba; a pasta continua no app e reabre pelo "+ Pasta"', async (t) => {
+// Pedido de 24/11: "cliquei no X e sumiu tudo; quero que funcione igual ao Obsidian e ao Notion: ele
+// só fecha a janela dele, os arquivos continuam ali". As abas de cima passaram a ser as notas
+// abertas, e a árvore mostra sempre todas as pastas do app. (Em 16/11 o ✕ da aba de uma pasta
+// tinha deixado de tirar a pasta do app; mesmo assim ele escondia a árvore inteira.)
+test('notas: as abas de cima são as notas abertas; o ✕ fecha só a nota e os arquivos continuam na árvore', async (t) => {
   const app = await abrirApp({ config: { mostrarBichinho: false, pastasNotas: [{ nome: 'Trabalho', caminho: '~/trabalho' }, { nome: 'Estudos', caminho: '~/estudos' }] },
-    arquivos: { 'trabalho/reuniao.md': '# Reunião\n', 'estudos/curso.md': '# Curso\n' } });
+    arquivos: { 'trabalho/reuniao.md': '# Reunião\n', 'trabalho/pauta.md': '# Pauta\n', 'estudos/curso.md': '# Curso\n' } });
   t.after(() => app.fechar());
-  const abas = () => app.avaliar("[...document.querySelectorAll('#abas-pastas .aba-pasta [data-pasta] span')].map((e) => e.textContent)");
+  const abas = () => app.avaliar("[...document.querySelectorAll('#abas-notas .aba-nota')].map((e) => (e.classList.contains('ativa') ? '*' : '') + e.querySelector('[data-aba-nota] span').textContent)");
+  const arvore = () => app.avaliar("[...document.querySelectorAll('#arvore-notas .linha-arvore .nome')].map((e) => e.textContent)");
   const naConfig = () => JSON.parse(app.ler('.config/orq-app/config.json')).pastasNotas.map((p) => p.nome);
+  const titulo = () => app.avaliar("document.getElementById('pagina-nota').hidden ? null : document.getElementById('titulo-nota').textContent");
+  const clicarNota = (raiz, rel, opcoes = '{ bubbles: true }', tipo = 'click') => app.avaliar(`document.querySelector('#arvore-notas [data-raiz="${raiz}"] [data-rel="${rel}"]').dispatchEvent(new MouseEvent('${tipo}', ${opcoes}))`);
+  const esperarTitulo = (nome) => app.esperar(`!document.getElementById('pagina-nota').hidden && document.getElementById('titulo-nota').textContent === '${nome}'`, 6000);
+  const clicarAba = (nome) => app.avaliar(`[...document.querySelectorAll('#abas-notas [data-aba-nota]')].find((b) => b.textContent.trim() === '${nome}').click()`);
+  const fecharAba = (nome) => app.avaliar(`[...document.querySelectorAll('#abas-notas .aba-nota')].find((e) => e.querySelector('[data-aba-nota]').textContent.trim() === '${nome}').querySelector('[data-fechar-aba]').click()`);
+  const TUDO = ['Trabalho', 'pauta', 'reuniao', 'Estudos', 'curso'];
   await app.avaliar("document.querySelector('[data-aba=aba-notas]').click()");
-  await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 2", 8000);
+  await app.esperar("document.querySelectorAll('#arvore-notas .linha-raiz').length === 2", 8000);
 
-  await t.test('um clique fecha a aba, sem "Tirar?"; nada sai da configuração nem do disco; a nota aberta fecha', async () => {
-    await app.avaliar("document.querySelector('#arvore-notas [data-rel=\"reuniao.md\"]').click()");
-    await app.esperar("document.getElementById('titulo-nota').textContent === 'reuniao'", 6000);
-    await app.avaliar("document.querySelector('#abas-pastas .aba-pasta.ativa [data-fechar]').click()");
-    await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 1", 4000);
-    assert.deepStrictEqual(await abas(), ['Estudos']);
-    assert.strictEqual(await app.avaliar("/Tirar/.test(document.getElementById('abas-pastas').innerText)"), false, 'nada de "Tirar?"');
+  await t.test('a árvore mostra as duas pastas do app com as notas de cada uma; sem nota aberta, nenhuma aba', async () => {
+    assert.deepStrictEqual(await arvore(), TUDO);
+    assert.deepStrictEqual(await abas(), []);
+    assert.match(await app.avaliar("document.getElementById('vazio-nota').innerText"), /Nenhuma nota aberta[\s\S]*Escolha uma nota à esquerda/);
+    assert.strictEqual(await app.avaliar("document.getElementById('nome-pasta-ativa').textContent"), 'Notas');
+  });
+
+  await t.test('abrir uma nota cria a aba dela; o ✕ fecha só a nota: as pastas e os arquivos continuam na árvore', async () => {
+    await clicarNota(0, 'reuniao.md');
+    await esperarTitulo('reuniao');
+    assert.deepStrictEqual(await abas(), ['*reuniao']);
+    assert.strictEqual(await app.avaliar("document.querySelector('#abas-notas [data-fechar-aba]').title"), 'Fechar esta nota (ela continua na pasta)');
+    await fecharAba('reuniao');
+    await app.esperar("document.getElementById('pagina-nota').hidden", 4000);
+    assert.deepStrictEqual(await abas(), []);
+    assert.deepStrictEqual(await arvore(), TUDO, 'os arquivos continuam ali');
     assert.deepStrictEqual(naConfig(), ['Trabalho', 'Estudos'], 'as duas pastas continuam no app');
     assert.match(app.ler('trabalho/reuniao.md'), /^# Reunião\n/, 'o arquivo continua no disco, com o conteúdo');
-    assert.strictEqual(await app.avaliar("document.getElementById('pagina-nota').hidden"), true, 'a nota da pasta fechada saiu da tela');
     assert.strictEqual(await app.avaliar("document.getElementById('caminho-nota').textContent"), '', 'o caminho da nota fechada não fica escrito em cima');
-    assert.match(await app.avaliar("document.getElementById('arvore-notas').innerText"), /curso/, 'a outra pasta assume');
-    assert.strictEqual(await app.avaliar('window.orq.notas.pastas().then((l) => l.length)'), 2, 'o app continua conhecendo as duas');
+    assert.match(await app.avaliar("document.getElementById('vazio-nota').innerText"), /Nenhuma nota aberta/);
+    assert.strictEqual(await app.avaliar("/Pasta|Tirar|Reabrir/.test(document.getElementById('abas-notas').innerText + document.getElementById('vazio-nota').innerText)"), false, 'nada de aba de pasta, "+ Pasta" ou "Reabrir"');
   });
 
-  await t.test('"+ Pasta" oferece reabrir a que foi fechada', async () => {
-    await app.avaliar("document.querySelector('#abas-pastas [data-mais]').click()");
-    await app.esperar("!document.getElementById('menu-contexto').hidden", 4000);
-    assert.match(await app.avaliar("document.getElementById('menu-contexto').innerText"), /Reabrir «Trabalho»[\s\S]*Abrir outra pasta do computador/);
-    await app.avaliar("[...document.querySelectorAll('#menu-contexto li')].find((l) => /Reabrir «Trabalho»/.test(l.textContent)).click()");
-    await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 2", 4000);
-    assert.deepStrictEqual(await abas(), ['Trabalho', 'Estudos']);
-    assert.match(await app.avaliar("document.getElementById('arvore-notas').innerText"), /reuniao/, 'a pasta reaberta fica à frente');
+  await t.test('o clique abre na aba da frente; Ctrl+clique e o botão do meio abrem em outra aba; nota que já tem aba só vem para a frente', async () => {
+    await clicarNota(0, 'reuniao.md');
+    await esperarTitulo('reuniao');
+    await clicarNota(0, 'pauta.md');
+    await esperarTitulo('pauta');
+    assert.deepStrictEqual(await abas(), ['*pauta'], 'a nota entrou no lugar da que estava na aba da frente');
+    await clicarNota(1, 'curso.md', '{ bubbles: true, ctrlKey: true }');
+    await esperarTitulo('curso');
+    assert.deepStrictEqual(await abas(), ['pauta', '*curso']);
+    await clicarNota(0, 'reuniao.md', '{ bubbles: true, button: 1 }', 'auxclick');
+    await esperarTitulo('reuniao');
+    assert.deepStrictEqual(await abas(), ['pauta', 'curso', '*reuniao']);
+    await clicarAba('pauta');
+    await esperarTitulo('pauta');
+    assert.deepStrictEqual(await abas(), ['*pauta', 'curso', 'reuniao']);
+    await clicarNota(1, 'curso.md');
+    await esperarTitulo('curso');
+    assert.deepStrictEqual(await abas(), ['pauta', '*curso', 'reuniao'], 'sem aba repetida');
+    assert.strictEqual(await app.avaliar("document.querySelector('#arvore-notas [data-raiz=\"1\"] [data-rel=\"curso.md\"]').classList.contains('ativo')"), true, 'a árvore marca a nota da frente');
   });
 
-  await t.test('fechar todas: a tela diz como reabrir e tem um botão para cada pasta', async () => {
-    await app.avaliar("document.querySelector('#abas-pastas [data-fechar]').click()");
-    await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 1", 4000);
-    await app.avaliar("document.querySelector('#abas-pastas [data-fechar]').click()");
-    await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 0", 4000);
-    assert.match(await app.avaliar("document.getElementById('vazio-nota').innerText"), /Nenhuma pasta aberta[\s\S]*Reabrir «Trabalho»[\s\S]*Reabrir «Estudos»/);
-    assert.deepStrictEqual(naConfig(), ['Trabalho', 'Estudos']);
-    assert.strictEqual(await app.visivel('#abas-pastas [data-mais]'), 'ok', 'o "+ Pasta" continua à mão');
+  await t.test('fechar outra aba não mexe na nota aberta; fechar a da frente passa para a vizinha', async () => {
+    await fecharAba('pauta');
+    await app.espera(300);
+    assert.deepStrictEqual(await abas(), ['*curso', 'reuniao']);
+    assert.strictEqual(await titulo(), 'curso');
+    await fecharAba('curso');
+    await esperarTitulo('reuniao');
+    assert.deepStrictEqual(await abas(), ['*reuniao']);
+    assert.deepStrictEqual(await arvore(), TUDO);
   });
 
-  await t.test('a aba fechada continua fechada depois de recarregar; abrir uma nota dela reabre a aba', async () => {
-    await app.avaliar("[...document.querySelectorAll('#vazio-nota [data-reabrir-aba]')].find((b) => /Estudos/.test(b.textContent)).click()");
-    await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 1", 4000);
-    assert.deepStrictEqual(await abas(), ['Estudos']);
+  await t.test('depois de recarregar, as abas e a nota da frente voltam', async () => {
+    await clicarNota(0, 'pauta.md', '{ bubbles: true, ctrlKey: true }');
+    await esperarTitulo('pauta');
+    assert.deepStrictEqual(await abas(), ['reuniao', '*pauta']);
     await app.avaliar('location.reload()');
     await app.espera(800);
     await app.esperar('!!window.orqNotas', 8000);
     await app.avaliar("document.querySelector('[data-aba=aba-notas]').click()");
-    await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 1", 8000);
-    assert.deepStrictEqual(await abas(), ['Estudos'], 'Trabalho continua fechada');
-    // Outra parte do app abre uma nota da pasta fechada (paleta, demanda): a aba volta.
-    await app.avaliar('window.orqNotas.abrir(0, "reuniao.md")');
-    await app.esperar("document.getElementById('titulo-nota').textContent === 'reuniao'", 6000);
-    assert.deepStrictEqual(await abas(), ['Trabalho', 'Estudos']);
+    await esperarTitulo('pauta');
+    assert.deepStrictEqual(await abas(), ['reuniao', '*pauta']);
+  });
+
+  await t.test('nota que vai para a lixeira leva a aba dela; a vizinha assume', async () => {
+    await app.avaliar("document.querySelector('#arvore-notas [data-raiz=\"0\"] [data-rel=\"pauta.md\"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 200, clientY: 200 }))");
+    await app.esperar("!document.getElementById('menu-contexto').hidden", 4000);
+    assert.match(await app.avaliar("document.getElementById('menu-contexto').innerText"), /Abrir[\s\S]*Abrir em outra aba/);
+    await app.avaliar("[...document.querySelectorAll('#menu-contexto li')].find((l) => /Mover para a lixeira/.test(l.textContent)).click()");
+    await app.esperar("[...document.querySelectorAll('#menu-contexto li')].some((l) => /Confirmar: mover «pauta»/.test(l.textContent))", 4000);
+    await app.avaliar("[...document.querySelectorAll('#menu-contexto li')].find((l) => /Confirmar/.test(l.textContent)).click()");
+    await esperarTitulo('reuniao');
+    assert.deepStrictEqual(await abas(), ['*reuniao']);
+    assert.deepStrictEqual(await arvore(), ['Trabalho', 'reuniao', 'Estudos', 'curso']);
+  });
+
+  await t.test('com mais de uma pasta no app, cada uma abre e recolhe na árvore; recolher não fecha nota nenhuma', async () => {
+    await app.avaliar("document.querySelector('#arvore-notas [data-raiz-linha=\"1\"]').click()");
+    await app.espera(200);
+    assert.deepStrictEqual(await arvore(), ['Trabalho', 'reuniao', 'Estudos']);
+    assert.strictEqual(await app.avaliar("document.querySelector('#arvore-notas [data-raiz-linha=\"1\"]').getAttribute('aria-expanded')"), 'false');
+    assert.deepStrictEqual(await abas(), ['*reuniao']);
+    await app.avaliar("document.querySelector('#arvore-notas [data-raiz-linha=\"1\"]').click()");
+    await app.espera(200);
+    assert.deepStrictEqual(await arvore(), ['Trabalho', 'reuniao', 'Estudos', 'curso']);
+  });
+
+  await t.test('quem tinha fechado a aba de uma pasta no jeito antigo volta a ver a pasta na árvore', async () => {
+    const ids = await app.avaliar('window.orq.notas.pastas().then((l) => l.map((p) => p.id))');
+    await app.avaliar(`localStorage.setItem('notas-abas-fechadas', ${JSON.stringify(JSON.stringify(ids))}); location.reload()`);
+    await app.espera(800);
+    await app.esperar('!!window.orqNotas', 8000);
+    await app.avaliar("document.querySelector('[data-aba=aba-notas]').click()");
+    await app.esperar("document.querySelectorAll('#arvore-notas .linha-raiz').length === 2", 8000);
+    assert.deepStrictEqual(await arvore(), ['Trabalho', 'reuniao', 'Estudos', 'curso']);
   });
   assert.deepStrictEqual(app.erros, []);
 });
 
-// O caso do usuário: uma pasta só, que é também a pasta padrão. Antes o ✕
-// "tirava" e ela voltava na hora com o nome trocado para "Notas".
-test('notas: fechar a única pasta não a troca de nome nem a tira do app; em inglês a dica está traduzida', async (t) => {
+// O caso do usuário: uma pasta só. A árvore mostra a pasta direto (sem a linha da pasta), e fechar
+// a nota não esconde os arquivos, não troca o nome da pasta nem a tira do app.
+test('notas: com uma pasta só, fechar a nota deixa a árvore como está; em inglês a dica do ✕ está traduzida', async (t) => {
   const app = await abrirApp({ config: { mostrarBichinho: false, idioma: 'en', pastaNotas: '~/casa', pastasNotas: [{ nome: 'Casa', caminho: '~/casa' }] }, arquivos: { 'casa/lista.md': '# Lista\n' } });
   t.after(() => app.fechar());
   await app.esperar("document.documentElement.lang === 'en'", 6000);
   await app.avaliar("document.querySelector('[data-aba=aba-notas]').click()");
-  await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 1", 8000);
-  assert.strictEqual(await app.avaliar("document.querySelector('#abas-pastas [data-fechar]').title"), 'Close this tab (the folder stays in the app and on disk; reopen it with "+ Folder")');
-  await app.avaliar("document.querySelector('#abas-pastas [data-fechar]').click()");
-  await app.esperar("document.querySelectorAll('#abas-pastas .aba-pasta').length === 0", 4000);
+  await app.esperar("!!document.querySelector('#arvore-notas [data-rel=\"lista.md\"]')", 8000);
+  assert.strictEqual(await app.avaliar("document.querySelectorAll('#arvore-notas .linha-raiz').length"), 0, 'uma pasta só: sem a linha da pasta');
+  assert.strictEqual(await app.avaliar("document.getElementById('nome-pasta-ativa').textContent"), 'Casa');
+  await app.avaliar("document.querySelector('#arvore-notas [data-rel=\"lista.md\"]').click()");
+  await app.esperar("document.querySelectorAll('#abas-notas .aba-nota').length === 1", 6000);
+  assert.strictEqual(await app.avaliar("document.querySelector('#abas-notas [data-fechar-aba]').title"), 'Close this note (it stays in the folder)');
+  await app.avaliar("document.querySelector('#abas-notas [data-fechar-aba]').click()");
+  await app.esperar("document.querySelectorAll('#abas-notas .aba-nota').length === 0", 4000);
   await app.espera(400);
-  assert.strictEqual(await app.avaliar("document.querySelectorAll('#abas-pastas .aba-pasta').length"), 0, 'não volta sozinha com outro nome');
+  assert.strictEqual(await app.avaliar("!!document.querySelector('#arvore-notas [data-rel=\"lista.md\"]')"), true, 'o arquivo continua na árvore');
   assert.deepStrictEqual(JSON.parse(app.ler('.config/orq-app/config.json')).pastasNotas, [{ nome: 'Casa', caminho: `${app.casa}/casa` }]);
-  assert.match(await app.avaliar("document.getElementById('vazio-nota').innerText"), /No folder open[\s\S]*Reopen «Casa»/);
+  assert.match(await app.avaliar("document.getElementById('vazio-nota').innerText"), /No note open/);
   assert.deepStrictEqual(app.erros, []);
 });

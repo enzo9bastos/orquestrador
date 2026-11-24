@@ -53,7 +53,8 @@ middle, and the **requests** plus the selected agent's details on the right.
 Both side columns **collapse**, with the buttons at the two ends of the top bar or with `Ctrl+Alt+,` (agents) and
 `Ctrl+Alt+.` (requests). Outside the Orchestrator tab they collapse on their own, so Notes, Workflows and the
 other tabs get the whole window; what you reopen is remembered per tab and survives a restart. A collapsed
-column never hides something that needs you: its button shows a counter. Change or turn off the two shortcuts in
+column never hides something that needs you: its button shows a counter (on the right, the requests waiting for
+you plus the suggested demands waiting for your *Approve*). Change or turn off the two shortcuts in
 ⚙ Settings → *Shortcuts*.
 
 ### 💬 Orchestrator
@@ -258,8 +259,11 @@ A Notion-style Markdown editor over the folders you choose: blocks, `/` menu, ch
 callouts, images. It autosaves and keeps every previous version; deleting a note sends it to the system trash.
 Right-click a folder to **hide it from Notes** (nothing is deleted; bring it back from the empty-space menu ›
 *Hidden folders*) or to **move it to the trash** after a confirmation that says how many notes and files go with it.
-Each folder is a tab: the ✕ only **closes the tab** (the folder stays in the app and on disk) and *+ Folder* reopens
-it; removing a folder from the app is done in ⚙ Settings.
+The file tree on the left always shows every folder of the app (with more than one, each folder is a line that
+opens and collapses). The tabs on top are the **open notes**, as in Obsidian: the ✕ closes only that note, and the
+files stay in the tree. A click on a note opens it in the front tab; `Ctrl`+click, the middle button or *Open in
+another tab* opens it in a new one; the tabs come back after a restart. Removing a folder from the app is done in
+⚙ Settings.
 
 ### 📚 Library
 

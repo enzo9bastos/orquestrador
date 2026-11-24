@@ -54,7 +54,8 @@ detalhes do agente escolhido à direita.
 As duas colunas laterais **recolhem**, pelos botões nas duas pontas da barra de cima ou por `Ctrl+Alt+,` (agentes) e
 `Ctrl+Alt+.` (demandas). Fora da aba do Orquestrador elas recolhem sozinhas, e Notas, Workflows e as outras abas
 ficam com a janela inteira; o que você reabre fica lembrado por aba e sobrevive a reiniciar. Coluna recolhida nunca
-esconde algo que precisa de você: o botão dela mostra um contador. Troque ou desligue os dois atalhos em
+esconde algo que precisa de você: o botão dela mostra um contador (na da direita, os pedidos que esperam você e as
+demandas sugeridas que esperam o seu *Aprovar*). Troque ou desligue os dois atalhos em
 ⚙ Configurações → *Atalhos*.
 
 ### 💬 Orquestrador
@@ -263,8 +264,11 @@ Um editor de Markdown no estilo Notion sobre as pastas que você escolher: bloco
 destaques, imagens. Grava sozinho e guarda todas as versões anteriores; apagar uma nota manda para a lixeira do
 sistema. Clique com o botão direito numa pasta para **escondê-la das Notas** (nada é apagado; traga de volta pelo
 menu do espaço vazio › *Pastas escondidas*) ou para **mandá-la para a lixeira**, depois de uma confirmação que diz
-quantas notas e arquivos vão junto. Cada pasta é uma aba: o ✕ só **fecha a aba** (a pasta continua no app e no disco) e
-o *+ Pasta* reabre; tirar uma pasta do app é nas ⚙ Configurações.
+quantas notas e arquivos vão junto. A árvore de arquivos, à esquerda, mostra sempre todas as pastas do app (com mais
+de uma, cada pasta é uma linha que abre e recolhe). As abas de cima são as **notas abertas**, como no Obsidian: o ✕
+fecha só aquela nota, e os arquivos continuam na árvore. O clique numa nota abre na aba da frente; `Ctrl`+clique, o
+botão do meio ou *Abrir em outra aba* abrem numa aba nova; as abas voltam depois de reiniciar. Tirar uma pasta do
+app é nas ⚙ Configurações.
 
 ### 📚 Repertório
 

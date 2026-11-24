@@ -118,6 +118,20 @@ test('topicos', async (t) => {
     assert.ok(await app.avaliar(`!document.querySelector('[data-topico="${id}"] [data-concluir-topico]')`), 'sugerido não tem Concluir');
   });
 
+  // Pedido de 24/11: "seria bom aparecer um numerozinho ali quando tem demanda pra aprovar, igual
+  // fica quando eu fecho os agentes". O botão já contava os pedidos da fila; as sugeridas, não.
+  await t.test('com a coluna de demandas recolhida, o botão dela mostra quantas demandas esperam aprovação', async () => {
+    const sinal = "document.querySelector('#alternar-demandas .sinal-coluna')";
+    assert.strictEqual(await app.avaliar('window.orqColunas.sinais().demandas'), 1, 'uma sugerida esperando');
+    assert.strictEqual(await app.avaliar(`${sinal}.hidden`), true, 'com a coluna aberta não há número: a demanda já está à vista');
+    await app.avaliar("document.getElementById('alternar-demandas').click()");
+    await app.esperar(`!${sinal}.hidden && ${sinal}.textContent === '1'`, 4000);
+    assert.match(await app.avaliar("document.getElementById('alternar-demandas').title"), /1 precisa de você/);
+    // A coluna aberta de novo tira o número (a demanda volta a estar à vista).
+    await app.avaliar("document.getElementById('alternar-demandas').click()");
+    await app.esperar(`${sinal}.hidden`, 4000);
+  });
+
   await t.test('aprovar (com o título corrigido) vira aberto, com as etapas no checklist', async () => {
     const id = lerArq().find((x) => x.estado === 'sugerido').id;
     await app.avaliar(`(() => { const c = document.querySelector('[data-titulo-sugerido="${id}"]'); c.value = 'Revisar os backups da semana'; c.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -128,6 +142,7 @@ test('topicos', async (t) => {
     assert.strictEqual(t.titulo, 'Revisar os backups da semana');
     assert.strictEqual(await app.avaliar(`document.querySelectorAll('[data-topico="${id}"] [data-item-topico]').length`), 2);
     assert.match(await app.avaliar(`document.querySelector('[data-topico="${id}"] .topico-resumo').innerText`), /Conferir se os backups/);
+    assert.strictEqual(await app.avaliar('window.orqColunas.sinais().demandas'), 0, 'aprovada, não espera mais a decisão: o número do botão zera');
   });
 
   await t.test('resumo editado no próprio cartão grava no arquivo', async () => {
@@ -142,8 +157,10 @@ test('topicos', async (t) => {
   await t.test('recusar vai para "Recusados (N)" e reconsiderar traz de volta', async () => {
     const id = orq('sugerir', 'Trocar o tema do editor');
     await app.esperar(`!!document.querySelector('[data-recusar-topico="${id}"]')`, 4000);
+    assert.strictEqual(await app.avaliar('window.orqColunas.sinais().demandas'), 1, 'sugestão nova: o número do botão sobe');
     await app.avaliar(`document.querySelector('[data-recusar-topico="${id}"]').click()`);
     await app.esperar("!document.getElementById('topicos-recusados').hidden", 4000);
+    assert.strictEqual(await app.avaliar('window.orqColunas.sinais().demandas'), 0, 'recusada: o número zera');
     assert.strictEqual(lerArq().find((x) => x.id === id).estado, 'recusado');
     assert.match(await app.avaliar("document.getElementById('resumo-recusados').textContent"), /Recusados \(1\)/);
     assert.ok(await app.avaliar(`!document.querySelector('#topicos [data-topico="${id}"]') && !!document.querySelector('#lista-recusados [data-topico="${id}"]')`));
