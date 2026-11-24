@@ -100,6 +100,13 @@
       const x = r.modelos.find((y) => y.id === o.value);
       if (x) o.textContent = `${NOMES[x.id]}${!x.local ? ' · ainda não está neste computador' : x.id === recDitado ? ' · recomendado' : !m.nvidia && x.id !== 'small' ? ' · atrasa vários segundos sem placa NVIDIA' : ''}`;
     }
+    // A correção por trás: o que o computador recomenda (corrigir com o robusto, ou não corrigir).
+    const revisor = r.ditado && r.ditado.revisor;
+    for (const o of $('config-ditado-revisor').options) {
+      if (!o.value) { o.textContent = revisor ? `Recomendado para este computador (corrige com o ${NOMES[revisor]})` : 'Recomendado para este computador (não corrige)'; continue; }
+      const x = r.modelos.find((y) => y.id === o.value);
+      if (x) o.textContent = `${NOMES[x.id]}${x.local ? '' : ' · ainda não está neste computador'}`;
+    }
     const res = $('config-voz-resumo-escolha');
     for (const o of res.options) if (!o.value) o.textContent = `Recomendado para este computador (${r.resumo.recomendado === 'local' ? 'modelo local' : 'Claude'})`;
     $('config-voz-resumo').textContent = `Recomendação: ${r.resumo.recomendado === 'local' ? 'modelo local' : 'Claude'}, porque ${r.resumo.motivo}.`;

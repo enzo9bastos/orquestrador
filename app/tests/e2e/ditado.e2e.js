@@ -110,6 +110,19 @@ test('ditado: o microfone da caixa escreve o que a pessoa fala, e quem envia é 
     assert.ok(await a.microfoneSolto(), 'o programa que lia o microfone saiu');
   });
 
+  // Defeito achado em 24/11: a tela encerrava o ditado pela resposta do pedido de parar, que pode
+  // chegar antes dos últimos textos; o fecho da última frase era jogado fora e ficava a prévia.
+  await t.test('parar no meio de uma frase: o fecho dela (o texto cuidado) entra na caixa no lugar da prévia', async () => {
+    const jaEstava = await a.caixa();
+    a.controle({ falas: ['um dois três quatro cinco seis sete oito nove dez onze doze treze quatorze quinze dezesseis.'], fimDoParar: ' (fecho)' });
+    await a.ligar();
+    await app.esperar(`/ um dois três/.test(${CAIXA})`, 8000);
+    await a.desligar();
+    const v = await a.caixa();
+    assert.match(v.slice(jaEstava.length), /^ um dois três( \S+)* \(fecho\)$/, `ficou a prévia, sem o fecho: ${v}`);
+    await a.porNaCaixa(jaEstava);
+  });
+
   await t.test('Enter manda o que está na caixa, como mensagem comum (o ditado nunca envia sozinho)', async () => {
     assert.strictEqual(a.aoClaude().length, 0, 'até aqui nada foi enviado');
     await app.avaliar("document.getElementById('entrada').focus()");
@@ -317,6 +330,106 @@ test('ditado: enviar por voz (a fala que termina com "enviar mensagem" manda a m
   });
 });
 
+// Correção por trás: o motor de mentira faz de conta que há um modelo maior, e a correção de cada
+// trecho chega meio segundo depois do fecho dele (o que cada fecho vira está no arquivo de controle).
+test('ditado: correção por trás (um modelo maior refaz cada frase e o texto da caixa é trocado)', async (t) => {
+  const a = await abrir(t, { env: { DITADO_FALSO_REVISOR: '1', DITADO_FALSO_REVISAO_MS: '500' } });
+  const { app } = a;
+  const ERRADA = 'Quero o relatorio das vemdas.';
+  const CERTA = 'Quero o relatório das vendas.';
+  const DITADO = 'window.orqDitado.estado()';
+  const enviada = async (n) => { for (let i = 0; i < 200 && a.aoClaude().length <= n; i++) await dorme(40); return a.aoClaude()[n]; };
+
+  await t.test('o texto sai na hora como o modelo do ditado entendeu; a faixa avisa que está corrigindo; a correção troca o texto', async () => {
+    a.controle({ falas: [ERRADA, 'Mande para o time.'], revisoes: { [ERRADA]: CERTA } });
+    await a.ligar();
+    assert.strictEqual(await app.avaliar(`${DITADO}.revisor`), true);
+    await app.esperar(`${CAIXA}.startsWith(${JSON.stringify(ERRADA)})`, 8000);
+    assert.strictEqual(await app.avaliar(aVista('ditando-corrigindo')), true);
+    assert.strictEqual(await app.avaliar(linha('ditando')), 'Ouvindo. Corrigindo o que você falou… Microfone: microfone de teste Parar Ctrl+Shift+D');
+    await app.esperar(`${CAIXA} === ${JSON.stringify(`${CERTA} Mande para o time.`)}`, 8000);
+    // O segundo trecho não tinha o que corrigir: quando o aviso dele chega, a faixa para de dizer "corrigindo".
+    await app.esperar(`${DITADO}.faltaCorrigir === 0`, 8000);
+    assert.strictEqual(await app.avaliar(aVista('ditando-corrigindo')), false);
+    assert.strictEqual(await app.avaliar(linha('ditando')), 'Ouvindo. Fale: o texto aparece na caixa, e você envia quando quiser. Microfone: microfone de teste Parar Ctrl+Shift+D', 'corrigido tudo, a faixa volta a ser a de sempre');
+    assert.strictEqual(await a.caixa(), `${CERTA} Mande para o time.`);
+    await a.desligar();
+    await a.porNaCaixa('');
+  });
+
+  await t.test('uma correção pode valer por dois trechos (o curto vai junto com o anterior)', async () => {
+    a.controle({ falas: ['Primeira parte', 'e a segumda.'], revisoes: { 'e a segumda.': { junto: true, texto: 'Primeira parte, e a segunda.' } } });
+    await a.ligar();
+    await app.esperar(`${CAIXA} === 'Primeira parte e a segumda.'`, 8000);
+    await app.esperar(`${CAIXA} === 'Primeira parte, e a segunda.'`, 8000);
+    await app.esperar(`${DITADO}.faltaCorrigir === 0`, 8000);
+    await a.desligar();
+    await a.porNaCaixa('');
+  });
+
+  await t.test('a pessoa mexeu no texto antes de a correção chegar: a correção não entra por cima', async () => {
+    a.controle({ falas: [ERRADA], revisoes: { [ERRADA]: CERTA } });
+    await a.ligar();
+    await app.esperar(`${CAIXA} === ${JSON.stringify(ERRADA)}`, 8000);
+    await app.avaliar("document.getElementById('entrada').focus()");
+    await app.texto(' XX');
+    await dorme(900);
+    assert.strictEqual(await a.caixa(), `${ERRADA} XX`);
+    assert.strictEqual(await app.avaliar(aVista('ditando-corrigindo')), false, 'não fica esperando uma correção que não vem mais');
+    await a.desligar();
+    await a.porNaCaixa('');
+  });
+
+  await t.test('Enter antes de a correção chegar manda o que está na caixa, e a correção atrasada não cai na caixa vazia', async () => {
+    a.controle({ falas: [ERRADA], revisoes: { [ERRADA]: CERTA } });
+    const antes = a.aoClaude().length;
+    await a.ligar();
+    await app.esperar(`${CAIXA} === ${JSON.stringify(ERRADA)}`, 8000);
+    await app.avaliar("document.getElementById('entrada').focus()");
+    await a.enter();
+    assert.strictEqual(await enviada(antes), ERRADA);
+    await app.esperar(`${ESTADO} === 'parado'`, 8000);
+    await a.parado();
+    await dorme(800);
+    assert.strictEqual(await a.caixa(), '');
+  });
+
+  await t.test('parar espera a correção que falta: o texto fica corrigido', async () => {
+    a.controle({ falas: [ERRADA, 'um dois três quatro cinco seis sete oito nove dez onze doze treze quatorze quinze.'], revisoes: { [ERRADA]: CERTA } });
+    await a.ligar();
+    // Para logo depois do primeiro fecho, com a correção dele ainda a caminho.
+    await app.esperar(`${CAIXA}.startsWith(${JSON.stringify(`${ERRADA} um dois`)})`, 8000);
+    await app.avaliar(CLICAR);
+    await app.esperar(`${ESTADO} === 'parado'`, 8000);
+    const v = await a.caixa();
+    assert.ok(v.startsWith(CERTA), `o primeiro trecho saiu corrigido: ${v}`);
+    await a.porNaCaixa('');
+  });
+
+  await t.test('enviar por voz espera a correção: a mensagem vai corrigida e sem a frase', async () => {
+    await app.avaliar('window.orq.config.gravar({ ditadoEnviarPorVoz: true })');
+    a.controle({ falas: [`${ERRADA} Enviar mensagem.`], revisoes: { [`${ERRADA} Enviar mensagem.`]: `${CERTA} Enviar mensagem.` } });
+    let antes = a.aoClaude().length;
+    await a.ligar();
+    await app.esperar(`${DITADO}.enviando === true`, 8000);
+    assert.strictEqual(a.aoClaude().length, antes, 'ainda não enviou: espera a correção');
+    assert.strictEqual(await a.caixa(), ERRADA, 'a frase de enviar já saiu do texto');
+    assert.match(await app.avaliar(linha('ditando')), /Corrigindo, e já envio…/);
+    assert.strictEqual(await enviada(antes), CERTA);
+    await app.esperar(`${ESTADO} === 'parado'`, 8000);
+    await a.parado();
+    assert.strictEqual(await a.caixa(), '');
+    // Só a correção entendeu a frase de enviar (o modelo do ditado escreveu outra coisa): vale também.
+    a.controle({ falas: ['Quero o relatório. em viar mem sagem'], revisoes: { 'Quero o relatório. em viar mem sagem': 'Quero o relatório. Enviar mensagem.' } });
+    antes = a.aoClaude().length;
+    await a.ligar();
+    assert.strictEqual(await enviada(antes), 'Quero o relatório.');
+    await app.esperar(`${ESTADO} === 'parado'`, 8000);
+    await a.parado();
+    await app.avaliar('window.orq.config.gravar({ ditadoEnviarPorVoz: false })');
+  });
+});
+
 test('ditado: atalho, Esc, troca de aba, editor de texto e falhas', async (t) => {
   const a = await abrir(t);
   const { app } = a;
@@ -451,6 +564,8 @@ test('ditado: um minuto sem fala para sozinho e avisa; Configurações e inglês
     await app.esperar("/^Recommended for this computer \\(/.test(document.getElementById('config-ditado-modelo').options[0].textContent)", 8000);
     const voz = await app.avaliar("(() => { const s = document.getElementById('config-ditado-modelo'); const c = document.querySelector('[data-cfg=ditadoContinua]'); return { valor: s.value, opcoes: [...s.options].map((o) => o.value), continua: c.checked, titulos: [s.closest('.config-linha').querySelector('strong').textContent, c.closest('.config-linha').querySelector('strong').textContent] }; })()");
     assert.deepStrictEqual(voz, { valor: '', opcoes: ['', 'small', 'large-v3-turbo', 'large-v3'], continua: false, titulos: ['Dictation', 'Keep listening after sending'] });
+    assert.deepStrictEqual(await app.avaliar("(() => { const s = document.getElementById('config-ditado-revisor'); return { valor: s.value, opcoes: [...s.options].map((o) => o.value), titulo: s.closest('.config-linha').querySelector('strong').textContent, primeira: s.options[0].textContent, segunda: s.options[1].textContent }; })()"),
+      { valor: '', opcoes: ['', 'nenhum', 'large-v3-turbo', 'large-v3'], titulo: 'Fix each sentence with a bigger model', primeira: 'Recommended for this computer (does not fix)', segunda: 'Do not fix' });
     assert.deepStrictEqual(await app.avaliar("(() => { const v = document.querySelector('[data-cfg=ditadoEnviarPorVoz]'); const f = document.querySelector('[data-cfg=ditadoFraseEnviar]'); return { porVoz: v.checked, frase: f.value, dica: f.placeholder, titulos: [v.closest('.config-linha').querySelector('strong').textContent, f.closest('.config-linha').querySelector('strong').textContent] }; })()"),
       { porVoz: false, frase: '', dica: 'send message', titulos: ['Send by voice', 'Phrase that sends'] });
     await app.avaliar("document.querySelector('[data-secao-config=atalhos]').click()");

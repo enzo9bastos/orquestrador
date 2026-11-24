@@ -184,7 +184,11 @@ protocol), so there is no terminal to babysit.
   button, the shortcut or Esc stops it, and it also stops when you send the message, leave the conversation tab or
   stay a minute without speaking. Transcription runs on the computer (faster-whisper, the same engine as meeting
   mode); the audio is not saved and never leaves the computer. Without an NVIDIA card it uses the light model, the
-  only one that keeps up with speech on a laptop processor; *Settings › Voice and meetings* has the model and the
+  only one that keeps up with speech on a laptop processor. When the computer has room (8 cores and 12 GB or
+  more) and the robust model is already on it, that model redoes each sentence behind the scenes, and a few
+  seconds later the text in the box is replaced by the fixed one (*Fix each sentence with a bigger model*, in
+  the same Settings section, turns this off or picks the model; with send by voice, the message waits for the
+  fix); *Settings › Voice and meetings* has the model and the
   option to keep listening after you send, and the shortcut can be changed or turned off in *Settings › Shortcuts*.
 - **Meeting mode**: from the helper, in the app or on the desktop (right click › *Record meeting*), or from the palette, the app records your
   microphone and the computer's sound as two tracks, so the note knows who spoke. While it records, a red sign

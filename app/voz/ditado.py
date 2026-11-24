@@ -1,6 +1,6 @@
 """Ditado: transcreve o microfone enquanto a pessoa fala (o app conversa com este script: ditado.js).
 
-Uso: python ditado.py --modelo small [--idioma pt] [--threads 4] [--baixar] [--ensaio]
+Uso: python ditado.py --modelo small [--revisor large-v3-turbo] [--idioma pt] [--threads 4] [--baixar] [--ensaio]
 
 Fica rodando com o modelo carregado e atende um ditado por vez. O áudio chega pela entrada e só
 existe na memória deste processo: nada é gravado em disco e nada sai do computador.
@@ -17,7 +17,10 @@ Entrada (stdin), em quadros: 1 byte de tipo + 4 bytes de tamanho (little-endian)
 Saída (stdout), uma linha de JSON por evento:
   {"t": "pronto", "modelo", "aparelho", "ms"}   modelo carregado
   {"t": "parcial", "id", "epoca", "texto"}   o trecho aberto até agora (ainda pode mudar)
-  {"t": "final", "id", "epoca", "texto"}     um trecho fechado (não muda mais)
+  {"t": "final", "id", "epoca", "n", "texto"} um trecho fechado; n conta os trechos do ditado
+  {"t": "revisao", "id", "epoca", "de", "ate", "texto"}  só com --revisor: o texto corrigido dos
+                                              trechos de "de" até "ate" (no lugar do que saiu neles);
+                                              com "igual": true no lugar do texto, ficam como estão
   {"t": "parou", "id"}                        o ditado terminou; tudo o que foi falado já saiu
   {"t": "erro", "erro"}
 
@@ -30,6 +33,12 @@ O texto que veio antes (o "contexto" que o app manda no começar e no cortar) N�
 modelo. Entregue, ele era copiado para dentro das falas curtas: a prévia acertava "teste", o
 fecho trocava por uma palavra errada e, com ela no contexto, todo "teste" seguinte saía igual
 (medido com fala de verdade; sem o contexto não acontece).
+
+--revisor: um modelo maior, lento demais para acompanhar a fala num processador comum, corrige
+por trás o que o modelo de --modelo já fechou. Ele trabalha em blocos: os trechos fechados que
+estiverem esperando vão juntos; um trecho curto (menos de 2 s) vai junto com o som do bloco
+anterior, porque um pedacinho solto o modelo grande erra mais do que o pequeno (medido). O que
+continua curto demais mesmo assim fica como está.
 
 --ensaio troca o modelo por um faz de conta (para os testes do recorte, sem modelo nenhum):
 "fala" é onde o som passa de um limiar, e o "texto" é uma letra pela altura do som seguida do
@@ -54,6 +63,9 @@ PADRAO = {
     "margem": 0.3,   # som guardado antes da fala começar
     "aberto": 8.0,   # fala sem pausa: a partir daqui fecha no fim de uma frase
     "duro": 20.0,    # fala sem pausa nem frase: fecha tudo
+    "rev_min": 2.0,    # correção: bloco com menos fala que isto vai junto com o som do bloco anterior
+    "rev_pouco": 1.2,  # correção: com menos fala que isto, mesmo junto, fica como está
+    "rev_max": 8.0,    # correção: o maior bloco que é refeito para acompanhar um trecho curto
 }
 # Frases que o whisper inventa em cima de ruído (teclado, respiração), em português. Só valem
 # quando são o trecho inteiro.
@@ -63,9 +75,13 @@ FANTASMAS = {
 }
 
 
+TRAVA_DA_SAIDA = threading.Lock()
+
+
 def dizer(o):
-    sys.stdout.write(json.dumps(o, ensure_ascii=False) + "\n")
-    sys.stdout.flush()
+    with TRAVA_DA_SAIDA:
+        sys.stdout.write(json.dumps(o, ensure_ascii=False) + "\n")
+        sys.stdout.flush()
 
 
 def limpar(texto):
@@ -75,28 +91,47 @@ def limpar(texto):
     # Reticências repetidas ("... ... ...") são o modelo enchendo o silêncio do fim do trecho.
     t = re.sub(r"(\s*(\.{3}|…)){2,}", "...", t)
     # A mesma frase várias vezes em seguida é o modelo em laço: fica uma só.
-    return re.sub(r"(\b[^.!?]{12,}[.!?])(\s*\1)+", r"\1", sem_laco(t))
+    return sem_repetida(re.sub(r"(\b[^.!?]{12,}[.!?])(\s*\1)+", r"\1", sem_laco(t)))
+
+
+def sem_repetida(texto):
+    """Uma frase que só repete o que o mesmo trecho já disse (inteira, ou o fim de uma anterior)
+    é o modelo voltando atrás quando o som acaba: sai. "A. B. A." fica "A. B."."""
+    frases = re.split(r"(?<=[.!?…])\s+", texto)
+    if len(frases) < 2:
+        return texto
+    chave = lambda f: " ".join(re.sub(r"[^\w\s]", " ", f.lower()).split())  # noqa: E731
+    ficam, dito = [], ""
+    for f in frases:
+        k = chave(f)
+        if len(k) >= 8 and k in dito:
+            continue
+        ficam.append(f)
+        dito = (dito + " " + k).strip()
+    return " ".join(ficam)
 
 
 def sem_laco(texto):
-    """O mesmo pedaço (de 1 a 8 palavras) três vezes ou mais em seguida é o modelo em laço, o que
-    acontece quando o som do trecho acaba e ele continua escrevendo: fica uma vez só."""
+    """O mesmo pedaço três vezes ou mais em seguida é o modelo em laço, o que acontece quando o
+    som do trecho acaba e ele continua escrevendo: fica uma vez só. Um pedaço comprido (5 palavras
+    ou mais) já conta na segunda vez: ninguém repete uma frase inteira por querer."""
     p = texto.split(" ")
     chave = [x.lower().strip(".,;:!?…") for x in p]
     saida = []
     i = 0
     while i < len(p):
         pulou = False
-        for k in range(1, 9):
-            if i + 3 * k > len(p):
-                break
+        for k in range(1, 13):
+            minimo = 2 if k >= 5 else 3
+            if i + minimo * k > len(p):
+                continue
             unidade = chave[i: i + k]
             if not any(unidade):
                 continue
             vezes = 1
             while chave[i + vezes * k: i + (vezes + 1) * k] == unidade:
                 vezes += 1
-            if vezes >= 3:
+            if vezes >= minimo:
                 saida.extend(p[i: i + k])
                 i += vezes * k
                 # O laço cortado no meio (o começo de mais uma volta) sai junto.
@@ -118,15 +153,105 @@ def aparar(texto):
     return re.sub(r"[\s.…]+$", "", texto or "")
 
 
+class Revisor:
+    """Corrige por trás, com um modelo maior, o que o ditado já fechou (em outra linha de processamento)."""
+
+    def __init__(self, carregar, p, dizer_evento=dizer):
+        self.carregar = carregar  # () -> função que transcreve um som (o modelo carrega aqui dentro)
+        self.p = p
+        self.dizer = dizer_evento
+        self.cv = threading.Condition()
+        self.fila = []         # trechos esperando: (n, som)
+        self.anterior = None   # (n do primeiro trecho, som) do último bloco, para acompanhar um trecho curto
+        self.chave = None      # (ditado, época) de agora: o que for de outra é jogado fora
+        self.ocupado = False
+        self.morto = False
+        threading.Thread(target=self.rodar, daemon=True).start()
+
+    def zerar(self, chave=None):
+        with self.cv:
+            self.fila, self.anterior, self.chave = [], None, chave
+            self.cv.notify_all()
+
+    def entregar(self, chave, n, som):
+        with self.cv:
+            if chave != self.chave:
+                self.fila, self.anterior, self.chave = [], None, chave
+            self.fila.append((n, som))
+            self.cv.notify_all()
+
+    def esvaziar(self, limite):
+        """Espera o que está na fila ser corrigido (o ditado está terminando)."""
+        fim = time.time() + limite
+        with self.cv:
+            while (self.fila or self.ocupado) and not self.morto and time.time() < fim:
+                self.cv.wait(0.1)
+
+    def rodar(self):
+        try:
+            transcrever = self.carregar()
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"o modelo de correção não carregou: {e}\n")
+            transcrever = None
+            with self.cv:
+                self.morto = True
+        while True:
+            with self.cv:
+                while not self.fila:
+                    self.cv.wait()
+                chave, grupo, anterior = self.chave, self.fila, self.anterior
+                self.fila = []
+                self.ocupado = True
+            try:
+                self.revisar(transcrever, chave, grupo, anterior)
+            except Exception as e:  # noqa: BLE001
+                sys.stderr.write(f"a correção falhou: {e}\n")
+                self.avisar(chave, {"de": grupo[0][0], "ate": grupo[-1][0], "igual": True})
+            finally:
+                with self.cv:
+                    self.ocupado = False
+                    self.cv.notify_all()
+
+    def avisar(self, chave, evento):
+        with self.cv:
+            if chave != self.chave:
+                return False
+        self.dizer({"t": "revisao", "id": chave[0], "epoca": chave[1], **evento})
+        return True
+
+    def revisar(self, transcrever, chave, grupo, anterior):
+        b = SR * 2
+        de, ate = grupo[0][0], grupo[-1][0]
+        partes = [som for _, som in grupo]
+        segundos = sum(len(x) for x in partes) / b
+        # Pouca fala: vai junto com o som do bloco anterior (um pedacinho solto sai pior).
+        if segundos < self.p["rev_min"] and anterior and segundos + len(anterior[1]) / b <= self.p["rev_max"]:
+            de = anterior[0]
+            partes = [anterior[1]] + partes
+            segundos += len(anterior[1]) / b
+        som = (b"\0" * int(0.4 * b)).join(partes)  # 0,4 s de silêncio entre um trecho e outro
+        if transcrever is None or segundos < self.p["rev_pouco"]:
+            self.avisar(chave, {"de": grupo[0][0], "ate": ate, "igual": True})
+        else:
+            texto = transcrever(som)
+            self.avisar(chave, {"de": de, "ate": ate, "texto": texto} if texto else {"de": de, "ate": ate, "igual": True})
+        guardar = (de, som) if segundos <= self.p["rev_max"] else (ate, grupo[-1][1])
+        with self.cv:
+            if chave == self.chave:
+                self.anterior = guardar
+
+
 class Ditado:
     """O recorte: junta o áudio que chega, decide quando sai prévia e quando o trecho fecha."""
 
-    def __init__(self, motor, p, dizer_evento=dizer):
+    def __init__(self, motor, p, dizer_evento=dizer, revisor=None):
         self.motor = motor
         self.p = p
         self.dizer = dizer_evento
+        self.revisor = revisor
         self.ativo = False
         self.id = None
+        self.n = 0  # quantos trechos este ditado já fechou
         self.epoca = 0
         self.pcm = bytearray()
         self.novo = 0
@@ -136,11 +261,14 @@ class Ditado:
     def comecar(self, id_, contexto):
         self.ativo = True
         self.id = id_
+        self.n = 0
         self.epoca = 0
         self.pcm = bytearray()
         self.novo = 0
         self.contexto = (contexto or "")[-300:]
         self.parcial = ""
+        if self.revisor:
+            self.revisor.zerar((self.id, self.epoca))
 
     def audio(self, corpo):
         if not self.ativo:
@@ -155,12 +283,18 @@ class Ditado:
         self.parcial = ""
         if contexto is not None:
             self.contexto = contexto[-300:]
+        if self.revisor:
+            self.revisor.zerar((self.id, self.epoca))
 
     def terminar(self, fechar):
         if not self.ativo:
             return
         if fechar:
             self.passo(fechar=True)
+            if self.revisor:
+                self.revisor.esvaziar(6)  # o que falta corrigir sai antes do "parou" (o que não der tempo fica como está)
+        if self.revisor:
+            self.revisor.zerar()
         self.ativo = False
         self.pcm = bytearray()
         self.novo = 0
@@ -176,7 +310,8 @@ class Ditado:
         self.dizer({"t": "parcial", "id": self.id, "epoca": self.epoca, "texto": texto})
 
     def fechar(self, ini, fim, manter_de=None):
-        trechos = self.motor.transcrever(bytes(self.pcm[ini * 2: fim * 2]), True, self.contexto)
+        som = bytes(self.pcm[ini * 2: fim * 2])
+        trechos = self.motor.transcrever(som, True, self.contexto)
         texto = " ".join(t[2] for t in trechos if t[2])
         total = len(self.pcm) // 2
         de = manter_de if manter_de is not None else max(fim, total - int(self.p["margem"] * SR))
@@ -184,7 +319,11 @@ class Ditado:
         if texto:
             self.parcial = ""
             self.contexto = (self.contexto + " " + texto)[-300:]
-            self.dizer({"t": "final", "id": self.id, "epoca": self.epoca, "texto": texto})
+            n = self.n
+            self.n += 1
+            self.dizer({"t": "final", "id": self.id, "epoca": self.epoca, "n": n, "texto": texto})
+            if self.revisor:
+                self.revisor.entregar((self.id, self.epoca), n, som)
         else:
             self.previa("")
 
@@ -277,6 +416,16 @@ class MotorEnsaio:
                 saida.append((k0 / SR, k1 / SR, f"{letra}{round((k1 - k0) * 10 / SR)}{'!' if final else ''}"))
         return saida
 
+    def revisor(self, _nome):
+        """A correção de mentira: as mesmas "palavras" do som, em maiúscula."""
+        espera = int(os.environ.get("ORQ_DITADO_ENSAIO_REV_MS", "0")) / 1000
+
+        def revisar(som):
+            if espera:
+                time.sleep(espera)
+            return " ".join(t[2].upper() for t in self.transcrever(som, False, ""))
+        return revisar
+
 
 class MotorWhisper:
     """O faster-whisper e o filtro de fala que vem com ele (Silero)."""
@@ -288,6 +437,9 @@ class MotorWhisper:
         from faster_whisper.vad import VadOptions, get_speech_timestamps
 
         self.np = np
+        self.Modelo = WhisperModel
+        self.so_local = not baixar
+        self.threads = threads
         self.idioma = idioma or None
         self._falas = get_speech_timestamps
         campos = getattr(VadOptions, "__dataclass_fields__", {}) or getattr(VadOptions, "_fields", ())
@@ -306,11 +458,13 @@ class MotorWhisper:
         # tamanho do trecho: 3 s de fala saem em 0,3 s em vez de 1,7 s (medido). Os modelos maiores
         # repetem frases com a janela curta, e na placa de vídeo os 30 s já são rápidos: ficam como são.
         # Se esta versão do faster-whisper não aceitar a janela curta, fica nos 30 s também.
-        self.quadros = None
-        self.curta = self.aparelho == "cpu" and modelo in ("tiny", "base", "small") and hasattr(T, "pad_or_trim")
-        if self.curta:
+        # A janela de agora é de cada linha de processamento (o modelo de correção roda em outra).
+        self.aqui = threading.local()
+        self.encurta = hasattr(T, "pad_or_trim")
+        self.curta = self.aparelho == "cpu" and modelo in ("tiny", "base", "small") and self.encurta
+        if self.encurta:
             original = T.pad_or_trim
-            T.pad_or_trim = lambda a, length=None, **k: original(a, length if length is not None else (self.quadros or 3000), **k)
+            T.pad_or_trim = lambda a, length=None, **k: original(a, length if length is not None else (getattr(self.aqui, "quadros", None) or 3000), **k)
         self.folga = {False: float(os.environ.get("ORQ_DITADO_FOLGA_PREVIA", "1.5")), True: float(os.environ.get("ORQ_DITADO_FOLGA_FINAL", "3"))}
         self.feixe = {False: 1, True: int(os.environ.get("ORQ_DITADO_FEIXE_FINAL", "5"))}
 
@@ -321,7 +475,7 @@ class MotorWhisper:
         return [(int(f["start"]), int(f["end"])) for f in self._falas(self._float(pcm), self._vad)]
 
     def _rodar(self, a, final, janela):
-        self.quadros = janela * 100
+        self.aqui.quadros = janela * 100
         try:
             # Sem contexto nenhum (initial_prompt): cada trecho é transcrito só pelo som dele.
             # O limite de palavras acompanha o tamanho do som (a fala corrida dá umas 4 por segundo):
@@ -334,7 +488,7 @@ class MotorWhisper:
             )
             return [(t.start, t.end, limpar(t.text)) for t in trechos]
         finally:
-            self.quadros = None
+            self.aqui.quadros = None
 
     def transcrever(self, pcm, final, _contexto):
         a = self._float(pcm)
@@ -348,6 +502,40 @@ class MotorWhisper:
                 raise
             self.curta = False
             return self._rodar(a, final, 30)
+
+    def revisor(self, nome):
+        """Carrega o modelo de correção (roda na linha de processamento dele) e devolve a função
+        que transcreve um bloco. Feixe 1 e sem contexto; a janela acompanha o bloco, com folga:
+        medido com o robusto em 4 linhas, um bloco de 4,5 s sai em 1,6 s (com a janela de 30 s são
+        9 a 12 s, lento demais para corrigir enquanto a pessoa fala). Sem marcas de tempo: com a
+        janela curta o modelo grande se perde nelas e repete ou inventa pedaços (medido); a
+        correção não precisa delas."""
+        m = self.Modelo(nome, device="cpu", compute_type="int8", cpu_threads=self.threads, local_files_only=self.so_local)
+        folga = float(os.environ.get("ORQ_DITADO_FOLGA_REVISOR", "3"))
+        estado = {"curta": self.encurta}
+
+        def rodar(a, janela):
+            self.aqui.quadros = janela * 100
+            try:
+                trechos, _ = m.transcribe(
+                    a, language=self.idioma, beam_size=1, temperature=0.0, condition_on_previous_text=False, initial_prompt=None,
+                    chunk_length=janela, vad_filter=False, max_new_tokens=int(len(a) / SR * 12) + 24, without_timestamps=True,
+                )
+                return limpar(" ".join(t.text.strip() for t in trechos))
+            finally:
+                self.aqui.quadros = None
+
+        def revisar(som):
+            a = self._float(som)
+            janela = min(30, max(4, int(math.ceil(len(a) / SR + folga)))) if estado["curta"] else 30
+            try:
+                return rodar(a, janela)
+            except Exception:  # noqa: BLE001
+                if janela == 30:
+                    raise
+                estado["curta"] = False
+                return rodar(a, 30)
+        return revisar
 
 
 def sair(codigo):
@@ -379,13 +567,13 @@ def ler(fila):
 
 
 def opcoes(args):
-    o = {"modelo": "small", "idioma": "pt", "baixar": False, "ensaio": False, "threads": None, "p": dict(PADRAO)}
+    o = {"modelo": "small", "revisor": None, "idioma": "pt", "baixar": False, "ensaio": False, "threads": None, "p": dict(PADRAO)}
     i = 0
     while i < len(args):
         a = args[i]
         if a in ("--baixar", "--ensaio"):
             o[a[2:]] = True
-        elif a in ("--modelo", "--idioma", "--threads") and i + 1 < len(args):
+        elif a in ("--modelo", "--revisor", "--idioma", "--threads") and i + 1 < len(args):
             o[a[2:]] = args[i + 1]
             i += 1
         elif a[2:] in PADRAO and a.startswith("--") and i + 1 < len(args):
@@ -424,8 +612,13 @@ def main():
                 texto = f"o modelo {o['modelo']} ainda não está neste computador"
             dizer({"t": "erro", "erro": texto})
             sair(4)
-    dizer({"t": "pronto", "modelo": o["modelo"], "aparelho": motor.aparelho, "ms": int((time.time() - t0) * 1000)})
-    d = Ditado(motor, o["p"])
+    # O modelo de correção só entra quando é outro e o ditado roda no processador (na placa de
+    # vídeo o modelo grande já acompanha a fala). Ele carrega na linha de processamento dele,
+    # sem segurar o "pronto".
+    com_revisor = o["revisor"] and o["revisor"] != o["modelo"] and motor.aparelho != "cuda"
+    revisor = Revisor(lambda: motor.revisor(o["revisor"]), o["p"]) if com_revisor else None
+    dizer({"t": "pronto", "modelo": o["modelo"], "revisor": o["revisor"] if com_revisor else None, "aparelho": motor.aparelho, "ms": int((time.time() - t0) * 1000)})
+    d = Ditado(motor, o["p"], revisor=revisor)
     while True:
         try:
             item = fila.get(timeout=0.05)

@@ -2108,6 +2108,7 @@ body.com-gaveta-lado.sem-demandas { --larg-inspetor: clamp(250px, 23vw, 340px); 
 .ditando[hidden], .ditando [hidden] { display: none; }
 .ditando .ditando-ponto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--perigo); animation: piscar 1.4s steps(1) infinite; }
 .ditando .ditando-microfone { color: var(--fg-4); }
+.ditando .ditando-corrigindo { color: var(--fg-2); animation: ditar-espera 1.2s ease-in-out infinite; }
 .ditando .botao-texto { flex: none; margin-left: 4px; }
 .ditando kbd { font: 10.5px var(--mono); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--borda-forte); color: var(--fg-2); background: var(--bg-afundado); }
 .compositor.ditando-ligado .caixa-entrada, .compositor.ditando-ligado .caixa-entrada:focus-within { border-color: color-mix(in srgb, var(--perigo) 55%, var(--borda)); }

@@ -195,7 +195,10 @@ que no hay ninguna terminal que vigilar.
   atajo o Esc lo detienen, y también se detiene cuando envías el mensaje, sales de la pestaña de la conversación o
   pasas un minuto sin hablar. La transcripción corre en el ordenador (faster-whisper, el mismo motor del modo
   reunión); el audio no se guarda y nunca sale del ordenador. Sin tarjeta NVIDIA usa el modelo ligero, el único que
-  sigue el ritmo del habla en un procesador de portátil; *Settings › Voice and meetings* tiene el modelo y la opción
+  sigue el ritmo del habla en un procesador de portátil. Cuando el ordenador tiene margen (8 núcleos y 12 GB o
+  más) y el modelo robusto ya está en él, ese modelo rehace cada frase por detrás, y unos segundos después el
+  texto de la caja se cambia por el corregido (*Fix each sentence with a bigger model*, en la misma sección de
+  Settings, lo apaga o elige el modelo; con el envío por voz, el mensaje espera la corrección); *Settings › Voice and meetings* tiene el modelo y la opción
   de seguir escuchando después de enviar, y el atajo se puede cambiar o apagar en *Settings › Shortcuts*.
 - **Modo reunión**: desde la mascota, dentro de la app o en el escritorio (clic derecho › *Record meeting*), o desde la paleta, la app graba tu micrófono y el
   sonido del equipo en dos pistas, para que la nota sepa quién habló. Mientras graba, una señal roja con el tiempo

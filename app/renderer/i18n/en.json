@@ -2168,7 +2168,16 @@
     "Ligado, a fala que termina com a frase combinada envia a mensagem, e a frase sai do texto. Vale no fim da fala, depois da pausa; no meio de uma frase não envia. Desligado, só o Enter envia.": "On, speech that ends with the agreed phrase sends the message, and the phrase is left out of the text. It counts at the end of what you say, after the pause; in the middle of a sentence it does not send. Off, only Enter sends.",
     "Frase que envia": "Phrase that sends",
     "O que você diz no fim da fala para enviar. Em branco, vale a frase que aparece no campo.": "What you say at the end to send. Left blank, the phrase shown in the field is used.",
-    "enviar mensagem": "send message"
+    "enviar mensagem": "send message",
+    "Ouvindo. Corrigindo o que você falou…": "Listening. Fixing what you said…",
+    "Corrigindo…": "Fixing…",
+    "Corrigindo, e já envio…": "Fixing it, then sending…",
+    "Corrigir cada frase com um modelo maior": "Fix each sentence with a bigger model",
+    "O texto aparece na hora com o modelo do ditado, e um modelo maior refaz cada frase por trás: alguns segundos depois o texto é trocado pelo corrigido. Usa mais memória e processador enquanto o ditado está ligado.": "The text shows up right away with the dictation model, and a bigger model redoes each sentence behind it: a few seconds later the text is replaced by the fixed one. It uses more memory and processor while dictation is on.",
+    "Não corrigir": "Do not fix",
+    "Recomendado para este computador (não corrige)": "Recommended for this computer (does not fix)",
+    "Recomendado para este computador (corrige com o Robusto)": "Recommended for this computer (fixes with Robust)",
+    "Recomendado para este computador (corrige com o Melhor)": "Recommended for this computer (fixes with Best)"
   },
   "padroes": [
     [

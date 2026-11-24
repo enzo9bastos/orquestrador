@@ -12,6 +12,11 @@
 // TERMINA com a frase combinada ("enviar mensagem") manda o que está na caixa, sem a frase. Só
 // vale num trecho fechado (ela disse e fez a pausa); no meio de uma frase é texto. A mensagem vai
 // como texto comum: um "!comando" enviado por voz nunca roda.
+//
+// Correção por trás: quando o computador dá conta, um modelo maior refaz cada trecho já fechado
+// e o texto dele na caixa é trocado pelo corrigido, alguns segundos depois. Enquanto falta
+// corrigir, a faixa avisa; o enviar por voz espera a correção chegar (a mensagem vai corrigida);
+// o Enter manda na hora o que está na caixa. Se a pessoa mexeu no texto, a correção não entra.
 (() => {
   const D = window.orq && window.orq.ditado;
   if (!D || !window.orqConversa) return;
@@ -29,7 +34,14 @@
   let continua = false; // Configurações › Voz e reuniões: continuar ouvindo depois de enviar
   let frases = []; // enviar por voz: as frases que mandam a mensagem (vazio = desligado)
   let antes = '', depois = ''; // o que estava na caixa antes e depois do cursor
-  let fechado = '', previa = ''; // o que foi ditado: trechos fechados e a prévia do trecho aberto
+  let pecas = []; // o que foi ditado e já fechou, na ordem: { de, ate, texto, revisto, comando }
+  let previa = ''; // a prévia do trecho aberto
+  let revisor = false; // há um modelo maior corrigindo por trás o que já fechou
+  let envio = null; // enviar por voz esperando a correção: { relogio, depois: [o que foi falado depois da frase] }
+  let sobra = []; // o que foi falado entre a frase de enviar e o envio (vai para a mensagem seguinte)
+  const ESPERA_DA_CORRECAO = 8000;
+  const fechado = () => pecas.map((x) => x.texto).filter(Boolean).join(' ');
+  const faltaCorrigir = () => pecas.some((x) => !x.revisto);
   let ultimo = null; // o que o ditado escreveu na caixa por último (para notar quando mexem nela)
   const ativo = () => estado !== 'parado';
 
@@ -42,8 +54,10 @@
     faixa.hidden = !ligado;
     $('compositor').classList.toggle('ditando-ligado', ligado);
     for (const e of ['preparando', 'ouvindo', 'terminando']) $(`ditando-${e}`).hidden = estado !== e;
-    // Com o enviar por voz ligado, a faixa troca a frase de sempre pela que ensina o que dizer.
-    $('ditando-ouvindo').hidden = estado !== 'ouvindo' || frases.length > 0;
+    // Com o enviar por voz ligado, a faixa troca a frase de sempre pela que ensina o que dizer;
+    // enquanto falta corrigir, pela que diz isso (uma frase só de cada vez: a faixa cabe numa linha).
+    const corrigindo = estado === 'ouvindo' && !envio && faltaCorrigir();
+    $('ditando-ouvindo').hidden = estado !== 'ouvindo' || frases.length > 0 || corrigindo;
     $('ditando-microfone').hidden = !microfone || estado === 'terminando';
     $('ditando-microfone-nome').textContent = microfone;
     const c = V.atalhoDaCaixa('ditado');
@@ -51,6 +65,9 @@
     $('ditando-tecla').hidden = !c;
     $('ditando-parar').hidden = estado === 'terminando';
     $('ditando-por-voz').hidden = !frases.length || estado !== 'ouvindo';
+    $('ditando-corrigindo').hidden = !corrigindo || frases.length > 0;
+    $('ditando-corrigindo-curto').hidden = !corrigindo || !frases.length;
+    $('ditando-enviando').hidden = !ligado || !envio;
     $('ditando-frase').textContent = frases.length ? `“${frases[0]}”` : '';
     if (!ligado) botao.style.removeProperty('--nivel');
   }
@@ -78,11 +95,26 @@
   }
   // Manda o que está na caixa, pelo mesmo caminho do Enter. Não é um envio feito no teclado:
   // um "!comando" segue como texto comum e não roda nada.
-  const enviarPorVoz = () => $('compositor').requestSubmit();
+  function cancelarEnvio() { if (envio) clearTimeout(envio.relogio); envio = null; }
+  function enviarPorVoz() {
+    sobra = envio ? envio.depois : [];
+    cancelarEnvio();
+    $('compositor').requestSubmit();
+    // Nada foi enviado (a caixa estava vazia): o que foi falado depois continua sendo desta mensagem.
+    if (sobra.length) { for (const t of sobra) pecas.push({ de: -1, ate: -1, texto: t, revisto: true, comando: false }); sobra = []; escrever(); }
+    pintar();
+  }
+  // A frase de enviar foi dita. Com a correção por trás, o envio espera o que falta corrigir (no
+  // máximo 8 s): a mensagem vai corrigida. O que for falado nesse meio-tempo é da mensagem seguinte.
+  function pedirEnvio() {
+    if (!faltaCorrigir()) { enviarPorVoz(); return; }
+    envio = { depois: [], relogio: setTimeout(() => { if (envio) enviarPorVoz(); }, ESPERA_DA_CORRECAO) };
+    pintar();
+  }
 
   // O texto da caixa: o que já estava antes do cursor, o que foi ditado e o que estava depois.
   function escrever() {
-    const dito = [fechado, previa].filter(Boolean).join(' ');
+    const dito = [fechado(), previa].filter(Boolean).join(' ');
     const a = antes && dito && !/\s$/.test(antes) ? `${antes} ` : antes;
     const d = depois && dito && !/^[\s.,;:!?)]/.test(depois) ? ` ${depois}` : depois;
     const texto = a + dito + d;
@@ -100,20 +132,22 @@
     const pos = document.activeElement === entrada ? entrada.selectionEnd : v.length;
     antes = v.slice(0, pos);
     depois = v.slice(pos);
-    fechado = ''; previa = '';
+    pecas = []; previa = '';
     ultimo = v;
+    cancelarEnvio(); // a pessoa mexeu no texto: o envio por voz que esperava a correção não acontece
   }
   function reancorar() {
     ancorar();
     epoca += 1;
     D.cortar(antes.slice(-600)).catch(() => {});
+    pintar(); // o que esperava correção não espera mais
   }
 
   async function comecar() {
     if (ativo()) return;
     if (window.orqEditorDeTexto && window.orqEditorDeTexto.editando()) { V.aviso('A mensagem está aberta no editor de texto. Termine lá antes de ditar.'); return; }
     estado = 'preparando';
-    id = null; epoca = 0; microfone = '';
+    id = null; epoca = 0; microfone = ''; revisor = false; sobra = [];
     entrada.focus();
     ancorar();
     pintar();
@@ -128,12 +162,18 @@
     V.aviso(`Não consegui ligar o ditado: ${(r && r.erro) || 'erro desconhecido'}. O texto da caixa continua como estava.`, 'erro');
   }
   // Parar: o que estava sendo falado é fechado e entra na caixa; depois o microfone é solto.
+  // O ditado acaba no aviso "parou", que chega na mesma fila dos textos e, por isso, depois deles.
+  // A resposta deste pedido vem por outro caminho e pode chegar ANTES dos últimos textos: encerrar
+  // por ela jogava fora o fecho (e a correção) da última frase. Ela só serve de rede de segurança,
+  // um tempo depois, para o caso de o "parou" não chegar.
+  let paradas = 0;
   async function parar() {
     if (!ativo() || estado === 'terminando') return;
     estado = 'terminando';
     pintar();
+    const vez = ++paradas;
     await D.parar().catch(() => null);
-    if (estado === 'terminando') { estado = 'parado'; pintar(); }
+    setTimeout(() => { if (estado === 'terminando' && vez === paradas) { estado = 'parado'; pintar(); } }, 1500);
   }
   const alternar = () => (ativo() ? parar() : comecar());
   // Depois de um envio que esvaziou a caixa. O que foi enviado é o que estava lá: o trecho que
@@ -141,11 +181,19 @@
   // a mensagem seguinte; sem, o ditado termina aqui.
   function depoisDeEnviar() {
     if (!ativo()) return;
+    const depoisDaFrase = sobra;
+    sobra = [];
+    cancelarEnvio();
     if (continua && estado !== 'terminando') {
       // O rascunho guardado pode voltar sozinho para a caixa logo depois deste aviso: o texto de
       // partida é o que estiver lá quando tudo assentar.
-      fechado = ''; previa = ''; ultimo = null;
-      queueMicrotask(() => { if (ativo()) reancorar(); });
+      pecas = []; previa = ''; ultimo = null;
+      queueMicrotask(() => {
+        if (!ativo()) return;
+        reancorar();
+        if (depoisDaFrase.length) { pecas = depoisDaFrase.map((t) => ({ de: -1, ate: -1, texto: t, revisto: true, comando: false })); escrever(); }
+        pintar();
+      });
       return;
     }
     estado = 'parado';
@@ -160,6 +208,7 @@
       if (!ativo() || e.estado === 'parado') return;
       if (id === null && typeof e.id === 'number') id = e.id;
       if (e.microfone) microfone = e.microfone;
+      if (typeof e.revisor === 'boolean') revisor = e.revisor;
       if (estado !== 'terminando') estado = e.estado;
       pintar();
       return;
@@ -167,24 +216,51 @@
     if (e.t === 'erro') { if (ativo()) V.aviso(`O ditado parou: ${e.erro}. O que já estava na caixa continua lá.`, 'erro'); return; }
     if (e.t === 'parou') {
       if (!ativo() || (id !== null && e.id !== id)) return;
+      if (envio) enviarPorVoz(); // a frase de enviar foi dita e o ditado acabou: manda o que há
       estado = 'parado';
       pintar();
       if (e.motivo === 'silencio') V.aviso('Parei de ouvir: passou um minuto sem fala. O que você ditou continua na caixa.');
       return;
     }
-    if (e.t !== 'parcial' && e.t !== 'final') return;
-    if (!ativo() || (id !== null && e.id !== id) || e.epoca !== epoca || typeof e.texto !== 'string') return;
+    if (e.t !== 'parcial' && e.t !== 'final' && e.t !== 'revisao') return;
+    if (!ativo() || (id !== null && e.id !== id) || e.epoca !== epoca) return;
+    if (e.t === 'revisao') {
+      // A correção de trechos já fechados: o texto deles é trocado pelo corrigido.
+      const dentro = pecas.filter((x) => x.de >= 0 && x.de >= e.de && x.ate <= e.ate);
+      if (!dentro.length) return;
+      if (ultimo !== null && entrada.value !== ultimo) { reancorar(); return; }
+      if (typeof e.texto === 'string' && e.texto) {
+        const ultima = dentro[dentro.length - 1];
+        let texto = e.texto;
+        let comando = dentro.some((x) => x.comando);
+        // A frase de enviar foi falada, então volta na correção: sai de novo. Se só a correção a
+        // entendeu, e nada foi falado depois dela, vale como o comando.
+        const sem = frases.length ? tirarComando(texto, frases) : null;
+        const noFim = pecas[pecas.length - 1] === ultima && !previa;
+        if (sem !== null && (ultima.comando || noFim)) { texto = sem; comando = true; }
+        const novoComando = comando && !ultima.comando;
+        pecas.splice(pecas.indexOf(dentro[0]), dentro.length, { de: e.de, ate: e.ate, texto, revisto: true, comando });
+        escrever();
+        if (novoComando && !envio) { pedirEnvio(); return; }
+      } else for (const x of dentro) x.revisto = true;
+      if (envio && !faltaCorrigir()) enviarPorVoz(); else pintar();
+      return;
+    }
+    if (typeof e.texto !== 'string') return;
     if (window.orqEditorDeTexto && window.orqEditorDeTexto.editando()) { parar(); return; }
     if (ultimo !== null && entrada.value !== ultimo) { reancorar(); return; }
     if (e.t === 'final') {
+      // Esperando a correção para enviar: o que for falado agora é da mensagem seguinte.
+      if (envio) { if (e.texto) envio.depois.push(e.texto); return; }
       const semComando = frases.length ? tirarComando(e.texto, frases) : null;
       const dito = semComando === null ? e.texto : semComando;
-      if (dito) fechado = fechado ? `${fechado} ${dito}` : dito;
+      pecas.push({ de: Number.isInteger(e.n) ? e.n : -1, ate: Number.isInteger(e.n) ? e.n : -1, texto: dito, revisto: !revisor || !Number.isInteger(e.n), comando: semComando !== null });
       previa = '';
       escrever();
-      if (semComando !== null) enviarPorVoz();
+      if (semComando !== null) pedirEnvio(); else pintar();
       return;
     }
+    if (envio) return;
     previa = e.texto;
     escrever();
   });
@@ -219,7 +295,7 @@
     ? { grupo: 'Ações', titulo: 'Parar o ditado', faz: () => parar() }
     : { grupo: 'Ações', titulo: 'Ditar a mensagem', sub: 'fale em vez de escrever; o texto aparece na caixa e você envia', faz: () => comecar() }]);
 
-  window.orqDitado = { estado: () => ({ estado, id, epoca, microfone }), ativo, comecar, parar, alternar, depoisDeEnviar, tirarComando };
+  window.orqDitado = { estado: () => ({ estado, id, epoca, microfone, revisor, faltaCorrigir: pecas.filter((x) => !x.revisto).length, enviando: !!envio }), ativo, comecar, parar, alternar, depoisDeEnviar, tirarComando };
   pintar();
   // A tela recarregou com o microfone aberto: solta (o texto de partida se perdeu com a tela).
   D.estado().then((r) => { if (r && r.estado && r.estado !== 'parado' && !ativo()) D.largar().catch(() => {}); }).catch(() => {});

@@ -161,7 +161,7 @@
           <div id="anexos" class="anexos" hidden></div>
           <div id="corrigindo" class="corrigindo" hidden><span id="corrigindo-texto"></span> <button id="corrigindo-voltar" class="botao-texto" type="button">Voltar</button><button id="corrigindo-cancelar" class="botao-texto" type="button">Cancelar (Esc)</button></div>
           <div id="editando-fora" class="editando-fora" role="status" hidden><span>Escrevendo no editor de texto. O que você salvar lá aparece aqui.</span> <button id="editando-fora-terminar" class="botao-texto" type="button"><span>Terminar</span> <kbd id="editando-fora-tecla" data-sem-traducao></kbd></button></div>
-          <div id="ditando" class="ditando" role="status" hidden><span class="ditando-ponto" aria-hidden="true"></span><span id="ditando-preparando">Preparando o ditado. Pode ir falando.</span><span id="ditando-ouvindo">Ouvindo. Fale: o texto aparece na caixa, e você envia quando quiser.</span><span id="ditando-terminando">Terminando de escrever o que você falou…</span><span id="ditando-por-voz" hidden><span>Ouvindo. Para enviar, diga</span> <strong id="ditando-frase" data-sem-traducao></strong></span><span class="ditando-microfone" id="ditando-microfone"><span>Microfone:</span> <span id="ditando-microfone-nome" data-sem-traducao></span></span> <button id="ditando-parar" class="botao-texto" type="button"><span>Parar</span> <kbd id="ditando-tecla" data-sem-traducao></kbd></button></div>
+          <div id="ditando" class="ditando" role="status" hidden><span class="ditando-ponto" aria-hidden="true"></span><span id="ditando-preparando">Preparando o ditado. Pode ir falando.</span><span id="ditando-ouvindo">Ouvindo. Fale: o texto aparece na caixa, e você envia quando quiser.</span><span id="ditando-terminando">Terminando de escrever o que você falou…</span><span id="ditando-por-voz" hidden><span>Ouvindo. Para enviar, diga</span> <strong id="ditando-frase" data-sem-traducao></strong></span><span id="ditando-corrigindo" class="ditando-corrigindo" hidden>Ouvindo. Corrigindo o que você falou…</span><span id="ditando-corrigindo-curto" class="ditando-corrigindo" hidden>Corrigindo…</span><span id="ditando-enviando" class="ditando-corrigindo" hidden>Corrigindo, e já envio…</span><span class="ditando-microfone" id="ditando-microfone"><span>Microfone:</span> <span id="ditando-microfone-nome" data-sem-traducao></span></span> <button id="ditando-parar" class="botao-texto" type="button"><span>Parar</span> <kbd id="ditando-tecla" data-sem-traducao></kbd></button></div>
           <button id="rascunho-guardado" class="rascunho-guardado" type="button" title="Trazer o rascunho de volta para a caixa" hidden><svg class="ico" viewBox="0 0 16 16"><path d="M3.5 2.5h9v11l-4.5-3-4.5 3z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span>Rascunho guardado</span><span class="rascunho-como" id="rascunho-com-tecla"><kbd id="rascunho-guardado-tecla" data-sem-traducao></kbd> <span>traz de volta</span></span><span class="rascunho-como" id="rascunho-com-clique" hidden>clique para trazer de volta</span></button>
           <div class="caixa-entrada">
             <button id="anexar" class="botao-anexar" type="button" title="Anexar arquivo ou imagem (também dá para arrastar ou colar)" aria-label="Anexar arquivo ou imagem"><svg class="ico" viewBox="0 0 16 16"><path d="M10.5 4.5 5.4 9.6a1.6 1.6 0 0 0 2.3 2.3l5.4-5.4a3 3 0 0 0-4.2-4.2L3.4 7.8a4.4 4.4 0 0 0 6.2 6.2l4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -635,6 +635,15 @@
               <select class="campo-config" data-cfg="ditadoModelo" id="config-ditado-modelo">
                 <option value="">Recomendado para este computador</option>
                 <option value="small">Leve</option>
+                <option value="large-v3-turbo">Robusto</option>
+                <option value="large-v3">Melhor</option>
+              </select>
+            </div>
+            <div class="config-linha">
+              <div><strong>Corrigir cada frase com um modelo maior</strong><span id="config-ditado-revisor-nota">O texto aparece na hora com o modelo do ditado, e um modelo maior refaz cada frase por trás: alguns segundos depois o texto é trocado pelo corrigido. Usa mais memória e processador enquanto o ditado está ligado.</span></div>
+              <select class="campo-config" data-cfg="ditadoRevisor" id="config-ditado-revisor">
+                <option value="">Recomendado para este computador</option>
+                <option value="nenhum">Não corrigir</option>
                 <option value="large-v3-turbo">Robusto</option>
                 <option value="large-v3">Melhor</option>
               </select>

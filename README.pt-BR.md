@@ -188,7 +188,10 @@ há terminal para vigiar.
   atalho ou o Esc param, e ele também para quando você envia a mensagem, sai da aba da conversa ou fica um minuto
   sem falar. A transcrição roda no computador (faster-whisper, o mesmo motor do modo reunião); o áudio não é
   guardado e nunca sai do computador. Sem placa NVIDIA ele usa o modelo leve, o único que acompanha a fala num
-  processador de notebook; *Configurações › Voz e reuniões* tem o modelo e a opção de continuar ouvindo depois de
+  processador de notebook. Quando o computador tem folga (8 núcleos e 12 GB ou mais) e o modelo robusto já
+  está nele, esse modelo refaz cada frase por trás, e alguns segundos depois o texto da caixa é trocado pelo
+  corrigido (*Corrigir cada frase com um modelo maior*, na mesma seção das Configurações, desliga isso ou
+  escolhe o modelo; com o enviar por voz, a mensagem espera a correção); *Configurações › Voz e reuniões* tem o modelo e a opção de continuar ouvindo depois de
   enviar, e o atalho pode ser trocado ou desligado em *Configurações › Atalhos*.
 - **Modo reunião**: pelo bichinho, dentro do app ou na área de trabalho (botão direito › *Gravar reunião*), ou pela paleta, o app grava o seu microfone e
   o som do computador em duas trilhas, para a nota saber quem falou. Enquanto grava, um sinal vermelho com o tempo
