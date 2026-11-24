@@ -205,7 +205,7 @@ test('bichinho: câmera na mão enquanto grava e balão de pensamento que tira o
     // O balão fica na frente do desenho do bichinho: o clique de verdade pega nele (e não no bichinho).
     assert.strictEqual(await js(`(() => { const r = ${BALAO}.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && !!e.closest('#pensa-print'); })()`), true);
     // O balão é uma nuvem desenhada em pixel (sem fundo de botão), com a câmera desenhada dentro (sem emoji).
-    assert.deepStrictEqual(await js(`(() => { const b = ${BALAO}; const s = b.querySelector('svg.pn-nuvem'); return { nuvem: !!s && s.getAttribute('shape-rendering') === 'crispEdges' && s.querySelectorAll('.pn-fundo rect').length > 4, camera: b.querySelectorAll('.pn-camera rect').length > 3, semEmoji: !/\\p{Extended_Pictographic}/u.test(b.textContent), fundoDoBotao: getComputedStyle(b).backgroundColor, bolinhas: b.querySelectorAll('i').length }; })()`), { nuvem: true, camera: true, semEmoji: true, fundoDoBotao: 'rgba(0, 0, 0, 0)', bolinhas: 2 });
+    assert.deepStrictEqual(await js(`(() => { const b = ${BALAO}; const s = b.querySelector('svg.pn-nuvem'); return { nuvem: !!s && s.getAttribute('shape-rendering') === 'crispEdges' && s.querySelectorAll('.pn-fundo rect').length > 4, camera: b.querySelectorAll('.pn-camera rect').length > 3, semEmoji: !/\\p{Extended_Pictographic}/u.test(b.textContent), fundoDoBotao: getComputedStyle(b).backgroundColor, bolinhas: b.querySelectorAll('i').length, certoNoBranco: Math.max(...[...b.querySelectorAll('.pn-certo rect')].map((r) => +r.getAttribute('y') + +r.getAttribute('height'))) <= Math.min(...[...b.querySelectorAll('.pn-sombra rect')].map((r) => +r.getAttribute('y'))) }; })()`), { nuvem: true, camera: true, semEmoji: true, fundoDoBotao: 'rgba(0, 0, 0, 0)', bolinhas: 2, certoNoBranco: true });
   });
 
   await t.test('o tempo de gravação fica na etiqueta vermelha, com letra e ponto brancos (a versão discreta não agradou)', async () => {
@@ -238,6 +238,13 @@ test('bichinho: câmera na mão enquanto grava e balão de pensamento que tira o
     for (let i = 0; i < 20 && (await js("document.getElementById('pensa-n').textContent")) !== '3'; i++) await dorme(100);
     assert.strictEqual(await js("document.getElementById('pensa-n').textContent"), '3');
     assert.strictEqual(await js(`${BALAO}.classList.contains('ok')`), true, 'print guardado: o ✓ aparece na nuvem');
+    // Com o ✓ ainda na nuvem, outro clique pede outro print na hora: o ✓ sai da frente e o clarão volta.
+    const pedidos = () => recebidas.filter((m) => m.t === 'reuniao' && m.acao === 'print').length;
+    const comOCerto = pedidos();
+    assert.strictEqual(await js(`(() => { const b = ${BALAO}; const noMeio = getComputedStyle(b.querySelector('.pn-certo')).animationName === 'aj-pensa-certo'; b.click(); return noMeio; })()`), true, 'o ✓ ainda estava na nuvem na hora do clique');
+    for (let i = 0; i < 20 && pedidos() === comOCerto; i++) await dorme(50);
+    assert.strictEqual(pedidos(), comOCerto + 1, 'o clique durante o ✓ pede outro print');
+    assert.deepStrictEqual(await js(`({ ok: ${BALAO}.classList.contains('ok'), flash: ${BALAO}.classList.contains('flash') })`), { ok: false, flash: true });
     assert.strictEqual(await js("document.getElementById('bolha').hidden"), true, 'com o balão à vista, ele não fala por cima');
     // Três cliques seguidos: três pedidos.
     const antes = recebidas.filter((m) => m.t === 'reuniao' && m.acao === 'print').length;

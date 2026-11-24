@@ -300,7 +300,7 @@
     nuvem: [[2, 0, 3, 1], [7, 0, 3, 1], [1, 1, 10, 1], [0, 2, 12, 3], [1, 5, 10, 1], [2, 6, 3, 1], [6, 6, 4, 1]],
     sombra: [[1, 5.4, 10, 0.6], [2, 6, 3, 1], [6, 6, 4, 1]],
     camera: [[4.5, 1.6, 1.5, 0.6, '#636e72'], [3.5, 2.2, 5, 3, '#2d3436'], [3.5, 2.2, 5, 0.6, '#4a5559'], [5, 2.8, 2, 2, '#dfe6e9'], [5.5, 3.3, 1, 1, '#74b9ff'], [7.4, 2.9, 0.6, 0.5, '#fdcb6e']],
-    certo: [[3, 3, 1, 1], [4, 4, 1, 1], [5, 5, 1, 1], [6, 4, 1, 1], [7, 3, 1, 1], [8, 2, 1, 1]],
+    certo: [[3, 2, 1, 1], [4, 3, 1, 1], [5, 4, 1, 1], [6, 3, 1, 1], [7, 2, 1, 1], [8, 1, 1, 1]], // todo no branco, acima da sombra
     clarao: [[7.4, 1.1, 0.6, 3.6], [5.9, 2.6, 3.6, 0.6], [7, 2.2, 1.4, 1.4]], // estrela no flash da câmera
   };
   {
@@ -374,7 +374,8 @@
     }
   }
   $('rn-fechar').addEventListener('click', fecharReuniao);
-  // Balão de pensamento: o clique pede o print na hora (o brilho aparece antes da resposta). Os
+  // Balão de pensamento: o clique pede o print na hora (o brilho aparece antes da resposta), sempre:
+  // mesmo com o ✓ do print anterior ainda na nuvem, o ✓ sai da frente e outro print é pedido. Os
   // eventos param aqui: clicar nele não arrasta o bichinho nem abre o painel.
   for (const tipo of ['pointerdown', 'pointerup', 'dblclick']) $('pensa-print').addEventListener(tipo, (ev) => ev.stopPropagation());
   $('pensa-print').addEventListener('click', (ev) => {

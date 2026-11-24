@@ -282,12 +282,13 @@ body { position: relative; font: 13px var(--sans); color: var(--fg); }
 @keyframes aj-pensa-clarao { 0% { opacity: 1; scale: .3; } 55% { opacity: 1; scale: 1.15; } 100% { opacity: 0; scale: 1.35; } }
 @keyframes aj-pensa-acende { 0%, 35% { fill: #ffd97a; } 100% { fill: var(--pn-fundo); } }
 @keyframes aj-pensa-dispara { 0% { scale: .82; } 60% { scale: 1.08; } 100% { scale: 1; } }
-/* O print foi guardado: a câmera dá lugar a um ✓ verde por um instante e a conta dá um pulinho. */
-.aj-pensa.ok .pn-camera { animation: aj-pensa-some .95s ease-out; }
-.aj-pensa.ok .pn-certo { animation: aj-pensa-certo .95s ease-out; }
+/* O print foi guardado: a câmera dá lugar a um ✓ verde, com calma (entra e sai esmaecendo), e a
+   conta dá um pulinho. Não segura nada: um clique no meio disso tira a classe e pede outro print. */
+.aj-pensa.ok .pn-camera { animation: aj-pensa-some 1.4s ease-in-out; }
+.aj-pensa.ok .pn-certo { animation: aj-pensa-certo 1.4s ease-in-out; }
 .aj-pensa.ok .aj-pensa-n { animation: aj-pensa-conta .45s ease-out; }
-@keyframes aj-pensa-some { 0%, 75% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes aj-pensa-certo { 0% { opacity: 1; scale: .5; } 18% { scale: 1.15; } 30%, 75% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1; } }
+@keyframes aj-pensa-some { 0% { opacity: 1; } 12%, 76% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes aj-pensa-certo { 0% { opacity: 0; scale: .7; } 14% { opacity: 1; scale: 1.08; } 24% { scale: 1; } 76% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1; } }
 @keyframes aj-pensa-conta { 0% { scale: 1.45; } 100% { scale: 1; } }
 .aj-bolha:not([hidden]) ~ .aj-pet .aj-pensa, .aj-menu:not([hidden]) ~ .aj-pet .aj-pensa, .aj-conversa:not([hidden]) ~ .aj-pet .aj-pensa { display: none; }
 @media (prefers-reduced-motion: reduce) { .aj-pensa, .aj-pensa i, .aj-pensa.flash .pn-clarao, .aj-pensa.flash .pn-fundo, .aj-pensa.flash .pn-camera, .aj-pensa.ok .pn-camera, .aj-pensa.ok .pn-certo, .aj-pensa.ok .aj-pensa-n { animation: none; } }
