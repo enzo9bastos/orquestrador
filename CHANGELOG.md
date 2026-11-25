@@ -4,6 +4,26 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.20.0 (2026-11-25)
+
+- Dictation: a bigger model now fixes each sentence behind the scenes. The light model still writes while you
+  speak, and a few seconds later the text is replaced by the robust model's version, which gets right words the
+  light one misses. It turns on by itself when the computer has room (8 cores and 12 GB or more, no NVIDIA card)
+  and the robust model is already on it; Settings › Voice and meetings turns it off or picks the model. It runs
+  both models at once: more memory and processor while dictation is on. The strip above the box says when
+  something is still being fixed; if you edit the text yourself, the fix does not go over it.
+- You can also choose the robust model alone. Without an NVIDIA card it works sentence by sentence: nothing shows
+  while you speak, and each sentence enters the box a few seconds after you pause, with a single transcription per
+  sentence.
+- Send by voice: the built-in phrase now accepts the natural variations at the end of what you say ("enviar
+  mensagem", "envia a mensagem", "enviar minha mensagem", "enviar essa mensagem"; in English, "send the/this/my
+  message"). Before, anything other than the exact phrase did not send. With the fixing on, the message waits for
+  the fix and goes out corrected. It is still off until you turn it on in Settings › Voice and meetings.
+- Stopping dictation no longer risks dropping the last texts.
+- Meeting mode: while a meeting is being recorded, the desktop helper no longer leaves when a notice goes away (you
+  went to the app, answered, dismissed it, or the request was resolved). It used to take the screenshot button and
+  the recording time with it in the middle of the meeting. "Back to the app" still sends it away.
+
 ## 0.19.1 (2026-11-24)
 
 - Dictation: a word the preview got right no longer turns into a wrong one when the sentence is closed, and one
