@@ -377,6 +377,17 @@ function fecharConversa() {
 // pessoa escolher "Passear pela tela" de novo.
 let aviso = false;
 let ficar = false; // a pessoa pediu "Ficar parado": nada o põe para passear de novo nesta saída
+let gravando = false; // o app está gravando uma reunião: aqui fora, o bichinho é o controle dela (print, tempo, terminar)
+
+// Sair sozinho: o aviso que o trouxe foi resolvido, dispensado ou respondido, ou a pessoa foi ao
+// app. Gravando uma reunião ele NÃO sai: chegava uma pergunta no meio da reunião, a pessoa
+// respondia e o bichinho ia embora, levando o botão de print e o tempo de gravação. Aí ele só
+// volta para o passeio; quem manda embora é a pessoa ("Voltar para o app").
+function sairSozinho() {
+  aviso = false;
+  if (!gravando) { sumir(); return; }
+  if (modo === 'parado' && !conversaAberta && !ficar) passear();
+}
 let passeio = 0; // cada passeio tem um número: parar e recomeçar não deixa dois andando ao mesmo tempo
 const mudarPasseio = (v) => { if (passeando !== v) { passeando = v; paraTela({ t: 'passeio', ligado: v }); } };
 // Espera a caminhada acabar ou ser interrompida (arrastar, conversa, menu). Antes o passeio esperava
@@ -449,10 +460,11 @@ function receber(m) {
     paraTela(m);
     if (modo === 'parado' && !conversaAberta) { pos.y = parada(); mover(); }
   }
-  // O atalho alterna: com a conversa aberta, apertar de novo manda ele embora.
-  else if (m.t === 'chamar' && conversaAberta && !m.capturar) sumir();
+  // O atalho alterna: com a conversa aberta, apertar de novo manda ele embora (gravando uma
+  // reunião, só fecha a conversa: ele fica).
+  else if (m.t === 'chamar' && conversaAberta && !m.capturar) { if (gravando) paraTela({ t: 'fecharConversa' }); else sumir(); }
   else if (m.t === 'chamar') aparecer(() => { abrirConversa(); paraTela({ t: 'conversar', capturar: !!m.capturar }); passear(); });
-  else if (m.t === 'resolvida') { if (aviso) { aviso = false; paraTela({ t: 'falar', texto: 'Já foi resolvido! 👍' }); setTimeout(() => { if (!conversaAberta) sumir(); }, 1600); } }
+  else if (m.t === 'resolvida') { if (aviso) { aviso = false; paraTela({ t: 'falar', texto: 'Já foi resolvido! 👍' }); setTimeout(() => { if (!conversaAberta) sairSozinho(); }, 1600); } }
   else if (m.t === 'pendencia') { aviso = true; aparecer(() => { paraTela({ t: 'pendencia', texto: m.texto, total: m.total, conversa: m.conversa || null, id: m.id || null, item: m.item || null }); passear(); }); }
   else if (m.t === 'noApp') { if (aviso) paraTela({ t: 'noApp' }); } // o usuário foi ao app em vez de responder aqui
   else if (m.t === 'passear') aparecer(() => { paraTela({ t: 'falar', texto: 'Vou dar uma volta!' }); passear(); });
@@ -461,6 +473,7 @@ function receber(m) {
   // Modo reunião: o sinal de "gravando" vai para a tela; começou a gravar, ele aparece.
   else if (m.t === 'reuniao') {
     const e = m.estado || {};
+    gravando = !!e.gravando;
     const chama = e.gravando || ['detectada', 'acabou', 'comecou-sozinha', 'pronta'].includes(e.evento);
     if (chama && modo === 'escondido') aparecer(() => paraTela(m)); else paraTela(m);
   }
@@ -517,7 +530,7 @@ ipcMain.on('ajudante', (_e, m) => {
   else if (m.t === 'capturar') { if (!TESTE) win.hide(); setTimeout(() => paraApp({ t: 'capturar' }), 250); }
   else if (m.t === 'abrirApp') paraApp(m);
   else if (m.t === 'voltar') { sumir(); paraApp({ t: 'voltar' }); }
-  else if (m.t === 'irEmbora') sumir();
+  else if (m.t === 'irEmbora') sairSozinho();
   else if (m.t === 'passear') { ficar = false; paraTela({ t: 'falar', texto: 'Oba, passeio!' }); passear(); }
   else if (m.t === 'ficar') { ficarParado(); paraTela({ t: 'falar', texto: 'Fico aqui!' }); }
   else if (m.t === 'menu') { if (m.aberto) abrirMenu(m.altura); else fecharMenu(); }

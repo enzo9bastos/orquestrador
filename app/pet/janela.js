@@ -547,6 +547,7 @@
     } else if (m.t === 'falar') falar(m.texto, 1800);
     else if (m.t === 'reuniao') aoReuniao(m.estado);
     else if (m.t === 'reuniaoResposta') aoReuniaoResposta(m);
+    else if (m.t === 'fecharConversa') { if (!$('conversa').hidden) fecharConversa(); }
     else if (m.t === 'tchau') { calar(); pg = null; $('pergunta').hidden = true; menu(false); $('conversa').hidden = true; classe('chamando', false); classe('acenando'); falar('Tchau!', 900); setTimeout(() => classe('acenando', false), 1400); }
     else if (m.t === 'gesto') { const g = sorteia(['dancando', 'acenando', 'sentado', 'espreguicando']); classe(g); setTimeout(() => classe(g, false), 2000); }
     else if (m.t === 'pousou') classe('voando', false);
