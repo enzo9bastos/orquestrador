@@ -196,7 +196,7 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     const m = transcricao.maquina();
     if (deNovo) recomendacao = null;
     recomendacao = recomendacao || await pecas.recomendacaoResumo(m);
-    return { maquina: m, motor: transcricao.acharMotor({ escolhido: c.vozPython, deNovo: !!deNovo }), modelos: transcricao.modelos(m), resumo: recomendacao, pasta: c.reunioesPasta, ditado: { recomendado: require('./ditado').recomendado(m, transcricao.modelos(m)) } };
+    return { maquina: m, motor: transcricao.acharMotor({ escolhido: c.vozPython, deNovo: !!deNovo }), modelos: transcricao.modelos(m), resumo: recomendacao, pasta: c.reunioesPasta, ditado: { recomendado: require('./ditado').recomendado(m) } };
   }));
 
   // Reunião que ficou no meio (o app fechou gravando ou montando a nota): monta a nota agora.

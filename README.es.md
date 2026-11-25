@@ -195,13 +195,12 @@ que no hay ninguna terminal que vigilar.
   la conversación o pasas un minuto sin hablar. La transcripción corre en el ordenador (faster-whisper, el mismo
   motor del modo reunión); el audio no se guarda y nunca sale del ordenador.
   Qué modelo, y cómo aparece el texto: con tarjeta NVIDIA, el modelo robusto escribe mientras hablas. Sin ella,
-  cuando el ordenador tiene margen (8 núcleos y 12 GB o más) y el robusto ya está en él, el dictado usa ese
-  modelo frase por frase: no aparece nada mientras hablas, y cada frase entra en la caja unos segundos después de
-  la pausa, con una sola transcripción por frase (menos errores, y lo que menos usa el procesador). Si no, usa el
-  modelo ligero, que escribe mientras hablas y se equivoca más; con el ligero también se puede activar un modelo
-  mayor que rehace cada frase por detrás (corre los dos modelos a la vez). *Settings › Voice and meetings* tiene
-  el modelo, esa opción y la de seguir escuchando después de enviar; el atajo se puede cambiar o apagar en
-  *Settings › Shortcuts*.
+  el dictado usa el modelo ligero, que también escribe mientras hablas y se equivoca más. Si prefieres esperar y
+  tener menos errores, elige el robusto: sin tarjeta NVIDIA trabaja frase por frase (no aparece nada mientras
+  hablas, y cada frase entra en la caja unos segundos después de la pausa, con una sola transcripción por frase).
+  Con el ligero también se puede activar un modelo mayor que rehace cada frase por detrás (corre los dos modelos
+  a la vez). *Settings › Voice and meetings* tiene el modelo, esa opción y la de seguir escuchando después de
+  enviar; el atajo se puede cambiar o apagar en *Settings › Shortcuts*.
 - **Modo reunión**: desde la mascota, dentro de la app o en el escritorio (clic derecho › *Record meeting*), o desde la paleta, la app graba tu micrófono y el
   sonido del equipo en dos pistas, para que la nota sepa quién habló. Mientras graba, una señal roja con el tiempo
   queda en la mascota y en la barra superior, con *Screenshot*, *Mark moment* y *End*. Al terminar, el audio se

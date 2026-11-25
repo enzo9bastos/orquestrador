@@ -266,17 +266,14 @@ function capturarMicrofone({ ffmpeg = process.env.ORQ_DITADO_FFMPEG || 'ffmpeg',
 }
 
 // O modelo do ditado: o escolhido nas Configurações ou o recomendado para este computador.
-// - Com placa NVIDIA: o robusto, que ali acompanha a fala (o texto aparece enquanto a pessoa fala).
-// - Sem ela, num computador com folga (8 núcleos e 12 GB ou mais) e com o robusto já no
-//   computador: o robusto também, frase por frase. Ele não acompanha a fala no processador, então
-//   cada frase aparece alguns segundos depois da pausa (medido: 1 a 3 s de conta por frase), com
-//   uma transcrição só por frase. Erra bem menos que o leve e é o modo que menos usa o processador.
-// - Senão: o leve, que acompanha a fala e erra mais.
-function recomendado(maquina, modelos) {
-  if (maquina && maquina.nvidia && (maquina.nvidia.memoriaGB || 0) >= 6) return 'large-v3-turbo';
-  const folga = maquina && (maquina.nucleos || 0) >= 8 && (maquina.memoriaGB || 0) >= 12;
-  return folga && (modelos || []).some((x) => x.id === 'large-v3-turbo' && x.local) ? 'large-v3-turbo' : 'small';
-}
+// - Com placa NVIDIA: o robusto, que ali acompanha a fala.
+// - Sem ela: o leve, que acompanha a fala no processador (o texto aparece enquanto a pessoa
+//   fala) e erra mais.
+// Quem preferir errar menos escolhe o robusto nas Configurações: sem placa de vídeo ele não
+// acompanha a fala, então trabalha frase por frase (cada frase aparece alguns segundos depois da
+// pausa; medido: 1 a 3 s de conta por frase, com uma transcrição só por frase). É uma escolha da
+// pessoa, não o padrão: o texto aparecer enquanto se fala é o jeito de sempre do ditado.
+const recomendado = (maquina) => (maquina && maquina.nvidia && (maquina.nvidia.memoriaGB || 0) >= 6 ? 'large-v3-turbo' : 'small');
 
 // Corrigir por trás (só quando a pessoa escolhe, e só com o modelo leve): o leve escreve enquanto
 // ela fala e um modelo maior refaz cada frase em outra linha de processamento, trocando o texto
@@ -295,7 +292,7 @@ function motorDeVerdade({ transcricao, config, emTeste = false }) {
     const achado = await transcricao.acharMotorSemTravar({ escolhido: c.vozPython });
     if (!achado.ok) throw new Error(`${achado.motivo}. Veja em Configurações › Voz e reuniões`);
     const lista = transcricao.modelos();
-    const modelo = c.ditadoModelo || recomendado(transcricao.maquina(), lista);
+    const modelo = c.ditadoModelo || recomendado(transcricao.maquina());
     const m = lista.find((x) => x.id === modelo);
     if (m && !m.local) throw new Error(`o modelo de voz "${m.nome}" ainda não está neste computador. Veja em Configurações › Voz e reuniões`);
     const revisor = revisorDoDitado({ escolhido: c.ditadoRevisor || '', modelo });

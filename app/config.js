@@ -162,9 +162,9 @@ const PADRAO = {
   // mensagem seguinte); desligado, enviar termina o ditado. ditadoEnviarPorVoz: a fala que termina
   // com a frase combinada envia a mensagem (a frase sai do texto); desligado, só o Enter envia.
   // ditadoFraseEnviar: a frase ('' = "enviar mensagem"; com o app em inglês, "send message").
-  // ditadoModelo: '' = o recomendado para o computador (com placa NVIDIA, ou sem ela mas com folga,
-  // o robusto; senão o leve). Sem placa NVIDIA o robusto trabalha frase por frase (o texto aparece
-  // alguns segundos depois de cada pausa); o leve escreve enquanto a pessoa fala e erra mais.
+  // ditadoModelo: '' = o recomendado para o computador (com placa NVIDIA, o robusto; sem ela, o
+  // leve, que escreve enquanto a pessoa fala). Quem escolhe o robusto sem placa NVIDIA tem o texto
+  // frase por frase (alguns segundos depois de cada pausa), com menos erros.
   // ditadoRevisor: só com o modelo leve: um modelo maior (large-v3-turbo, large-v3) refaz por trás
   // cada frase que o leve escreveu; '' = não corrige.
   ditadoModelo: '',

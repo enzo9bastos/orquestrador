@@ -197,17 +197,16 @@ test('ditado: as peças de verdade nunca abrem microfone nem motor num teste de 
     });
     const cfg = (c) => ({ ler: () => ({ vozPython: '', ditadoModelo: '', idioma: 'pt-BR', ...c }) });
     await assert.rejects(D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({}), emTeste: true })(), /sem motor de ditado nos testes/);
-    // O recomendado: o robusto, sozinho (frase por frase), quando o computador tem folga e ele já
-    // está no computador, ou quando há placa NVIDIA; senão o leve. Nunca os dois juntos sem a pessoa pedir.
-    assert.deepStrictEqual(await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({}) })(), { comando: '/py/bin/python', args: [D.SCRIPT, '--modelo', 'large-v3-turbo', '--idioma', 'pt'] });
+    // O padrão é o de sempre: sem placa NVIDIA, o leve (o texto aparece enquanto a pessoa fala), mesmo
+    // num computador com folga e com o robusto no disco; com a placa, o robusto.
+    assert.deepStrictEqual(await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({}) })(), { comando: '/py/bin/python', args: [D.SCRIPT, '--modelo', 'small', '--idioma', 'pt'] });
     assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao({ nome: 'RTX', memoriaGB: 8 }), config: cfg({}) })()).args.slice(1), ['--modelo', 'large-v3-turbo', '--idioma', 'pt']);
-    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null, ['small']), config: cfg({}) })()).args.slice(1), ['--modelo', 'small', '--idioma', 'pt'], 'o robusto não está no computador: o leve');
-    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: { ...transcricao(null), maquina: () => ({ nucleos: 4, memoriaGB: 8, nvidia: null }) }, config: cfg({}) })()).args.slice(1), ['--modelo', 'small', '--idioma', 'pt'], 'computador sem folga: o leve');
-    // A correção por trás só entra quando a pessoa escolhe, e só com o leve.
-    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoModelo: 'small' }) })()).args.slice(1), ['--modelo', 'small', '--idioma', 'pt']);
-    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoModelo: 'small', ditadoRevisor: 'large-v3-turbo' }) })()).args.slice(1), ['--modelo', 'small', '--idioma', 'pt', '--revisor', 'large-v3-turbo']);
-    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoRevisor: 'large-v3-turbo' }) })()).args.slice(1), ['--modelo', 'large-v3-turbo', '--idioma', 'pt'], 'com o robusto no ditado não há o que corrigir');
-    await assert.rejects(D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoModelo: 'small', ditadoRevisor: 'large-v3' }) })(), /"Melhor", escolhido para corrigir o ditado, ainda não está neste computador/);
+    // O robusto sem placa de vídeo (frase por frase) é uma escolha da pessoa.
+    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoModelo: 'large-v3-turbo' }) })()).args.slice(1), ['--modelo', 'large-v3-turbo', '--idioma', 'pt']);
+    // A correção por trás também, e só com o leve.
+    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoRevisor: 'large-v3-turbo' }) })()).args.slice(1), ['--modelo', 'small', '--idioma', 'pt', '--revisor', 'large-v3-turbo']);
+    assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoModelo: 'large-v3-turbo', ditadoRevisor: 'large-v3-turbo' }) })()).args.slice(1), ['--modelo', 'large-v3-turbo', '--idioma', 'pt'], 'com o robusto no ditado não há o que corrigir');
+    await assert.rejects(D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoRevisor: 'large-v3' }) })(), /"Melhor", escolhido para corrigir o ditado, ainda não está neste computador/);
     assert.deepStrictEqual((await D.motorDeVerdade({ transcricao: transcricao(null), config: cfg({ ditadoModelo: 'large-v3-turbo', idioma: 'en' }) })()).args.slice(1), ['--modelo', 'large-v3-turbo', '--idioma', 'en']);
     await assert.rejects(D.motorDeVerdade({ transcricao: transcricao(null, []), config: cfg({}) })(), /"Leve" ainda não está neste computador/);
     await assert.rejects(D.motorDeVerdade({ transcricao: { ...transcricao(null), acharMotorSemTravar: async () => ({ ok: false, motivo: 'não achei um Python com o faster-whisper neste computador' }) }, config: cfg({}) })(), /não achei um Python/);
@@ -294,9 +293,5 @@ test('ditado: o quadro que vai ao motor é tipo + tamanho + corpo', () => {
   assert.strictEqual(D.recomendado({ nvidia: { memoriaGB: 4 } }), 'small');
   assert.strictEqual(D.recomendado({ nvidia: { memoriaGB: 6 } }), 'large-v3-turbo');
   assert.strictEqual(D.recomendado({}), 'small');
-  const robusto = (local) => [{ id: 'small', local: true }, { id: 'large-v3-turbo', local }];
-  assert.strictEqual(D.recomendado({ nucleos: 14, memoriaGB: 30 }, robusto(true)), 'large-v3-turbo', 'com folga e o robusto no computador: o robusto, frase por frase');
-  assert.strictEqual(D.recomendado({ nucleos: 14, memoriaGB: 30 }, robusto(false)), 'small');
-  assert.strictEqual(D.recomendado({ nucleos: 4, memoriaGB: 30 }, robusto(true)), 'small');
-  assert.strictEqual(D.recomendado({ nucleos: 14, memoriaGB: 8 }, robusto(true)), 'small');
+  assert.strictEqual(D.recomendado({ nucleos: 14, memoriaGB: 30 }), 'small', 'sem placa NVIDIA o padrão é o leve, por mais folga que o computador tenha');
 });

@@ -188,13 +188,12 @@ há terminal para vigiar.
   fica um minuto sem falar. A transcrição roda no computador (faster-whisper, o mesmo motor do modo reunião); o
   áudio não é guardado e nunca sai do computador.
   Qual modelo, e como o texto aparece: com placa NVIDIA, o modelo robusto escreve enquanto você fala. Sem ela,
-  quando o computador tem folga (8 núcleos e 12 GB ou mais) e o robusto já está nele, o ditado usa esse modelo
-  frase por frase: nada aparece enquanto você fala, e cada frase entra na caixa alguns segundos depois da pausa,
-  com uma transcrição só por frase (menos erros, e é o jeito que menos usa o processador). Senão, usa o modelo
-  leve, que escreve enquanto você fala e erra mais; com o leve dá para ligar também um modelo maior que refaz
-  cada frase por trás (roda os dois modelos ao mesmo tempo). *Configurações › Voz e reuniões* tem o modelo, essa
-  opção e a de continuar ouvindo depois de enviar; o atalho pode ser trocado ou desligado em *Configurações ›
-  Atalhos*.
+  o ditado usa o modelo leve, que também escreve enquanto você fala e erra mais. Se você prefere esperar e ter
+  menos erros, escolha o robusto: sem placa NVIDIA ele trabalha frase por frase (nada aparece enquanto você
+  fala, e cada frase entra na caixa alguns segundos depois da pausa, com uma transcrição só por frase). Com o
+  leve dá para ligar também um modelo maior que refaz cada frase por trás (roda os dois modelos ao mesmo tempo).
+  *Configurações › Voz e reuniões* tem o modelo, essa opção e a de continuar ouvindo depois de enviar; o atalho
+  pode ser trocado ou desligado em *Configurações › Atalhos*.
 - **Modo reunião**: pelo bichinho, dentro do app ou na área de trabalho (botão direito › *Gravar reunião*), ou pela paleta, o app grava o seu microfone e
   o som do computador em duas trilhas, para a nota saber quem falou. Enquanto grava, um sinal vermelho com o tempo
   fica no bichinho e na barra de cima, com *Print*, *Marcar momento* e *Terminar*. No fim, o áudio é transcrito no
