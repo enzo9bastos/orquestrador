@@ -89,20 +89,31 @@
   // As palavras de um texto, sem acento, sem maiúscula e sem pontuação, cada uma com o lugar onde
   // começa no texto: "Enviar a mensagem!" e "enviar a mensagem" são a mesma fala.
   const palavras = (t) => [...String(t || '').matchAll(/[\p{L}\p{N}]+/gu)].map((m) => ({ i: m.index, p: m[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() }));
-  const DE_FABRICA = { pt: ['enviar mensagem', 'enviar a mensagem'], en: ['send message', 'send the message'] };
+  // A frase de fábrica aceita as variações naturais de quem fala (e de como o modelo escreve):
+  // "enviar mensagem", "envia a mensagem", "enviar minha mensagem", "enviar essa mensagem". A
+  // primeira da lista é a que a faixa ensina; as expressões casam com as últimas palavras da fala.
+  const DE_FABRICA = {
+    pt: ['enviar mensagem', /^(enviar|envia|envie)( (a|essa|esta))?( minha)? mensagem$/],
+    en: ['send message', /^send( (the|this|my))? message$/],
+  };
   const frasesDe = (c) => {
     if (!c || c.ditadoEnviarPorVoz !== true) return [];
     const escolhida = String(c.ditadoFraseEnviar || '').trim();
     return escolhida ? [escolhida] : DE_FABRICA[c.idioma === 'en' ? 'en' : 'pt'];
   };
   // O texto sem a frase do fim, ou null quando a fala não termina com ela (aí não é comando).
+  // Cada item da lista é uma frase exata ou uma expressão para as últimas 2 a 5 palavras.
   function tirarComando(texto, lista) {
     const t = palavras(texto);
+    const corta = (quantas) => texto.slice(0, t[t.length - quantas].i).replace(/[\s,;:–—-]+$/, '');
     for (const frase of lista) {
+      if (frase instanceof RegExp) {
+        for (let k = 2; k <= Math.min(5, t.length); k++) if (frase.test(t.slice(-k).map((x) => x.p).join(' '))) return corta(k);
+        continue;
+      }
       const f = palavras(frase).map((x) => x.p);
       if (!f.length || t.length < f.length) continue;
-      const fim = t.slice(-f.length);
-      if (fim.every((x, k) => x.p === f[k])) return texto.slice(0, fim[0].i).replace(/[\s,;:–—-]+$/, '');
+      if (t.slice(-f.length).every((x, k) => x.p === f[k])) return corta(f.length);
     }
     return null;
   }
@@ -312,7 +323,7 @@
     ? { grupo: 'Ações', titulo: 'Parar o ditado', faz: () => parar() }
     : { grupo: 'Ações', titulo: 'Ditar a mensagem', sub: 'fale em vez de escrever; o texto aparece na caixa e você envia', faz: () => comecar() }]);
 
-  window.orqDitado = { estado: () => ({ estado, id, epoca, microfone, revisor, previa: comPrevia, escrevendo, faltaCorrigir: pecas.filter((x) => !x.revisto).length, enviando: !!envio }), ativo, comecar, parar, alternar, depoisDeEnviar, tirarComando };
+  window.orqDitado = { estado: () => ({ estado, id, epoca, microfone, revisor, previa: comPrevia, escrevendo, faltaCorrigir: pecas.filter((x) => !x.revisto).length, enviando: !!envio }), ativo, comecar, parar, alternar, depoisDeEnviar, tirarComando, tirarComandoDeFabrica: (texto, idioma) => tirarComando(texto, DE_FABRICA[idioma === 'en' ? 'en' : 'pt']) };
   pintar();
   // A tela recarregou com o microfone aberto: solta (o texto de partida se perdeu com a tela).
   D.estado().then((r) => { if (r && r.estado && r.estado !== 'parado' && !ativo()) D.largar().catch(() => {}); }).catch(() => {});

@@ -240,6 +240,31 @@ test('ditado: enviar por voz (a fala que termina com "enviar mensagem" manda a m
     assert.strictEqual(await corta('mensagem', F), null);
     assert.strictEqual(await corta('Tudo certo por aqui, câmbio.', ['cambio']), 'Tudo certo por aqui');
     assert.strictEqual(await corta('qualquer coisa', []), null);
+    // Relato de 25/11: a pessoa disse "enviar mensagem", o modelo escreveu "enviar minha mensagem" e
+    // nada foi enviado (a frase tinha de ser exata). A frase de fábrica aceita as variações naturais.
+    const fabrica = (texto, idioma = 'pt') => app.avaliar(`window.orqDitado.tirarComandoDeFabrica(${JSON.stringify(texto)}, ${JSON.stringify(idioma)})`);
+    assert.strictEqual(await fabrica('Faz uma lista objetiva de tudo o que a gente fez ontem, por favor, enviar minha mensagem.'), 'Faz uma lista objetiva de tudo o que a gente fez ontem, por favor');
+    assert.strictEqual(await fabrica('Pronto. Envia a mensagem'), 'Pronto.');
+    assert.strictEqual(await fabrica('enviar essa mensagem'), '');
+    assert.strictEqual(await fabrica('Tudo certo, envie a minha mensagem!'), 'Tudo certo');
+    assert.strictEqual(await fabrica('Quero isso. Enviar mensagem.'), 'Quero isso.');
+    assert.strictEqual(await fabrica('Vou enviar minha mensagem para o time'), null, 'no meio da frase continua sendo texto');
+    assert.strictEqual(await fabrica('Preciso reenviar a mensagem'), null);
+    assert.strictEqual(await fabrica('enviar mensagens'), null);
+    assert.strictEqual(await fabrica('enviar muita mensagem'), null);
+    assert.strictEqual(await fabrica('Check it. Send the message.', 'en'), 'Check it.');
+    assert.strictEqual(await fabrica('send my message', 'en'), '');
+    assert.strictEqual(await fabrica('I will send a message', 'en'), null);
+  });
+
+  await t.test('"enviar minha mensagem" no fim da fala também envia (o modelo nem sempre escreve a frase igual)', async () => {
+    a.falar(['Faz uma lista do que a gente fez ontem, por favor, enviar minha mensagem.']);
+    const antes = a.aoClaude().length;
+    await a.ligar();
+    assert.strictEqual(await enviada(antes), 'Faz uma lista do que a gente fez ontem, por favor');
+    await app.esperar(`${ESTADO} === 'parado'`, 8000);
+    await a.parado();
+    assert.strictEqual(await a.caixa(), '');
   });
 
   await t.test('a fala termina com "enviar mensagem": o resto vai para a conversa, a frase não; o ditado termina', async () => {
