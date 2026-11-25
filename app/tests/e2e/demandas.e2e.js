@@ -1,9 +1,16 @@
 // Área: demandas [sozinho] (painel resumido que abre a nota .md na aba Notas)
 // [sozinho] desde 16/11: com outros apps de teste rodando ao mesmo tempo, o
-// subteste "✓ no cartão" falha: a demanda nova chega ao disco certa na hora, o
-// cartão aparece, mas o progresso dele não chega a "1/2" em 8 s (sozinho, em
-// menos de 0,5 s). Não é o limite de inotify (medido: pico de 92 de 128) nem o
-// claude de verdade (os testes já não o sobem). Causa ainda não achada; não é repetição.
+// subteste "✓ no cartão" falhava: a demanda nova chegava ao disco certa na hora, o
+// cartão aparecia, mas o progresso dele não chegava a "1/2" em 8 s (sozinho, em
+// menos de 0,5 s). Não era o limite de inotify (medido: pico de 92 de 128) nem o
+// claude de verdade (os testes já não o sobem).
+// Causa achada em 25/11, quando passou a falhar sempre, também sozinho: o teste lia o
+// texto pintado do cartão (innerText) com a aba Notas na frente. Fora da conversa as
+// colunas recolhem, e a coluna recolhida fica invisível depois de uma transição de
+// 0,16 s; texto invisível vem vazio. Só dava certo enquanto a janela de teste não
+// avançava essa transição (ela nem sempre avança). O app sempre esteve certo: os dados
+// chegavam ao cartão. Agora, com a coluna recolhida, o teste lê o conteúdo do cartão
+// (textContent); e o que é para ver, ele vê com a coluna aberta, na aba da conversa.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -53,7 +60,10 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
   await t.test('editar a nota (marcar etapa) atualiza o cartão', async () => {
     const arq = path.join(app.casa, 'orq', 'Demandas', 'Revisar os backups.md');
     fs.writeFileSync(arq, fs.readFileSync(arq, 'utf8').replace('- [ ] Testar restauração', '- [x] Testar restauração'));
-    await app.esperar("/2\\/2/.test(document.querySelector('.topico-resumido').innerText)", 8000);
+    // A nota está na frente: a coluna das demandas está recolhida (invisível). Aqui vale o
+    // conteúdo do cartão, não o texto pintado.
+    assert.strictEqual((await app.avaliar('window.orqColunas.estado()')).demandas, false, 'com a nota na frente, a coluna das demandas está recolhida');
+    await app.esperar("/2\\/2/.test(document.querySelector('.topico-resumido').textContent)", 8000);
   });
 
   // Pedido de 2026-11-12: concluir pelo próprio cartão, sem abrir a nota.
@@ -61,9 +71,11 @@ test('demandas: cartão resumido abre a nota na aba Notas', async (t) => {
     const idC = orq('abrir', 'Trocar o certificado').match(/\d+/)[0];
     orq('item', idC, 'Gerar'); orq('item', idC, 'Instalar'); orq('marcar', idC, '1');
     const sel = `[data-topico="${idC}"] [data-concluir-cartao]`;
+    // O cartão é para ser visto: volta à conversa, onde a coluna das demandas fica aberta.
+    await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
+    assert.strictEqual((await app.avaliar('window.orqColunas.estado()')).demandas, true, 'na conversa, a coluna das demandas está aberta');
     await app.esperar(`!!document.querySelector('${sel}')`, 8000);
     await app.esperar(`/1\\/2/.test(document.querySelector('[data-topico="${idC}"]').innerText)`, 8000);
-    await app.avaliar("document.querySelector('[data-aba=aba-orquestrador]').click()");
     await app.avaliar(`document.querySelector('${sel}').click()`);
     await app.esperar(`/Faltam 1\\. Concluir\\?/.test(document.querySelector('${sel}').textContent)`);
     assert.ok(!orq('listar', '--estado', 'concluido').includes('Trocar o certificado'), 'o primeiro clique não conclui');
