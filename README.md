@@ -184,13 +184,15 @@ protocol), so there is no terminal to babysit.
   leave the conversation tab or stay a minute without speaking. Transcription runs on the computer
   (faster-whisper, the same engine as meeting mode); the audio is not saved and never leaves the computer.
   Which model, and how the text shows up: with an NVIDIA card, the robust model writes while you speak. Without
-  one, dictation uses the light model, which also writes while you speak and makes more mistakes. If you would
-  rather wait and get fewer mistakes, pick the robust model: without an NVIDIA card it works sentence by
-  sentence (nothing shows while you speak, and each sentence enters the box a few seconds after you pause, with
-  a single transcription per sentence). With the light model you can also turn on a bigger model that redoes
-  each sentence behind the scenes (it runs both models at once). *Settings › Voice and meetings* has the model,
-  that option and the one to keep listening after you send; the shortcut can be changed or turned off in
-  *Settings › Shortcuts*.
+  one, dictation uses the light model, which also writes while you speak and makes more mistakes; when the
+  computer has room (8 cores and 12 GB or more) and the robust model is already on it, the robust model redoes
+  each sentence behind the scenes, and a few seconds later the text in the box is replaced by the fixed one (it
+  runs both models at once: more memory and processor while dictation is on; it can be turned off). If you
+  would rather not see provisional text, pick the robust model alone: without an NVIDIA card it works sentence
+  by sentence (nothing shows while you speak, and each sentence enters the box a few seconds after you pause,
+  with a single transcription per sentence). *Settings › Voice and meetings* has the model, the fixing option
+  and the one to keep listening after you send; the shortcut can be changed or turned off in *Settings ›
+  Shortcuts*.
 - **Meeting mode**: from the helper, in the app or on the desktop (right click › *Record meeting*), or from the palette, the app records your
   microphone and the computer's sound as two tracks, so the note knows who spoke. While it records, a red sign
   with the time stays on the helper and on the top bar, with *Screenshot*, *Mark moment* and *End*. When it ends,

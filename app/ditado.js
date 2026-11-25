@@ -275,11 +275,16 @@ function capturarMicrofone({ ffmpeg = process.env.ORQ_DITADO_FFMPEG || 'ffmpeg',
 // pessoa, não o padrão: o texto aparecer enquanto se fala é o jeito de sempre do ditado.
 const recomendado = (maquina) => (maquina && maquina.nvidia && (maquina.nvidia.memoriaGB || 0) >= 6 ? 'large-v3-turbo' : 'small');
 
-// Corrigir por trás (só quando a pessoa escolhe, e só com o modelo leve): o leve escreve enquanto
-// ela fala e um modelo maior refaz cada frase em outra linha de processamento, trocando o texto
-// alguns segundos depois. Usa os dois modelos ao mesmo tempo: mais memória e mais processador.
-function revisorDoDitado({ escolhido = '', modelo }) {
-  return escolhido && modelo === 'small' && escolhido !== modelo ? escolhido : null;
+// Corrigir por trás (só com o modelo leve): o leve escreve enquanto a pessoa fala e um modelo
+// maior refaz cada frase em outra linha de processamento, trocando o texto alguns segundos depois
+// (medido: 1,5 a 5 s). Usa os dois modelos ao mesmo tempo: mais memória e mais processador.
+// ditadoRevisor: '' = o robusto, quando o computador tem folga (8 núcleos e 12 GB ou mais) e ele
+// já está no computador; 'nenhum' = não corrige; ou o modelo que corrige.
+function revisorDoDitado({ escolhido = '', modelo, maquina, modelos }) {
+  if (escolhido === 'nenhum' || modelo !== 'small') return null;
+  if (escolhido) return escolhido === modelo ? null : escolhido;
+  if (!maquina || (maquina.nucleos || 0) < 8 || (maquina.memoriaGB || 0) < 12) return null;
+  return (modelos || []).some((x) => x.id === 'large-v3-turbo' && x.local) ? 'large-v3-turbo' : null;
 }
 
 // O processo do motor: o Python com o faster-whisper (transcricao.js acha) rodando voz/ditado.py.
@@ -295,7 +300,7 @@ function motorDeVerdade({ transcricao, config, emTeste = false }) {
     const modelo = c.ditadoModelo || recomendado(transcricao.maquina());
     const m = lista.find((x) => x.id === modelo);
     if (m && !m.local) throw new Error(`o modelo de voz "${m.nome}" ainda não está neste computador. Veja em Configurações › Voz e reuniões`);
-    const revisor = revisorDoDitado({ escolhido: c.ditadoRevisor || '', modelo });
+    const revisor = revisorDoDitado({ escolhido: c.ditadoRevisor || '', modelo, maquina: transcricao.maquina(), modelos: lista });
     const r = revisor && lista.find((x) => x.id === revisor);
     if (r && !r.local) throw new Error(`o modelo de voz "${r.nome}", escolhido para corrigir o ditado, ainda não está neste computador. Veja em Configurações › Voz e reuniões`);
     return { comando: achado.python, args: [SCRIPT, '--modelo', modelo, '--idioma', c.idioma === 'en' ? 'en' : 'pt', ...(revisor ? ['--revisor', revisor] : [])] };

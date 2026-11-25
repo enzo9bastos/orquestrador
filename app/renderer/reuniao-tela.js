@@ -100,9 +100,11 @@
       const x = r.modelos.find((y) => y.id === o.value);
       if (x) o.textContent = `${NOMES[x.id]}${!x.local ? ' · ainda não está neste computador' : x.id === recDitado ? ' · recomendado' : m.nvidia ? '' : x.id === 'small' ? ' · texto enquanto você fala, erra mais' : ' · frase por frase'}`;
     }
-    // A correção por trás (só com o leve): os modelos que podem corrigir.
+    // A correção por trás (só com o leve): o que o computador recomenda, e os modelos que podem corrigir.
+    const revisor = r.ditado && r.ditado.revisor;
     for (const o of $('config-ditado-revisor').options) {
-      const x = o.value && r.modelos.find((y) => y.id === o.value);
+      if (!o.value) { o.textContent = revisor ? `Recomendado para este computador (corrige com o ${NOMES[revisor]})` : 'Recomendado para este computador (não corrige)'; continue; }
+      const x = r.modelos.find((y) => y.id === o.value);
       if (x) o.textContent = `${NOMES[x.id]}${x.local ? '' : ' · ainda não está neste computador'}`;
     }
     const res = $('config-voz-resumo-escolha');

@@ -165,8 +165,9 @@ const PADRAO = {
   // ditadoModelo: '' = o recomendado para o computador (com placa NVIDIA, o robusto; sem ela, o
   // leve, que escreve enquanto a pessoa fala). Quem escolhe o robusto sem placa NVIDIA tem o texto
   // frase por frase (alguns segundos depois de cada pausa), com menos erros.
-  // ditadoRevisor: só com o modelo leve: um modelo maior (large-v3-turbo, large-v3) refaz por trás
-  // cada frase que o leve escreveu; '' = não corrige.
+  // ditadoRevisor: só com o modelo leve: um modelo maior refaz por trás cada frase que o leve
+  // escreveu. '' = o robusto, quando o computador tem folga e ele já está no computador;
+  // 'nenhum' = não corrige; ou large-v3-turbo, large-v3.
   ditadoModelo: '',
   ditadoRevisor: '',
   ditadoContinua: false,
@@ -302,7 +303,7 @@ function validar(m) {
       case 'reuniaoPrints': aceitar(k, typeof v === 'boolean', v); break;
       case 'reuniaoDetectar': aceitar(k, ['perguntar', 'gravar', 'desligado'].includes(v), v); break;
       case 'ditadoModelo': aceitar(k, ['', 'small', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
-      case 'ditadoRevisor': aceitar(k, ['', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
+      case 'ditadoRevisor': aceitar(k, ['', 'nenhum', 'large-v3-turbo', 'large-v3'].includes(v), v); break;
       case 'ditadoContinua': case 'ditadoEnviarPorVoz': aceitar(k, typeof v === 'boolean', v); break;
       case 'ditadoFraseEnviar': aceitar(k, typeof v === 'string' && v.trim().length <= 60 && (!v.trim() || /[\p{L}\p{N}]/u.test(v)), texto(v).trim()); break;
       case 'atualizacaoAvisar': case 'atualizacaoSozinha': aceitar(k, typeof v === 'boolean', v); break;
