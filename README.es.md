@@ -535,11 +535,12 @@ posterior puede leer — sea cual sea la IA en la que corra. Todo son archivos l
   CLI abierta en una terminal fuera de la app queda afuera. Esto separa "de la app" de "de afuera"; no es una defensa
   contra un agente hostil, que puede escribir en la carpeta de su propio proyecto.
 - **Freno contra bucles.** A partir del 7.º mensaje del mismo proyecto al orquestador, o entre los mismos dos agentes
-  (en ambos sentidos), en 10 minutos, la app los retiene; la pestaña **Messages** los muestra con un botón
-  **Release**.
+  (en ambos sentidos), en 10 minutos, la app los retiene; la pestaña **Messages** los muestra arriba, en **Held by
+  the app**, con un botón **Release** (el número de la pestaña los cuenta).
 
 La pestaña **Messages** lista mensajes y relevos por proyecto y muestra la memoria de cada proyecto; lo que espera tu
-aprobación queda arriba, en **To approve**. Los registros son `~/.local/share/orq-app/recados/recados.jsonl` y
+aprobación queda arriba, en **To approve**, y lo que el freno retuvo, justo debajo, en **Held by the app**. Los
+registros son `~/.local/share/orq-app/recados/recados.jsonl` y
 `vezes.jsonl`.
 
 ### Hook de señales (opcional)

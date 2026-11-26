@@ -1763,6 +1763,7 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 /* Aba Recados: o que espera o usuário fica em cima. */
 .recados-aprovar-titulo { margin: 4px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--fg-2); text-transform: uppercase; }
 .recados-aprovar .recados-linha { margin-bottom: 14px; }
+.recados-linha[hidden] { display: none; } /* o display: flex das listas passava por cima do atributo hidden: a lista de uma vista continuava na tela das outras */
 
 /* Conversa do orquestrador: o que espera aprovação, no mesmo jeito do cartão de pergunta. */
 .cartao-aprovacao .texto-aprovacao { white-space: pre-wrap; font-size: 13px; line-height: 1.5; color: var(--fg-2); }

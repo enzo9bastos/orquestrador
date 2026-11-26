@@ -515,10 +515,12 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   a terminal outside the app is turned away. This separates "in the app" from "outside"; it is not a defense
   against a hostile agent, which can write to its own project folder.
 - **Loop brake.** From the 7th message of the same project to the orchestrator, or between the same two agents
-  (both ways), within 10 minutes, the app holds them; the **Messages** tab shows them with a **Release** button.
+  (both ways), within 10 minutes, the app holds them; the **Messages** tab shows them on top, under **Held by the
+  app**, with a **Release** button (the number on the tab counts them).
 
 The **Messages** tab lists messages and handoffs per project and shows each project's memory; what waits for your
-approval sits on top in **To approve**. The logs are
+approval sits on top in **To approve**, and what the loop brake held, right below it in **Held by the app**. The
+logs are
 `~/.local/share/orq-app/recados/recados.jsonl` and `vezes.jsonl`.
 
 ### Signal hook (optional)

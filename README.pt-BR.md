@@ -520,10 +520,12 @@ ler — seja qual for a IA em que ele roda. Tudo são arquivos locais; nada sai 
   terminal fora do app é recusada. Isso separa "do app" de "de fora"; não é uma defesa contra um agente hostil, que
   pode gravar na pasta do próprio projeto.
 - **Freio contra loop.** A partir do 7º recado do mesmo projeto ao orquestrador, ou entre os mesmos dois agentes (nos
-  dois sentidos), em 10 minutos, o app segura; a aba **Recados** mostra com um botão **Liberar**.
+  dois sentidos), em 10 minutos, o app segura; a aba **Recados** mostra em cima, em **Segurados pelo app**, com um
+  botão **Liberar** (o número na aba conta esses recados).
 
 A aba **Recados** lista recados e vezes passadas por projeto e mostra a memória de cada projeto; o que espera a sua
-aprovação fica em cima, em **Para aprovar**. Os registros são `~/.local/share/orq-app/recados/recados.jsonl` e
+aprovação fica em cima, em **Para aprovar**, e o que o freio segurou, logo abaixo, em **Segurados pelo app**. Os
+registros são `~/.local/share/orq-app/recados/recados.jsonl` e
 `vezes.jsonl`.
 
 ### Hook de sinais (opcional)

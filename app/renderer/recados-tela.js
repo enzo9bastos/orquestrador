@@ -100,14 +100,23 @@
     ].join('') + (lista.length ? '' : '<p class="nota">Nenhum projeto com recado ou memória ainda.</p>');
   }
 
-  // O que espera o usuário fica em cima, em "Para aprovar" (de qualquer
-  // projeto, mesmo com filtro); embaixo, todos os outros.
+  // O que espera o usuário fica em cima (de qualquer projeto, mesmo com filtro): em
+  // "Para aprovar", o que pede o sim dele; em "Segurados pelo app", o que o freio
+  // segurou. Embaixo, todos os outros. É o mesmo que o número da aba conta: o segurado
+  // ficava no meio da lista, na ordem da hora, e o número apontava para um recado que
+  // a pessoa não achava (relato de 26/11: era o 145º da lista).
   function desenharLinha() {
     const aprovar = recados.filter((r) => r.estado === 'aguardando').slice().reverse();
-    const lista = recados.filter((r) => r.estado !== 'aguardando' && (!filtro || alvoDo(r) === filtro)).slice().reverse();
-    $('recados-aprovar').hidden = !aprovar.length;
+    const segurados = recados.filter((r) => r.estado === 'segurado').slice().reverse();
+    const lista = recados.filter((r) => r.estado !== 'aguardando' && r.estado !== 'segurado' && (!filtro || alvoDo(r) === filtro)).slice().reverse();
+    $('recados-aprovar').hidden = !aprovar.length && !segurados.length;
+    $('recados-aprovar-titulo').hidden = !aprovar.length;
+    $('recados-aprovar-linha').hidden = !aprovar.length;
     $('recados-aprovar-linha').innerHTML = aprovar.map(itemRecado).join('');
-    $('recados-dica').textContent = lista.length || aprovar.length ? ''
+    $('recados-segurados-titulo').hidden = !segurados.length;
+    $('recados-segurados-linha').hidden = !segurados.length;
+    $('recados-segurados-linha').innerHTML = segurados.map(itemRecado).join('');
+    $('recados-dica').textContent = lista.length || aprovar.length || segurados.length ? ''
       : 'Nenhum recado ainda. Os agentes do app falam com o orquestrador por .orq/bin/orq-recado enviar; o orquestrador responde com orq-recado para <projeto>.';
     $('recados-linha').innerHTML = lista.map(itemRecado).join('');
     preencherMiniaturas();
@@ -147,7 +156,7 @@
       ${r.tipo === 'pedido' ? `<div class="nota recado-motivo">${r.escrever ? 'Pode escrever na pasta do projeto' : 'Só leitura'}${r.modelo ? ` · modelo ${esc(r.modelo)}` : ''}${r.nota ? ` · sua orientação: <span data-sem-traducao>${esc(r.nota)}</span>` : ''}</div>` : ''}
       ${r.tipo === 'pedido' && r.arquivos && r.arquivos.length ? `<div class="recado-texto pedido-arquivos"><strong>Arquivos:</strong> <span data-sem-traducao>${r.arquivos.map(esc).join(', ')}</span></div>` : ''}
       ${r.tipo === 'pedido' && r.erro ? `<div class="nota recado-motivo">${esc(r.erro)}</div>` : ''}
-      ${r.estado === 'segurado' ? `<button type="button" class="botao-texto" data-rc-liberar="${esc(r.id)}">Liberar para o orquestrador</button>` : ''}
+      ${r.estado === 'segurado' ? `<button type="button" class="botao-texto" data-rc-liberar="${esc(r.id)}">${r.para.tipo === 'orquestrador' ? 'Liberar para o orquestrador' : 'Liberar para o agente'}</button>` : ''}
       ${r.estado === 'aguardando' ? `<div class="pedido-decidir">
         <textarea class="campo-config" rows="2" maxlength="2000" data-rc-nota="${esc(r.id)}" placeholder="Orientação ou motivo (opcional): vai junto da sua resposta" aria-label="Orientação ou motivo (opcional)"></textarea>
         <div class="acoes"><button type="button" class="botao secundario" data-rc-decidir="${esc(r.id)}" data-aprovar="0">Negar</button>

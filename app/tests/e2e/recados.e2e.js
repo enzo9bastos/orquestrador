@@ -34,16 +34,18 @@ test('recados', async (t) => {
 
   await t.test('a aba mostra os recados dos dois lados, do mais novo ao mais antigo', async () => {
     await app.avaliar("document.querySelector('[data-aba=\"aba-recados\"]').click()");
-    await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 4");
+    await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 3");
     const l = await itens();
-    assert.deepStrictEqual(l.map((x) => x.id), ['r4', 'r3', 'r2', 'r1']);
-    assert.deepStrictEqual([l[2].de, l[2].para], ['Orquestrador', 'Agente 1 (site)']);
+    assert.deepStrictEqual(l.map((x) => x.id), ['r4', 'r2', 'r1']);
+    assert.deepStrictEqual([l[1].de, l[1].para], ['Orquestrador', 'Agente 1 (site)']);
     // Pedido de 2026-11-13: o que espera você fica em cima, em "Para aprovar".
     assert.strictEqual(await app.avaliar("document.getElementById('recados-aprovar').hidden"), false);
     assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado')].map((li) => li.dataset.id)"), ['p2', 'p1']);
     assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-aprovar-linha .recado')].map((li) => [li.querySelector('.recado-para').textContent, li.querySelector('.recado-selo-estado').textContent])"), [['Claude avulso', 'espera você'], ['Codex avulso', 'espera você']]);
-    assert.deepStrictEqual(l.map((x) => x.estado), ['recusado', 'segurado', 'entregue', 'entregue']);
-    assert.deepStrictEqual(l.map((x) => x.liberar), [false, true, false, false], 'só o segurado tem Liberar');
+    assert.deepStrictEqual(l.map((x) => x.estado), ['recusado', 'entregue', 'entregue']);
+    assert.deepStrictEqual(l.map((x) => x.liberar), [false, false, false], 'embaixo ninguém tem Liberar');
+    // O segurado também espera você: fica em cima, na parte dele, com o Liberar (ver o teste do fim).
+    assert.deepStrictEqual(await app.avaliar("[...document.querySelectorAll('#recados-segurados-linha .recado')].map((li) => [li.dataset.id, li.querySelector('.recado-selo-estado').textContent, li.querySelector('[data-rc-liberar]').textContent])"), [['r3', 'segurado', 'Liberar para o orquestrador']]);
   });
 
   await t.test('o segurado aparece no contador da aba e sai dele ao liberar', async () => {
@@ -100,11 +102,79 @@ test('recados', async (t) => {
     assert.ok(await app.avaliar("document.getElementById('recados-linha').hidden && document.getElementById('recados-memoria').hidden"));
   });
 
+  // As três vistas dividem o mesmo espaço: a lista de uma não pode continuar na tela da outra.
+  // O atributo hidden estava lá, mas o estilo das listas (display: flex) passava por cima dele:
+  // em "Vezes passadas" os recados continuavam em cima, e as vezes ficavam lá embaixo.
+  await t.test('cada vista mostra só a lista dela', async () => {
+    const aVista = () => app.avaliar("Object.fromEntries(['recados-linha', 'vezes-linha', 'recados-memoria'].map((id) => [id, document.getElementById(id).getClientRects().length > 0]))");
+    assert.deepStrictEqual(await aVista(), { 'recados-linha': false, 'vezes-linha': true, 'recados-memoria': false }, 'em Vezes passadas');
+    await app.avaliar("document.querySelector('[data-rc-aba=\"memoria\"]').click()");
+    assert.deepStrictEqual(await aVista(), { 'recados-linha': false, 'vezes-linha': false, 'recados-memoria': true }, 'em Memória do projeto');
+    await app.avaliar("document.querySelector('[data-rc-aba=\"recados\"]').click()");
+    assert.deepStrictEqual(await aVista(), { 'recados-linha': true, 'vezes-linha': false, 'recados-memoria': false }, 'em Recados');
+  });
+
   await t.test('na conversa, o recado do agente aparece por trás, sem virar balão do usuário', async () => {
     await app.esperar('!!window.__orqTeste');
     const msg = '<orq-recado id="r9" de="Agente 1 (site)" projeto="site" tipo="pergunta">\nPergunta de Agente 1 (site) (site):\nposso subir?\n\nPara responder a este agente: orq-recado para "site" "sua resposta".\n</orq-recado>';
     await app.avaliar(`window.__orqTeste.desenharEvento(${JSON.stringify({ tipo: 'user', local: true, message: { role: 'user', content: msg } })})`);
     assert.match(await app.avaliar("[...document.querySelectorAll('#mensagens .msg-bastidor-recado summary')].pop().textContent"), /Recado de Agente 1 \(site\) · site/);
     assert.ok(!(await app.avaliar("[...document.querySelectorAll('#mensagens .msg-voce')].some((b) => b.innerText.includes('posso subir'))")));
+  });
+});
+
+// Relato de 26/11: o número da aba Recados dizia "1" e a pessoa não achava o recado. Era um
+// recado segurado pelo freio (agente → agente, mais de 6 em 10 min), que ficava no meio da
+// lista, na ordem da hora: o 145º de cima para baixo. Só o que esperava aprovação subia para
+// o topo. Agora o segurado também fica em cima, na parte "Segurados pelo app", de qualquer
+// projeto e com qualquer filtro; e o botão diz para quem libera.
+test('recados: o segurado fica em cima, mesmo antigo e com outro projeto filtrado', async (t) => {
+  const base = Date.now() - 3600000;
+  const s1 = { id: 's1', ts: base, de: { tipo: 'agente', alvo: 'site', nome: 'Agente 1 (site)' }, para: { tipo: 'agente', alvo: 'api', nome: 'Agente 2 (api)' }, tipo: 'aviso', texto: 'terminei a parte do site', estado: 'segurado', motivo: 'mais de 6 recados entre esses dois agentes em 10 min: o app segurou para você conferir' };
+  const depois = Array.from({ length: 60 }, (_, i) => ({ id: `d${i}`, ts: base + 1000 * (i + 1), de: { tipo: 'agente', alvo: 'api', nome: 'Agente 2 (api)' }, para: { tipo: 'orquestrador' }, tipo: 'aviso', texto: `recado mais novo ${i + 1}`, estado: 'entregue', motivo: null }));
+  const app = await abrirApp({
+    config: { raizProjetos: '~/projetos', niveis: 1 },
+    arquivos: { '.local/share/orq-app/recados/recados.jsonl': [s1, ...depois].map((r) => JSON.stringify(r)).join('\n') + '\n', 'projetos/site/leia.md': '', 'projetos/api/leia.md': '' },
+  });
+  t.after(() => app.fechar());
+  await app.esperar('!!window.__orqRecados');
+  await app.avaliar("document.querySelector('[data-aba=\"aba-recados\"]').click()");
+  await app.esperar("document.querySelectorAll('#recados-linha .recado').length === 60");
+  // À vista de verdade (ocupa espaço na tela), e não só presente na página.
+  const aVista = (sel) => app.avaliar(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); return !!e && e.getClientRects().length > 0; })()`);
+  const emCima = () => app.avaliar("[...document.querySelectorAll('#recados-segurados-linha .recado')].map((li) => li.dataset.id)");
+
+  await t.test('o número da aba conta 1, e o recado que ele conta está no topo, antes de todos os outros', async () => {
+    assert.strictEqual(await app.avaliar("document.getElementById('n-recados-atencao').textContent"), '1');
+    assert.deepStrictEqual(await emCima(), ['s1']);
+    assert.ok(await aVista('#recados-segurados-titulo'), 'o título "Segurados pelo app" aparece');
+    assert.ok(await aVista('#recados-segurados-linha [data-id="s1"]'), 'o recado segurado aparece');
+    assert.strictEqual(await app.avaliar("document.getElementById('recados-segurados-titulo').textContent"), 'Segurados pelo app');
+    assert.ok(await app.avaliar("document.querySelector('[data-id=\"s1\"]').getBoundingClientRect().top < document.querySelector('#recados-linha .recado').getBoundingClientRect().top"), 'fica acima do recado mais novo');
+    assert.ok(!(await app.avaliar("!!document.querySelector('#recados-linha [data-id=\"s1\"]')")), 'e não se repete no meio da lista');
+    assert.match(await app.avaliar("document.querySelector('[data-id=\"s1\"]').innerText"), /terminei a parte do site[\s\S]*mais de 6 recados entre esses dois agentes/, 'com o texto e o motivo de ter sido segurado');
+  });
+
+  await t.test('sem nada para aprovar, a parte "Para aprovar" não aparece vazia', async () => {
+    assert.ok(!(await aVista('#recados-aprovar-titulo')));
+    assert.ok(!(await aVista('#recados-aprovar-linha')));
+  });
+
+  await t.test('com outro projeto filtrado, o segurado continua em cima', async () => {
+    await app.avaliar("document.querySelector('[data-rc-projeto=\"api\"]').click()");
+    await app.esperar("document.querySelector('[data-rc-projeto=\"api\"]').classList.contains('ativo')");
+    assert.strictEqual(await app.avaliar("document.querySelectorAll('#recados-linha .recado').length"), 60, 'embaixo, só os do projeto filtrado');
+    assert.deepStrictEqual(await emCima(), ['s1']);
+    assert.ok(await aVista('#recados-segurados-linha [data-id="s1"]'));
+  });
+
+  await t.test('o botão diz para quem libera (aqui, outro agente); liberado, o recado sai de cima e o número some', async () => {
+    assert.strictEqual(await app.avaliar("document.querySelector('[data-rc-liberar=\"s1\"]').textContent"), 'Liberar para o agente');
+    await app.avaliar("document.querySelector('[data-rc-liberar=\"s1\"]').click()");
+    await app.esperar("!document.querySelector('[data-rc-liberar]')");
+    assert.deepStrictEqual(await emCima(), []);
+    assert.ok(await app.avaliar("document.getElementById('recados-aprovar').hidden"), 'sem nada esperando, o bloco de cima some');
+    assert.ok(await app.avaliar("document.getElementById('n-recados-atencao').hidden"));
+    assert.match(require('fs').readFileSync(require('path').join(app.casa, '.local/share/orq-app/recados/recados.jsonl'), 'utf8'), /"id":"s1","mudanca":\{"estado":"novo","motivo":null/);
   });
 });
