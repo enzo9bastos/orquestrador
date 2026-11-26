@@ -17,6 +17,8 @@
 //   capturar(arquivo)              → Promise<void>  (print da tela, sem janela)
 //   transcrever(arquivo, { aoProgresso }) → Promise<{ trechos: [{ ini, fim, texto }] }>
 //   resumir(texto, { titulo })     → Promise<{ assunto, resumo, decisoes, pendencias }> | null
+//   falantes                       → { comecou(inicio), parou(), nomear(meta, trechosOutros) } (opcional):
+//                                    quem falou, pelo Meet (meet-falantes.js); sem ele, "Outros"
 const fs = require('fs');
 const path = require('path');
 
@@ -34,7 +36,7 @@ const limpo = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u0008\u000b
 // Junta as duas trilhas na ordem do tempo, com quem falou; prints e marcas entram no minuto deles.
 function juntar(porTrilha, prints = [], marcas = []) {
   const itens = [];
-  for (const [trilha, nome] of TRILHAS) for (const t of porTrilha[trilha] || []) itens.push({ ini: t.ini, tipo: 'fala', quem: nome, texto: t.texto });
+  for (const [trilha, nome] of TRILHAS) for (const t of porTrilha[trilha] || []) itens.push({ ini: t.ini, tipo: 'fala', quem: t.quem || nome, texto: t.texto });
   for (const p of prints) itens.push({ ini: p.seg, tipo: 'print', arquivo: p.arquivo });
   for (const m of marcas) itens.push({ ini: m.seg, tipo: 'marca', texto: m.texto });
   itens.sort((a, b) => a.ini - b.ini || (a.tipo === 'fala' ? -1 : 1));
@@ -55,6 +57,7 @@ function nota(meta, itens, r) {
   const dur = meta.fim ? Math.round((meta.fim - meta.inicio) / 60000) : null;
   const titulo = (r && r.assunto) || meta.titulo || 'Reunião';
   const l = [`# ${titulo}`, '', `${ini.toLocaleDateString('pt-BR')} às ${doisDig(ini.getHours())}:${doisDig(ini.getMinutes())}${dur != null ? ` · ${dur} min` : ''}${meta.titulo && r && r.assunto && meta.titulo !== r.assunto ? ` · título dado: ${meta.titulo}` : ''}`, ''];
+  if (meta.meet && meta.meet.participantes && meta.meet.participantes.length) l.push(`Participantes (pelo Google Meet): ${meta.meet.participantes.join(', ')}`, '');
   if (r && r.resumo) l.push('## Resumo', '', r.resumo, '');
   if (r && r.decisoes && r.decisoes.length) l.push('## Decisões', '', ...r.decisoes.map((d) => `- ${d}`), '');
   if (r && r.pendencias && r.pendencias.length) l.push('## Pendências', '', ...r.pendencias.map((p) => `- [ ] ${p}`), '');
@@ -71,7 +74,10 @@ function nota(meta, itens, r) {
   return `${l.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }
 
-function criar({ base, gravar, capturar, transcrever, resumir = async () => null, aoMudar = () => {}, agora = Date.now }) {
+const SEM_FALANTES = { comecou() {}, parou() {}, nomear: () => null };
+
+function criar({ base, gravar, capturar, transcrever, resumir = async () => null, aoMudar = () => {}, agora = Date.now, falantes = SEM_FALANTES }) {
+  const avisarFalantes = (fn) => { try { fn(); } catch { /* sem a pasta do Meet: a nota sai com "Outros" */ } };
   let atual = null; // { pasta, meta, gravadores }
   const processando = new Map(); // pasta → { fase, pct }
   const baseDir = () => (typeof base === 'function' ? base() : base);
@@ -119,6 +125,7 @@ function criar({ base, gravar, capturar, transcrever, resumir = async () => null
     }
     gravarMeta(pasta, meta);
     atual = { pasta, meta, gravadores, printsLigados: true };
+    avisarFalantes(() => falantes.comecou(inicio));
     avisar({ evento: 'comecou' });
     return estado();
   }
@@ -157,6 +164,7 @@ function criar({ base, gravar, capturar, transcrever, resumir = async () => null
     if (!atual) throw new Error('nenhuma reunião sendo gravada');
     const { pasta, meta, gravadores } = atual;
     atual = null;
+    avisarFalantes(() => falantes.parou());
     for (const g of Object.values(gravadores)) { try { await g.parar(); } catch { /* segue com o que gravou */ } }
     meta.fim = agora();
     meta.estado = 'gravada';
@@ -191,7 +199,16 @@ function criar({ base, gravar, capturar, transcrever, resumir = async () => null
         feitas++;
         gravarMeta(pasta, meta);
       }
-      const itens = juntar(meta.transcricao, meta.prints, meta.marcas);
+      // Quem falou nas falas dos Outros, pelo Meet (quando a extensão mandou algo nesse intervalo).
+      let porTrilha = meta.transcricao;
+      let nomes = null;
+      try { nomes = falantes.nomear(meta, meta.transcricao.outros || []); } catch { nomes = null; }
+      if (nomes) {
+        meta.meet = { participantes: nomes.participantes, nomeados: nomes.nomeados, trechos: (meta.transcricao.outros || []).length };
+        porTrilha = { ...meta.transcricao, outros: (meta.transcricao.outros || []).map((t, i) => (nomes.quem[i] ? { ...t, quem: nomes.quem[i] } : t)) };
+        gravarMeta(pasta, meta);
+      }
+      const itens = juntar(porTrilha, meta.prints, meta.marcas);
       processando.set(pasta, { fase: 'resumindo', pct: 100 });
       avisar();
       let r = null;
@@ -242,6 +259,7 @@ function criar({ base, gravar, capturar, transcrever, resumir = async () => null
     if (!atual) return;
     const { pasta, meta, gravadores } = atual;
     atual = null;
+    avisarFalantes(() => falantes.parou());
     for (const g of Object.values(gravadores)) { try { await g.parar(); } catch { /* segue */ } }
     meta.fim = agora(); meta.estado = 'gravada';
     try { gravarMeta(pasta, meta); } catch { /* sem disco */ }

@@ -215,6 +215,13 @@ que no hay ninguna terminal que vigilar.
   y cuando la llamada suelta el micrófono pregunta si termina. Solo ve el nombre del programa en el servidor de
   sonido, nunca el audio ni el título de la llamada. Las capturas muestran lo que elijas en el diálogo del sistema
   al empezar (la ventana de la reunión o una pantalla entera), con una miniatura en vivo para revisar (lo que las capturas muestran ahora) y *Change*.
+  **Nombres en Google Meet**: con la extensión de la app en el navegador (`app/extensao-meet/`, para navegadores
+  tipo Chrome), la nota dice el nombre de quien habló en vez de “Otros”. En la página de Meet lee solo los nombres
+  de los participantes y quién está hablando, por los subtítulos del propio Meet (los enciende y los deja
+  invisibles solo en tu pantalla, y los apaga al final si fue ella quien los encendió), y solo mientras la app graba;
+  nada de audio ni del texto de los subtítulos. Habla con un pequeño programa del equipo por el canal del navegador
+  (native messaging), sin puerto de red. Settings › *Voice and meetings* › *Prepare the browser*; después, cargar la
+  carpeta como extensión sin empaquetar.
   Mientras graba, la mascota sostiene una cámara con la luz parpadeando, muestra el tiempo en una etiqueta roja
   y tiene una nube de pensamiento en píxeles, con una cámara, sobre la cabeza (sobre el sombrero, si lleva uno): un
   clic en ella toma la captura al instante, con un destello en el clic y un ✓ cuando la captura queda guardada. La

@@ -7,6 +7,7 @@
 const path = require('path');
 const { app, BrowserWindow, desktopCapturer, ipcMain, shell, Notification } = require('electron');
 const reuniao = require('./reuniao');
+const meetFalantes = require('./meet-falantes');
 const pecas = require('./reuniao-pecas');
 const transcricao = require('./transcricao');
 
@@ -118,6 +119,8 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
     capturar,
     transcrever: (arquivo, o) => transcricao.transcrever(arquivo, { ...o, modelo: modelo(), escolhido: config.ler().vozPython }),
     resumir,
+    // Quem falou, pelo Google Meet: o programa da extensão só guarda enquanto há gravação.
+    falantes: { comecou: (inicio) => meetFalantes.marcarGravando(inicio), parou: () => meetFalantes.marcarGravando(null), nomear: (meta, trechos) => meetFalantes.nomear(meta, trechos) },
     aoMudar: (e) => {
       avisarTudo(e);
       if (e.evento === 'pronta' && Notification.isSupported() && !emTeste) {
@@ -191,6 +194,11 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
   ipcMain.handle('reuniao:abrir', seguro(async (caminho) => abrir(caminho)));
   ipcMain.handle('reuniao:trocarTela', seguro(async () => trocarTela()));
   ipcMain.handle('reuniao:tela', async () => miniaturaAgora().catch(() => null));
+  // Nomes no Google Meet (meet-instalar.js): o estado, preparar o navegador e abrir a pasta da extensão.
+  const meetInstalar = require('./meet-instalar');
+  ipcMain.handle('reuniao:meet', seguro(async () => meetInstalar.estado()));
+  ipcMain.handle('reuniao:meetPreparar', seguro(async () => ({ resultado: meetInstalar.instalar(), ...meetInstalar.estado() })));
+  ipcMain.handle('reuniao:meetPasta', seguro(async () => { if (!emTeste) await shell.openPath(meetInstalar.PASTA_EXTENSAO); return { pasta: meetInstalar.PASTA_EXTENSAO }; }));
   ipcMain.handle('reuniao:voz', seguro(async (deNovo) => {
     const c = config.ler();
     const m = transcricao.maquina();

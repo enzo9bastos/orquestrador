@@ -2183,7 +2183,14 @@
     "Não corrigir": "Do not fix",
     "Leve · texto enquanto você fala, erra mais": "Light · text while you speak, more mistakes",
     "Ouvindo. O texto aparece quando você faz uma pausa.": "Listening. The text appears when you pause.",
-    "Ouvindo. Escrevendo o que você falou…": "Listening. Writing what you said…"
+    "Ouvindo. Escrevendo o que você falou…": "Listening. Writing what you said…",
+    "Nomes no Google Meet": "Names in Google Meet",
+    "Com a extensão do app no navegador, a nota diz quem falou, com o nome, em vez de “Outros”. Ela lê na página do Meet só os nomes e quem está falando (pela legenda do Meet, que ela liga e deixa invisível só na sua tela) e só enquanto o app grava; nada de áudio nem de texto. Uma vez: aperte “Preparar o navegador”; depois, no navegador, abra a página de extensões (brave://extensions ou chrome://extensions), ligue o “Modo do desenvolvedor”, clique em “Carregar sem compactação” e escolha a pasta da extensão.": "With the app's extension in the browser, the note says who spoke, by name, instead of “Others”. On the Meet page it reads only the names and who is speaking (from Meet's captions, which it turns on and keeps invisible on your screen only), and only while the app is recording; no audio and no text. Once: press “Prepare the browser”; then, in the browser, open the extensions page (brave://extensions or chrome://extensions), turn on “Developer mode”, click “Load unpacked” and choose the extension folder.",
+    "Preparar o navegador": "Prepare the browser",
+    "Abrir a pasta da extensão": "Open the extension folder",
+    "Olhando…": "Looking…",
+    "A extensão ainda não falou com o app (ela fala quando há uma ligação do Meet aberta).": "The extension has not talked to the app yet (it does when a Meet call is open).",
+    "Nenhum navegador do tipo Chrome (Brave, Chrome, Chromium, Edge, Vivaldi) neste computador.": "No Chrome-type browser (Brave, Chrome, Chromium, Edge, Vivaldi) on this computer."
   },
   "padroes": [
     [
@@ -3569,6 +3576,18 @@
     [
       "^O ditado parou: (.+)\\. O que já estava na caixa continua lá\\.$",
       "Dictation stopped: $1. What was already in the box is still there."
+    ],
+    [
+      "^Pronto em: (.+)\\. (A extensão falou com o app pela última vez em (.+)\\.|A extensão ainda não falou com o app \\(ela fala quando há uma ligação do Meet aberta\\)\\.)$",
+      "Ready in: $1. $2"
+    ],
+    [
+      "^Ainda não preparado \\((.+)\\)\\. (.*)$",
+      "Not prepared yet ($1). $2"
+    ],
+    [
+      "^A extensão falou com o app pela última vez em (.+)\\.$",
+      "The extension last talked to the app on $1."
     ]
   ]
 }

@@ -111,7 +111,32 @@
     for (const o of res.options) if (!o.value) o.textContent = `Recomendado para este computador (${r.resumo.recomendado === 'local' ? 'modelo local' : 'Claude'})`;
     $('config-voz-resumo').textContent = `Recomendação: ${r.resumo.recomendado === 'local' ? 'modelo local' : 'Claude'}, porque ${r.resumo.motivo}.`;
   }
-  document.querySelector('[data-secao-config="voz"]')?.addEventListener('click', () => desenharVoz(false));
+  // Nomes no Google Meet: em quais navegadores está pronto e quando a extensão falou por último.
+  const quando = (ts) => new Date(ts).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  function textoMeet(r) {
+    if (!r || r.erro) return `Não consegui olhar o navegador${r && r.erro ? `: ${r.erro}` : '.'}`;
+    if (!r.navegadores.length) return 'Nenhum navegador do tipo Chrome (Brave, Chrome, Chromium, Edge, Vivaldi) neste computador.';
+    const prontos = r.navegadores.filter((n) => n.pronto).map((n) => n.navegador);
+    const partes = [prontos.length ? `Pronto em: ${prontos.join(', ')}.` : `Ainda não preparado (${r.navegadores.map((n) => n.navegador).join(', ')}).`];
+    partes.push(r.contato ? `A extensão falou com o app pela última vez em ${quando(r.contato)}.` : 'A extensão ainda não falou com o app (ela fala quando há uma ligação do Meet aberta).');
+    if (r.alheios && r.alheios.length) partes.push(`Em ${r.alheios.join(', ')} já havia um arquivo com o mesmo nome que não é do app: não mexi.`);
+    return partes.join(' ');
+  }
+  async function desenharMeet() {
+    if (!R.meet) return;
+    const r = await R.meet().catch(() => null);
+    $('config-meet-estado').textContent = textoMeet(r);
+  }
+  $('config-meet-preparar')?.addEventListener('click', async () => {
+    const b = $('config-meet-preparar');
+    b.disabled = true;
+    const r = await R.meetPreparar().catch((er) => ({ erro: er.message }));
+    b.disabled = false;
+    if (r && r.resultado) r.alheios = r.resultado.filter((x) => x.resultado === 'alheio').map((x) => x.navegador);
+    $('config-meet-estado').textContent = textoMeet(r);
+  });
+  $('config-meet-pasta')?.addEventListener('click', () => R.meetPasta().catch(() => {}));
+  document.querySelector('[data-secao-config="voz"]')?.addEventListener('click', () => { desenharVoz(false); desenharMeet(); });
   // comecar e pedirTerminar: o menu do bichinho de dentro do app (pet-tela.js) faz o mesmo que a paleta.
   window.orqReuniao = { estado: () => e, desenharVoz, comecar, pedirTerminar };
 })();

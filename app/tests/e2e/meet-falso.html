@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Meet de mentira</title></head>
+<body>
+<!-- Página de mentira com as partes do Google Meet que a extensão lê (nomes de mentira):
+     quadros com [data-participant-id] e o nome em span.notranslate, o da própria pessoa com
+     [data-self-name], o botão da legenda (ícone closed_caption_off, aria-pressed) e a região da
+     legenda (div[role=region][tabindex="0"]) com blocos "nome + texto", como na TranscripTonic. -->
+<div id="quadros">
+  <div data-participant-id="p1"><span class="notranslate">Ana Souza</span></div>
+  <div data-participant-id="p2"><span class="notranslate">Bruno Lima</span></div>
+  <div data-participant-id="p3"><div data-self-name="Carla Dias"></div><span class="notranslate">Carla Dias</span></div>
+</div>
+<div><button id="cc" aria-pressed="false"><i class="google-symbols">closed_caption_off</i></button></div>
+<div role="region" tabindex="0" id="legenda"><div id="blocos"></div></div>
+<script>
+  window.teclasC = 0;
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'c') return;
+    window.teclasC++;
+    if (window.ignorarC > 0) { window.ignorarC--; return; } // às vezes o Meet ignora a tecla
+    const b = document.getElementById('cc');
+    const ligada = b.getAttribute('aria-pressed') === 'true';
+    b.setAttribute('aria-pressed', String(!ligada));
+    b.querySelector('i').textContent = ligada ? 'closed_caption_off' : 'closed_caption';
+  });
+  // Um bloco novo: nome e texto.
+  window.falar = (nome, texto) => {
+    const bloco = document.createElement('div');
+    const q = document.createElement('div'); q.className = 'quem'; q.textContent = nome;
+    const t = document.createElement('div'); t.className = 'texto'; t.textContent = texto;
+    bloco.append(q, t);
+    document.getElementById('blocos').append(bloco);
+  };
+  // O texto do último bloco cresce (a fala continua).
+  window.continuar = (mais) => {
+    const t = document.querySelector('#blocos > div:last-child .texto').firstChild;
+    t.data += ' ' + mais;
+  };
+</script>
+</body></html>

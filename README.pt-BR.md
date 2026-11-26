@@ -208,6 +208,12 @@ há terminal para vigiar.
   microfone pergunta se termina. Ele só vê o nome do programa no servidor de som, nunca o áudio nem o título da
   ligação. Os prints mostram o que você escolher na janela do sistema no começo (a janela da reunião ou uma tela
   inteira), com a miniatura ao vivo para conferir (o que os prints mostram agora) e *Trocar*.
+  **Nomes no Google Meet**: com a extensão do app no navegador (`app/extensao-meet/`, para navegadores do tipo
+  Chrome), a nota diz o nome de quem falou em vez de “Outros”. Na página do Meet ela lê só os nomes dos participantes
+  e quem está falando, pela legenda do próprio Meet (ela liga a legenda e deixa invisível só na sua tela, e desliga
+  no fim se foi ela que ligou), e só enquanto o app grava; nada de áudio nem do texto da legenda. Ela fala com um
+  programa pequeno do computador pelo canal do navegador (native messaging), sem porta de rede. Configurações ›
+  *Voz e reuniões* › *Preparar o navegador*; depois, carregar a pasta como extensão sem compactação.
   Enquanto grava, o bichinho segura uma câmera com a luz piscando, mostra o tempo numa etiqueta vermelha e tem uma
   nuvem de pensamento em pixel, com uma câmera, acima da cabeça (acima do chapéu, quando usa um): um clique nela
   tira o print na hora, com um clarão no clique e um ✓ quando o print é guardado. A pergunta "começou uma

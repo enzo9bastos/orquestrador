@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Orquestrador: quem fala no Meet",
+  "version": "1.0.0",
+  "description": "Diz ao App de Orquestração quem participa e quem está falando numa ligação do Google Meet, para a nota da reunião gravada levar o nome de cada um. Não grava áudio nem texto; só funciona enquanto o app grava.",
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "fundo.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://meet.google.com/*"
+      ],
+      "js": [
+        "meet.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

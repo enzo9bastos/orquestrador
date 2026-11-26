@@ -197,3 +197,44 @@ test('reunião: prints seguidos no mesmo segundo ganham nomes diferentes, todos 
   assert.deepStrictEqual(res.map((x) => path.basename(x.arquivo)).sort(), ['00-00-2.png', '00-00-3.png', '00-00.png']);
   assert.strictEqual(meta(pasta).prints.length, 3);
 });
+
+// Pedido de 26/11 (quem falou, pelo Google Meet): com a extensão, cada fala dos Outros ganha o nome
+// de quem falou naquele trecho; a própria pessoa continua "Você"; sem nada do Meet, fica "Outros".
+test('reunião: com os nomes do Meet, cada fala dos Outros sai com o nome; o resumo também os recebe', async () => {
+  const avisos = [];
+  const falantes = {
+    comecou: (inicio) => avisos.push(['comecou', typeof inicio]),
+    parou: () => avisos.push(['parou']),
+    nomear: (m, trechos) => { avisos.push(['nomear', trechos.length, !!m.fim]); return { participantes: ['Ana Souza', 'Bruno Lima'], eu: 'Carla Dias', quem: trechos.map((t) => (t.ini < 20 ? 'Ana Souza' : null)), nomeados: 1 }; },
+  };
+  const a = montar({
+    falantes,
+    transcrever: async (arquivo) => (path.basename(arquivo).startsWith('voce')
+      ? { trechos: [{ ini: 1, fim: 3, texto: 'Bom dia.' }] }
+      : { trechos: [{ ini: 10, fim: 14, texto: 'Eu levanto os casos.' }, { ini: 30, fim: 33, texto: 'E eu confiro.' }] }),
+  });
+  await a.r.comecar({});
+  a.relogio.andar(60);
+  await (await a.r.terminar()).fim;
+  assert.deepStrictEqual(avisos, [['comecou', 'number'], ['parou'], ['nomear', 2, true]], 'o programa do Meet fica sabendo quando a gravação começa e para');
+  const pronta = a.eventos.find((e) => e.evento === 'pronta');
+  const nota = fs.readFileSync(pronta.nota, 'utf8');
+  assert.match(nota, /Participantes \(pelo Google Meet\): Ana Souza, Bruno Lima/);
+  const trans = nota.slice(nota.indexOf('## Transcrição')).split('\n').filter(Boolean).slice(1);
+  assert.deepStrictEqual(trans, ['[00:01] **Você:** Bom dia.', '[00:10] **Ana Souza:** Eu levanto os casos.', '[00:30] **Outros:** E eu confiro.'], 'sem ninguém falando no Meet naquele trecho, fica "Outros"');
+  assert.match(a.resumos[0].texto, /\[00:10\] Ana Souza: Eu levanto os casos\./);
+  const m = meta(pronta.pasta);
+  assert.deepStrictEqual(m.meet, { participantes: ['Ana Souza', 'Bruno Lima'], nomeados: 1, trechos: 2 });
+  assert.deepStrictEqual(m.transcricao.outros.map((t) => t.quem), [undefined, undefined], 'a transcrição guardada continua a mesma (o nome entra só na nota)');
+});
+
+test('reunião: se a parte do Meet falhar, a nota sai como antes, com "Outros"', async () => {
+  const a = montar({ falantes: { comecou: () => { throw new Error('sem pasta'); }, parou: () => { throw new Error('sem pasta'); }, nomear: () => { throw new Error('arquivo estragado'); } } });
+  await a.r.comecar({});
+  a.relogio.andar(60);
+  await (await a.r.terminar()).fim;
+  const pronta = a.eventos.find((e) => e.evento === 'pronta');
+  assert.ok(pronta, JSON.stringify(a.eventos.map((e) => e.evento)));
+  assert.match(fs.readFileSync(pronta.nota, 'utf8'), /\*\*Outros:\*\* Eu levanto os casos\./);
+  assert.doesNotMatch(fs.readFileSync(pronta.nota, 'utf8'), /Participantes/);
+});
