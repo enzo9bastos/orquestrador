@@ -122,10 +122,17 @@
     if (r.alheios && r.alheios.length) partes.push(`Em ${r.alheios.join(', ')} já havia um arquivo com o mesmo nome que não é do app: não mexi.`);
     return partes.join(' ');
   }
+  // A linha do estado muda de cor: verde quando o navegador está pronto, âmbar quando falta preparar
+  // (relato de 26/11: antes e depois de preparar, a linha parecia a mesma).
+  function pintarMeet(r) {
+    const el = $('config-meet-estado');
+    el.textContent = textoMeet(r);
+    const pronto = !!(r && !r.erro && r.navegadores && r.navegadores.some((n) => n.pronto));
+    el.dataset.situacao = !r || r.erro ? 'erro' : pronto ? 'pronto' : 'falta';
+  }
   async function desenharMeet() {
     if (!R.meet) return;
-    const r = await R.meet().catch(() => null);
-    $('config-meet-estado').textContent = textoMeet(r);
+    pintarMeet(await R.meet().catch(() => null));
   }
   $('config-meet-preparar')?.addEventListener('click', async () => {
     const b = $('config-meet-preparar');
@@ -133,7 +140,7 @@
     const r = await R.meetPreparar().catch((er) => ({ erro: er.message }));
     b.disabled = false;
     if (r && r.resultado) r.alheios = r.resultado.filter((x) => x.resultado === 'alheio').map((x) => x.navegador);
-    $('config-meet-estado').textContent = textoMeet(r);
+    pintarMeet(r);
   });
   $('config-meet-pasta')?.addEventListener('click', () => R.meetPasta().catch(() => {}));
   document.querySelector('[data-secao-config="voz"]')?.addEventListener('click', () => { desenharVoz(false); desenharMeet(); });
