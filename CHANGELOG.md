@@ -4,6 +4,16 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.21.0 (2026-11-26)
+
+- Meeting mode: names of who spoke, in Google Meet. With the app's browser extension (Chrome-type browsers, in
+  `app/extensao-meet/`), each "Others" line in the meeting note gets the name of the person who spoke, and the note
+  lists the participants. The extension reads only the names and who is speaking, from Meet's own captions, which it
+  turns on and keeps invisible on your screen only (and turns off at the end if it turned them on), and only while
+  the app records. No audio and no caption text leave the page. Set it up once in Settings › Voice and meetings ›
+  "Names in Google Meet": press "Prepare the browser", then load the folder as an unpacked extension. Without the
+  extension, or in other call apps, the note is as before.
+
 ## 0.20.2 (2026-11-26)
 
 - Agent messages: a message over 2000 characters is no longer cut silently. The agent script refuses it, tells
