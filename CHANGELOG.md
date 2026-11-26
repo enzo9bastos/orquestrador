@@ -4,6 +4,14 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.20.2 (2026-11-26)
+
+- Agent messages: a message over 2000 characters is no longer cut silently. The agent script refuses it, tells
+  the agent its size and suggests splitting it or sending the path of a file. Before, the receiver read only the
+  first 2000 characters and nobody knew.
+- Loop brake: it now holds from the 31st message in 10 minutes (same project to the orchestrator, or between the
+  same two agents). It used to hold from the 7th, which two agents working together passed in half a minute.
+
 ## 0.20.1 (2026-11-26)
 
 - Messages tab: a message held by the loop brake now sits on top, under "Held by the app", with its Release
