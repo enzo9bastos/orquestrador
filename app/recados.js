@@ -33,7 +33,7 @@ const MARCA = '# (arquivo do App de Orquestração: o app instala e atualiza est
 const SCRIPT = path.join(__dirname, '..', 'hooks', 'orq-recado.sh');
 // Freio contra conversa em loop: a partir do 7º recado do mesmo projeto em
 // 10 min, o app segura e espera o usuário liberar na aba Recados.
-const LIMITE = 6;
+const LIMITE = 30; // era 6 até 26/11: dois agentes trabalhando juntos passavam disso em meio minuto
 const JANELA_MS = 10 * 60 * 1000;
 const TIPOS = ['pergunta', 'aviso', 'pronto', 'travado', 'vez', 'pedido', 'resposta', 'falhou', 'negado'];
 const TIPOS_NOTA = ['decisao', 'falhou', 'onde', 'aviso'];

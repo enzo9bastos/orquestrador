@@ -453,7 +453,8 @@ ler — seja qual for a IA em que ele roda. Tudo são arquivos locais; nada sai 
 
 - **Agente → orquestrador.** O agente roda `.orq/bin/orq-recado enviar "texto" --tipo pergunta|aviso|pronto|travado`.
   O app recolhe em `<projeto>/.orq/recados/saida/` e entrega na conversa do orquestrador como mensagem por trás, com
-  o jeito de responder.
+  o jeito de responder. Um recado tem até 2000 caracteres; o maior não sai (nada é cortado) e o script diz ao agente
+  o tamanho.
 - **Orquestrador → agente.** `orq-recado para <projeto|agente> "texto"` escreve o recado no painel daquele agente, numa
   linha, com o jeito de responder. Também instala `.orq/bin/orq-recado` no projeto quando falta.
 - **Agente → agente.** `.orq/bin/orq-recado enviar "texto" --para <agente|projeto>` chega a outro agente do app,
@@ -519,7 +520,7 @@ ler — seja qual for a IA em que ele roda. Tudo são arquivos locais; nada sai 
   rodando o Claude naquela pasta) e, com o hook de sinais ligado, só da sessão daquele agente. Uma CLI aberta num
   terminal fora do app é recusada. Isso separa "do app" de "de fora"; não é uma defesa contra um agente hostil, que
   pode gravar na pasta do próprio projeto.
-- **Freio contra loop.** A partir do 7º recado do mesmo projeto ao orquestrador, ou entre os mesmos dois agentes (nos
+- **Freio contra loop.** A partir do 31º recado do mesmo projeto ao orquestrador, ou entre os mesmos dois agentes (nos
   dois sentidos), em 10 minutos, o app segura; a aba **Recados** mostra em cima, em **Segurados pelo app**, com um
   botão **Liberar** (o número na aba conta esses recados).
 

@@ -32,6 +32,24 @@ test('script do agente: enviar deixa o recado com a sessão', () => {
   assert.notStrictEqual(agente(p.dir, 's', { args: ['enviar'] }).status, 0);
 });
 
+// Relato de 26/11: o app guardava só 2000 caracteres de cada recado e cortava o resto sem avisar
+// ninguém; dois recados chegaram pela metade naquele dia. Agora o maior não sai, e quem mandou
+// fica sabendo o tamanho e o que fazer.
+test('script do agente: recado de mais de 2000 caracteres não sai, e o agente fica sabendo', () => {
+  const p = projeto('a-longo');
+  const longo = 'ç'.repeat(2001);
+  const r = agente(p.dir, 's', { args: ['enviar', longo, '--para', 'Agente B'] });
+  assert.notStrictEqual(r.status, 0);
+  assert.match(r.stdout, /recado NÃO enviado: o texto tem 2001 caracteres e o limite é 2000/);
+  assert.match(r.stdout, /Divida em partes/);
+  assert.ok(!fs.existsSync(path.join(p.dir, '.orq/recados/saida')) || fs.readdirSync(path.join(p.dir, '.orq/recados/saida')).length === 0, 'nada fica para o app');
+  // No limite, sai inteiro (conta caracteres, não bytes: "ç" tem 2 bytes).
+  const r2 = agente(p.dir, 's', { args: ['enviar', 'ç'.repeat(2000)] });
+  assert.strictEqual(r2.status, 0, r2.stdout + r2.stderr);
+  const [arq] = fs.readdirSync(path.join(p.dir, '.orq/recados/saida'));
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(p.dir, '.orq/recados/saida', arq), 'utf8')).texto.length, 2000);
+});
+
 test('script do agente: lembrar nunca sobrescreve; memoria, buscar e ler acham a nota', () => {
   const p = projeto('b');
   for (let i = 0; i < 2; i++) assert.strictEqual(agente(p.dir, 's', { args: ['lembrar', 'Porta do servidor', 'O servidor de teste usa a porta 4010.', '--tipo', 'onde'] }).status, 0);
@@ -68,7 +86,8 @@ test('recolher: só aceita agente do app; o de fora é recusado', () => {
   assert.strictEqual(r.estado, 'recusado');
 });
 
-test('freio: a partir do 7º recado do mesmo projeto em 10 min, segura; liberar devolve à fila', () => {
+test('freio: a partir do 31º recado do mesmo projeto em 10 min, segura; liberar devolve à fila', () => {
+  assert.strictEqual(recados.LIMITE, 30, 'o limite de fábrica é 30 (era 6 até 26/11)');
   const p = projeto('d');
   for (let i = 1; i <= recados.LIMITE + 1; i++) agente(p.dir, '', { args: ['enviar', `recado ${i}`] });
   const novos = recados.recolher([p], [frente(p, 'Agente 2')]);
@@ -185,12 +204,14 @@ test('agente → agente sem o destino aberto: espera; entrega quando ele aparece
   assert.strictEqual(chamadas.find((x) => x[3] === '-l')[2], '%32');
 });
 
-test('freio por dupla: a partir do 7º recado entre os mesmos dois agentes em 10 min, segura', () => {
+test('freio por dupla: a partir do 31º recado entre os mesmos dois agentes em 10 min, segura', () => {
   const a = projeto('j-a'), b = projeto('j-b');
   const fr = [frente(a, 'Agente A', null, '%41'), frente(b, 'Agente B', null, '%42')];
-  for (let i = 1; i <= 4; i++) agente(a.dir, '', { args: ['enviar', `ida ${i}`, '--para', 'Agente B'] });
-  for (let i = 1; i <= 3; i++) agente(b.dir, '', { args: ['enviar', `volta ${i}`, '--para', 'Agente A'] });
+  const idas = Math.ceil((recados.LIMITE + 1) / 2), voltas = recados.LIMITE + 1 - idas;
+  for (let i = 1; i <= idas; i++) agente(a.dir, '', { args: ['enviar', `ida ${i}`, '--para', 'Agente B'] });
+  for (let i = 1; i <= voltas; i++) agente(b.dir, '', { args: ['enviar', `volta ${i}`, '--para', 'Agente A'] });
   const novos = recados.recolher([a, b], fr);
+  assert.strictEqual(novos.length, 31);
   assert.strictEqual(novos.filter((r) => r.estado === 'segurado').length, 1, 'ida e volta contam juntas');
   assert.match(novos.find((r) => r.estado === 'segurado').motivo, /entre esses dois agentes/);
 });

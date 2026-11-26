@@ -464,7 +464,8 @@ posterior puede leer — sea cual sea la IA en la que corra. Todo son archivos l
 
 - **Agente → orquestador.** El agente corre `.orq/bin/orq-recado enviar "texto" --tipo pergunta|aviso|pronto|travado`
   (pregunta, aviso, listo, trabado). La app lo recoge de `<proyecto>/.orq/recados/saida/` y lo entrega a la
-  conversación del orquestador como un mensaje por detrás, con la forma de responder.
+  conversación del orquestador como un mensaje por detrás, con la forma de responder. Un mensaje tiene hasta 2000
+  caracteres; uno más largo no sale (nada se corta) y el script le dice al agente su tamaño.
 - **Orquestador → agente.** `orq-recado para <proyecto|agente> "texto"` escribe el mensaje en el panel de ese agente,
   en una línea, con la forma de responder. También instala `.orq/bin/orq-recado` en el proyecto cuando falta.
 - **Agente → agente.** `.orq/bin/orq-recado enviar "texto" --para <agente|proyecto>` llega a otro agente de la app,
@@ -534,7 +535,7 @@ posterior puede leer — sea cual sea la IA en la que corra. Todo son archivos l
   de tmux corriendo Claude en esa carpeta) y, con el hook de señales activo, solo desde la sesión de ese agente. Una
   CLI abierta en una terminal fuera de la app queda afuera. Esto separa "de la app" de "de afuera"; no es una defensa
   contra un agente hostil, que puede escribir en la carpeta de su propio proyecto.
-- **Freno contra bucles.** A partir del 7.º mensaje del mismo proyecto al orquestador, o entre los mismos dos agentes
+- **Freno contra bucles.** A partir del 31.º mensaje del mismo proyecto al orquestador, o entre los mismos dos agentes
   (en ambos sentidos), en 10 minutos, la app los retiene; la pestaña **Messages** los muestra arriba, en **Held by
   the app**, con un botón **Release** (el número de la pestaña los cuenta).
 

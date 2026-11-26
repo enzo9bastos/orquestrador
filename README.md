@@ -445,7 +445,8 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
 
 - **Agent → orchestrator.** The agent runs `.orq/bin/orq-recado enviar "text" --tipo pergunta|aviso|pronto|travado`
   (question, notice, done, stuck). The app picks it up from `<project>/.orq/recados/saida/` and hands it to the
-  orchestrator's chat as a behind-the-scenes message, with how to answer.
+  orchestrator's chat as a behind-the-scenes message, with how to answer. A message holds up to 2000 characters;
+  a longer one is not sent (nothing is cut) and the script tells the agent its size.
 - **Orchestrator → agent.** `orq-recado para <project|agent> "text"` types the message into that agent's pane, in one
   line, with how to answer. It also installs `.orq/bin/orq-recado` in the project when it is missing.
 - **Agent → agent.** `.orq/bin/orq-recado enviar "text" --para <agent|project>` reaches another agent of the app,
@@ -514,7 +515,7 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   running Claude in that folder) and, when the signal hook is on, only from that agent's session. A CLI opened in
   a terminal outside the app is turned away. This separates "in the app" from "outside"; it is not a defense
   against a hostile agent, which can write to its own project folder.
-- **Loop brake.** From the 7th message of the same project to the orchestrator, or between the same two agents
+- **Loop brake.** From the 31st message of the same project to the orchestrator, or between the same two agents
   (both ways), within 10 minutes, the app holds them; the **Messages** tab shows them on top, under **Held by the
   app**, with a **Release** button (the number on the tab counts them).
 

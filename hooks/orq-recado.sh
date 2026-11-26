@@ -4,7 +4,9 @@
 #
 #   .orq/bin/orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>]
 #        manda um recado ao orquestrador (padrão: aviso) ou, com --para, a
-#        outro agente do app. Uma linha curta e direta; o app entrega.
+#        outro agente do app. Uma linha curta e direta; o app entrega. Até 2000
+#        caracteres: maior que isso, o recado não sai (nada é cortado) e o
+#        script diz o tamanho; divida em partes ou mande o caminho de um arquivo.
 #   .orq/bin/orq-recado agentes              quem está aberto no app agora
 #   .orq/bin/orq-recado passar "onde parei" [--falta "…"] [--falhou "…"] [--para <agente|projeto>]
 #        passa a vez: outro agente (ou o que você indicar) continua daqui
@@ -63,6 +65,14 @@ case "$cmd" in
         case "$VAL" in pergunta|aviso|pronto|travado) ;; *) echo "tipo inválido: $VAL (pergunta|aviso|pronto|travado)"; exit 1 ;; esac
         texto="${POS[*]:-}"
         [ -n "${texto// /}" ] || { echo 'uso: orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>]'; exit 1; }
+        # O app guarda até 2000 caracteres por recado. Antes, o resto era cortado sem aviso e quem
+        # recebia lia o texto pela metade; agora o recado maior não sai e quem mandou fica sabendo.
+        n="$(python3 -c 'import sys; print(len(sys.argv[1]))' "$texto")"
+        if [ "$n" -gt 2000 ]; then
+            echo "recado NÃO enviado: o texto tem $n caracteres e o limite é 2000 (nada foi cortado nem deixado para o app)."
+            echo "Divida em partes de até 2000 caracteres, ou grave o texto num arquivo do projeto e mande só o caminho."
+            exit 1
+        fi
         if [ -n "$PARA" ]; then
             deixar acao recado tipo "$VAL" texto "$texto" para "$PARA"
             echo "recado deixado para $PARA ($VAL). O app entrega no terminal dele; se não achar o agente, o recado aparece recusado na aba Recados."
