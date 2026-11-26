@@ -18,7 +18,12 @@ app.on('second-instance', () => {
 // orqnota://p<pasta>/<caminho>: imagens das pastas de notas, só dentro delas e
 // só arquivos de imagem. Assim o editor mostra os anexos sem abrir o disco
 // inteiro para a tela.
-protocol.registerSchemesAsPrivileged([{ scheme: 'orqnota', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
+// orqmidia://local/<caminho>: imagem, GIF ou vídeo do computador que o orquestrador ou um agente
+// mostra na conversa (midia-local.js diz quais arquivos podem; a tela nunca lê o disco direto).
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'orqnota', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+  { scheme: 'orqmidia', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+]);
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -1120,6 +1125,26 @@ app.whenReady().then(() => {
       const rel = decodeURIComponent(u.pathname).replace(/^\//, '');
       if (!/\.(png|jpe?g|gif|webp|svg)$/i.test(rel)) return new Response('', { status: 403 });
       return net.fetch(pathToFileURL(notas.caminho(i, rel)).toString());
+    } catch { return new Response('', { status: 404 }); }
+  });
+  ipcMain.handle('midia:conferir', (_e, caminho) => {
+    const v = require('./midia-local').validar(caminho);
+    return v.ok ? { ok: true, tipo: v.tipo } : { ok: false, motivo: v.motivo };
+  });
+  protocol.handle('orqmidia', (req) => {
+    try {
+      const v = require('./midia-local').validar(require('./midia-local').caminhoDaUrl(req.url));
+      if (!v.ok) return new Response(v.motivo, { status: 403 });
+      // Vídeo pede pedaços (Range) para começar logo e para pular adiante.
+      const faixa = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get('range') || '');
+      const { Readable } = require('stream');
+      if (faixa) {
+        const ini = faixa[1] ? Number(faixa[1]) : Math.max(0, v.bytes - Number(faixa[2] || 0));
+        const fim = faixa[1] && faixa[2] ? Math.min(Number(faixa[2]), v.bytes - 1) : v.bytes - 1;
+        if (ini > fim || ini >= v.bytes) return new Response('', { status: 416, headers: { 'Content-Range': `bytes */${v.bytes}` } });
+        return new Response(Readable.toWeb(fs.createReadStream(v.real, { start: ini, end: fim })), { status: 206, headers: { 'Content-Type': v.mime, 'Content-Length': String(fim - ini + 1), 'Content-Range': `bytes ${ini}-${fim}/${v.bytes}`, 'Accept-Ranges': 'bytes' } });
+      }
+      return new Response(Readable.toWeb(fs.createReadStream(v.real)), { status: 200, headers: { 'Content-Type': v.mime, 'Content-Length': String(v.bytes), 'Accept-Ranges': 'bytes' } });
     } catch { return new Response('', { status: 404 }); }
   });
   criarJanela();

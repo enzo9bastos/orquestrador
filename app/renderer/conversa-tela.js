@@ -10,7 +10,47 @@
   let listaConversas = [];
 
   const { esc } = window.orqUtil;
-  const md = (t) => DOMPurify.sanitize(marked.parse(t || '', { gfm: true, breaks: true }));
+  // Imagem, GIF ou vídeo do computador escrito como ![legenda](/caminho/absoluto) (fora de bloco de
+  // código) vira um marcador; depois do markdown, montarMidias() troca o marcador pela prévia, que
+  // o processo principal serve por orqmidia:// só se for imagem ou vídeo de verdade (midia-local.js).
+  // Pedido de 26/11: ver no próprio app, em vez de o agente abrir o arquivo na tela.
+  const MIDIA_MD = /!\[([^\]\n]*)\]\(\s*<?((?:\/|~\/)[^)\n]*?\.(?:png|jpe?g|gif|webp|bmp|mp4|m4v|webm|ogv|mov))>?\s*\)/gi;
+  const comMarcadores = (t) => String(t || '').split(/(```[\s\S]*?```|`[^`\n]*`)/).map((parte, i) => (i % 2 ? parte
+    : parte.replace(MIDIA_MD, (_, legenda, caminho) => `<span class="midia-local" data-midia="${esc(caminho)}" data-legenda="${esc(legenda)}"></span>`))).join('');
+  const md = (t) => DOMPurify.sanitize(marked.parse(comMarcadores(t), { gfm: true, breaks: true }));
+  const VIDEO_EXT = /\.(mp4|m4v|webm|ogv|mov)$/i;
+  function montarMidias(raiz) {
+    for (const m of raiz.querySelectorAll('span.midia-local')) {
+      const caminho = m.dataset.midia || '';
+      const nome = caminho.split('/').pop();
+      const legenda = (m.dataset.legenda || '').trim();
+      const fig = document.createElement('figure');
+      fig.className = 'midia-conversa carregando';
+      fig.dataset.caminho = caminho;
+      const url = `orqmidia://local/${encodeURIComponent(caminho)}`;
+      const video = VIDEO_EXT.test(caminho);
+      const legendaEl = document.createElement('figcaption');
+      legendaEl.innerHTML = `<span data-sem-traducao>${esc(legenda || nome)}</span>`;
+      m.replaceWith(fig);
+      // Confere antes de montar (o processo principal aplica a mesma regra do orqmidia://): o motivo
+      // da recusa aparece no lugar da prévia.
+      const conferir = window.orq.midia ? window.orq.midia.conferir(caminho) : Promise.resolve({ ok: true });
+      conferir.then((r) => {
+        fig.classList.remove('carregando');
+        if (!r || !r.ok) {
+          fig.classList.add('midia-falhou');
+          fig.innerHTML = `<p class="nota"><span>Não deu para mostrar</span> <span data-sem-traducao>${esc(nome)}</span>: <span>${esc((r && r.motivo) || 'arquivo não encontrado')}</span></p>`;
+          return;
+        }
+        const el = document.createElement(video ? 'video' : 'img');
+        el.src = url;
+        if (video) Object.assign(el, { muted: true, autoplay: true, loop: true, playsInline: true });
+        else el.alt = legenda || nome;
+        el.title = 'Abrir em tela cheia';
+        fig.append(el, legendaEl);
+      }).catch(() => { fig.classList.remove('carregando'); fig.classList.add('midia-falhou'); fig.textContent = nome; });
+    }
+  }
 
   let grupo = null;          // bloco "Claude" em que as próximas respostas entram
   let rascunho = null;       // texto chegando aos pedaços
@@ -132,6 +172,15 @@
       const icone = { pergunta: '❓', travado: '⛔', pronto: '✅', vez: '🔁', resposta: '🧩', falhou: '⚠', negado: '🚫' }[rc[3]] || '✉';
       el.innerHTML = `<summary>${icone} Recado de <span data-sem-traducao>${esc(rc[1])} · ${esc(rc[2])}</span></summary><div class="msg-bastidor-texto">${esc(rc[4])}</div>`;
       caixa.append(el);
+      // Imagem ou vídeo que o agente mandou mostrar (--mostrar): à vista, mesmo com o recado fechado.
+      const midias = [...String(rc[4]).matchAll(MIDIA_MD)].map((x) => `![${x[1]}](${x[2]})`);
+      if (midias.length) {
+        const m = document.createElement('div');
+        m.className = 'msg-bastidor-midias';
+        m.innerHTML = md(midias.join('\n\n'));
+        montarMidias(m);
+        caixa.append(m);
+      }
       return;
     }
     // Recado do canal entre orquestradores (de outro computador, ou o retorno
@@ -249,6 +298,7 @@
     el.className = 'md texto-claude';
     fonteMd.set(el, t);
     el.innerHTML = md(t);
+    montarMidias(el);
     marcarCaminhos(el);
     linkificarDominios(el);
     botoesDeCodigo(el);

@@ -475,6 +475,11 @@ posterior puede leer — sea cual sea la IA en la que corra. Todo son archivos l
   caracteres; uno más largo no sale (nada se corta) y el script le dice al agente su tamaño.
 - **Orquestador → agente.** `orq-recado para <proyecto|agente> "texto"` escribe el mensaje en el panel de ese agente,
   en una línea, con la forma de responder. También instala `.orq/bin/orq-recado` en el proyecto cuando falta.
+- **Imagen, GIF y video en la conversación.** Cuando Claude escribe `![leyenda](/ruta/completa/archivo.gif)` (png, jpg,
+  gif, webp, mp4, webm o mov), la app muestra el archivo ahí mismo, el video sin sonido y en bucle, y el clic lo abre a
+  pantalla completa dentro de la app. Un agente hace lo mismo con `.orq/bin/orq-recado enviar "texto" --mostrar
+  <archivo>`. Solo aparecen imágenes y videos de verdad (revisados por sus primeros bytes) de la carpeta personal o la
+  temporal, nunca de las carpetas de claves y contraseñas.
 - **Agente → agente.** `.orq/bin/orq-recado enviar "texto" --para <agente|proyecto>` llega a otro agente de la app,
   escrito en su panel con la forma de responder. `.orq/bin/orq-recado agentes` lista quién está abierto (la app guarda
   esa lista en `<proyecto>/.orq/recados/agentes.json`). Un mensaje a un agente que no está abierto espera hasta que

@@ -2190,7 +2190,9 @@
     "Abrir a pasta da extensão": "Open the extension folder",
     "Olhando…": "Looking…",
     "A extensão ainda não falou com o app (ela fala quando há uma ligação do Meet aberta).": "The extension has not talked to the app yet (it does when a Meet call is open).",
-    "Nenhum navegador do tipo Chrome (Brave, Chrome, Chromium, Edge, Vivaldi) neste computador.": "No Chrome-type browser (Brave, Chrome, Chromium, Edge, Vivaldi) on this computer."
+    "Nenhum navegador do tipo Chrome (Brave, Chrome, Chromium, Edge, Vivaldi) neste computador.": "No Chrome-type browser (Brave, Chrome, Chromium, Edge, Vivaldi) on this computer.",
+    "Não deu para mostrar": "Could not show",
+    "Abrir em tela cheia": "Open full screen"
   },
   "padroes": [
     [

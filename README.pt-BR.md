@@ -463,6 +463,11 @@ ler — seja qual for a IA em que ele roda. Tudo são arquivos locais; nada sai 
   o tamanho.
 - **Orquestrador → agente.** `orq-recado para <projeto|agente> "texto"` escreve o recado no painel daquele agente, numa
   linha, com o jeito de responder. Também instala `.orq/bin/orq-recado` no projeto quando falta.
+- **Imagem, GIF e vídeo na conversa.** Quando o Claude escreve `![legenda](/caminho/completo/arquivo.gif)` (png, jpg,
+  gif, webp, mp4, webm ou mov), o app mostra o arquivo ali mesmo, o vídeo rodando sem som e repetindo, e o clique abre
+  em tela cheia dentro do app. Um agente faz o mesmo com `.orq/bin/orq-recado enviar "texto" --mostrar <arquivo>`. Só
+  aparecem imagem e vídeo de verdade (conferidos pelos primeiros bytes) da pasta pessoal ou da temporária, nunca das
+  pastas de chaves e senhas.
 - **Agente → agente.** `.orq/bin/orq-recado enviar "texto" --para <agente|projeto>` chega a outro agente do app,
   escrito no painel dele com o jeito de responder. `.orq/bin/orq-recado agentes` lista quem está aberto (o app guarda
   essa lista em `<projeto>/.orq/recados/agentes.json`). Recado para um agente que não está aberto espera até ele abrir.

@@ -2,11 +2,14 @@
 # orq-recado — recados e memória do projeto, do lado do agente.
 # (arquivo do App de Orquestração: o app instala e atualiza esta cópia)
 #
-#   .orq/bin/orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>]
+#   .orq/bin/orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>] [--mostrar <arquivo>]...
 #        manda um recado ao orquestrador (padrão: aviso) ou, com --para, a
 #        outro agente do app. Uma linha curta e direta; o app entrega. Até 2000
 #        caracteres: maior que isso, o recado não sai (nada é cortado) e o
 #        script diz o tamanho; divida em partes ou mande o caminho de um arquivo.
+#        --mostrar <arquivo>: imagem, GIF ou vídeo (png, jpg, gif, webp, mp4, webm,
+#        mov) que o usuário vê dentro do app, na conversa do orquestrador, com
+#        tela cheia no clique. Use isto em vez de abrir o arquivo na tela dele.
 #   .orq/bin/orq-recado agentes              quem está aberto no app agora
 #   .orq/bin/orq-recado passar "onde parei" [--falta "…"] [--falhou "…"] [--para <agente|projeto>]
 #        passa a vez: outro agente (ou o que você indicar) continua daqui
@@ -30,13 +33,14 @@ cmd="${1:-}"; shift || true
 opcao() { # opcao --tipo padrão "$@": devolve o valor em VAL, --para em PARA,
            # --falta/--falhou em FALTA/FALHOU e os posicionais em POS
     local nome="$1" padrao="$2"; shift 2
-    VAL="$padrao"; PARA=""; FALTA=""; FALHOU=""; POS=()
+    VAL="$padrao"; PARA=""; FALTA=""; FALHOU=""; POS=(); MOSTRAR=()
     while [ $# -gt 0 ]; do
         case "$1" in
             "$nome") VAL="${2:-}"; shift 2 ;;
             --para) PARA="${2:-}"; shift 2 ;;
             --falta) FALTA="${2:-}"; shift 2 ;;
             --falhou) FALHOU="${2:-}"; shift 2 ;;
+            --mostrar) MOSTRAR+=("${2:-}"); shift 2 ;;
             *) POS+=("$1"); shift ;;
         esac
     done
@@ -64,7 +68,25 @@ case "$cmd" in
         opcao --tipo aviso "$@"
         case "$VAL" in pergunta|aviso|pronto|travado) ;; *) echo "tipo inválido: $VAL (pergunta|aviso|pronto|travado)"; exit 1 ;; esac
         texto="${POS[*]:-}"
-        [ -n "${texto// /}" ] || { echo 'uso: orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>]'; exit 1; }
+        [ -n "${texto// /}" ] || { echo 'uso: orq-recado enviar "texto" [--tipo pergunta|aviso|pronto|travado] [--para <agente|projeto>] [--mostrar <arquivo>]'; exit 1; }
+        # Cada --mostrar vira uma linha ![nome](/caminho/completo) no fim do texto: o app mostra a
+        # imagem ou o vídeo na conversa (o caminho relativo é desta pasta).
+        for arq in "${MOSTRAR[@]}"; do
+            linha="$(python3 - "$arq" <<'PY'
+import os, re, sys
+a = os.path.abspath(os.path.expanduser(sys.argv[1]))
+if not re.search(r"\.(png|jpe?g|gif|webp|bmp|mp4|m4v|webm|ogv|mov)$", a, re.I):
+    print("ERRO: --mostrar só aceita imagem (png, jpg, gif, webp, bmp) ou vídeo (mp4, webm, mov, ogv): " + a); sys.exit(0)
+if not os.path.isfile(a):
+    print("ERRO: --mostrar: arquivo não encontrado: " + a); sys.exit(0)
+if re.search(r"[()\n]", a):
+    print("ERRO: --mostrar: o caminho não pode ter parênteses nem quebra de linha: " + a); sys.exit(0)
+print(f"![{os.path.basename(a)}]({a})")
+PY
+)"
+            case "$linha" in ERRO:*) echo "recado NÃO enviado: ${linha#ERRO: }"; exit 1 ;; esac
+            texto="$texto"$'\n'"$linha"
+        done
         # O app guarda até 2000 caracteres por recado. Antes, o resto era cortado sem aviso e quem
         # recebia lia o texto pela metade; agora o recado maior não sai e quem mandou fica sabendo.
         n="$(python3 -c 'import sys; print(len(sys.argv[1]))' "$texto")"

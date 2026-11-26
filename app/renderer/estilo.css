@@ -1169,6 +1169,16 @@ textarea.campo-config { height: auto; padding: 6px 8px; resize: vertical; }
 .visor-imagem[hidden] { display: none; }
 .visor-imagem img { position: absolute; left: 0; top: 0; transform-origin: 0 0; cursor: grab; box-shadow: 0 20px 60px rgba(0, 0, 0, .6); image-rendering: auto; }
 .visor-imagem img.movendo { cursor: grabbing; }
+.visor-imagem img[hidden], .visor-imagem video[hidden] { display: none; }
+.visor-imagem .visor-video { position: absolute; inset: 40px 40px 80px; width: calc(100% - 80px); height: calc(100% - 120px); object-fit: contain; cursor: default; }
+.visor-imagem.com-video .visor-barra > :not([data-v="fechar"]) { display: none; }
+/* Imagem, GIF ou vídeo que o orquestrador ou um agente mostra na conversa (pedido de 26/11). */
+.midia-conversa { margin: 10px 0; display: inline-flex; flex-direction: column; gap: 6px; max-width: 100%; }
+.midia-conversa img, .midia-conversa video { display: block; max-width: min(100%, 720px); max-height: 420px; border-radius: 8px; border: 1px solid var(--borda); background: var(--bg-afundado); cursor: zoom-in; object-fit: contain; }
+.midia-conversa figcaption { font-size: 12px; color: var(--fg-3); }
+.midia-conversa.carregando { min-height: 60px; min-width: 120px; border-radius: 8px; background: var(--bg-afundado); }
+.midia-conversa.midia-falhou { display: block; }
+.msg-bastidor-midias { margin: 4px 0 10px; }
 .visor-barra { position: absolute; left: 50%; bottom: 18px; translate: -50% 0; display: flex; align-items: center; gap: 4px; padding: 5px; border-radius: 12px; background: var(--bg-elevado); border: 1px solid var(--borda-forte); }
 .visor-barra button { min-width: 32px; height: 30px; padding: 0 8px; border-radius: 8px; color: var(--fg-2); font-size: 13px; }
 .visor-barra button:hover { background: var(--painel-hover); color: var(--fg); }

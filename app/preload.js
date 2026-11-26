@@ -179,6 +179,8 @@ contextBridge.exposeInMainWorld('orq', {
     aoMudar: (fn) => ipcRenderer.on('atualizacao:mudou', (_e, e) => fn(e)),
   },
   // Modo reunião (reuniao-ligacao.js): gravar, print, marcar, terminar; e o que as Configurações mostram.
+  // Imagem, GIF ou vídeo do computador na conversa: o processo principal diz se pode mostrar.
+  midia: { conferir: (caminho) => ipcRenderer.invoke('midia:conferir', String(caminho || '')) },
   reuniao: {
     estado: () => ipcRenderer.invoke('reuniao:estado'),
     comecar: (titulo) => ipcRenderer.invoke('reuniao:comecar', { titulo }),

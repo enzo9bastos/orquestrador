@@ -269,6 +269,7 @@ function embrulho(r) {
   return `<orq-recado id="${semAspas(r.id)}" de="${semAspas(r.de.nome)}" projeto="${semAspas(r.de.alvo)}" tipo="${semAspas(r.tipo)}">\n`
     + `${tipo} de ${r.de.nome} (${r.de.alvo}):\n${corpo}\n\n`
     + `${AVISO_DADO}\n`
+    + (/!\[[^\]\n]*\]\((?:\/|~\/)[^)\n]+\)/.test(corpo) ? 'As linhas ![nome](/caminho) acima o usuário já vê no app, como imagem ou vídeo. Para mostrar de novo ou outro arquivo, escreva ![legenda](/caminho/completo) na sua resposta. ' : '')
     + (r.tipo === 'vez' ? 'Se ninguém do app pode pegar essa vez, abra um agente para ela; ele pega com .orq/bin/orq-recado pegar <id>. Lista: orq-recado vezes. ' : '')
     + `Para responder a este agente: orq-recado para "${semAspas(r.de.alvo)}" "sua resposta". `
     + `Memória do projeto: orq-recado memoria "${semAspas(r.de.alvo)}".\n</orq-recado>`;
@@ -413,7 +414,7 @@ function mandarAoAgente(frente, texto, { tipo = 'aviso', tmux = tmuxPadrao, tela
   let instalacao;
   try { instalacao = instalar(frente.dir); } catch (e) { if (!pastaProjeto.ehRecusa(e)) throw e; instalacao = `recusado: ${e.message}`; }
   const rotulo = { pergunta: 'pergunta', aviso: 'recado', pronto: 'recado', travado: 'recado' }[tipo] || 'recado';
-  const linha = `[${rotulo} do orquestrador] ${t} — Para responder ou avisar o orquestrador: .orq/bin/orq-recado enviar "texto" --tipo pergunta|aviso|pronto|travado. Outros agentes: .orq/bin/orq-recado agentes; enviar "texto" --para <agente>. Memória do projeto: .orq/bin/orq-recado memoria | buscar "termo" | lembrar "título" "texto".`;
+  const linha = `[${rotulo} do orquestrador] ${t} — Para responder ou avisar o orquestrador: .orq/bin/orq-recado enviar "texto" --tipo pergunta|aviso|pronto|travado. Outros agentes: .orq/bin/orq-recado agentes; enviar "texto" --para <agente>. Memória do projeto: .orq/bin/orq-recado memoria | buscar "termo" | lembrar "título" "texto". Para o usuário ver uma imagem, GIF ou vídeo: enviar "texto" --mostrar <arquivo> (ele vê no app; não abra na tela dele).`;
   const r = {
     id: novoId(), ts: Date.now(),
     de: { tipo: 'orquestrador' },

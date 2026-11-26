@@ -1,12 +1,14 @@
 // Visor de imagem: clicar numa print (balão da conversa ou miniatura de
 // anexo) abre em tela cheia, com zoom pela roda do mouse (no ponto do cursor),
 // arrastar para mover, duplo clique para encaixar. Esc fecha.
+// Desde 26/11 também as imagens, GIFs e vídeos que o orquestrador ou um agente mostra na conversa
+// (.midia-conversa): o vídeo abre grande, com os controles, repetindo.
 (() => {
   const visor = document.createElement('div');
   visor.id = 'visor-imagem';
   visor.className = 'visor-imagem';
   visor.hidden = true;
-  visor.innerHTML = `<img alt="imagem ampliada" draggable="false">
+  visor.innerHTML = `<img alt="imagem ampliada" draggable="false"><video class="visor-video" controls loop playsinline hidden></video>
     <div class="visor-barra">
       <button type="button" data-v="menos" title="Diminuir (−)">−</button>
       <span class="visor-zoom">100%</span>
@@ -17,6 +19,7 @@
     </div>`;
   document.body.append(visor);
   const img = visor.querySelector('img');
+  const video = visor.querySelector('video');
   let escala = 1, x = 0, y = 0, arrastando = null;
 
   function aplicar() {
@@ -38,14 +41,25 @@
     aplicar();
   }
   function abrir(src) {
+    video.pause(); video.removeAttribute('src'); video.hidden = true; img.hidden = false;
+    visor.classList.remove('com-video');
     img.onload = caber;
     img.src = src;
     visor.hidden = false;
   }
-  const fechar = () => { visor.hidden = true; img.removeAttribute('src'); };
+  function abrirVideo(src) {
+    img.removeAttribute('src'); img.hidden = true;
+    video.hidden = false; video.src = src; video.muted = false;
+    visor.classList.add('com-video');
+    visor.hidden = false;
+    video.play().catch(() => { /* sem som liberado: fica com o play à vista */ });
+  }
+  const fechar = () => { visor.hidden = true; img.removeAttribute('src'); video.pause(); video.removeAttribute('src'); video.hidden = true; img.hidden = false; visor.classList.remove('com-video'); };
 
   document.addEventListener('click', (ev) => {
-    const alvo = ev.target.closest('.balao-imagens img, .anexo img, .fila-miniaturas img');
+    const vid = ev.target.closest('.midia-conversa video');
+    if (vid) { abrirVideo(vid.src); return; }
+    const alvo = ev.target.closest('.balao-imagens img, .anexo img, .fila-miniaturas img, .midia-conversa img');
     if (alvo && !ev.target.closest('button')) abrir(alvo.src);
   });
   // Nas notas o clique simples seleciona a imagem para editar; o duplo abre o visor.
@@ -53,7 +67,7 @@
     const alvo = ev.target.closest('.tiptap img');
     if (alvo) abrir(alvo.src);
   });
-  visor.addEventListener('wheel', (ev) => { ev.preventDefault(); zoom(ev.deltaY < 0 ? 1.15 : 1 / 1.15, ev.clientX, ev.clientY); }, { passive: false });
+  visor.addEventListener('wheel', (ev) => { if (visor.classList.contains('com-video')) return; ev.preventDefault(); zoom(ev.deltaY < 0 ? 1.15 : 1 / 1.15, ev.clientX, ev.clientY); }, { passive: false });
   img.addEventListener('mousedown', (ev) => { ev.preventDefault(); arrastando = { mx: ev.clientX, my: ev.clientY, x, y }; img.classList.add('movendo'); });
   window.addEventListener('mousemove', (ev) => { if (!arrastando) return; x = arrastando.x + ev.clientX - arrastando.mx; y = arrastando.y + ev.clientY - arrastando.my; aplicar(); });
   window.addEventListener('mouseup', () => { arrastando = null; img.classList.remove('movendo'); });
@@ -67,6 +81,7 @@
   document.addEventListener('keydown', (ev) => {
     if (visor.hidden) return;
     if (ev.key === 'Escape') fechar();
+    else if (visor.classList.contains('com-video')) return;
     else if (ev.key === '+' || ev.key === '=') zoom(1.25);
     else if (ev.key === '-') zoom(1 / 1.25);
     else if (ev.key === '0') caber();
@@ -74,5 +89,5 @@
     else return;
     ev.preventDefault();
   });
-  window.orqVisor = { abrir, fechar, estado: () => ({ aberto: !visor.hidden, escala }) };
+  window.orqVisor = { abrir, abrirVideo, fechar, estado: () => ({ aberto: !visor.hidden, escala, video: visor.classList.contains('com-video') ? video.getAttribute('src') : null }) };
 })();

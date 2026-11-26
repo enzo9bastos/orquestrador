@@ -455,6 +455,11 @@ read — whatever AI it runs on. Everything is local files; nothing leaves the m
   a longer one is not sent (nothing is cut) and the script tells the agent its size.
 - **Orchestrator → agent.** `orq-recado para <project|agent> "text"` types the message into that agent's pane, in one
   line, with how to answer. It also installs `.orq/bin/orq-recado` in the project when it is missing.
+- **Images, GIFs and videos in the conversation.** When Claude writes `![caption](/full/path/file.gif)` (png, jpg, gif,
+  webp, mp4, webm or mov), the app shows the file right there, a video playing silently in a loop, and a click opens it
+  full screen inside the app. An agent does the same with `.orq/bin/orq-recado enviar "text" --mostrar <file>`. Only
+  real images and videos (checked by their first bytes) from your home folder or the temporary folder are shown, never
+  from key or password folders.
 - **Agent → agent.** `.orq/bin/orq-recado enviar "text" --para <agent|project>` reaches another agent of the app,
   typed into its pane with how to answer. `.orq/bin/orq-recado agentes` lists who is open (the app keeps that list in
   `<project>/.orq/recados/agentes.json`). A message to an agent that is not open waits until it opens.

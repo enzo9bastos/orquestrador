@@ -1028,3 +1028,15 @@ test('login do Claude recusado: só com o código e na mensagem montada pelo pr�
   assert.strictEqual(l[0].detalhe.length, 600, 'a frase guardada tem limite');
   assert.ok(!l[0].detalhe.includes('\u0007'), 'sem caracteres de controle');
 });
+
+// Pedido de 26/11 (ver imagem e vídeo no app): toda conversa do Claude aberta pelo app fica sabendo
+// que pode mostrar um arquivo escrevendo ![legenda](/caminho), em vez de abrir na tela do usuário.
+test('a conversa do Claude sobe sabendo como mostrar imagem, GIF e vídeo na própria conversa', () => {
+  const c = new conversa._Conversa({ id: 'midia', titulo: 'Conversa mídia' });
+  const a = c.argumentos();
+  const i = a.indexOf('--append-system-prompt');
+  assert.ok(i > 0, 'vai junto das instruções do Claude');
+  assert.match(a[i + 1], /!\[legenda\]\(\/caminho\/completo\/arquivo\.gif\)/);
+  assert.match(a[i + 1], /Não abra o arquivo na tela dele/);
+  assert.strictEqual(a.filter((x) => x === '--append-system-prompt').length, 1);
+});

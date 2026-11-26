@@ -413,6 +413,11 @@ function comandosLocais() {
   return listaComandos.montar({ motor: 'claude', skills: listaComandos.skillsLocais() });
 }
 
+// A conversa do app mostra imagem, GIF e vídeo do computador escritos como ![legenda](/caminho)
+// (pedido de 26/11: ver no app em vez de o agente abrir o arquivo na tela). O Claude fica sabendo
+// por esta linha, que vai junto das instruções dele em toda conversa aberta pelo app.
+const INSTRUCAO_MIDIA = 'Esta conversa roda dentro do App de Orquestração, que mostra imagens, GIFs e vídeos do computador na própria conversa. Para mostrar um arquivo ao usuário, escreva na resposta ![legenda](/caminho/completo/arquivo.gif) (png, jpg, gif, webp, mp4, webm ou mov, com o caminho completo); ele vê ali, com tela cheia no clique. Não abra o arquivo na tela dele (xdg-open, eog, navegador) só para mostrar.';
+
 class Conversa {
   constructor({ id, titulo, sessao = null, orquestrador = false, modelo = null, esforco = null, anteriores = [], volta = null, motor = 'claude', sessoesMotor = {}, modo = null, rapido = null, pastasExtras = [], forkDe = null, rodada = false, pasta = null, semProjeto = false }) {
     // Motor: quem conduz a conversa por trás ('claude' ou 'codex'). A do
@@ -515,7 +520,8 @@ class Conversa {
 
   argumentos() {
     const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
-      '--include-partial-messages', '--permission-prompt-tool', 'stdio', '--permission-mode', modoDeSubida(this.modo)];
+      '--include-partial-messages', '--permission-prompt-tool', 'stdio', '--permission-mode', modoDeSubida(this.modo),
+      '--append-system-prompt', INSTRUCAO_MIDIA];
     if (this.modeloEscolhido) args.push('--model', MODELOS[this.modeloEscolhido]);
     if (this.esforco) args.push('--effort', this.esforco);
     // Modo rápido: no modo -p o Claude só libera com o fastMode nas flags.
