@@ -15,6 +15,9 @@ test('Configurações: "Nomes no Google Meet" prepara o navegador que existe e m
   await app.esperar("!/Olhando/.test(document.getElementById('config-meet-estado').textContent)", 10000);
   assert.strictEqual(await app.avaliar("document.getElementById('config-meet-estado').textContent"), 'Ainda não preparado (Brave). A extensão ainda não falou com o app (ela fala quando há uma ligação do Meet aberta).');
   assert.strictEqual(await app.avaliar("document.getElementById('config-meet-estado').dataset.situacao"), 'falta', 'falta preparar: a linha fica em âmbar');
+  // Âmbar fixo, mesmo com outra cor de destaque escolhida (pedido de 26/11: não azul nem roxo).
+  await app.avaliar("document.documentElement.style.setProperty('--esperando', '#8b5cf6'); 1");
+  assert.strictEqual(await app.avaliar("getComputedStyle(document.getElementById('config-meet-estado')).color"), 'rgb(245, 158, 11)');
   await app.avaliar("document.getElementById('config-meet-preparar').click()");
   await app.esperar("/^Pronto em: Brave\\./.test(document.getElementById('config-meet-estado').textContent)", 10000);
   assert.strictEqual(await app.avaliar("document.getElementById('config-meet-estado').dataset.situacao"), 'pronto', 'pronto: a linha fica verde, com o sinal de certo');

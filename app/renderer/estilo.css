@@ -592,7 +592,9 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .config-meet-botoes { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .config-meet-estado { display: block; margin-top: 8px; padding: 6px 10px; border-radius: 6px; color: var(--fg-2); background: var(--bg-afundado); }
 .config-linha .config-meet-estado[data-situacao="pronto"] { color: var(--ativo); background: var(--ativo-suave); font-weight: 600; }
-.config-linha .config-meet-estado[data-situacao="falta"] { color: var(--esperando); background: var(--esperando-suave); font-weight: 600; }
+/* Falta preparar: âmbar fixo (pedido de 26/11), e não a cor de destaque, que cada pessoa escolhe. */
+.config-linha .config-meet-estado[data-situacao="falta"] { color: #f59e0b; background: rgba(245, 158, 11, 0.16); font-weight: 600; }
+:root[data-theme="light"] .config-linha .config-meet-estado[data-situacao="falta"] { color: #b45309; background: rgba(245, 158, 11, 0.18); }
 .config-linha .config-meet-estado[data-situacao="erro"] { color: var(--perigo); }
 .config-meet-estado[data-situacao="pronto"]::before { content: "✓ "; }
 .config-meet-estado[data-situacao="falta"]::before { content: "! "; }
