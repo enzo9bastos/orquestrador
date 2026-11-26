@@ -4,6 +4,16 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.20.1 (2026-11-26)
+
+- Messages tab: a message held by the loop brake now sits on top, under "Held by the app", with its Release
+  button. The number on the tab already counted it, but the message stayed in the middle of the list, in time
+  order, so the number pointed to something you could not find. It shows from any project, with any filter.
+- The Release button now says who the message goes to: "Release to the agent" when it is addressed to another
+  agent (it always said "to the orchestrator").
+- Messages tab: "Handoffs" and "Project memory" now show only their own content. The message list used to stay on
+  screen in those views, and with many messages the handoffs ended up far below them.
+
 ## 0.20.0 (2026-11-25)
 
 - Dictation: a bigger model now fixes each sentence behind the scenes. The light model still writes while you
