@@ -4,6 +4,17 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.22.0 (2026-11-26)
+
+- Conversation: images, GIFs and videos from the computer now show up inside the app. When the orchestrator (or any
+  Claude conversation in the app) writes `![caption](/full/path/file.gif)`, the file appears right there; a video
+  plays silently in a loop, like a GIF. A click opens it full screen inside the app, with zoom for images and
+  controls and sound for videos. Agents send media with `orq-recado enviar "text" --mostrar <file>`, and it shows up
+  in the orchestrator conversation, even with the message collapsed. No more files opening on your screen just to
+  show them.
+- Only real images and videos (checked by their first bytes) from your home folder or the temporary folder are
+  shown, never from key or password folders.
+
 ## 0.21.0 (2026-11-26)
 
 - Meeting mode: names of who spoke, in Google Meet. With the app's browser extension (Chrome-type browsers, in
