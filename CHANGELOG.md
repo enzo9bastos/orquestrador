@@ -4,6 +4,17 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.23.0 (2026-11-27)
+
+- Conversation: the ✎ on a sent message now edits it in place. The bubble turns into an editor with the message's
+  text, images and files: remove any with ✕, paste, drop or attach new ones (📎), and send with Enter. The
+  conversation goes back to before that message and the new one takes its place. If Claude changed files after it, a
+  checkbox lets you undo those too (only with a click on the button). The old card with the three ways to go back is
+  under "More ways to go back…".
+- Conversation: when you answer one of Claude's questions with a screenshot, the image now sits inside the answered
+  card, without "(the screenshot follows in the next message)" and without a separate bubble below. Claude still
+  receives it the same way.
+
 ## 0.22.2 (2026-11-27)
 
 - Settings › Voice and meetings › "Names in Google Meet": one button, "Turn on in the browser", now does what the app
