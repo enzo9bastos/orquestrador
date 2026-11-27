@@ -132,10 +132,12 @@ protocol), so there is no terminal to babysit.
 - Paste, drag or attach (📎) screenshots and files — images go as images, other files by their path; right-click a
   misspelled word for suggestions (Portuguese and English); `//skill` uses anything from the Library; `@note:` and
   `@workflow:` attach a note or a workflow; code blocks have *Copy* and *▶ Terminal*.
-- **Sent something wrong?** Hover your message and click ✎ to **rewind**: that message and everything after it
-  leave Claude's context (the old conversation is kept) and the text comes back to the box to fix. The ✎ opens a
-  card under the message with three choices: *Conversation only* (the default; Enter confirms), *Conversation and
-  files* and *Files only*. For the files, Claude is asked first what would go back (how many files, how many lines;
+- **Sent something wrong?** Hover your message and click ✎ to **edit it in place**: the bubble turns into an editor
+  with its text, images and files; remove any, paste or drop new ones, or use the 📎, and send (Enter). That message
+  and everything after it leave Claude's context (the old conversation is kept) and the new one takes its place. If
+  Claude changed files after it, a box lets you undo those too. *More ways to go back…* opens the card with three
+  choices: *Conversation only* (Enter confirms; the text comes back to the box), *Conversation and files* and *Files
+  only*. For the files, Claude is asked first what would go back (how many files, how many lines;
   files changed after Claude's last edit are flagged), the app keeps a copy of the files as they are now in a new
   folder under `~/.local/share/orq-app/versoes/`, and only a real click on the red button restores them. What
   commands did (files created by scripts, databases, git commits) does not come back. Restore points can be turned

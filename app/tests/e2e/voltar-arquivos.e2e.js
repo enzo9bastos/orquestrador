@@ -59,7 +59,13 @@ test('voltar a conversa junto com os arquivos', async (t) => {
 
   const baloes = () => app.avaliar("[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].map((b) => b.dataset.texto)");
   const cartao = "document.querySelector('#mensagens .cartao-volta')";
-  const clicarEditar = (texto) => app.avaliar(`[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].find((b) => b.dataset.texto === ${JSON.stringify(texto)}).querySelector('.editar-msg').click()`);
+  // Desde 27/11 o ✎ abre a edição no próprio balão (editar-mensagem.e2e.js); o cartão de voltar,
+  // com os três alcances, fica em "Mais jeitos de voltar…" dentro dela.
+  const clicarEditar = async (texto) => {
+    await app.avaliar(`[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].find((b) => b.dataset.texto === ${JSON.stringify(texto)}).querySelector('.editar-msg').click()`);
+    await app.esperar("!!document.querySelector('#mensagens .editor-msg [data-ed=mais]')", 8000);
+    await app.avaliar("document.querySelector('#mensagens .editor-msg [data-ed=mais]').click()");
+  };
   const abrir = async (texto = 'troca o botão para azul') => { await clicarEditar(texto); await app.esperar(`!!${cartao} && !${cartao}.querySelector('input[value="tudo"]').disabled`, 8000); };
   const escolher = (q) => app.avaliar(`(() => { const r = ${cartao}.querySelector('input[value="${q}"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); })()`);
   const botaoDoCartao = () => app.avaliar(`(() => { const b = ${cartao}.querySelector('[data-volta="confirmar"]'); return [b.innerText, b.className]; })()`);

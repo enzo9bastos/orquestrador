@@ -135,9 +135,11 @@ há terminal para vigiar.
 - Cole, arraste ou anexe (📎) prints e arquivos — imagens vão como imagem, outros arquivos pelo caminho; clique com o
   botão direito numa palavra errada para ver sugestões (português e inglês); `//skill` usa qualquer coisa do
   Repertório; `@note:` e `@workflow:` anexam uma nota ou um workflow; blocos de código têm *Copiar* e *▶ Terminal*.
-- **Mandou algo errado?** Passe o mouse na sua mensagem e clique em ✎ para **voltar**: aquela mensagem e tudo o que
-  veio depois saem do contexto do Claude (a conversa antiga fica guardada) e o texto volta para a caixa para corrigir.
-  O ✎ abre um cartão abaixo da mensagem com três opções: *Só a conversa* (o padrão; Enter confirma), *Conversa e
+- **Mandou algo errado?** Passe o mouse na sua mensagem e clique em ✎ para **editar no lugar**: o balão vira um
+  editor com o texto, as imagens e os arquivos dela; tire o que quiser, cole ou arraste novos, ou use o 📎, e envie
+  (Enter). Aquela mensagem e tudo o que veio depois saem do contexto do Claude (a conversa antiga fica guardada) e a
+  nova vai no lugar. Se o Claude mudou arquivos depois dela, uma caixinha deixa desfazer isso também. *Mais jeitos de
+  voltar…* abre o cartão com três opções: *Só a conversa* (Enter confirma; o texto volta para a caixa), *Conversa e
   arquivos* e *Só os arquivos*. Para os arquivos, o app pergunta antes ao Claude o que voltaria (quantos arquivos,
   quantas linhas; arquivo alterado depois da última edição do Claude é marcado), guarda uma cópia de como eles estão
   agora numa pasta nova em `~/.local/share/orq-app/versoes/`, e só um clique de verdade no botão vermelho volta os

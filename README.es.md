@@ -141,10 +141,12 @@ que no hay ninguna terminal que vigilar.
   ruta; clic derecho en una palabra mal escrita para ver sugerencias (portugués e inglés); `//skill` usa cualquier
   cosa de la Library; `@note:` y `@workflow:` adjuntan una nota o un workflow; los bloques de código tienen *Copy* y
   *▶ Terminal*.
-- **¿Enviaste algo mal?** Pasa el mouse sobre tu mensaje y haz clic en ✎ para **retroceder**: ese mensaje y todo lo
-  que vino después salen del contexto de Claude (la conversación anterior se guarda) y el texto vuelve a la caja para
-  corregirlo. El ✎ abre una tarjeta debajo del mensaje con tres opciones: *Conversation only* (la predeterminada;
-  Enter confirma), *Conversation and files* y *Files only*. Para los archivos, la app pregunta antes a Claude qué
+- **¿Enviaste algo mal?** Pasa el mouse sobre tu mensaje y haz clic en ✎ para **editarlo en su lugar**: la burbuja se
+  vuelve un editor con el texto, las imágenes y los archivos; quita lo que quieras, pega o arrastra nuevos, o usa el
+  📎, y envía (Enter). Ese mensaje y todo lo que vino después salen del contexto de Claude (la conversación anterior se
+  guarda) y el nuevo queda en su lugar. Si Claude cambió archivos después, una casilla permite deshacerlo también.
+  *More ways to go back…* abre la tarjeta con tres opciones: *Conversation only* (Enter confirma; el texto vuelve a la
+  caja), *Conversation and files* y *Files only*. Para los archivos, la app pregunta antes a Claude qué
   volvería (cuántos archivos, cuántas líneas; el archivo cambiado después de la última edición de Claude queda
   marcado), guarda una copia de cómo están ahora en una carpeta nueva en `~/.local/share/orq-app/versoes/`, y solo
   un clic de verdad en el botón rojo los restaura. Lo que hicieron los comandos (archivos creados por scripts, bases

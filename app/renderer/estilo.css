@@ -2179,3 +2179,18 @@ button.arquivo-msg:hover, button.arquivo-msg:focus-visible { border-color: var(-
 .arquivo-tipo.arq-codigo { background: #475569; }
 /* Na caixa, antes de enviar: o mesmo selo, menor. */
 .anexo-arquivo .arquivo-tipo { min-width: 26px; height: 24px; border-radius: 6px; font-size: 9px; }
+
+/* Editar a mensagem no próprio balão (pedido de 27/11): texto, imagens e arquivos, no lugar do balão. */
+.editor-msg { align-self: flex-end; width: min(100%, 760px); margin: 6px 0 10px auto; padding: 10px; border-radius: 14px; border: 1px solid var(--borda-forte); background: var(--bg-elevado); display: flex; flex-direction: column; gap: 8px; }
+.editor-msg .editor-anexos { display: flex; flex-wrap: wrap; gap: 8px; }
+.editor-msg .editor-anexos[hidden] { display: none; }
+.editor-msg .editor-texto { width: 100%; min-height: 60px; resize: none; border: 0; outline: none; background: transparent; color: var(--fg); font: inherit; line-height: 1.5; }
+.editor-msg .editor-voltar-arquivos { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--fg-2); }
+.editor-msg .editor-voltar-arquivos[hidden] { display: none; }
+.editor-msg .editor-erro:empty { display: none; }
+.editor-msg .editor-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.editor-msg .editor-dica { flex: 1 1 200px; font-size: 11.5px; color: var(--fg-3); margin: 0; }
+/* A print da resposta a uma pergunta, dentro do cartão "Respondido" (pedido de 27/11). */
+.resposta-dada .resposta-prints { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; background: none; padding: 0; }
+.resposta-dada .resposta-prints img { max-width: 260px; max-height: 160px; border-radius: 6px; border: 1px solid var(--borda); cursor: zoom-in; }
+.msg-voce[hidden] { display: none; } /* o balão sendo editado sai de cena (o display do balão passava por cima do hidden) */

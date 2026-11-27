@@ -55,7 +55,13 @@ test('voltar a conversa para antes de uma mensagem', async (t) => {
   await app.avaliar("window.orq.conversa.reiniciar('orquestrador')");
   const baloes = () => app.avaliar("[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].map((b) => b.dataset.texto)");
   await app.esperar("document.querySelectorAll('#mensagens .msg-voce[data-texto]').length === 3", 8000);
-  const clicarEditar = (texto) => app.avaliar(`[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].find((b) => b.dataset.texto === ${JSON.stringify(texto)}).querySelector('.editar-msg').click()`);
+  // Desde 27/11 o ✎ abre a edição no próprio balão (editar-mensagem.e2e.js); o cartão de voltar,
+  // com os três alcances, fica em "Mais jeitos de voltar…" dentro dela.
+  const clicarEditar = async (texto) => {
+    await app.avaliar(`[...document.querySelectorAll('#mensagens .msg-voce[data-texto]')].find((b) => b.dataset.texto === ${JSON.stringify(texto)}).querySelector('.editar-msg').click()`);
+    await app.esperar("!!document.querySelector('#mensagens .editor-msg [data-ed=mais]')", 8000);
+    await app.avaliar("document.querySelector('#mensagens .editor-msg [data-ed=mais]').click()");
+  };
 
   const cartao = "document.querySelector('#mensagens .cartao-volta')";
   const ensaiado = `!!${cartao} && !${cartao}.querySelector('.volta-sem-ponto').hidden`;

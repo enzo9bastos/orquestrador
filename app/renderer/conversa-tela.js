@@ -103,6 +103,7 @@
     el.innerHTML = `<div class="balao balao-imagens">${blocos.map((b) => (b.source && b.source.data
       ? `<img src="data:${esc(b.source.media_type)};base64,${b.source.data}" alt="imagem enviada">` : '<span class="nota">[imagem]</span>')).join('')}</div>`;
     caixa.append(el);
+    return el;
   }
 
   // Arquivos anexados à mensagem (pedido de 23/11): no balão eles eram uma linha "📎 nome" (ao vivo)
@@ -208,15 +209,16 @@
     if (anexo.arquivos.length) {
       // Os cartões em cima e, se houver, o texto embaixo (sem a linha do anexo).
       el.classList.add('com-arquivos');
-      el.innerHTML = `<button class="editar-msg" type="button" aria-label="Editar" title="Voltar a conversa para antes desta mensagem e corrigir"></button>
+      el.innerHTML = `<button class="editar-msg" type="button" aria-label="Editar" title="Editar esta mensagem"></button>
         <div class="msg-coluna"><div class="balao-arquivos">${cartoesDeArquivo(anexo.arquivos)}</div>${anexo.corpo.trim() ? `<div class="balao">${esc(anexo.corpo.replace(/\n+$/, ''))}</div>` : ''}</div>`;
     } else {
       el.innerHTML = u.comando
         ? `<div class="balao comando"><svg class="ico"><use href="#i-terminal"/></svg>${esc(u.comando)}</div>`
-        : `<button class="editar-msg" type="button" aria-label="Editar" title="Voltar a conversa para antes desta mensagem e corrigir"></button><div class="balao">${esc(u.texto)}</div>`;
+        : `<button class="editar-msg" type="button" aria-label="Editar" title="Editar esta mensagem"></button><div class="balao">${esc(u.texto)}</div>`;
     }
     if (!u.comando) el.dataset.texto = u.texto;
     caixa.append(el);
+    return el;
   }
 
   const curto = (s, n = 90) => { s = String(s ?? '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
@@ -518,15 +520,25 @@
       // (/model, /usage…) aparece sempre.
       const eco = !ev.local && !ev.antigo;
       // Imagens mandadas pelo usuário viram miniaturas no balão.
-      if (!eco && Array.isArray(c) && c.some((b) => b.type === 'image')) balaoImagens(c.filter((b) => b.type === 'image'));
+      const imgs = !eco && Array.isArray(c) ? c.filter((b) => b.type === 'image') : [];
+      // A print da resposta a uma pergunta já aparece dentro do cartão "Respondido": não vira balão.
+      if (imgs.length && Array.isArray(c)) {
+        const tx = c.filter((b) => b.type === 'text').map((b) => b.text).join('');
+        const m = /^Print da minha resposta à pergunta "([\s\S]*)"\.$/.exec(tx.trim());
+        if (m && [...caixa.querySelectorAll('.cartao-pedido.respondido[data-prints-de]')].some((x) => x.dataset.printsDe === m[1])) return;
+      }
+      const balaoImgs = imgs.length ? balaoImagens(imgs) : null;
       const textos = typeof c === 'string' ? [c] : c.filter((b) => b.type === 'text').map((b) => b.text);
       for (const t of textos) saidaDeComando(t);
       if (typeof c === 'string') return eco ? undefined : balaoUsuario(c);
       for (const b of c) {
         if (eco && b.type !== 'tool_result') continue;
         if (b.type === 'tool_result') resultadoFerramenta(b);
-        else if (b.type === 'text' && !ev.antigo) balaoUsuario(b.text);
-        else if (b.type === 'text' && ev.antigo) balaoUsuario(b.text);
+        else if (b.type === 'text') {
+          const el = balaoUsuario(b.text);
+          // As imagens da mesma mensagem ficam com o balão do texto: o ✎ edita tudo junto.
+          if (el && imgs.length) { el._imagens = imgs.filter((x) => x.source && x.source.data).map((x) => ({ tipo: x.source.media_type, dados: x.source.data })); el._balaoImagens = balaoImgs; }
+        }
       }
     } else if (ev.tipo === 'assistant') {
       for (const b of ev.message.content || []) {
@@ -1181,18 +1193,21 @@
       respostas[chave(q)] = r;
     }
     await C.responder(ativa, cartao.dataset.pedido, { permitir: true, respostas });
-    if (prints.length) {
-      const q0 = p.entrada.questions[0];
-      await C.mandar(ativa, `Print da minha resposta à pergunta "${q0.header || q0.question}".`, prints);
-    }
     // Respondido: cada pergunta com a sua resposta embaixo, uma por bloco.
-    // A secreta aparece só como •••.
+    // A secreta aparece só como •••. A print fica dentro da resposta da 1ª pergunta (pedido de
+    // 27/11: "no app podia ficar só a imagem anexada ali na resposta da pergunta"); para o Claude
+    // ela continua indo na mensagem seguinte, que a tela não repete num balão solto.
+    const q0 = p.entrada.questions[0];
+    const rotuloPrint = q0 ? (q0.header || q0.question) : '';
     cartao.classList.add('respondido', 'respondido-perguntas');
+    if (prints.length) cartao.dataset.printsDe = rotuloPrint;
     cartao.innerHTML = `<div class="titulo-respondido"><span class="ponto trabalhando"></span>Respondido</div>` +
-      p.entrada.questions.map((q) => `<div class="resposta-dada">
+      p.entrada.questions.map((q, i) => `<div class="resposta-dada">
         <span class="etiqueta">${esc(q.header || 'Pergunta')}</span>
         <strong>${esc(q.question)}</strong>
-        <p>${q.isSecret ? '•••' : esc(respostas[chave(q)] || '')}</p></div>`).join('');
+        ${q.isSecret ? '<p>•••</p>' : (() => { const r = String(respostas[chave(q)] || '').replace(/\s*\(a print segue na próxima mensagem\)$/, ''); return r ? `<p>${esc(r)}</p>` : ''; })()}
+        ${i === 0 && prints.length ? `<div class="balao-imagens resposta-prints">${prints.map((a) => `<img src="data:${esc(a.tipo)};base64,${a.dados}" alt="print da resposta">`).join('')}</div>` : ''}</div>`).join('');
+    if (prints.length) await C.mandar(ativa, `Print da minha resposta à pergunta "${rotuloPrint}".`, prints);
   }
 
   function fecharPedido(cartao, texto) {
@@ -2609,6 +2624,11 @@
     const imagens = anexos.splice(0);
     const arquivos = arquivosAnexos.splice(0);
     desenharAnexos();
+    await mandar(t, imagens, arquivos, { agora });
+  });
+  // O que vai ao motor: o texto (com os "@" expandidos), as imagens e os arquivos pelo caminho.
+  // Serve à caixa e à mensagem editada no próprio balão.
+  async function mandar(t, imagens, arquivos, { agora = false } = {}) {
     const e = await expandir(t);
     // Arquivos anexados vão pelo caminho; o balão mostra só os nomes.
     if (arquivos.length) {
@@ -2618,7 +2638,7 @@
       if (anexosPorTexto.size > 200) anexosPorTexto.delete(anexosPorTexto.keys().next().value);
     }
     await C.daCaixa(ativa, e.enviar, imagens, e.exibir, { agora });
-  });
+  }
   caixa.addEventListener('click', async (ev) => {
     const ja = ev.target.closest('[data-fila-ja]'), tirar = ev.target.closest('[data-fila-tirar]');
     if (ja) { ja.disabled = true; await C.fila(ativa, 'ja', ja.dataset.filaJa); }
@@ -2789,7 +2809,7 @@
     b.textContent = q === 'conversa' || !pode ? 'Voltar a conversa' : q === 'tudo' ? `Voltar a conversa e ${quantos(n)}` : `Voltar ${quantos(n)}`;
     b.className = `botao ${q === 'conversa' || !pode ? 'primario' : 'perigo'}`;
   }
-  async function abrirVolta(msg) {
+  async function abrirVolta(msg, ensaioPedido = null) {
     fecharVolta(); fecharCartaoVolta();
     const baloes = [...caixa.querySelectorAll('.msg-voce[data-texto]')];
     const depois = baloes.length - 1 - baloes.indexOf(msg);
@@ -2817,7 +2837,7 @@
     el.scrollIntoView({ block: 'nearest' });
     // O ensaio: o motor pergunta ao Claude o que voltaria nos arquivos (nada muda).
     let r = null;
-    try { r = await C.voltarEnsaio(ativa, depois, texto); } catch { r = null; }
+    try { r = await (ensaioPedido || C.voltarEnsaio(ativa, depois, texto)); } catch { r = null; }
     if (!cartaoVolta || cartaoVolta.el !== el) return; // fechado enquanto o Claude respondia
     cartaoVolta.ensaio = r && r.ok && r.arquivos ? r.arquivos : { pode: false, motivo: 'sem-resposta' };
     pintarVolta();
@@ -2839,13 +2859,175 @@
     fecharCartaoVolta();
     if (q === 'tudo') porNaCaixa(r.texto || texto);
   }
+  // --- editar a mensagem no próprio balão (pedido de 27/11) ------------------------------
+  // "Quando eu quero editar, eu quero poder editar o que eu escrevi, tirar imagens e arquivos ou
+  // adicionar imagens e arquivos" (o ✎ abria o cartão de voltar, com três alcances: confuso). Agora o
+  // balão vira um editor com o texto, as imagens e os arquivos daquela mensagem; ao enviar, a
+  // conversa volta para antes dela (ela e o que veio depois saem do contexto do Claude, como antes)
+  // e a mensagem nova vai no lugar. Os arquivos que o Claude mudou depois só voltam se a pessoa
+  // marcar, e com o clique dela no botão; o cartão antigo continua em "Mais jeitos de voltar".
+  let edicao = null; // { el, msg, depois, texto, imagens, arquivos, ensaio }
+  const editando = () => !!(edicao && edicao.el.isConnected);
+  function fecharEdicao() {
+    if (!edicao) return;
+    edicao.el.remove();
+    edicao.msg.hidden = false;
+    if (edicao.msg._balaoImagens) edicao.msg._balaoImagens.hidden = false;
+    edicao = null;
+  }
+  function desenharAnexosEdicao() {
+    if (!editando()) return;
+    const { el, imagens, arquivos } = edicao;
+    const a = el.querySelector('.editor-anexos');
+    a.hidden = !imagens.length && !arquivos.length;
+    a.innerHTML = imagens.map((x, i) => `<div class="anexo"><img src="data:${esc(x.tipo)};base64,${x.dados}" alt="imagem da mensagem">
+      <button type="button" data-ed-tirar-imagem="${i}" aria-label="Tirar imagem" title="Tirar">✕</button></div>`).join('')
+      + arquivos.map((x, i) => `<div class="anexo anexo-arquivo" title="${esc(x.caminho || x.nome)}">${seloDoArquivo(x.nome)}<span class="anexo-nome" data-sem-traducao>${esc(x.nome)}</span>
+      <button type="button" data-ed-tirar-arquivo="${i}" aria-label="Tirar arquivo" title="Tirar">✕</button></div>`).join('');
+  }
+  function pintarEdicao() {
+    if (!editando()) return;
+    const { el, ensaio } = edicao;
+    const pode = !!(ensaio && ensaio.pode);
+    const n = pode ? ensaio.lista.length : 0;
+    const linha = el.querySelector('.editor-voltar-arquivos');
+    linha.hidden = !pode;
+    if (pode) linha.querySelector('[data-ed-n]').textContent = `Desfazer também o que o Claude mudou ${n === 1 ? 'em 1 arquivo' : `em ${n} arquivos`} depois desta mensagem`;
+    const marcado = pode && el.querySelector('[data-ed-arquivos]').checked;
+    const b = el.querySelector('[data-ed="enviar"]');
+    b.textContent = marcado ? `Enviar e desfazer ${quantos(n)}` : 'Enviar';
+    b.className = `botao ${marcado ? 'perigo' : 'primario'}`;
+  }
+  async function abrirEdicao(msg) {
+    fecharEdicao(); fecharVolta(); fecharCartaoVolta();
+    const baloes = [...caixa.querySelectorAll('.msg-voce[data-texto]')];
+    const depois = baloes.length - 1 - baloes.indexOf(msg);
+    const texto = msg.dataset.texto || '';
+    const sep = separarArquivos(texto);
+    const el = document.createElement('div');
+    el.className = 'editor-msg';
+    el.innerHTML = `<div class="editor-anexos anexos" hidden></div>
+      <textarea class="editor-texto" rows="3" aria-label="Editar a mensagem" data-sem-traducao></textarea>
+      <label class="editor-voltar-arquivos" hidden><input type="checkbox" data-ed-arquivos> <span data-ed-n></span></label>
+      <p class="erro-mcp editor-erro" role="alert" data-sem-traducao></p>
+      <div class="editor-barra">
+        <button type="button" class="botao-icone editor-anexar" data-ed="anexar" title="Anexar imagem ou arquivo" aria-label="Anexar imagem ou arquivo"><svg class="ico" viewBox="0 0 16 16"><path d="M10.5 4.5 5.4 9.6a1.6 1.6 0 0 0 2.3 2.3l5.4-5.4a3 3 0 0 0-4.2-4.2L3.4 7.8a4.4 4.4 0 0 0 6.2 6.2l4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span class="nota editor-dica">${depois ? `Ao enviar, esta mensagem e ${depois === 1 ? 'a 1 mensagem sua depois dela saem' : `as ${depois} mensagens suas depois dela saem`} da conversa, com as respostas.` : 'Ao enviar, esta mensagem e a resposta saem da conversa, e a nova vai no lugar.'}</span>
+        <button type="button" class="botao-texto" data-ed="mais">Mais jeitos de voltar…</button>
+        <button type="button" class="botao secundario" data-ed="cancelar">Cancelar</button>
+        <button type="button" class="botao primario" data-ed="enviar">Enviar</button>
+      </div>`;
+    msg.after(el);
+    msg.hidden = true;
+    if (msg._balaoImagens) msg._balaoImagens.hidden = true;
+    edicao = { el, msg, depois, texto, imagens: (msg._imagens || []).map((x) => ({ ...x })), arquivos: sep.arquivos.map((x) => ({ ...x })), ensaio: null, pedido: null };
+    const ta = el.querySelector('.editor-texto');
+    ta.value = sep.corpo.replace(/\n+$/, '');
+    const altura = () => { ta.style.height = 'auto'; ta.style.height = `${Math.min(ta.scrollHeight, 320)}px`; };
+    ta.addEventListener('input', altura);
+    desenharAnexosEdicao();
+    pintarEdicao();
+    altura();
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    el.scrollIntoView({ block: 'nearest' });
+    // O ensaio: o motor pergunta ao Claude se algum arquivo mudou depois desta mensagem (nada muda).
+    // Um pedido só: se a pessoa for a "Mais jeitos de voltar", o cartão usa a mesma resposta.
+    edicao.pedido = C.voltarEnsaio(ativa, depois, texto);
+    let r = null;
+    try { r = await edicao.pedido; } catch { r = null; }
+    if (!edicao || edicao.el !== el) return;
+    edicao.ensaio = r && r.ok && r.arquivos ? r.arquivos : { pode: false, motivo: 'sem-resposta' };
+    pintarEdicao();
+  }
+  async function enviarEdicao(deVerdade) {
+    if (!editando()) return;
+    const { el, msg, depois, texto, imagens, arquivos, ensaio } = edicao;
+    const novo = el.querySelector('.editor-texto').value.trim();
+    if (!novo && !imagens.length && !arquivos.length) { el.querySelector('.editor-erro').textContent = 'A mensagem ficou vazia: escreva algo ou anexe uma imagem ou arquivo.'; return; }
+    if (imagens.length && !window.orq.permissoes) { el.querySelector('.editor-erro').textContent = 'Este app foi aberto antes da versão que manda imagens: feche e abra o app.'; return; }
+    const comArquivos = !!(ensaio && ensaio.pode && el.querySelector('[data-ed-arquivos]').checked);
+    if (comArquivos && !deVerdade) return; // desfazer arquivos só com o clique da pessoa no botão
+    const b = el.querySelector('[data-ed="enviar"]');
+    b.disabled = true;
+    el.querySelector('.editor-erro').textContent = '';
+    const r = comArquivos ? await C.voltarComArquivos(ativa, depois, texto, 'tudo') : await C.voltar(ativa, depois, texto);
+    if (!r || !r.ok) {
+      b.disabled = false;
+      if (editando() && edicao.el === el) el.querySelector('.editor-erro').textContent = `Não deu para voltar a conversa: ${(r && r.erro) || 'erro desconhecido'}. Nada foi enviado; a conversa continua como estava.`;
+      return;
+    }
+    if (edicao && edicao.el === el) { el.remove(); edicao = null; }
+    void msg;
+    if (novo) { enviados.push(novo); if (enviados.length > 50) enviados.shift(); }
+    colado = true;
+    if (ativa === 'orquestrador') pet.definir('pensando');
+    await mandar(novo, imagens, arquivos);
+  }
+  async function anexarNaEdicao(lista) {
+    if (!editando()) return;
+    for (const a of lista) {
+      if (a.dados) edicao.imagens.push({ tipo: a.tipo, dados: a.dados });
+      else if (a.caminho && !edicao.arquivos.some((x) => x.caminho === a.caminho)) edicao.arquivos.push({ nome: a.nome, caminho: a.caminho });
+    }
+    desenharAnexosEdicao();
+  }
   caixa.addEventListener('click', async (ev) => {
     const v = ev.target.closest('.cartao-volta [data-volta]');
     if (v) { if (v.dataset.volta === 'cancelar') fecharCartaoVolta(); else await confirmarVolta(ev.isTrusted === true); return; }
+    const ed = ev.target.closest('.editor-msg [data-ed]');
+    if (ed && editando()) {
+      const acao = ed.dataset.ed;
+      if (acao === 'cancelar') fecharEdicao();
+      else if (acao === 'enviar') await enviarEdicao(ev.isTrusted === true);
+      else if (acao === 'mais') { const { msg, pedido } = edicao; fecharEdicao(); await abrirVolta(msg, pedido); }
+      else if (acao === 'anexar') {
+        if (!window.orq.arquivos) { aviso('Este app foi aberto antes da versão com anexos: reinicie o app.', 'erro'); return; }
+        await anexarNaEdicao(await window.orq.arquivos.escolher());
+        if (editando()) edicao.el.querySelector('.editor-texto').focus();
+      }
+      return;
+    }
+    const ti = ev.target.closest('[data-ed-tirar-imagem]'), ta = ev.target.closest('[data-ed-tirar-arquivo]');
+    if ((ti || ta) && editando()) {
+      if (ti) edicao.imagens.splice(Number(ti.dataset.edTirarImagem), 1);
+      else edicao.arquivos.splice(Number(ta.dataset.edTirarArquivo), 1);
+      desenharAnexosEdicao();
+      return;
+    }
     const b = ev.target.closest('.editar-msg');
     if (!b) return;
-    await abrirVolta(b.closest('.msg-voce'));
+    await abrirEdicao(b.closest('.msg-voce'));
   });
+  caixa.addEventListener('change', (ev) => { if (ev.target.closest('.editor-msg [data-ed-arquivos]')) pintarEdicao(); });
+  // No editor: Enter envia (Shift+Enter quebra a linha), Esc cancela; colar ou arrastar imagem anexa.
+  caixa.addEventListener('keydown', (ev) => {
+    if (!editando() || !ev.target.closest('.editor-msg .editor-texto')) return;
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fecharEdicao(); return; }
+    if (ev.key !== 'Enter' || ev.shiftKey || ev.altKey || ev.metaKey || ev.isComposing) return;
+    ev.preventDefault();
+    if (edicao.el.querySelector('[data-ed-arquivos]').checked) { edicao.el.querySelector('.editor-erro').textContent = 'Para desfazer os arquivos também, clique em “Enviar e desfazer”.'; return; }
+    enviarEdicao(ev.isTrusted === true);
+  }, true);
+  caixa.addEventListener('paste', (ev) => {
+    if (!editando() || !ev.target.closest('.editor-msg')) return;
+    const imgs = [...(ev.clipboardData?.items || [])].filter((i) => i.kind === 'file' && i.type.startsWith('image/'));
+    if (!imgs.length) return;
+    ev.preventDefault();
+    imgs.forEach((i) => anexar(i.getAsFile(), edicao.imagens, desenharAnexosEdicao));
+  });
+  caixa.addEventListener('dragover', (ev) => { if (editando() && ev.target.closest('.editor-msg')) ev.preventDefault(); });
+  caixa.addEventListener('drop', (ev) => {
+    if (!editando() || !ev.target.closest('.editor-msg')) return;
+    const todos = [...(ev.dataTransfer?.files || [])];
+    if (!todos.length) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    for (const f of todos) {
+      if (/^image\/(png|jpeg|gif|webp)$/.test(f.type) && f.size <= MAX_IMAGEM) anexar(f, edicao.imagens, desenharAnexosEdicao);
+      else if (window.orq.arquivos) anexarNaEdicao([{ nome: f.name, caminho: window.orq.arquivos.caminho(f) }]);
+    }
+  }, true);
   // Enter com o cartão em foco confirma só "Só a conversa" (o caminho rápido de sempre);
   // voltar arquivos pede o clique no botão vermelho.
   caixa.addEventListener('keydown', (ev) => {

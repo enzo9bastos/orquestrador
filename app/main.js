@@ -313,7 +313,9 @@ ipcMain.handle('notas:lixeiraPasta', async (_e, i, rel) => { await shell.trashIt
 // caminho (o Claude lê o arquivo do disco).
 const EXT_IMAGEM = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
 ipcMain.handle('arquivos:escolher', async () => {
-  const r = await dialog.showOpenDialog(janela, { title: t('Anexar à conversa'), properties: ['openFile', 'multiSelections'] });
+  // Nos testes de tela, a "janela" devolve os caminhos que o teste deixou em ORQ_ARQUIVOS_ESCOLHIDOS.
+  const falsos = process.env.ORQ_APP_E2E === '1' && process.env.ORQ_ARQUIVOS_ESCOLHIDOS ? JSON.parse(process.env.ORQ_ARQUIVOS_ESCOLHIDOS) : null;
+  const r = falsos ? { canceled: false, filePaths: falsos } : await dialog.showOpenDialog(janela, { title: t('Anexar à conversa'), properties: ['openFile', 'multiSelections'] });
   if (r.canceled) return [];
   return r.filePaths.slice(0, 10).map((c) => {
     const tipo = EXT_IMAGEM[path.extname(c).toLowerCase()];

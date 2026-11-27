@@ -2204,7 +2204,14 @@
     "Ligue o “Modo do desenvolvedor” (no canto de cima da página de extensões)": "Turn on “Developer mode” (top corner of the extensions page)",
     "A extensão está funcionando": "The extension is working",
     "Clique em “Carregar sem compactação”. Na janela que abrir, aperte Ctrl+L, cole com Ctrl+V (o caminho já está copiado) e aperte Enter": "Click “Load unpacked”. In the window that opens, press Ctrl+L, paste with Ctrl+V (the path is already copied) and press Enter",
-    "Esperando a extensão dar sinal… Caminho copiado:": "Waiting for the extension to check in… Path copied:"
+    "Esperando a extensão dar sinal… Caminho copiado:": "Waiting for the extension to check in… Path copied:",
+    "Editar esta mensagem": "Edit this message",
+    "Anexar imagem ou arquivo": "Attach image or file",
+    "Mais jeitos de voltar…": "More ways to go back…",
+    "Ao enviar, esta mensagem e a resposta saem da conversa, e a nova vai no lugar.": "When you send, this message and its answer leave the conversation, and the new one takes its place.",
+    "A mensagem ficou vazia: escreva algo ou anexe uma imagem ou arquivo.": "The message is empty: write something or attach an image or file.",
+    "Para desfazer os arquivos também, clique em “Enviar e desfazer”.": "To undo the files too, click “Send and undo”.",
+    "Editar a mensagem": "Edit the message"
   },
   "padroes": [
     [
@@ -3622,6 +3629,34 @@
     [
       "^Abra a página de extensões: (.+)$",
       "Open the extensions page: $1"
+    ],
+    [
+      "^Ao enviar, esta mensagem e a 1 mensagem sua depois dela saem da conversa, com as respostas\\.$",
+      "When you send, this message and your 1 message after it leave the conversation, with the answers."
+    ],
+    [
+      "^Ao enviar, esta mensagem e as (\\d+) mensagens suas depois dela saem da conversa, com as respostas\\.$",
+      "When you send, this message and your $1 messages after it leave the conversation, with the answers."
+    ],
+    [
+      "^Desfazer também o que o Claude mudou em 1 arquivo depois desta mensagem$",
+      "Also undo what Claude changed in 1 file after this message"
+    ],
+    [
+      "^Desfazer também o que o Claude mudou em (\\d+) arquivos depois desta mensagem$",
+      "Also undo what Claude changed in $1 files after this message"
+    ],
+    [
+      "^Enviar e desfazer 1 arquivo$",
+      "Send and undo 1 file"
+    ],
+    [
+      "^Enviar e desfazer (\\d+) arquivos$",
+      "Send and undo $1 files"
+    ],
+    [
+      "^Não deu para voltar a conversa: (.+)\\. Nada foi enviado; a conversa continua como estava\\.$",
+      "Could not go back in the conversation: $1. Nothing was sent; the conversation is as it was."
     ]
   ]
 }
