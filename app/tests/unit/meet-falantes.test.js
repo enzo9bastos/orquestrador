@@ -103,7 +103,7 @@ test('preparar o navegador: só nos que existem; o arquivo de outro não é toca
   fs.mkdirSync(path.join(c, '.config/chromium/NativeMessagingHosts'), { recursive: true });
   const alheio = path.join(c, '.config/chromium/NativeMessagingHosts/com.orquestrador.meet.json');
   fs.writeFileSync(alheio, '{"name":"com.orquestrador.meet","path":"/outro/programa"}\n');
-  assert.deepStrictEqual(I.estado({ casa: c }).navegadores, [{ navegador: 'Brave', pronto: false }, { navegador: 'Chromium', pronto: false }]);
+  assert.deepStrictEqual(I.estado({ casa: c }).navegadores, [{ navegador: 'Brave', pronto: false, desenvolvedor: null }, { navegador: 'Chromium', pronto: false, desenvolvedor: null }]);
   const r = I.instalar({ casa: c });
   assert.deepStrictEqual(r.map((x) => [x.navegador, x.resultado]), [['Brave', 'instalado'], ['Chromium', 'alheio']]);
   assert.strictEqual(fs.readFileSync(alheio, 'utf8'), '{"name":"com.orquestrador.meet","path":"/outro/programa"}\n', 'o arquivo que não é do app ficou como estava');
@@ -111,7 +111,7 @@ test('preparar o navegador: só nos que existem; o arquivo de outro não é toca
   assert.deepStrictEqual([m.name, m.type, m.path, m.allowed_origins], ['com.orquestrador.meet', 'stdio', I.PROGRAMA, [`chrome-extension://${I.ID_EXTENSAO}/`]]);
   assert.ok(fs.statSync(I.PROGRAMA).mode & 0o100, 'o programa pode ser executado pelo navegador');
   assert.deepStrictEqual(I.instalar({ casa: c }).map((x) => x.resultado), ['igual', 'alheio']);
-  assert.deepStrictEqual(I.estado({ casa: c }).navegadores, [{ navegador: 'Brave', pronto: true }, { navegador: 'Chromium', pronto: false }]);
+  assert.deepStrictEqual(I.estado({ casa: c }).navegadores, [{ navegador: 'Brave', pronto: true, desenvolvedor: null }, { navegador: 'Chromium', pronto: false, desenvolvedor: null }]);
   assert.ok(!fs.existsSync(path.join(c, '.config/google-chrome')), 'navegador que não existe não ganha pasta');
 });
 
@@ -124,4 +124,26 @@ test('a extensão: o programa só aceita a extensão desta pasta, e ela só pede
   assert.deepStrictEqual(man.permissions, ['nativeMessaging'], 'nenhuma permissão além de falar com o programa do computador');
   assert.deepStrictEqual(man.content_scripts.map((c) => c.matches), [['https://meet.google.com/*']], 'só a página do Meet');
   assert.ok(!('host_permissions' in man) && !('key' in man));
+});
+
+// Pedido de 27/11 ("faça o app fazer isso sozinho"): qual navegador abrir e se o modo do
+// desenvolvedor está ligado, lido do perfil em uso (só leitura).
+test('ligar no navegador: abre o padrão do sistema (se for do tipo Chrome) e lê o modo do desenvolvedor do perfil em uso', () => {
+  const c = pastaTemporaria('orq-meet-nav-');
+  fs.mkdirSync(path.join(c, '.config/BraveSoftware/Brave-Browser/Perfil 2'), { recursive: true });
+  fs.mkdirSync(path.join(c, '.config/chromium'), { recursive: true });
+  const existe = (p) => ({ 'brave-browser': '/opt/brave/brave-browser', chromium: '/usr/bin/chromium' }[p] || '');
+  assert.deepStrictEqual(I.navegadorParaAbrir({ casa: c, padrao: 'chromium.desktop', existe }).comando, ['/usr/bin/chromium', 'chrome://extensions/']);
+  assert.deepStrictEqual(I.navegadorParaAbrir({ casa: c, padrao: 'brave-browser.desktop', existe }).comando, ['/opt/brave/brave-browser', 'brave://extensions/']);
+  assert.strictEqual(I.navegadorParaAbrir({ casa: c, padrao: 'firefox.desktop', existe }).navegador, 'Brave', 'padrão que não é do tipo Chrome: o primeiro que existe');
+  assert.strictEqual(I.navegadorParaAbrir({ casa: c, padrao: '', existe: () => '' }), null, 'nenhum programa achado');
+  const perfil = path.join(c, '.config/BraveSoftware/Brave-Browser');
+  assert.strictEqual(I.modoDesenvolvedor(perfil), null, 'sem preferências: não dá para saber');
+  fs.writeFileSync(path.join(perfil, 'Local State'), JSON.stringify({ profile: { last_used: 'Perfil 2' } }));
+  fs.writeFileSync(path.join(perfil, 'Perfil 2', 'Preferences'), JSON.stringify({ extensions: { ui: { developer_mode: true } } }));
+  assert.strictEqual(I.modoDesenvolvedor(perfil), true, 'o perfil em uso, não só o Default');
+  fs.writeFileSync(path.join(perfil, 'Perfil 2', 'Preferences'), JSON.stringify({}));
+  assert.strictEqual(I.modoDesenvolvedor(perfil), false);
+  fs.writeFileSync(path.join(perfil, 'Local State'), JSON.stringify({ profile: { last_used: '../../etc' } }));
+  assert.strictEqual(I.modoDesenvolvedor(perfil), null, 'nome de perfil estranho vira Default (que aqui não existe)');
 });

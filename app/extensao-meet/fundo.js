@@ -23,6 +23,13 @@ function mandar(m) {
   try { if (porta) porta.postMessage(m); } catch { porta = null; gravando = false; }
 }
 
+// Assim que é carregada (ou o navegador abre), diz "oi" ao programa: o app fica sabendo na hora que
+// a extensão está funcionando, sem esperar uma ligação do Meet (pedido de 27/11).
+// Mensagem avulsa: o programa abre, responde e fecha (não fica um programa aberto à toa).
+const oi = () => { try { chrome.runtime.sendNativeMessage(HOST, { t: 'estado' }, () => { void chrome.runtime.lastError; }); } catch { /* sem o programa */ } };
+chrome.runtime.onInstalled.addListener(oi);
+chrome.runtime.onStartup.addListener(oi);
+
 chrome.runtime.onMessage.addListener((m, _de, responder) => {
   if (!m || typeof m !== 'object') return;
   if (m.t === 'estado') { mandar({ t: 'estado' }); responder({ gravando, conectado: !!porta, erro }); return; }

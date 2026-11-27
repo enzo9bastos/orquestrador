@@ -213,8 +213,10 @@ há terminal para vigiar.
   e quem está falando, pela legenda do próprio Meet (ela liga a legenda e deixa invisível só na sua tela, e desliga
   no fim se foi ela que ligou), e só enquanto o app grava; nada de áudio nem do texto da legenda. Ela fala com um
   programa pequeno do computador pelo canal do navegador (native messaging), sem porta de rede. Configurações ›
-  *Voz e reuniões* › *Preparar o navegador*; depois, carregar a pasta como extensão sem compactação. A linha só fica
-  verde quando a extensão já falou com o app.
+  *Voz e reuniões* › *Ligar no navegador*: o app grava o arquivo do navegador, abre a página de extensões e copia o
+  caminho da pasta da extensão; você só clica em *Carregar sem compactação* e cola (Ctrl+L, Ctrl+V, Enter). Um guia
+  mostra cada passo ao vivo, e a linha só fica verde quando a extensão já falou com o app (ela dá sinal assim que é
+  carregada).
   Enquanto grava, o bichinho segura uma câmera com a luz piscando, mostra o tempo numa etiqueta vermelha e tem uma
   nuvem de pensamento em pixel, com uma câmera, acima da cabeça (acima do chapéu, quando usa um): um clique nela
   tira o print na hora, com um clarão no clique e um ✓ quando o print é guardado. A pergunta "começou uma

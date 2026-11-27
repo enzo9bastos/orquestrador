@@ -191,6 +191,7 @@ contextBridge.exposeInMainWorld('orq', {
     voz: (deNovo) => ipcRenderer.invoke('reuniao:voz', !!deNovo),
     meet: () => ipcRenderer.invoke('reuniao:meet'),
     meetPreparar: () => ipcRenderer.invoke('reuniao:meetPreparar'),
+    meetLigar: () => ipcRenderer.invoke('reuniao:meetLigar'),
     meetPasta: () => ipcRenderer.invoke('reuniao:meetPasta'),
     trocarTela: () => ipcRenderer.invoke('reuniao:trocarTela'),
     tela: () => ipcRenderer.invoke('reuniao:tela'),

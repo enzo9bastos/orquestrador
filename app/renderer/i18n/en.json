@@ -2196,7 +2196,15 @@
     "Com a extensão do app no navegador, a nota diz quem falou, com o nome, em vez de “Outros”. Ela lê na página do Meet só os nomes e quem está falando (pela legenda do Meet, que ela liga e deixa invisível só na sua tela) e só enquanto o app grava; nada de áudio nem de texto.": "With the app's extension in the browser, the note says who spoke, by name, instead of “Others”. On the Meet page it reads only the names and who is speaking (from Meet's captions, which it turns on and keeps invisible on your screen only), and only while the app records; no audio and no text.",
     "Aqui: “Preparar o navegador”.": "Here: “Prepare the browser”.",
     "No navegador: abra brave://extensions (ou chrome://extensions) e ligue o “Modo do desenvolvedor”.": "In the browser: open brave://extensions (or chrome://extensions) and turn on “Developer mode”.",
-    "Clique em “Carregar sem compactação” e escolha a pasta da extensão (“Abrir a pasta da extensão” mostra qual é).": "Click “Load unpacked” and choose the extension folder (“Open the extension folder” shows which one)."
+    "Clique em “Carregar sem compactação” e escolha a pasta da extensão (“Abrir a pasta da extensão” mostra qual é).": "Click “Load unpacked” and choose the extension folder (“Open the extension folder” shows which one).",
+    "Ligar no navegador": "Turn on in the browser",
+    "Ainda não ligado: aperte “Ligar no navegador”.": "Not on yet: press “Turn on in the browser”.",
+    "Falta carregar a extensão no navegador: aperte “Ligar no navegador” e siga o passo que aparece. Até lá, a nota sai com “Outros”.": "The extension still has to be loaded in the browser: press “Turn on in the browser” and follow the step that shows up. Until then, the note says “Others”.",
+    "“Modo do desenvolvedor” ligado": "“Developer mode” is on",
+    "Ligue o “Modo do desenvolvedor” (no canto de cima da página de extensões)": "Turn on “Developer mode” (top corner of the extensions page)",
+    "A extensão está funcionando": "The extension is working",
+    "Clique em “Carregar sem compactação”. Na janela que abrir, aperte Ctrl+L, cole com Ctrl+V (o caminho já está copiado) e aperte Enter": "Click “Load unpacked”. In the window that opens, press Ctrl+L, paste with Ctrl+V (the path is already copied) and press Enter",
+    "Esperando a extensão dar sinal… Caminho copiado:": "Waiting for the extension to check in… Path copied:"
   },
   "padroes": [
     [
@@ -3606,6 +3614,14 @@
     [
       "^Funcionando: a extensão falou com o app pela última vez em (.+)\\.$",
       "Working: the extension last talked to the app on $1."
+    ],
+    [
+      "^Abri a página de extensões no (.+)$",
+      "I opened the extensions page in $1"
+    ],
+    [
+      "^Abra a página de extensões: (.+)$",
+      "Open the extensions page: $1"
     ]
   ]
 }

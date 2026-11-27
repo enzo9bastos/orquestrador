@@ -5,7 +5,7 @@
 // reuniao:terminar, reuniao:abrir, reuniao:voz (motor, modelos e recomendações para as Configurações).
 // Eventos para a tela: 'reuniao:mudou' (estado). O bichinho recebe { t: 'reuniao', ... }.
 const path = require('path');
-const { app, BrowserWindow, desktopCapturer, ipcMain, shell, Notification } = require('electron');
+const { app, BrowserWindow, desktopCapturer, ipcMain, shell, Notification, clipboard } = require('electron');
 const reuniao = require('./reuniao');
 const meetFalantes = require('./meet-falantes');
 const pecas = require('./reuniao-pecas');
@@ -198,6 +198,24 @@ function ligar({ config, comandoClaude, ambiente, enviarTela, avisarBichinho, em
   const meetInstalar = require('./meet-instalar');
   ipcMain.handle('reuniao:meet', seguro(async () => meetInstalar.estado()));
   ipcMain.handle('reuniao:meetPreparar', seguro(async () => ({ resultado: meetInstalar.instalar(), ...meetInstalar.estado() })));
+  // "Ligar no navegador" (pedido de 27/11: "faça o app fazer isso sozinho, mesmo que precise da ajuda
+  // da pessoa"): prepara o navegador, copia o caminho da pasta da extensão e abre a página de
+  // extensões do navegador padrão. O que só a pessoa pode fazer (o navegador não deixa programa
+  // nenhum): escolher a pasta em "Carregar sem compactação". Nos testes, o navegador é de mentira.
+  ipcMain.handle('reuniao:meetLigar', seguro(async () => {
+    const resultado = meetInstalar.instalar();
+    let padrao = '';
+    try { padrao = require('child_process').execFileSync('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8', timeout: 3000 }).trim(); } catch { /* sem padrão: o primeiro que existir */ }
+    const alvo = meetInstalar.navegadorParaAbrir({ padrao });
+    clipboard.writeText(meetInstalar.PASTA_EXTENSAO);
+    let aberto = false;
+    const falso = process.env.ORQ_MEET_NAVEGADOR ? JSON.parse(process.env.ORQ_MEET_NAVEGADOR) : null;
+    const cmd = falso ? [...falso, alvo ? alvo.pagina : ''] : alvo && alvo.comando;
+    if (cmd && (!emTeste || falso)) {
+      try { require('child_process').spawn(cmd[0], cmd.slice(1), { detached: true, stdio: 'ignore' }).unref(); aberto = true; } catch { aberto = false; }
+    }
+    return { resultado, navegador: alvo ? alvo.navegador : null, pagina: alvo ? alvo.pagina : null, aberto, copiado: meetInstalar.PASTA_EXTENSAO, ...meetInstalar.estado() };
+  }));
   ipcMain.handle('reuniao:meetPasta', seguro(async () => { if (!emTeste) await shell.openPath(meetInstalar.PASTA_EXTENSAO); return { pasta: meetInstalar.PASTA_EXTENSAO }; }));
   ipcMain.handle('reuniao:voz', seguro(async (deNovo) => {
     const c = config.ler();

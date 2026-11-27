@@ -220,8 +220,10 @@ que no hay ninguna terminal que vigilar.
   de los participantes y quién está hablando, por los subtítulos del propio Meet (los enciende y los deja
   invisibles solo en tu pantalla, y los apaga al final si fue ella quien los encendió), y solo mientras la app graba;
   nada de audio ni del texto de los subtítulos. Habla con un pequeño programa del equipo por el canal del navegador
-  (native messaging), sin puerto de red. Settings › *Voice and meetings* › *Prepare the browser*; después, cargar la
-  carpeta como extensión sin empaquetar. La fila se pone verde solo cuando la extensión ya habló con la app.
+  (native messaging), sin puerto de red. Settings › *Voice and meetings* › *Turn on in the browser*: la app
+  escribe el archivo del navegador, abre la página de extensiones y copia la ruta de la carpeta; solo haces clic en
+  *Load unpacked* y la pegas (Ctrl+L, Ctrl+V, Enter). Una guía muestra cada paso en vivo, y la fila se pone verde
+  solo cuando la extensión ya habló con la app (da señal apenas se carga).
   Mientras graba, la mascota sostiene una cámara con la luz parpadeando, muestra el tiempo en una etiqueta roja
   y tiene una nube de pensamiento en píxeles, con una cámara, sobre la cabeza (sobre el sombrero, si lleva uno): un
   clic en ella toma la captura al instante, con un destello en el clic y un ✓ cuando la captura queda guardada. La

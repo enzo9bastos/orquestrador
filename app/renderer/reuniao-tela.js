@@ -124,11 +124,10 @@
   function textoMeet(r) {
     if (!r || r.erro) return `Não consegui olhar o navegador${r && r.erro ? `: ${r.erro}` : '.'}`;
     if (!r.navegadores.length) return 'Nenhum navegador do tipo Chrome (Brave, Chrome, Chromium, Edge, Vivaldi) neste computador.';
-    const prontos = r.navegadores.filter((n) => n.pronto).map((n) => n.navegador);
     const partes = [];
     const s = situacaoMeet(r);
-    if (s === 'preparar') partes.push(`Falta o passo 1: aperte “Preparar o navegador” (${r.navegadores.map((n) => n.navegador).join(', ')}).`);
-    else if (s === 'carregar') partes.push(`Falta carregar a extensão no navegador (passos 2 e 3). O app está pronto em ${prontos.join(', ')}, mas a extensão nunca falou com ele; até lá, a nota sai com “Outros”.`);
+    if (s === 'preparar') partes.push('Ainda não ligado: aperte “Ligar no navegador”.');
+    else if (s === 'carregar') partes.push('Falta carregar a extensão no navegador: aperte “Ligar no navegador” e siga o passo que aparece. Até lá, a nota sai com “Outros”.');
     else partes.push(`Funcionando: a extensão falou com o app pela última vez em ${quando(r.contato)}.`);
     if (r.alheios && r.alheios.length) partes.push(`Em ${r.alheios.join(', ')} já havia um arquivo com o mesmo nome que não é do app: não mexi.`);
     return partes.join(' ');
@@ -143,13 +142,47 @@
     if (!R.meet) return;
     pintarMeet(await R.meet().catch(() => null));
   }
-  $('config-meet-preparar')?.addEventListener('click', async () => {
-    const b = $('config-meet-preparar');
+  // "Ligar no navegador" (pedido de 27/11: "faça o app fazer isso sozinho, mesmo que precise da ajuda
+  // da pessoa"): o app prepara, abre a página de extensões e copia o caminho; a pessoa só escolhe a
+  // pasta. O guia acompanha ao vivo (modo do desenvolvedor e o "oi" da extensão) e some quando liga.
+  let vigia = null;
+  const marca = (ok) => `<span class="guia-marca" data-ok="${ok ? 1 : 0}">${ok ? '✓' : '○'}</span>`;
+  function guia(r, ligado) {
+    const g = $('config-meet-guia');
+    const nav = ligado.navegador || 'navegador';
+    const n = (r.navegadores || []).find((x) => x.navegador === ligado.navegador) || {};
+    const funcionando = situacaoMeet(r) === 'pronto';
+    const dev = n.desenvolvedor === true;
+    g.hidden = false;
+    g.innerHTML = `<ol>
+      <li>${marca(true)} <span>${ligado.aberto ? `Abri a página de extensões no ${esc(nav)}` : `Abra a página de extensões: ${esc(ligado.pagina || 'brave://extensions')}`}</span></li>
+      <li>${marca(dev)} <span>${dev ? '“Modo do desenvolvedor” ligado' : 'Ligue o “Modo do desenvolvedor” (no canto de cima da página de extensões)'}</span></li>
+      <li>${marca(funcionando)} <span>${funcionando ? 'A extensão está funcionando' : 'Clique em “Carregar sem compactação”. Na janela que abrir, aperte Ctrl+L, cole com Ctrl+V (o caminho já está copiado) e aperte Enter'}</span></li>
+    </ol>${funcionando ? '' : `<p class="nota"><span>Esperando a extensão dar sinal… Caminho copiado:</span> <code data-sem-traducao>${esc(ligado.copiado || '')}</code></p>`}`;
+    return funcionando;
+  }
+  function pararVigia() { if (vigia) { clearInterval(vigia); vigia = null; } }
+  $('config-meet-ligar')?.addEventListener('click', async () => {
+    const b = $('config-meet-ligar');
     b.disabled = true;
-    const r = await R.meetPreparar().catch((er) => ({ erro: er.message }));
+    pararVigia();
+    const desde = Date.now() - 2000;
+    const r = await R.meetLigar().catch((er) => ({ erro: er.message }));
     b.disabled = false;
     if (r && r.resultado) r.alheios = r.resultado.filter((x) => x.resultado === 'alheio').map((x) => x.navegador);
     pintarMeet(r);
+    if (!r || r.erro) return;
+    const ligado = { navegador: r.navegador, pagina: r.pagina, aberto: r.aberto, copiado: r.copiado, desde };
+    if (guia(r, ligado)) return;
+    // Olha a cada 2 s por até 10 min (ou até fechar as Configurações).
+    const fim = Date.now() + 10 * 60 * 1000;
+    vigia = setInterval(async () => {
+      if ($('config').hidden || Date.now() > fim) { pararVigia(); return; }
+      const e = await R.meet().catch(() => null);
+      if (!e || e.erro) return;
+      pintarMeet(e);
+      if (guia(e, ligado)) pararVigia();
+    }, window.orq.teste ? 300 : 2000);
   });
   $('config-meet-pasta')?.addEventListener('click', () => R.meetPasta().catch(() => {}));
   // Olha o computador sempre que a seção aparece: pelo clique, pelas setas, ou porque as

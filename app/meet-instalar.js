@@ -31,6 +31,39 @@ const NAVEGADORES = [
   ['Microsoft Edge', ['.config', 'microsoft-edge']],
   ['Vivaldi', ['.config', 'vivaldi']],
 ];
+// Como abrir cada um (o atalho do sistema, .desktop, e os nomes do programa) e a página de extensões.
+const ABRIR = {
+  Brave: { desktop: /^brave/i, programas: ['brave-browser', 'brave', 'brave-browser-stable'], pagina: 'brave://extensions/' },
+  'Google Chrome': { desktop: /^google-chrome/i, programas: ['google-chrome', 'google-chrome-stable'], pagina: 'chrome://extensions/' },
+  Chromium: { desktop: /^chromium/i, programas: ['chromium', 'chromium-browser'], pagina: 'chrome://extensions/' },
+  'Microsoft Edge': { desktop: /^microsoft-edge/i, programas: ['microsoft-edge', 'microsoft-edge-stable'], pagina: 'edge://extensions/' },
+  Vivaldi: { desktop: /^vivaldi/i, programas: ['vivaldi', 'vivaldi-stable'], pagina: 'vivaldi://extensions/' },
+};
+
+// O "Modo do desenvolvedor" da página de extensões, no perfil em uso (só lê). null = não deu para saber.
+function modoDesenvolvedor(perfil) {
+  try {
+    let usado = 'Default';
+    try { usado = JSON.parse(fs.readFileSync(path.join(perfil, 'Local State'), 'utf8')).profile.last_used || 'Default'; } catch { /* fica o Default */ }
+    if (!/^[\w .-]{1,80}$/.test(usado)) usado = 'Default';
+    const p = JSON.parse(fs.readFileSync(path.join(perfil, usado, 'Preferences'), 'utf8'));
+    const v = p && p.extensions && p.extensions.ui && p.extensions.ui.developer_mode;
+    return typeof v === 'boolean' ? v : false;
+  } catch { return null; }
+}
+
+// Qual navegador abrir: o padrão do sistema, se for um destes; senão, o primeiro que existe.
+function navegadorParaAbrir({ casa = os.homedir(), padrao = '', existe = (p) => { try { return require('child_process').execFileSync('sh', ['-c', 'command -v "$1"', 'sh', p], { encoding: 'utf8' }).trim(); } catch { return ''; } } } = {}) {
+  const presentes = NAVEGADORES.filter(([, partes]) => fs.existsSync(path.join(casa, ...partes)));
+  const ordem = [...presentes].sort((a, b) => (ABRIR[b[0]].desktop.test(padrao) ? 1 : 0) - (ABRIR[a[0]].desktop.test(padrao) ? 1 : 0));
+  for (const [nome, partes] of ordem) {
+    for (const prog of ABRIR[nome].programas) {
+      const caminho = existe(prog);
+      if (caminho) return { navegador: nome, perfil: path.join(casa, ...partes), comando: [caminho, ABRIR[nome].pagina], pagina: ABRIR[nome].pagina };
+    }
+  }
+  return null;
+}
 
 function conteudo() {
   return JSON.stringify({
@@ -74,11 +107,11 @@ function estado({ casa = os.homedir() } = {}) {
     if (!fs.existsSync(perfil)) continue;
     let pronto = false;
     try { pronto = fs.readFileSync(path.join(perfil, 'NativeMessagingHosts', `${NOME}.json`), 'utf8') === conteudo(); } catch { /* não tem */ }
-    navegadores.push({ navegador: nome, pronto });
+    navegadores.push({ navegador: nome, pronto, desenvolvedor: modoDesenvolvedor(perfil) });
   }
   let contato = null;
   try { contato = JSON.parse(fs.readFileSync(path.join(casa, '.local', 'share', 'orq-app', 'meet', 'contato.json'), 'utf8')).ts || null; } catch { /* nunca falou */ }
   return { navegadores, contato, pastaExtensao: PASTA_EXTENSAO };
 }
 
-module.exports = { instalar, estado, conteudo, idDaPasta, NOME, ID_EXTENSAO, PASTA_EXTENSAO, PROGRAMA };
+module.exports = { instalar, estado, conteudo, idDaPasta, modoDesenvolvedor, navegadorParaAbrir, NOME, ID_EXTENSAO, PASTA_EXTENSAO, PROGRAMA };
