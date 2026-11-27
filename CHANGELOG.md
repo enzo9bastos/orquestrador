@@ -4,6 +4,15 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.22.1 (2026-11-27)
+
+- Settings › Voice and meetings › "Names in Google Meet": the row no longer turns green just because the browser was
+  prepared. It stays amber and says which step is missing (prepare the browser, or load the extension in it), and
+  turns green only once the extension has talked to the app. The three steps are numbered in the row.
+- Settings › Voice and meetings: opening Settings straight on this section (it remembers the last one) or reaching it
+  with the arrow keys now loads the status of the transcription engine and of Google Meet; before, it stayed on
+  "Searching…" and "Looking…".
+
 ## 0.22.0 (2026-11-26)
 
 - Conversation: images, GIFs and videos from the computer now show up inside the app. When the orchestrator (or any
