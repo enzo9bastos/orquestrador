@@ -210,7 +210,8 @@ protocol), so there is no terminal to babysit.
   speaking, from Meet's own captions (it turns them on and keeps them invisible on your screen only, and turns them
   off at the end if it turned them on), and only while the app records; no audio, no caption text. It talks to a
   small program on the computer through the browser's native messaging (no network port). Settings › *Voice and
-  meetings* › *Prepare the browser*, then load the folder as an unpacked extension.
+  meetings* › *Prepare the browser*, then load the folder as an unpacked extension; the row turns green only once the
+  extension has talked to the app.
   While it records, the helper holds a small camera with a blinking light, shows the time in a red pill, and
   has a pixel-art thought cloud with a camera above its head (above the hat, when it wears one): one click on it
   takes the screenshot right away, with a flash on the click and a check mark when the screenshot is saved. The

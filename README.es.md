@@ -221,7 +221,7 @@ que no hay ninguna terminal que vigilar.
   invisibles solo en tu pantalla, y los apaga al final si fue ella quien los encendió), y solo mientras la app graba;
   nada de audio ni del texto de los subtítulos. Habla con un pequeño programa del equipo por el canal del navegador
   (native messaging), sin puerto de red. Settings › *Voice and meetings* › *Prepare the browser*; después, cargar la
-  carpeta como extensión sin empaquetar.
+  carpeta como extensión sin empaquetar. La fila se pone verde solo cuando la extensión ya habló con la app.
   Mientras graba, la mascota sostiene una cámara con la luz parpadeando, muestra el tiempo en una etiqueta roja
   y tiene una nube de pensamiento en píxeles, con una cámara, sobre la cabeza (sobre el sombrero, si lleva uno): un
   clic en ella toma la captura al instante, con un destello en el clic y un ✓ cuando la captura queda guardada. La

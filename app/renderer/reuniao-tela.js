@@ -113,22 +113,31 @@
   }
   // Nomes no Google Meet: em quais navegadores está pronto e quando a extensão falou por último.
   const quando = (ts) => new Date(ts).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  // Três situações (relato de 27/11: a linha ficou verde só com o "Preparar", a extensão nunca foi
+  // carregada no navegador, e a reunião saiu com "Outros"): verde só quando a extensão já falou com o
+  // app; antes disso, âmbar, dizendo qual passo falta.
+  function situacaoMeet(r) {
+    if (!r || r.erro) return 'erro';
+    if (!r.navegadores.length || !r.navegadores.some((n) => n.pronto)) return 'preparar';
+    return r.contato ? 'pronto' : 'carregar';
+  }
   function textoMeet(r) {
     if (!r || r.erro) return `Não consegui olhar o navegador${r && r.erro ? `: ${r.erro}` : '.'}`;
     if (!r.navegadores.length) return 'Nenhum navegador do tipo Chrome (Brave, Chrome, Chromium, Edge, Vivaldi) neste computador.';
     const prontos = r.navegadores.filter((n) => n.pronto).map((n) => n.navegador);
-    const partes = [prontos.length ? `Pronto em: ${prontos.join(', ')}.` : `Ainda não preparado (${r.navegadores.map((n) => n.navegador).join(', ')}).`];
-    partes.push(r.contato ? `A extensão falou com o app pela última vez em ${quando(r.contato)}.` : 'A extensão ainda não falou com o app (ela fala quando há uma ligação do Meet aberta).');
+    const partes = [];
+    const s = situacaoMeet(r);
+    if (s === 'preparar') partes.push(`Falta o passo 1: aperte “Preparar o navegador” (${r.navegadores.map((n) => n.navegador).join(', ')}).`);
+    else if (s === 'carregar') partes.push(`Falta carregar a extensão no navegador (passos 2 e 3). O app está pronto em ${prontos.join(', ')}, mas a extensão nunca falou com ele; até lá, a nota sai com “Outros”.`);
+    else partes.push(`Funcionando: a extensão falou com o app pela última vez em ${quando(r.contato)}.`);
     if (r.alheios && r.alheios.length) partes.push(`Em ${r.alheios.join(', ')} já havia um arquivo com o mesmo nome que não é do app: não mexi.`);
     return partes.join(' ');
   }
-  // A linha do estado muda de cor: verde quando o navegador está pronto, âmbar quando falta preparar
-  // (relato de 26/11: antes e depois de preparar, a linha parecia a mesma).
   function pintarMeet(r) {
     const el = $('config-meet-estado');
     el.textContent = textoMeet(r);
-    const pronto = !!(r && !r.erro && r.navegadores && r.navegadores.some((n) => n.pronto));
-    el.dataset.situacao = !r || r.erro ? 'erro' : pronto ? 'pronto' : 'falta';
+    const s = situacaoMeet(r);
+    el.dataset.situacao = s === 'erro' ? 'erro' : s === 'pronto' ? 'pronto' : 'falta';
   }
   async function desenharMeet() {
     if (!R.meet) return;
@@ -143,7 +152,19 @@
     pintarMeet(r);
   });
   $('config-meet-pasta')?.addEventListener('click', () => R.meetPasta().catch(() => {}));
-  document.querySelector('[data-secao-config="voz"]')?.addEventListener('click', () => { desenharVoz(false); desenharMeet(); });
+  // Olha o computador sempre que a seção aparece: pelo clique, pelas setas, ou porque as
+  // Configurações abriram direto nela (elas lembram a última seção). Antes, só o clique na seção
+  // olhava, e quem abria direto nela via "Olhando…" e "Procurando…" para sempre (relato de 27/11).
+  let vozVisivel = false;
+  function aoMudarVisibilidade() {
+    const sec = $('config-sec-voz');
+    const agora = !!sec && !sec.hidden && !$('config').hidden;
+    if (agora && !vozVisivel) { desenharVoz(false); desenharMeet(); }
+    vozVisivel = agora;
+  }
+  const obs = new MutationObserver(aoMudarVisibilidade);
+  for (const el of [$('config'), $('config-sec-voz')]) if (el) obs.observe(el, { attributes: true, attributeFilter: ['hidden'] });
+  aoMudarVisibilidade();
   // comecar e pedirTerminar: o menu do bichinho de dentro do app (pet-tela.js) faz o mesmo que a paleta.
   window.orqReuniao = { estado: () => e, desenharVoz, comecar, pedirTerminar };
 })();

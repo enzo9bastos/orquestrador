@@ -2192,7 +2192,11 @@
     "A extensão ainda não falou com o app (ela fala quando há uma ligação do Meet aberta).": "The extension has not talked to the app yet (it does when a Meet call is open).",
     "Nenhum navegador do tipo Chrome (Brave, Chrome, Chromium, Edge, Vivaldi) neste computador.": "No Chrome-type browser (Brave, Chrome, Chromium, Edge, Vivaldi) on this computer.",
     "Não deu para mostrar": "Could not show",
-    "Abrir em tela cheia": "Open full screen"
+    "Abrir em tela cheia": "Open full screen",
+    "Com a extensão do app no navegador, a nota diz quem falou, com o nome, em vez de “Outros”. Ela lê na página do Meet só os nomes e quem está falando (pela legenda do Meet, que ela liga e deixa invisível só na sua tela) e só enquanto o app grava; nada de áudio nem de texto.": "With the app's extension in the browser, the note says who spoke, by name, instead of “Others”. On the Meet page it reads only the names and who is speaking (from Meet's captions, which it turns on and keeps invisible on your screen only), and only while the app records; no audio and no text.",
+    "Aqui: “Preparar o navegador”.": "Here: “Prepare the browser”.",
+    "No navegador: abra brave://extensions (ou chrome://extensions) e ligue o “Modo do desenvolvedor”.": "In the browser: open brave://extensions (or chrome://extensions) and turn on “Developer mode”.",
+    "Clique em “Carregar sem compactação” e escolha a pasta da extensão (“Abrir a pasta da extensão” mostra qual é).": "Click “Load unpacked” and choose the extension folder (“Open the extension folder” shows which one)."
   },
   "padroes": [
     [
@@ -3590,6 +3594,18 @@
     [
       "^A extensão falou com o app pela última vez em (.+)\\.$",
       "The extension last talked to the app on $1."
+    ],
+    [
+      "^Falta o passo 1: aperte “Preparar o navegador” \\((.+)\\)\\.$",
+      "Step 1 is missing: press “Prepare the browser” ($1)."
+    ],
+    [
+      "^Falta carregar a extensão no navegador \\(passos 2 e 3\\)\\. O app está pronto em (.+), mas a extensão nunca falou com ele; até lá, a nota sai com “Outros”\\.$",
+      "The extension still has to be loaded in the browser (steps 2 and 3). The app is ready in $1, but the extension has never talked to it; until then, the note says “Others”."
+    ],
+    [
+      "^Funcionando: a extensão falou com o app pela última vez em (.+)\\.$",
+      "Working: the extension last talked to the app on $1."
     ]
   ]
 }
