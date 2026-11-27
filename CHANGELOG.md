@@ -4,6 +4,13 @@ What changed in each version of the app. While the app is in alpha, versions
 follow `0.MINOR.PATCH`: a new feature raises the middle number, a fix raises the
 last one. Each version has a tag (`vX.Y.Z`) and a release with these notes.
 
+## 0.22.2 (2026-11-27)
+
+- Settings › Voice and meetings › "Names in Google Meet": one button, "Turn on in the browser", now does what the app
+  can do by itself: it prepares the browser, opens your default browser's extensions page and copies the extension
+  folder's path. You only click "Load unpacked" and paste the path (Ctrl+L, Ctrl+V, Enter). A guide follows each step
+  live and the row turns green as soon as the extension is loaded, without waiting for a Meet call.
+
 ## 0.22.1 (2026-11-27)
 
 - Settings › Voice and meetings › "Names in Google Meet": the row no longer turns green just because the browser was
